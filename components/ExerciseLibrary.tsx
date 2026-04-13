@@ -152,152 +152,153 @@ const ExerciseLibrary: React.FC = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in pb-32">
-      <header className="flex justify-between items-start">
+    <div className="min-h-screen bg-[#F7F8FA] pb-32 animate-in fade-in duration-500">
+      <header className="px-6 pt-12 pb-10 flex items-center justify-between">
         <div>
-           <h2 className="text-3xl font-bold tracking-tight text-slate-900">Biblioteca de Elite</h2>
-           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Navegação Anatômica Multi-Nível</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Biblioteca</p>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Exercícios</h2>
         </div>
         {isAdmin && (
-          <button onClick={() => navigate('admin', { initialTab: 'anatomy' })} className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 shadow-sm active:scale-90 transition-all">
-            <i className="fas fa-cog"></i>
+          <button 
+            onClick={() => navigate('admin', { initialTab: 'anatomy' })} 
+            className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 active:scale-90 transition-all"
+          >
+            <i className="fas fa-cog text-xl"></i>
           </button>
         )}
       </header>
 
-      <div className="space-y-6">
-        <div className="flex gap-3 items-center">
+      <div className="px-6 space-y-12">
+        {/* Busca Minimalista */}
+        <div className="relative">
+          <i className="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
           <input 
-            type="text" placeholder="Pesquisar exercício..." value={searchQuery} 
+            type="text" 
+            placeholder="Buscar..." 
+            value={searchQuery} 
             onChange={e => setSearchQuery(e.target.value)} 
-            className="flex-1 p-5 bg-white border border-slate-200 rounded-[2rem] text-slate-900 font-bold text-sm outline-none focus:border-blue-600 shadow-sm transition-all" 
+            className="w-full pl-14 pr-6 py-5 bg-white border border-slate-50 rounded-[2rem] text-slate-900 font-black text-sm outline-none focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all" 
           />
-          {isAdmin && (
-            <button onClick={() => navigate('admin', { initialTab: 'exercises' })} className="w-16 h-16 bg-blue-600 rounded-[1.5rem] flex items-center justify-center text-white shadow-lg shadow-blue-600/20 active:scale-90 transition-all shrink-0">
-              <i className="fas fa-plus"></i>
-            </button>
-          )}
         </div>
 
-        {isAdmin && (
-          <div className="flex bg-white p-1 rounded-2xl border border-slate-200 max-w-sm mx-auto shadow-sm">
-            {(['active', 'inactive', 'all'] as const).map(f => (
-              <button 
-                key={f} 
-                onClick={() => setAdminActiveFilter(f)} 
-                className={`flex-1 py-3 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${adminActiveFilter === f ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}
-              >
-                {f === 'active' ? 'Ativos' : f === 'inactive' ? 'Inativos' : 'Todos'}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-4 overflow-hidden">
-          <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+        {/* Filtros de Lado e Grupos - Estilo Horizontal Minimalista */}
+        <div className="space-y-10">
+          <div className="flex gap-10 overflow-x-auto no-scrollbar border-b border-slate-100">
             {['all', 'front', 'back'].map(side => (
-              <button key={side} onClick={() => { setSelectedSide(side as any); setSelectedMuscle('Todos'); }} className={`flex-1 py-3 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${selectedSide === side ? 'bg-blue-600 text-white shadow-md shadow-blue-600/10' : 'text-slate-400'}`}>
+              <button 
+                key={side} 
+                onClick={() => { setSelectedSide(side as any); setSelectedMuscle('Todos'); }} 
+                className={`text-[10px] font-black uppercase tracking-widest pb-4 border-b-2 transition-all whitespace-nowrap ${selectedSide === side ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-400'}`}
+              >
                 {side === 'all' ? 'Tudo' : side === 'front' ? 'Anterior' : 'Posterior'}
               </button>
             ))}
           </div>
 
-          <div className="flex flex-nowrap gap-3 overflow-x-auto no-scrollbar -mx-2 px-2 items-center">
-            <button onClick={() => setSelectedMuscle('Todos')} className={`px-6 py-3 rounded-full text-[9px] font-bold uppercase tracking-widest whitespace-nowrap transition-all border ${selectedMuscle === 'Todos' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-200 shadow-sm'}`}>Todos Grupos</button>
-            
+          <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-6 px-6">
+            <button 
+              onClick={() => setSelectedMuscle('Todos')} 
+              className={`px-8 py-5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${selectedMuscle === 'Todos' ? 'bg-slate-900 border-slate-900 text-white shadow-2xl' : 'bg-white border-slate-100 text-slate-400'}`}
+            >
+              Todos
+            </button>
             {parentMuscleGroups.map(mg => (
-              <div key={mg.id} className="relative group/chip flex-shrink-0">
-                <button 
-                  onClick={() => setSelectedMuscle(mg.name)} 
-                  className={`px-6 py-3 rounded-full text-[9px] font-bold uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-3 ${selectedMuscle === mg.name ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white text-slate-400 border-slate-200 shadow-sm'}`}
-                >
-                  {mg.name}
-                  {isAdmin && (
-                    <div className="flex items-center gap-1.5 ml-1 border-l border-slate-200 pl-2">
-                       <i onClick={(e) => { e.stopPropagation(); navigate('admin', { initialTab: 'anatomy', editGroupId: mg.id }); }} className="fas fa-pencil-alt hover:text-blue-600 transition-colors text-[8px] opacity-40"></i>
-                       <i onClick={(e) => handleDeleteGroup(e, mg)} className={`fas ${isDeletingGroup === mg.id ? 'fa-spinner animate-spin' : 'fa-trash-alt'} hover:text-red-500 transition-colors text-[8px] opacity-40`}></i>
-                    </div>
-                  )}
-                </button>
-              </div>
+              <button 
+                key={mg.id} 
+                onClick={() => setSelectedMuscle(mg.name)} 
+                className={`px-8 py-5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${selectedMuscle === mg.name ? 'bg-blue-600 border-blue-600 text-white shadow-2xl shadow-blue-600/20' : 'bg-white border-slate-100 text-slate-400'}`}
+              >
+                {mg.name}
+              </button>
             ))}
           </div>
+        </div>
 
-          {subMuscleGroups.length > 0 && (
-             <div className="flex flex-nowrap gap-3 overflow-x-auto no-scrollbar -mx-2 px-2 pt-2 border-t border-slate-100 items-center">
-                {subMuscleGroups.map(smg => (
-                   <button 
-                    key={smg.id} 
-                    onClick={() => { setSearchQuery(smg.name); }} 
-                    className="px-4 py-2 bg-slate-50 rounded-xl text-[8px] font-bold uppercase tracking-widest text-slate-400 hover:text-blue-600 border border-slate-100 flex items-center gap-3 whitespace-nowrap shrink-0 transition-all"
-                   >
-                      {smg.name}
-                      {isAdmin && (
-                        <div className="flex items-center gap-2 border-l border-slate-200 pl-2">
-                           <i onClick={(e) => { e.stopPropagation(); navigate('admin', { initialTab: 'anatomy', editGroupId: smg.id }); }} className="fas fa-pencil-alt text-[7px] opacity-30 hover:opacity-100"></i>
-                           <i onClick={(e) => handleDeleteGroup(e, smg)} className="fas fa-trash-alt text-[7px] opacity-30 hover:text-red-500 hover:opacity-100"></i>
-                        </div>
-                      )}
-                   </button>
-                ))}
-             </div>
+        {/* Lista de Exercícios - iOS Style */}
+        <div className="space-y-1">
+          {filteredExercises.length === 0 ? (
+            <div className="py-20 text-center">
+              <i className="fas fa-search text-slate-100 text-4xl mb-4"></i>
+              <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Nenhum resultado</p>
+            </div>
+          ) : (
+            filteredExercises.map((ex, idx) => (
+              <div 
+                key={ex.id} 
+                onClick={() => handleOpenDetail(ex)}
+                className={`flex items-center justify-between py-8 active:bg-slate-50 transition-colors cursor-pointer ${idx !== filteredExercises.length - 1 ? 'border-b border-slate-100' : ''} ${!ex.is_active ? 'opacity-40' : ''}`}
+              >
+                <div className="flex items-center gap-6 flex-1 min-w-0">
+                  <div className="w-16 h-16 bg-white border border-slate-50 rounded-[1.5rem] overflow-hidden flex items-center justify-center p-3 shrink-0 shadow-sm">
+                    {ex.image_url ? <img src={ex.image_url} className="w-full h-full object-contain" /> : <i className="fas fa-dumbbell text-slate-100 text-xl"></i>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{ex.name}</h4>
+                    <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.muscle_group}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={(e) => toggleFavorite(e, ex.id)} 
+                    className={`w-12 h-12 flex items-center justify-center transition-all ${favoriteExerciseIds.has(ex.id) ? 'text-amber-500' : 'text-slate-200'}`}
+                  >
+                    <i className={`${favoriteExerciseIds.has(ex.id) ? 'fas' : 'far'} fa-heart text-lg`}></i>
+                  </button>
+                  <i className="fas fa-chevron-right text-[10px] text-slate-200 ml-2"></i>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredExercises.map(ex => (
-          <div key={ex.id} onClick={() => handleOpenDetail(ex)} className={`bg-white p-5 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center gap-5 group transition-all cursor-pointer relative hover:border-blue-200 ${!ex.is_active ? 'grayscale opacity-60' : ''}`}>
-             <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden shrink-0 group-hover:scale-105 transition-transform flex items-center justify-center p-2">
-                {ex.image_url ? <img src={ex.image_url} className="w-full h-full object-contain" /> : <i className="fas fa-dumbbell text-slate-200"></i>}
-             </div>
-             <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-slate-900 uppercase truncate leading-none mb-1">{ex.name}</h4>
-                <div className="flex items-center gap-2">
-                   <span className="text-[9px] font-bold uppercase text-blue-600">{ex.muscle_group}</span>
-                   <span className="text-[7px] font-bold text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded">{ex.type}</span>
-                   {!ex.is_active && <span className="text-[6px] font-bold text-red-500 uppercase bg-red-50 px-2 py-0.5 rounded">Inativo</span>}
-                </div>
-             </div>
-             <div className="flex flex-col gap-2">
-                {isAdmin && (
-                  <button onClick={(e) => { e.stopPropagation(); navigate('admin', { id: ex.id }); }} className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 hover:text-blue-600 active:scale-90 border border-slate-100">
-                    <i className="fas fa-pencil-alt text-[8px]"></i>
-                  </button>
-                )}
-                <button onClick={(e) => toggleFavorite(e, ex.id)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${favoriteExerciseIds.has(ex.id) ? 'bg-amber-50 text-amber-500 border border-amber-100' : 'text-slate-300'}`}>
-                   <i className={`${favoriteExerciseIds.has(ex.id) ? 'fas' : 'far'} fa-heart`}></i>
-                </button>
-             </div>
-          </div>
-        ))}
-      </div>
-
+      {/* Detalhe do Exercício - Modal Minimalista */}
       {selectedExercise && (
-        <div className="fixed inset-0 z-[1000] bg-theme-bg flex flex-col animate-in slide-in-from-bottom duration-500">
-           <header className="p-8 pt-12 flex justify-between items-center border-b border-slate-100 bg-white/80 backdrop-blur-xl">
-              <div className="flex items-center gap-4">
-                 <button onClick={() => setSelectedExercise(null)} className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 active:scale-90 shadow-sm"><i className="fas fa-chevron-left text-xs"></i></button>
-                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 uppercase">{selectedExercise.name}</h3>
-                  <p className="text-[8px] font-bold text-blue-600 uppercase tracking-widest mt-1">Protocolo Biomecânico {!selectedExercise.is_active && <span className="text-red-500">(INATIVO)</span>}</p>
-                 </div>
+        <div className="fixed inset-0 z-[1000] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
+          <header className="px-6 pt-12 pb-6 flex items-center justify-between border-b border-slate-50">
+            <button 
+              onClick={() => setSelectedExercise(null)} 
+              className="w-12 h-12 flex items-center justify-center text-slate-900 active:scale-90 transition-all"
+            >
+              <i className="fas fa-chevron-left text-lg"></i>
+            </button>
+            <div className="text-center flex-1">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{selectedExercise.name}</h3>
+              <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mt-0.5">{selectedExercise.muscle_group}</p>
+            </div>
+            <div className="w-12"></div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto px-6 py-12 space-y-16">
+            <div className="aspect-square bg-[#F7F8FA] rounded-[4rem] overflow-hidden flex items-center justify-center p-16 shadow-inner">
+              {selectedExercise.image_url ? (
+                <img src={selectedExercise.image_url} className="w-full h-full object-contain mix-blend-multiply" />
+              ) : (
+                <i className="fas fa-dumbbell text-7xl text-slate-100"></i>
+              )}
+            </div>
+
+            <div className="space-y-12">
+              <div>
+                <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] mb-6">Dica de Execução</p>
+                <div className="bg-[#F7F8FA] p-10 rounded-[3rem] italic text-slate-900 text-xl font-black leading-relaxed tracking-tight">
+                  {loadingAi ? (
+                    <div className="flex items-center gap-4">
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-slate-400 text-sm not-italic uppercase tracking-widest">Sincronizando...</span>
+                    </div>
+                  ) : `"${aiTip || "Foque na técnica."}"`}
+                </div>
               </div>
-           </header>
-           <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-40">
-              <div className="max-w-2xl mx-auto space-y-8">
-                 <div className="aspect-video bg-white rounded-[3rem] border border-slate-200 overflow-hidden shadow-sm relative flex items-center justify-center">
-                    {selectedExercise.image_url ? <img src={selectedExercise.image_url} className="w-full h-full object-contain p-8" /> : <i className="fas fa-dumbbell text-6xl opacity-20"></i>}
-                 </div>
-                 <div className="bg-blue-50 p-8 rounded-[3rem] border border-blue-100 italic text-slate-900 text-lg font-bold shadow-sm">
-                    {loadingAi ? "Sincronizando dicas..." : `"${aiTip || "Foque na técnica e amplitude."}"`}
-                 </div>
-                 <div className="bg-white p-8 rounded-[3rem] border border-slate-200 text-slate-600 text-sm leading-relaxed shadow-sm">
-                    <h4 className="text-[10px] font-bold text-blue-600 uppercase mb-4 tracking-widest">Protocolo de Execução</h4>
-                    {selectedExercise.instructions || "Em catalogação biomecânica."}
-                 </div>
+
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6">Instruções</p>
+                <p className="text-base text-slate-600 leading-relaxed font-medium">
+                  {selectedExercise.instructions || "Protocolo em catalogação."}
+                </p>
               </div>
-           </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

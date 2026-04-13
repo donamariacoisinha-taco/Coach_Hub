@@ -211,192 +211,233 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   }, [muscleGroups]);
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] flex flex-col">
-      <header className="p-6 md:p-8 flex items-center justify-between border-b border-slate-100 bg-white sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 active:scale-95 transition-all">
-            <i className="fas fa-chevron-left text-sm"></i>
+    <div className="min-h-screen bg-[#F7F8FA] flex flex-col text-slate-900">
+      <header className="px-6 pt-12 pb-8 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <button onClick={onBack} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-slate-900 transition-all">
+            <i className="fas fa-chevron-left text-lg"></i>
           </button>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Coach Hub <span className="text-blue-600">Admin</span></h2>
+          <h2 className="text-2xl font-black tracking-tighter uppercase text-slate-900">Coach <span className="text-blue-600">Hub</span></h2>
         </div>
       </header>
 
-      <main className="flex-1 p-6 max-w-5xl mx-auto w-full space-y-8 pb-32">
-        <nav className="flex bg-white p-1 rounded-2xl border border-slate-200 max-w-sm shadow-sm">
-          <button onClick={() => setActiveTab('exercises')} className={`flex-1 py-3 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${activeTab === 'exercises' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>Exercícios</button>
-          <button onClick={() => setActiveTab('anatomy')} className={`flex-1 py-3 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${activeTab === 'anatomy' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>Anatomia</button>
+      <main className="flex-1 px-6 max-w-5xl mx-auto w-full space-y-12 pb-32">
+        <nav className="flex gap-8 border-b border-slate-100">
+          <button 
+            onClick={() => setActiveTab('exercises')} 
+            className={`pb-4 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative ${activeTab === 'exercises' ? 'text-blue-600' : 'text-slate-300'}`}
+          >
+            Exercícios
+            {activeTab === 'exercises' && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
+          </button>
+          <button 
+            onClick={() => setActiveTab('anatomy')} 
+            className={`pb-4 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative ${activeTab === 'anatomy' ? 'text-blue-600' : 'text-slate-300'}`}
+          >
+            Anatomia
+            {activeTab === 'anatomy' && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
+          </button>
         </nav>
 
         {activeTab === 'exercises' && (
-          <div className="space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
-              <div className="space-y-6 mb-10">
-                <div className="relative group">
-                  <i className="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 text-xs group-focus-within:text-blue-600"></i>
-                  <input type="text" placeholder="BUSCAR NO ACERVO..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full p-5 pl-14 bg-slate-50 border border-slate-100 rounded-2xl text-slate-900 text-[10px] font-bold outline-none focus:border-blue-600/50 transition-all uppercase tracking-widest" />
-                </div>
-
-                <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 space-y-4">
-                  <div className="flex bg-white p-1 rounded-xl border border-slate-200">
-                    {['all', 'front', 'back'].map(side => (
-                      <button key={side} onClick={() => { setSelectedSide(side as any); setSelectedMuscle('Todos'); }} className={`flex-1 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${selectedSide === side ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>{side === 'all' ? 'Tudo' : side === 'front' ? 'Anterior' : 'Posterior'}</button>
-                    ))}
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                    <button onClick={() => setSelectedMuscle('Todos')} className={`px-5 py-2.5 rounded-full text-[8px] font-bold uppercase tracking-widest transition-all border shrink-0 ${selectedMuscle === 'Todos' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-200'}`}>Todos</button>
-                    {parentMuscleGroups.map(mg => (
-                      <button key={mg.id} onClick={() => setSelectedMuscle(mg.name)} className={`px-5 py-2.5 rounded-full text-[8px] font-bold uppercase tracking-widest transition-all border shrink-0 ${selectedMuscle === mg.name ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white text-slate-400 border-slate-200'}`}>{mg.name}</button>
-                    ))}
-                  </div>
-                </div>
+          <div className="space-y-12">
+            <div className="space-y-8">
+              <div className="relative group">
+                <i className="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
+                <input 
+                  type="text" placeholder="BUSCAR NO ACERVO..." value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                  className="w-full p-5 pl-14 bg-white border border-slate-50 rounded-[2rem] text-slate-900 text-[10px] font-black outline-none focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all uppercase tracking-widest" 
+                />
               </div>
 
-              {loading ? (
-                <div className="py-20 flex flex-col items-center justify-center"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {filteredExercisesList.map(ex => (
-                    <div key={ex.id} className={`bg-white p-5 rounded-3xl border border-slate-100 flex items-center gap-5 group transition-all ${!ex.is_active ? 'opacity-60' : 'hover:border-blue-600/30 shadow-sm'}`}>
-                      <div className="w-16 h-16 bg-slate-50 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center p-2 border border-slate-100">
-                        {ex.image_url ? <img src={ex.image_url} alt={ex.name} className="w-full h-full object-contain" /> : <i className="fas fa-dumbbell text-slate-200"></i>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-bold text-slate-900 uppercase truncate">{ex.name}</h4>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">{ex.muscle_group} {!ex.is_active && '(Inativo)'}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setEditingExercise(ex)} className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 border border-blue-100 active:scale-90 transition-all"><i className="fas fa-pencil-alt text-[10px]"></i></button>
-                        <button onClick={() => handleDeleteExercise(ex)} disabled={saving} className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-500 border border-red-100 active:scale-90 transition-all">
-                          {saving ? <i className="fas fa-spinner animate-spin"></i> : <i className="fas fa-trash-alt text-[10px]"></i>}
-                        </button>
-                      </div>
-                    </div>
+              <div className="space-y-6">
+                <div className="flex gap-6 border-b border-slate-50 pb-4 overflow-x-auto no-scrollbar">
+                  {['all', 'front', 'back'].map(side => (
+                    <button 
+                      key={side} 
+                      onClick={() => { setSelectedSide(side as any); setSelectedMuscle('Todos'); }} 
+                      className={`text-[9px] font-black uppercase tracking-[0.2em] transition-all shrink-0 ${selectedSide === side ? 'text-blue-600' : 'text-slate-300'}`}
+                    >
+                      {side === 'all' ? 'Tudo' : side === 'front' ? 'Anterior' : 'Posterior'}
+                    </button>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'anatomy' && (
-          <div className="space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 uppercase tracking-tight">Gestão Anatômica</h3>
-                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Organize grupos e subgrupos musculares</p>
+                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                  <button 
+                    onClick={() => setSelectedMuscle('Todos')} 
+                    className={`px-6 py-3 rounded-full text-[8px] font-black uppercase tracking-widest transition-all border shrink-0 ${selectedMuscle === 'Todos' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-100 shadow-sm'}`}
+                  >
+                    Todos
+                  </button>
+                  {parentMuscleGroups.map(mg => (
+                    <button 
+                      key={mg.id} 
+                      onClick={() => setSelectedMuscle(mg.name)} 
+                      className={`px-6 py-3 rounded-full text-[8px] font-black uppercase tracking-widest transition-all border shrink-0 ${selectedMuscle === mg.name ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-400 border-slate-100 shadow-sm'}`}
+                    >
+                      {mg.name}
+                    </button>
+                  ))}
                 </div>
-                <button 
-                  onClick={() => setEditingMuscle({ name: '', body_side: 'front', parent_id: null })}
-                  className="px-6 py-3 bg-blue-600 rounded-xl font-bold text-[10px] text-white uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all"
-                >
-                  Novo Grupo
-                </button>
               </div>
+            </div>
 
-              <div className="space-y-4">
-                {parentMuscleGroups.length === 0 && !loading && (
-                  <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
-                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Nenhum grupo encontrado</p>
-                  </div>
-                )}
-                
-                {parentMuscleGroups.map((mg, idx) => (
-                  <div key={mg.id} className="space-y-3">
-                    <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200 flex items-center justify-between group hover:border-blue-600/30 transition-all shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="flex flex-col gap-1">
-                          <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(mg), 'up')} className="text-slate-300 hover:text-blue-600 transition-colors"><i className="fas fa-chevron-up text-[10px]"></i></button>
-                          <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(mg), 'down')} className="text-slate-300 hover:text-blue-600 transition-colors"><i className="fas fa-chevron-down text-[10px]"></i></button>
-                        </div>
-                        <div>
-                          <h4 className="text-xs font-bold text-slate-900 uppercase tracking-tight">{mg.name}</h4>
-                          <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">{mg.body_side === 'front' ? 'Anterior' : 'Posterior'}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setEditingMuscle({ name: '', body_side: mg.body_side, parent_id: mg.id })} className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 border border-blue-100 active:scale-90 transition-all" title="Adicionar Subgrupo"><i className="fas fa-plus text-[10px]"></i></button>
-                        <button onClick={() => setEditingMuscle(mg)} className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-200 active:scale-90 transition-all shadow-sm"><i className="fas fa-pencil-alt text-[10px]"></i></button>
-                        <button onClick={() => handleDeleteMuscle(mg.id)} className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center text-red-500 border border-red-100 active:scale-90 transition-all"><i className="fas fa-trash-alt text-[10px]"></i></button>
-                      </div>
+            {loading ? (
+              <div className="py-20 flex flex-col items-center justify-center">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sincronizando...</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {filteredExercisesList.map((ex, idx) => (
+                  <div 
+                    key={ex.id} 
+                    className={`flex items-center gap-6 py-8 active:bg-slate-50 transition-all ${idx !== filteredExercisesList.length - 1 ? 'border-b border-slate-100' : ''} ${!ex.is_active ? 'opacity-40' : ''}`}
+                  >
+                    <div className="w-16 h-16 bg-white rounded-[1.5rem] overflow-hidden shrink-0 flex items-center justify-center p-3 border border-slate-50 shadow-sm">
+                      {ex.image_url ? <img src={ex.image_url} alt={ex.name} className="w-full h-full object-contain" /> : <i className="fas fa-dumbbell text-slate-200"></i>}
                     </div>
-
-                    <div className="ml-10 space-y-2 border-l-2 border-slate-100 pl-4">
-                      {muscleGroups.filter(sub => sub.parent_id === mg.id).map((sub, sIdx) => (
-                        <div key={sub.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between group shadow-sm">
-                          <div className="flex items-center gap-3">
-                             <div className="flex flex-col gap-0.5">
-                                <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(sub), 'up')} className="text-slate-300 hover:text-blue-600 transition-colors"><i className="fas fa-caret-up text-[10px]"></i></button>
-                                <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(sub), 'down')} className="text-slate-300 hover:text-blue-600 transition-colors"><i className="fas fa-caret-down text-[10px]"></i></button>
-                             </div>
-                             <h5 className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{sub.name}</h5>
-                          </div>
-                          <div className="flex gap-2">
-                             <button onClick={() => setEditingMuscle(sub)} className="text-slate-400 hover:text-blue-600 transition-colors"><i className="fas fa-pencil-alt text-[9px]"></i></button>
-                             <button onClick={() => handleDeleteMuscle(sub.id)} className="text-slate-400 hover:text-red-500 transition-colors"><i className="fas fa-trash-alt text-[9px]"></i></button>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{ex.name}</h4>
+                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.muscle_group} {!ex.is_active && '(Inativo)'}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => setEditingExercise(ex)} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"><i className="fas fa-pencil-alt"></i></button>
+                      <button onClick={() => handleDeleteExercise(ex)} disabled={saving} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-red-500 transition-colors">
+                        {saving ? <i className="fas fa-spinner animate-spin"></i> : <i className="fas fa-trash-alt"></i>}
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'anatomy' && (
+          <div className="space-y-12">
+            <div className="flex justify-between items-end">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Anatomia</h3>
+                <p className="text-[10px] text-slate-400 uppercase font-black tracking-[0.2em] mt-2">Organize a hierarquia muscular</p>
+              </div>
+              <button 
+                onClick={() => setEditingMuscle({ name: '', body_side: 'front', parent_id: null })}
+                className="px-8 py-4 bg-blue-600 rounded-2xl font-black text-[10px] text-white uppercase tracking-[0.2em] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all"
+              >
+                Novo Grupo
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              {parentMuscleGroups.length === 0 && !loading && (
+                <div className="py-24 text-center border-2 border-dashed border-slate-100 rounded-[3rem] bg-white/30">
+                  <p className="text-slate-300 text-[10px] font-black uppercase tracking-[0.3em]">Nenhum grupo definido</p>
+                </div>
+              )}
+              
+              {parentMuscleGroups.map((mg, idx) => (
+                <div key={mg.id} className="space-y-4 py-8 border-b border-slate-100">
+                  <div className="flex items-center justify-between group">
+                    <div className="flex items-center gap-6">
+                      <div className="flex flex-col gap-2 text-slate-200">
+                        <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(mg), 'up')} className="active:text-blue-600 transition-colors"><i className="fas fa-chevron-up text-xs"></i></button>
+                        <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(mg), 'down')} className="active:text-blue-600 transition-colors"><i className="fas fa-chevron-down text-xs"></i></button>
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">{mg.name}</h4>
+                        <span className="text-[8px] font-black text-blue-600 uppercase tracking-[0.3em] mt-1.5 block">{mg.body_side === 'front' ? 'Anterior' : 'Posterior'}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => setEditingMuscle({ name: '', body_side: mg.body_side, parent_id: mg.id })} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors" title="Adicionar Subgrupo"><i className="fas fa-plus"></i></button>
+                      <button onClick={() => setEditingMuscle(mg)} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"><i className="fas fa-pencil-alt"></i></button>
+                      <button onClick={() => handleDeleteMuscle(mg.id)} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-red-500 transition-colors"><i className="fas fa-trash-alt"></i></button>
+                    </div>
+                  </div>
+
+                  <div className="ml-14 space-y-1">
+                    {muscleGroups.filter(sub => sub.parent_id === mg.id).map((sub, sIdx) => (
+                      <div key={sub.id} className="flex items-center justify-between py-4 group">
+                        <div className="flex items-center gap-4">
+                           <div className="flex flex-col gap-1 text-slate-200">
+                              <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(sub), 'up')} className="active:text-blue-600 transition-colors"><i className="fas fa-caret-up text-[10px]"></i></button>
+                              <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(sub), 'down')} className="active:text-blue-600 transition-colors"><i className="fas fa-caret-down text-[10px]"></i></button>
+                           </div>
+                           <h5 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">{sub.name}</h5>
+                        </div>
+                        <div className="flex gap-4">
+                           <button onClick={() => setEditingMuscle(sub)} className="text-slate-300 active:text-blue-600 transition-colors"><i className="fas fa-pencil-alt text-xs"></i></button>
+                           <button onClick={() => handleDeleteMuscle(sub.id)} className="text-slate-300 active:text-red-500 transition-colors"><i className="fas fa-trash-alt text-xs"></i></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
       </main>
 
       {editingMuscle && (
-        <div className="fixed inset-0 z-[1000] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="w-full max-w-sm bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-2xl">
-            <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight mb-6">
+        <div className="fixed inset-0 z-[1000] bg-slate-900/40 backdrop-blur-sm flex items-end justify-center animate-in fade-in duration-300">
+          <div className="w-full bg-white rounded-t-[4rem] p-10 space-y-10 shadow-2xl animate-in slide-in-from-bottom duration-500">
+            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter text-center">
               {editingMuscle.id ? 'Editar' : 'Criar'} {editingMuscle.parent_id ? 'Subgrupo' : 'Grupo'}
             </h3>
-            <form onSubmit={handleSaveMuscleGroup} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome</label>
+            <form onSubmit={handleSaveMuscleGroup} className="space-y-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Nome do Grupo</label>
                 <input 
                   type="text" 
                   value={editingMuscle.name || ''} 
                   onChange={e => setEditingMuscle({...editingMuscle, name: e.target.value})} 
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl text-slate-900 font-bold uppercase outline-none focus:border-blue-600 transition-all" 
+                  className="w-full p-5 bg-[#F7F8FA] border border-transparent rounded-[1.5rem] text-slate-900 font-black uppercase outline-none focus:border-blue-600 focus:bg-white transition-all" 
                   required 
                 />
               </div>
               
               {!editingMuscle.parent_id ? (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Lado do Corpo</label>
-                  <select 
-                    value={editingMuscle.body_side || 'front'} 
-                    onChange={e => setEditingMuscle({...editingMuscle, body_side: e.target.value as any})} 
-                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl text-slate-900 font-bold outline-none focus:border-blue-600 transition-all"
-                  >
-                    <option value="front">ANTERIOR (FRENTE)</option>
-                    <option value="back">POSTERIOR (COSTAS)</option>
-                  </select>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Lado do Corpo</label>
+                  <div className="relative">
+                    <select 
+                      value={editingMuscle.body_side || 'front'} 
+                      onChange={e => setEditingMuscle({...editingMuscle, body_side: e.target.value as any})} 
+                      className="w-full p-5 bg-[#F7F8FA] border border-transparent rounded-[1.5rem] text-slate-900 font-black outline-none focus:border-blue-600 focus:bg-white transition-all appearance-none"
+                    >
+                      <option value="front">ANTERIOR (FRENTE)</option>
+                      <option value="back">POSTERIOR (COSTAS)</option>
+                    </select>
+                    <i className="fas fa-chevron-down absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"></i>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Grupo Principal (Migrar)</label>
-                  <select 
-                    value={editingMuscle.parent_id || ''} 
-                    onChange={e => setEditingMuscle({...editingMuscle, parent_id: e.target.value})} 
-                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl text-slate-900 font-bold outline-none focus:border-blue-600 transition-all"
-                  >
-                    {allPossibleParents.map(parent => (
-                      <option key={parent.id} value={parent.id}>{parent.name.toUpperCase()}</option>
-                    ))}
-                  </select>
-                  <p className="text-[8px] font-bold text-blue-600 uppercase mt-2 ml-1 opacity-70 italic">* Herda o lado do corpo do novo pai.</p>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Grupo Principal</label>
+                  <div className="relative">
+                    <select 
+                      value={editingMuscle.parent_id || ''} 
+                      onChange={e => setEditingMuscle({...editingMuscle, parent_id: e.target.value})} 
+                      className="w-full p-5 bg-[#F7F8FA] border border-transparent rounded-[1.5rem] text-slate-900 font-black outline-none focus:border-blue-600 focus:bg-white transition-all appearance-none"
+                    >
+                      {allPossibleParents.map(parent => (
+                        <option key={parent.id} value={parent.id}>{parent.name.toUpperCase()}</option>
+                      ))}
+                    </select>
+                    <i className="fas fa-chevron-down absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"></i>
+                  </div>
+                  <p className="text-[9px] font-black text-blue-600 uppercase mt-3 ml-1 opacity-70 italic tracking-widest">* Herda o lado do corpo do novo pai.</p>
                 </div>
               )}
 
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setEditingMuscle(null)} className="flex-1 py-4 text-slate-400 font-bold uppercase text-[10px]">Cancelar</button>
-                <button type="submit" disabled={saving} className="flex-[2] py-4 bg-blue-600 rounded-xl text-white font-bold uppercase text-[10px] shadow-lg shadow-blue-600/20 active:scale-95 transition-all">
+              <div className="flex flex-col gap-4 pt-4">
+                <button type="submit" disabled={saving} className="w-full py-6 bg-blue-600 rounded-[2rem] text-white font-black uppercase text-xs tracking-[0.3em] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all">
                   {saving ? <i className="fas fa-spinner animate-spin"></i> : 'CONFIRMAR'}
                 </button>
+                <button type="button" onClick={() => setEditingMuscle(null)} className="w-full py-4 text-slate-300 font-black uppercase text-[10px] tracking-[0.2em] active:text-slate-900 transition-colors">Cancelar</button>
               </div>
             </form>
           </div>
@@ -404,48 +445,57 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       )}
 
       {editingExercise && (
-        <div className="fixed inset-0 z-[1000] bg-white flex flex-col animate-in slide-in-from-bottom duration-300">
-          <header className="p-6 pt-12 flex justify-between items-center shrink-0 border-b border-slate-100">
-            <div><h3 className="text-2xl font-bold uppercase tracking-tight text-slate-900">Editar Movimento</h3></div>
-            <button onClick={() => setEditingExercise(null)} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-100 active:scale-90 transition-all"><i className="fas fa-times"></i></button>
+        <div className="fixed inset-0 z-[1300] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
+          <header className="px-6 pt-12 pb-8 flex justify-between items-center bg-white border-b border-slate-50">
+            <div><h3 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Editar Movimento</h3></div>
+            <button onClick={() => setEditingExercise(null)} className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 transition-colors"><i className="fas fa-times text-xl"></i></button>
           </header>
-          <form onSubmit={handleUpdateExercise} className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar bg-[#F7F8FA]">
-            <div className="flex flex-col md:flex-row gap-6 items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-              <div onClick={() => fileInputRef.current?.click()} className="relative w-32 h-32 bg-slate-50 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center p-2 shadow-sm border border-slate-100 cursor-pointer group hover:ring-4 ring-blue-600/10 transition-all">
-                {editingExercise.image_url ? <img src={editingExercise.image_url} className="w-full h-full object-contain" /> : <i className="fas fa-image text-slate-200 text-3xl"></i>}
-                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity"><i className="fas fa-camera mb-1"></i><span className="text-[8px] font-bold uppercase">Alterar</span></div>
+          <form onSubmit={handleUpdateExercise} className="flex-1 overflow-y-auto p-6 space-y-12 no-scrollbar bg-[#F7F8FA]">
+            <div className="flex flex-col items-center gap-8 bg-white p-10 rounded-[3rem] border border-slate-50 shadow-2xl shadow-slate-200/50">
+              <div onClick={() => fileInputRef.current?.click()} className="relative w-40 h-40 bg-[#F7F8FA] rounded-[2rem] overflow-hidden shrink-0 flex items-center justify-center p-4 border border-slate-50 cursor-pointer group transition-all">
+                {editingExercise.image_url ? <img src={editingExercise.image_url} className="w-full h-full object-contain" /> : <i className="fas fa-image text-slate-200 text-4xl"></i>}
+                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity"><i className="fas fa-camera mb-2 text-xl"></i><span className="text-[9px] font-black uppercase tracking-widest">Alterar</span></div>
                 {uploadingImage && <div className="absolute inset-0 bg-white/80 flex items-center justify-center"><i className="fas fa-spinner animate-spin text-blue-600"></i></div>}
               </div>
               <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
-              <input type="url" value={editingExercise.image_url || ''} onChange={e => setEditingExercise({...editingExercise, image_url: e.target.value})} className="flex-1 w-full p-4 bg-slate-50 border border-slate-100 rounded-xl text-slate-900 font-medium text-[10px] outline-none focus:border-blue-600 transition-all" placeholder="URL Direta da Imagem" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome</label>
-              <input type="text" value={editingExercise.name} onChange={e => setEditingExercise({...editingExercise, name: e.target.value})} className="w-full p-5 bg-white border border-slate-200 rounded-2xl text-slate-900 font-bold outline-none uppercase focus:border-blue-600 transition-all" required />
-            </div>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Grupo Muscular</label>
-                <input type="text" value={editingExercise.muscle_group} onChange={e => setEditingExercise({...editingExercise, muscle_group: e.target.value})} className="w-full p-5 bg-white border border-slate-200 rounded-2xl text-slate-900 font-bold outline-none uppercase focus:border-blue-600 transition-all" required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Equipamento</label>
-                <select value={editingExercise.type} onChange={e => setEditingExercise({...editingExercise, type: e.target.value})} className="w-full p-5 bg-white border border-slate-200 rounded-2xl text-slate-900 font-bold outline-none focus:border-blue-600 transition-all">
-                  <option value="machine">MÁQUINA</option>
-                  <option value="free_weight">PESO LIVRE</option>
-                  <option value="bodyweight">PESO CORPORAL</option>
-                  <option value="cable">CABO / POLIA</option>
-                </select>
+              <div className="w-full space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">URL da Imagem</label>
+                <input type="url" value={editingExercise.image_url || ''} onChange={e => setEditingExercise({...editingExercise, image_url: e.target.value})} className="w-full p-5 bg-[#F7F8FA] border border-transparent rounded-[1.5rem] text-slate-900 font-black text-[10px] outline-none focus:border-blue-600 focus:bg-white transition-all" placeholder="URL Direta" />
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Protocolo (Instruções)</label>
-              <textarea rows={4} value={editingExercise.instructions || ''} onChange={e => setEditingExercise({...editingExercise, instructions: e.target.value})} className="w-full p-5 bg-white border border-slate-200 rounded-2xl text-slate-900 font-medium text-sm outline-none focus:border-blue-600 transition-all" placeholder="biomecânica correta..." />
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Nome do Exercício</label>
+              <input type="text" value={editingExercise.name} onChange={e => setEditingExercise({...editingExercise, name: e.target.value})} className="w-full p-5 bg-white border border-slate-50 rounded-[1.5rem] text-slate-900 font-black outline-none uppercase focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all" required />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Grupo Muscular</label>
+                <input type="text" value={editingExercise.muscle_group} onChange={e => setEditingExercise({...editingExercise, muscle_group: e.target.value})} className="w-full p-5 bg-white border border-slate-50 rounded-[1.5rem] text-slate-900 font-black outline-none uppercase focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all" required />
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Equipamento</label>
+                <div className="relative">
+                  <select value={editingExercise.type} onChange={e => setEditingExercise({...editingExercise, type: e.target.value})} className="w-full p-5 bg-white border border-slate-50 rounded-[1.5rem] text-slate-900 font-black outline-none focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all appearance-none">
+                    <option value="machine">MÁQUINA</option>
+                    <option value="free_weight">PESO LIVRE</option>
+                    <option value="bodyweight">PESO CORPORAL</option>
+                    <option value="cable">CABO / POLIA</option>
+                  </select>
+                  <i className="fas fa-chevron-down absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"></i>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Protocolo (Instruções)</label>
+              <textarea rows={6} value={editingExercise.instructions || ''} onChange={e => setEditingExercise({...editingExercise, instructions: e.target.value})} className="w-full p-6 bg-white border border-slate-50 rounded-[2rem] text-slate-900 font-medium text-sm outline-none focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all leading-relaxed" placeholder="biomecânica correta..." />
             </div>
             <div className="h-20"></div>
           </form>
-          <footer className="p-6 border-t border-slate-100 bg-white shrink-0 pb-10 shadow-lg">
-            <button onClick={handleUpdateExercise} disabled={saving} className="w-full py-6 bg-blue-600 rounded-[2rem] font-bold text-white uppercase text-xs tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-4">
+          <footer className="px-6 py-10 border-t border-slate-50 bg-white pb-safe">
+            <button onClick={handleUpdateExercise} disabled={saving} className="w-full py-6 bg-blue-600 rounded-[2rem] font-black text-white uppercase text-xs tracking-[0.3em] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-4">
               {saving ? <i className="fas fa-spinner animate-spin"></i> : 'SINCRONIZAR ALTERAÇÕES'}
             </button>
           </footer>

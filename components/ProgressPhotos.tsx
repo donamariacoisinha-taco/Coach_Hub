@@ -134,39 +134,54 @@ const ProgressPhotos: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center gap-4">
-        <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
-          <button onClick={() => setComparing(false)} className={`px-5 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${!comparing ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>Galeria</button>
-          <button onClick={() => setComparing(true)} className={`px-5 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${comparing ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>Comparar</button>
+    <div className="space-y-10 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center">
+        <div className="flex gap-8 overflow-x-auto no-scrollbar border-b border-slate-100">
+          <button 
+            onClick={() => setComparing(false)} 
+            className={`text-[10px] font-black uppercase tracking-widest pb-4 border-b-2 transition-all whitespace-nowrap ${!comparing ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-400'}`}
+          >
+            Galeria
+          </button>
+          <button 
+            onClick={() => setComparing(true)} 
+            className={`text-[10px] font-black uppercase tracking-widest pb-4 border-b-2 transition-all whitespace-nowrap ${comparing ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-400'}`}
+          >
+            Comparar
+          </button>
         </div>
-        <button onClick={startCamera} className="w-14 h-14 bg-blue-600 rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-blue-600/20 active:scale-90 transition-all border border-blue-400/20"><i className="fas fa-camera text-white"></i></button>
+        <button 
+          onClick={startCamera} 
+          className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-600/20 active:scale-90 transition-all"
+        >
+          <i className="fas fa-camera text-white text-lg"></i>
+        </button>
       </div>
 
       {comparing ? (
-        <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
           {selectedForCompare.length === 2 ? (
-            <div className="space-y-6">
+            <div className="space-y-10">
               {/* SLIDER AVANÇADO */}
-              <div className="relative aspect-[3/4] rounded-[3rem] overflow-hidden border border-slate-200 shadow-sm bg-slate-100 group">
+              <div className="relative aspect-[3/4] rounded-[3rem] overflow-hidden border border-slate-100 shadow-2xl shadow-slate-200/50 bg-slate-50 group">
                 {/* Imagem de Fundo (Depois) */}
                 <img src={sortedSelection[1].photo_url} className="absolute inset-0 w-full h-full object-cover" alt="Depois" />
-                <div className="absolute top-6 right-6 z-10 bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
-                  <span className="text-[8px] font-bold text-white uppercase">Depois: {new Date(sortedSelection[1].created_at).toLocaleDateString()}</span>
+                <div className="absolute top-6 right-6 z-10 bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-full">
+                  <span className="text-[8px] font-black text-white uppercase tracking-widest">Depois: {new Date(sortedSelection[1].created_at).toLocaleDateString()}</span>
                 </div>
 
                 {/* Imagem de Cima (Antes) */}
                 <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}>
                   <img src={sortedSelection[0].photo_url} className="absolute inset-0 w-full h-full object-cover" alt="Antes" />
-                  <div className="absolute top-6 left-6 z-10 bg-blue-600/80 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
-                    <span className="text-[8px] font-bold text-white uppercase">Antes: {new Date(sortedSelection[0].created_at).toLocaleDateString()}</span>
+                  <div className="absolute top-6 left-6 z-10 bg-blue-600/80 backdrop-blur-md px-4 py-2 rounded-full">
+                    <span className="text-[8px] font-black text-white uppercase tracking-widest">Antes: {new Date(sortedSelection[0].created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
 
                 {/* Barra do Slider */}
                 <div className="absolute inset-y-0 z-20 pointer-events-none" style={{ left: `${sliderPos}%` }}>
-                  <div className="h-full w-0.5 bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"></div>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-xl border-4 border-slate-900">
+                  <div className="h-full w-0.5 bg-white shadow-2xl"></div>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-slate-900">
                     <i className="fas fa-arrows-alt-h text-slate-900 text-xs"></i>
                   </div>
                 </div>
@@ -179,28 +194,33 @@ const ProgressPhotos: React.FC = () => {
                 />
               </div>
 
-              <div className="bg-white p-6 rounded-[2rem] border border-slate-200 text-center shadow-sm">
-                 <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-2">Transformação Visual</p>
-                 <p className="text-sm font-bold text-slate-900 leading-tight">Mantenha o controle deslizando o círculo central para comparar cada detalhe.</p>
-                 <button onClick={() => setSelectedForCompare([])} className="mt-6 text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-blue-600 transition-colors">Nova Comparação</button>
+              <div className="text-center space-y-4">
+                 <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Transformação Visual</p>
+                 <p className="text-sm font-black text-slate-900 leading-tight tracking-tight">Deslize para comparar cada detalhe da sua evolução.</p>
+                 <button 
+                  onClick={() => setSelectedForCompare([])} 
+                  className="pt-6 text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] active:text-blue-600 transition-colors"
+                >
+                  Nova Comparação
+                </button>
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
-               <div className="text-center py-10 opacity-40">
-                  <i className="fas fa-layer-group text-4xl mb-4 text-slate-300"></i>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Selecione 2 fotos para iniciar o slider</p>
+            <div className="space-y-10">
+               <div className="text-center py-10">
+                  <i className="fas fa-layer-group text-slate-100 text-4xl mb-4"></i>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Selecione 2 fotos</p>
                </div>
-               <div className="grid grid-cols-3 gap-3">
+               <div className="grid grid-cols-3 gap-4">
                   {photos.map(p => (
                     <div 
                       key={p.id} 
                       onClick={() => toggleSelectForCompare(p.id)}
-                      className={`aspect-[3/4] rounded-2xl overflow-hidden border-2 transition-all cursor-pointer relative ${selectedForCompare.includes(p.id) ? 'border-blue-600 scale-95 ring-4 ring-blue-50' : 'border-slate-100'}`}
+                      className={`aspect-[3/4] rounded-2xl overflow-hidden border-2 transition-all cursor-pointer relative ${selectedForCompare.includes(p.id) ? 'border-blue-600 scale-95 shadow-2xl shadow-blue-600/20' : 'border-transparent shadow-sm'}`}
                     >
-                       <img src={p.photo_url} className="w-full h-full object-cover opacity-60 group-hover:opacity-100" />
+                       <img src={p.photo_url} className={`w-full h-full object-cover transition-opacity ${selectedForCompare.includes(p.id) ? 'opacity-100' : 'opacity-40'}`} />
                        {selectedForCompare.includes(p.id) && (
-                         <div className="absolute inset-0 bg-blue-600/30 flex items-center justify-center">
+                         <div className="absolute inset-0 bg-blue-600/20 flex items-center justify-center">
                             <i className="fas fa-check text-white text-lg"></i>
                          </div>
                        )}
@@ -211,22 +231,27 @@ const ProgressPhotos: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-6">
           {photos.length === 0 ? (
-            <div className="col-span-full py-24 border-2 border-dashed border-slate-200 rounded-[3rem] text-center bg-white/50">
-               <i className="fas fa-images text-slate-200 text-5xl mb-6"></i>
-               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Sua jornada começa aqui.</p>
+            <div className="col-span-full py-24 text-center">
+               <i className="fas fa-images text-slate-100 text-5xl mb-6"></i>
+               <p className="text-slate-300 text-[10px] font-black uppercase tracking-[0.2em]">Sua jornada começa aqui</p>
             </div>
           ) : (
             photos.map((photo) => (
-              <div key={photo.id} className="group relative aspect-[3/4] rounded-[2rem] overflow-hidden border border-slate-200 active:scale-95 transition-all shadow-sm bg-white">
+              <div key={photo.id} className="group relative aspect-[3/4] rounded-[2.5rem] overflow-hidden border border-slate-50 active:scale-95 transition-all shadow-xl shadow-slate-200/50 bg-white">
                 <img src={photo.photo_url} className="w-full h-full object-cover" loading="lazy" />
                 <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <button onClick={(e) => { e.stopPropagation(); deletePhoto(photo.id); }} className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white shadow-lg"><i className="fas fa-trash-alt text-[10px]"></i></button>
+                   <button 
+                    onClick={(e) => { e.stopPropagation(); deletePhoto(photo.id); }} 
+                    className="w-8 h-8 bg-red-500 rounded-xl flex items-center justify-center text-white shadow-2xl"
+                  >
+                    <i className="fas fa-trash-alt text-[10px]"></i>
+                  </button>
                 </div>
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/80 p-4">
-                  <p className="text-[9px] font-bold text-white uppercase tracking-tighter">{new Date(photo.created_at).toLocaleDateString()}</p>
-                  <p className="text-[7px] font-bold text-blue-400 uppercase tracking-widest">{photo.tag}</p>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/60 p-6">
+                  <p className="text-[10px] font-black text-white uppercase tracking-tighter">{new Date(photo.created_at).toLocaleDateString()}</p>
+                  <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mt-0.5">{photo.tag}</p>
                 </div>
               </div>
             ))
@@ -235,24 +260,39 @@ const ProgressPhotos: React.FC = () => {
       )}
 
       {showCamera && (
-        <div className="fixed inset-0 z-[500] bg-slate-950 flex flex-col">
-          <header className="p-8 pt-12 flex justify-between items-center shrink-0">
-             <div><h3 className="text-xl font-bold text-white uppercase tracking-tight">Captura</h3></div>
-             <button onClick={stopCamera} className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-slate-400"><i className="fas fa-times"></i></button>
+        <div className="fixed inset-0 z-[1000] bg-black flex flex-col animate-in fade-in duration-500">
+          <header className="px-6 pt-12 pb-6 flex justify-between items-center shrink-0">
+             <h3 className="text-sm font-black text-white uppercase tracking-[0.2em]">Captura</h3>
+             <button onClick={stopCamera} className="w-10 h-10 flex items-center justify-center text-white/40 active:text-white transition-colors"><i className="fas fa-times text-lg"></i></button>
           </header>
-          <div className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
+          <div className="flex-1 relative overflow-hidden flex items-center justify-center">
              <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
              <canvas ref={canvasRef} className="hidden" />
-             <div className="absolute inset-10 border-2 border-white/10 rounded-[4rem] pointer-events-none"></div>
-             {uploading && <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center"><div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}
+             <div className="absolute inset-10 border border-white/10 rounded-[4rem] pointer-events-none"></div>
+             {uploading && (
+               <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center">
+                 <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                 <p className="text-[10px] font-black text-white uppercase tracking-[0.2em] mt-6">Sincronizando...</p>
+               </div>
+             )}
           </div>
-          <footer className="p-10 flex flex-col items-center gap-6 bg-slate-950 pb-safe">
-             <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-white/5">
+          <footer className="px-10 py-12 flex flex-col items-center gap-10 pb-safe">
+             <div className="flex gap-8 border-b border-white/10">
                 {(['frente', 'lado', 'costas'] as const).map(tag => (
-                  <button key={tag} onClick={() => setActiveTag(tag)} className={`px-5 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${activeTag === tag ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>{tag}</button>
+                  <button 
+                    key={tag} 
+                    onClick={() => setActiveTag(tag)} 
+                    className={`text-[10px] font-black uppercase tracking-widest pb-4 border-b-2 transition-all ${activeTag === tag ? 'border-blue-600 text-white' : 'border-transparent text-white/30'}`}
+                  >
+                    {tag}
+                  </button>
                 ))}
              </div>
-             <button onClick={captureAndUpload} disabled={uploading} className="w-20 h-20 rounded-full border-4 border-white/20 p-1 active:scale-90 transition-all">
+             <button 
+              onClick={captureAndUpload} 
+              disabled={uploading} 
+              className="w-20 h-20 rounded-full border-4 border-white/20 p-1 active:scale-90 transition-all"
+            >
                 <div className="w-full h-full rounded-full bg-white"></div>
              </button>
           </footer>

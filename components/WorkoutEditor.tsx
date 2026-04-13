@@ -194,45 +194,49 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] flex flex-col relative text-slate-900">
-      <header className="sticky top-0 z-[100] px-6 pt-10 pb-5 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <button onClick={() => goBack()} className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-slate-200 shadow-sm active:scale-90 transition-all text-slate-400">
-            <i className="fas fa-chevron-left"></i>
+      <header className="px-6 pt-12 pb-8 flex justify-between items-center">
+        <div className="flex items-center gap-6">
+          <button onClick={() => goBack()} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-slate-900 transition-all">
+            <i className="fas fa-chevron-left text-lg"></i>
           </button>
-          <h2 className="text-xl font-bold tracking-tight truncate max-w-[150px] text-slate-900">{workoutId ? 'Editar Treino' : 'Nova Ficha'}</h2>
+          <h2 className="text-2xl font-black tracking-tighter uppercase text-slate-900">{workoutId ? 'Editar Treino' : 'Nova Ficha'}</h2>
         </div>
         <button 
           onClick={() => setShowSaveModal(true)} 
           disabled={saving} 
-          className="px-6 py-3 bg-blue-600 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all text-white"
+          className="px-8 py-4 bg-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all text-white"
         >
           {saving ? <i className="fas fa-spinner animate-spin"></i> : 'SALVAR'}
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-4xl mx-auto w-full pb-40">
-        <section className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-12 max-w-4xl mx-auto w-full pb-40">
+        <section className="space-y-8">
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Nome do Treino</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block">Identificação</label>
             <input 
-              type="text" placeholder="EX: FULLBODY - VOLUME A" value={name} 
+              type="text" placeholder="NOME DO TREINO" value={name} 
               onChange={e => setName(e.target.value)} 
-              className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm outline-none focus:border-blue-600 focus:bg-white transition-all text-slate-900" 
+              className="w-full p-5 bg-white border border-slate-50 rounded-[1.5rem] font-black text-sm outline-none focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all text-slate-900" 
             />
           </div>
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Pasta / Categoria</label>
-            <select 
-              value={folderId} onChange={e => setFolderId(e.target.value)} 
-              className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm outline-none focus:border-blue-600 focus:bg-white transition-all text-slate-900 appearance-none"
-            >
-              <option value="">SELECIONAR PASTA</option>
-              {folders.map(f => <option key={f.id} value={f.id}>{f.name.toUpperCase()}</option>)}
-            </select>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block">Pasta / Categoria</label>
+            <div className="relative">
+              <select 
+                value={folderId} onChange={e => setFolderId(e.target.value)} 
+                className="w-full p-5 bg-white border border-slate-50 rounded-[1.5rem] font-black text-sm outline-none focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all text-slate-900 appearance-none"
+              >
+                <option value="">SELECIONAR PASTA</option>
+                {folders.map(f => <option key={f.id} value={f.id}>{f.name.toUpperCase()}</option>)}
+              </select>
+              <i className="fas fa-chevron-down absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"></i>
+            </div>
           </div>
         </section>
 
-        <div className="space-y-4">
+        <div className="space-y-1">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Estrutura do Treino</p>
           {exercises.map((ex, idx) => (
             <div 
               key={ex.tempId}
@@ -245,80 +249,84 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                   setDraggedIndex(null);
                 }
               }}
-              className={`bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4 transition-all ${draggedIndex === idx ? 'opacity-30 scale-95' : ''}`}
+              className={`flex items-center gap-6 py-8 active:bg-slate-50 transition-all ${idx !== exercises.length - 1 ? 'border-b border-slate-100' : ''} ${draggedIndex === idx ? 'opacity-30 scale-95' : ''}`}
             >
-              <div className="flex flex-col gap-2 text-slate-300">
-                <button onClick={() => handleReorder(idx, idx - 1)} className="hover:text-blue-600"><i className="fas fa-caret-up"></i></button>
+              <div className="flex flex-col gap-3 text-slate-200">
+                <button onClick={() => handleReorder(idx, idx - 1)} className="active:text-blue-600"><i className="fas fa-caret-up"></i></button>
                 <div className="cursor-grab active:cursor-grabbing"><i className="fas fa-grip-vertical"></i></div>
-                <button onClick={() => handleReorder(idx, idx + 1)} className="hover:text-blue-600"><i className="fas fa-caret-down"></i></button>
+                <button onClick={() => handleReorder(idx, idx + 1)} className="active:text-blue-600"><i className="fas fa-caret-down"></i></button>
               </div>
 
-              <div className="w-14 h-14 bg-slate-50 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center p-1.5 border border-slate-100">
+              <div className="w-16 h-16 bg-white rounded-[1.5rem] overflow-hidden shrink-0 flex items-center justify-center p-3 border border-slate-50 shadow-sm">
                 <img src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" />
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-sm truncate text-slate-900">{ex.exercise_name}</h4>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{ex.sets_json?.length || 3} Séries</p>
+                <h4 className="font-black text-lg tracking-tighter text-slate-900 truncate pr-4 uppercase">{ex.exercise_name}</h4>
+                <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.sets_json?.length || 3} Séries Configuradas</p>
               </div>
 
               <div className="flex gap-2">
                 <button 
                   onClick={() => setEditingSetsIndex(idx)}
-                  className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl border border-slate-100 active:scale-90 hover:text-blue-600"
-                  title="Ajustar Reps/Peso"
+                  className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"
                 >
-                  <i className="fas fa-sliders-h text-xs"></i>
+                  <i className="fas fa-sliders-h"></i>
                 </button>
                 <button 
                   onClick={() => { setReplacingIndex(idx); setShowExerciseSelector(true); }}
-                  className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 active:scale-90"
-                  title="Substituir Exercício"
+                  className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"
                 >
-                  <i className="fas fa-exchange-alt text-xs"></i>
+                  <i className="fas fa-exchange-alt"></i>
                 </button>
-                <button onClick={() => setExercises(prev => prev.filter(e => e.tempId !== ex.tempId))} className="w-10 h-10 bg-red-50 text-red-500 rounded-xl border border-red-100 active:scale-90">
-                  <i className="fas fa-trash text-xs"></i>
+                <button 
+                  onClick={() => setExercises(prev => prev.filter(e => e.tempId !== ex.tempId))} 
+                  className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-red-500 transition-colors"
+                >
+                  <i className="fas fa-trash"></i>
                 </button>
               </div>
             </div>
           ))}
 
-          <button onClick={() => { setReplacingIndex(null); setShowExerciseSelector(true); }} className="w-full py-8 border-2 border-dashed border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center gap-3 text-slate-300 hover:text-blue-600 hover:border-blue-200 transition-all bg-white/50">
-             <i className="fas fa-plus-circle text-2xl"></i>
-             <span className="text-[10px] font-bold uppercase tracking-widest">Adicionar Movimento</span>
+          <button 
+            onClick={() => { setReplacingIndex(null); setShowExerciseSelector(true); }} 
+            className="w-full py-12 mt-10 border-2 border-dashed border-slate-100 rounded-[3rem] flex flex-col items-center justify-center gap-4 text-slate-200 active:text-blue-600 active:border-blue-100 transition-all bg-white/30"
+          >
+             <i className="fas fa-plus-circle text-3xl"></i>
+             <span className="text-[10px] font-black uppercase tracking-[0.3em]">Adicionar Movimento</span>
           </button>
         </div>
       </div>
 
       {/* MODAL DE EDIÇÃO DE SÉRIES (FINE-TUNING) */}
       {editingSetsIndex !== null && (
-        <div className="fixed inset-0 z-[600] bg-white flex flex-col animate-in slide-in-from-bottom duration-300">
-           <header className="p-8 pt-12 flex justify-between items-center border-b border-slate-100">
+        <div className="fixed inset-0 z-[1000] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
+           <header className="px-6 pt-12 pb-8 flex justify-between items-center border-b border-slate-50">
               <div>
-                 <h3 className="text-2xl font-bold tracking-tight text-slate-900">Ajuste Técnico</h3>
-                 <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">Configurando {exercises[editingSetsIndex].exercise_name}</p>
+                 <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Ajuste Técnico</h3>
+                 <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{exercises[editingSetsIndex].exercise_name}</p>
               </div>
-              <button onClick={() => setEditingSetsIndex(null)} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 text-slate-400"><i className="fas fa-times"></i></button>
+              <button onClick={() => setEditingSetsIndex(null)} className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 transition-colors"><i className="fas fa-times text-xl"></i></button>
            </header>
            
-           <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar pb-32">
+           <div className="flex-1 overflow-y-auto p-6 space-y-10 no-scrollbar pb-32">
               <div className="space-y-4">
                 {exercises[editingSetsIndex].sets_json?.map((set, sIdx) => (
-                  <div key={sIdx} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
+                  <div key={sIdx} className="bg-white p-8 rounded-[2.5rem] border border-slate-50 shadow-2xl shadow-slate-200/50 space-y-8">
                     <div className="flex justify-between items-center">
-                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Série {sIdx + 1}</span>
+                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Série {sIdx + 1}</span>
                        <button 
                         onClick={() => {
                           const newSets = [...(exercises[editingSetsIndex!].sets_json || [])];
                           newSets.splice(sIdx, 1);
                           handleUpdateSets(editingSetsIndex!, newSets);
                         }}
-                        className="text-red-500 text-[10px] font-bold uppercase"
+                        className="text-red-500 text-[10px] font-black uppercase tracking-widest"
                        >Remover</button>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                       <div className="space-y-1">
-                          <label className="text-[8px] font-bold text-slate-400 uppercase ml-1">Peso (kg)</label>
+                    <div className="grid grid-cols-3 gap-6">
+                       <div className="space-y-2">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Peso (kg)</label>
                           <input 
                             type="number" value={set.weight} 
                             onChange={(e) => {
@@ -326,11 +334,11 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                               newSets[sIdx].weight = parseFloat(e.target.value) || 0;
                               handleUpdateSets(editingSetsIndex!, newSets);
                             }}
-                            className="w-full bg-slate-50 p-3 rounded-xl text-center font-bold text-blue-600 outline-none border border-slate-100 focus:border-blue-600 focus:bg-white" 
+                            className="w-full bg-[#F7F8FA] p-4 rounded-2xl text-center font-black text-blue-600 outline-none border border-transparent focus:border-blue-600 focus:bg-white transition-all" 
                           />
                        </div>
-                       <div className="space-y-1">
-                          <label className="text-[8px] font-bold text-slate-400 uppercase ml-1">Reps</label>
+                       <div className="space-y-2">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Reps</label>
                           <input 
                             type="text" value={set.reps} 
                             onChange={(e) => {
@@ -338,11 +346,11 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                               newSets[sIdx].reps = e.target.value;
                               handleUpdateSets(editingSetsIndex!, newSets);
                             }}
-                            className="w-full bg-slate-50 p-3 rounded-xl text-center font-bold text-slate-900 outline-none border border-slate-100 focus:border-blue-600 focus:bg-white" 
+                            className="w-full bg-[#F7F8FA] p-4 rounded-2xl text-center font-black text-slate-900 outline-none border border-transparent focus:border-blue-600 focus:bg-white transition-all" 
                           />
                        </div>
-                       <div className="space-y-1">
-                          <label className="text-[8px] font-bold text-slate-400 uppercase ml-1">Rest (s)</label>
+                       <div className="space-y-2">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Rest (s)</label>
                           <input 
                             type="number" value={set.rest_time} 
                             onChange={(e) => {
@@ -350,7 +358,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                               newSets[sIdx].rest_time = parseInt(e.target.value) || 0;
                               handleUpdateSets(editingSetsIndex!, newSets);
                             }}
-                            className="w-full bg-slate-50 p-3 rounded-xl text-center font-bold text-orange-500 outline-none border border-slate-100 focus:border-blue-600 focus:bg-white" 
+                            className="w-full bg-[#F7F8FA] p-4 rounded-2xl text-center font-black text-orange-500 outline-none border border-transparent focus:border-blue-600 focus:bg-white transition-all" 
                           />
                        </div>
                     </div>
@@ -364,68 +372,77 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                   newSets.push({ ...lastSet });
                   handleUpdateSets(editingSetsIndex!, newSets);
                 }}
-                className="w-full py-4 border border-dashed border-slate-200 rounded-2xl text-[9px] font-bold uppercase text-slate-400"
+                className="w-full py-6 border-2 border-dashed border-slate-100 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 active:text-blue-600 transition-all"
               >+ Adicionar Série</button>
            </div>
            
-           <footer className="p-8 border-t border-slate-100 bg-white/80 backdrop-blur-md pb-12">
+           <footer className="px-6 py-10 border-t border-slate-50 bg-white pb-safe">
               <button 
                 onClick={() => setEditingSetsIndex(null)}
-                className="w-full py-5 bg-blue-600 rounded-[2rem] font-bold text-white uppercase text-xs tracking-widest shadow-lg shadow-blue-600/20"
+                className="w-full py-6 bg-blue-600 rounded-[2rem] font-black text-white uppercase text-xs tracking-[0.3em] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all"
               >Confirmar Ajustes</button>
            </footer>
         </div>
       )}
 
       {showSaveModal && (
-        <div className="fixed inset-0 z-[500] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="w-full max-w-xs bg-white border border-slate-200 rounded-[3rem] p-10 space-y-8 shadow-2xl">
-            <div className="text-center space-y-2">
-              <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-600 mx-auto mb-4">
-                <i className="fas fa-save text-2xl"></i>
+        <div className="fixed inset-0 z-[1100] bg-slate-900/40 backdrop-blur-sm flex items-end justify-center animate-in fade-in duration-300">
+          <div className="w-full bg-white rounded-t-[4rem] p-10 space-y-10 shadow-2xl animate-in slide-in-from-bottom duration-500">
+            <div className="text-center space-y-4">
+              <div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center text-blue-600 mx-auto mb-4">
+                <i className="fas fa-save text-3xl"></i>
               </div>
-              <h3 className="text-xl font-bold tracking-tight text-slate-900">Salvar Alterações?</h3>
-              <p className="text-slate-500 text-xs leading-relaxed">Deseja que essas edições sejam permanentes para os próximos treinos?</p>
+              <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Salvar Alterações?</h3>
+              <p className="text-slate-400 text-sm font-medium leading-relaxed max-w-[250px] mx-auto">Deseja que essas edições sejam permanentes para os próximos treinos?</p>
             </div>
-            <div className="flex flex-col gap-3">
-              <button onClick={() => handleSave(true)} className="w-full py-5 bg-blue-600 rounded-2xl font-bold text-white uppercase text-[10px] tracking-widest shadow-lg shadow-blue-600/20">Sim, tornar permanente</button>
-              <button onClick={() => handleSave(false)} className="w-full py-5 bg-slate-100 rounded-2xl font-bold text-slate-600 uppercase text-[10px] tracking-widest border border-slate-200">Não, apenas para agora</button>
-              <button onClick={() => setShowSaveModal(false)} className="w-full py-4 text-slate-400 font-bold uppercase text-[9px] tracking-widest">Cancelar</button>
+            <div className="flex flex-col gap-4">
+              <button onClick={() => handleSave(true)} className="w-full py-6 bg-blue-600 rounded-[2rem] font-black text-white uppercase text-[10px] tracking-[0.2em] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all">Sim, tornar permanente</button>
+              <button onClick={() => handleSave(false)} className="w-full py-6 bg-slate-100 rounded-[2rem] font-black text-slate-600 uppercase text-[10px] tracking-[0.2em] active:bg-slate-200 transition-all">Não, apenas para agora</button>
+              <button onClick={() => setShowSaveModal(false)} className="w-full py-4 text-slate-300 font-black uppercase text-[10px] tracking-[0.2em] active:text-slate-900 transition-colors">Cancelar</button>
             </div>
           </div>
         </div>
       )}
 
       {showExerciseSelector && (
-        <div className="fixed inset-0 z-[200] bg-[#F7F8FA] flex flex-col p-6 animate-in slide-in-from-bottom duration-300">
-          <header className="flex justify-between items-center mb-6 pt-10">
-            <h3 className="text-2xl font-bold tracking-tight text-slate-900">
-              {replacingIndex !== null ? 'Substituir Por...' : 'Biblioteca'}
+        <div className="fixed inset-0 z-[1200] bg-[#F7F8FA] flex flex-col animate-in slide-in-from-bottom duration-500">
+          <header className="px-6 pt-12 pb-8 flex justify-between items-center bg-white border-b border-slate-50">
+            <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">
+              {replacingIndex !== null ? 'Substituir' : 'Biblioteca'}
             </h3>
-            <button onClick={() => setShowExerciseSelector(false)} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center border border-slate-200 shadow-sm active:scale-90 text-slate-400"><i className="fas fa-times"></i></button>
+            <button onClick={() => setShowExerciseSelector(false)} className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 transition-colors"><i className="fas fa-times text-xl"></i></button>
           </header>
 
-          <div className="space-y-4 mb-6 sticky top-0 z-10 bg-[#F7F8FA] pb-2">
-            <input 
-              type="text" placeholder="BUSCAR EXERCÍCIO..." value={selectorSearch}
-              onChange={e => setSelectorSearch(e.target.value)}
-              className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-slate-900 text-[10px] font-bold outline-none focus:border-blue-600 transition-all shadow-sm"
-            />
-          </div>
+          <div className="px-6 py-8 space-y-10 flex-1 overflow-y-auto no-scrollbar">
+            <div className="relative">
+              <i className="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
+              <input 
+                type="text" placeholder="BUSCAR EXERCÍCIO..." value={selectorSearch}
+                onChange={e => setSelectorSearch(e.target.value)}
+                className="w-full pl-14 pr-6 py-5 bg-white border border-slate-50 rounded-[2rem] text-slate-900 font-black text-sm outline-none focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all"
+              />
+            </div>
 
-          <div className="flex-1 overflow-y-auto space-y-3 no-scrollbar pb-20">
-            {filteredCatalog.map(ex => (
-              <div key={ex.id} onClick={() => handleAddOrReplaceExercise(ex)} className="p-4 bg-white border border-slate-200 rounded-3xl flex items-center gap-4 active:scale-95 transition-all cursor-pointer shadow-sm">
-                <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center p-1.5 shrink-0 border border-slate-100">
-                  <img src={ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" />
+            <div className="space-y-1">
+              {filteredCatalog.map((ex, idx) => (
+                <div 
+                  key={ex.id} 
+                  onClick={() => handleAddOrReplaceExercise(ex)} 
+                  className={`flex items-center justify-between py-6 active:bg-slate-50 transition-colors cursor-pointer ${idx !== filteredCatalog.length - 1 ? 'border-b border-slate-100' : ''}`}
+                >
+                  <div className="flex items-center gap-6 flex-1 min-w-0">
+                    <div className="w-14 h-14 bg-white border border-slate-50 rounded-[1.5rem] overflow-hidden flex items-center justify-center p-3 shrink-0 shadow-sm">
+                      <img src={ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{ex.name}</h4>
+                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.muscle_group}</p>
+                    </div>
+                  </div>
+                  <i className={`fas ${replacingIndex !== null ? 'fa-exchange-alt' : 'fa-plus-circle'} text-blue-600 opacity-20 text-lg`}></i>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-xs font-bold uppercase truncate text-slate-900">{ex.name}</h4>
-                  <p className="text-[8px] font-bold text-blue-600 uppercase tracking-widest">{ex.muscle_group}</p>
-                </div>
-                <i className={`fas ${replacingIndex !== null ? 'fa-exchange-alt' : 'fa-plus-circle'} text-blue-600 opacity-40`}></i>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}

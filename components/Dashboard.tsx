@@ -160,116 +160,171 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   );
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-8 pt-8 pb-32 animate-in fade-in duration-500">
-      <header className="flex items-center justify-between mb-10">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl border-2 border-white p-0.5 bg-white shadow-sm overflow-hidden">
-             <img src={profile?.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=200&h=200&auto=format&fit=crop'} className="w-full h-full object-cover rounded-[14px]" alt="Profile" />
-          </div>
-          <div>
-             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Olá, {profile?.full_name?.split(' ')[0] || 'Atleta'}</h2>
-             <p className="text-xs font-medium text-slate-500">Pronto para o treino de hoje?</p>
-          </div>
+    <div className="min-h-screen bg-[#F7F8FA] pb-32 animate-in fade-in duration-500">
+      {/* Header Minimalista */}
+      <header className="px-6 pt-12 pb-8 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Visão Geral</p>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">
+            {profile?.full_name?.split(' ')[0] || 'Atleta'}
+          </h2>
         </div>
-        <div className="flex gap-2">
-          <div className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 uppercase tracking-wider shadow-sm flex items-center gap-2">
-            <i className="fas fa-fire text-orange-500"></i>
-            {stats.sessions} Treinos
-          </div>
-        </div>
+        <button 
+          onClick={() => navigate('profile')}
+          className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 bg-white p-0.5 shadow-sm active:scale-95 transition-all"
+        >
+          <img 
+            src={profile?.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=200&h=200&auto=format&fit=crop'} 
+            className="w-full h-full object-cover rounded-full" 
+            alt="Profile" 
+          />
+        </button>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <main className="lg:col-span-8 space-y-8">
-          <section>
-             <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Meus Protocolos</h3>
-                <button onClick={() => navigate('editor')} className="text-blue-600 text-xs font-bold flex items-center gap-1">
-                  <i className="fas fa-plus"></i> Novo
-                </button>
-             </div>
+      {/* Stats Rápidas - Estilo Horizontal Minimalista */}
+      <div className="px-6 flex gap-8 mb-12 overflow-x-auto no-scrollbar">
+        <div className="shrink-0">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Sessões</p>
+          <p className="text-2xl font-black text-slate-900">{stats.sessions}</p>
+        </div>
+        <div className="shrink-0">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Sequência</p>
+          <p className="text-2xl font-black text-slate-900">3 <span className="text-xs text-orange-500"><i className="fas fa-fire"></i></span></p>
+        </div>
+        {profile?.is_admin && (
+          <button 
+            onClick={() => navigate('admin')}
+            className="shrink-0 flex items-center gap-2 text-blue-600 active:opacity-60 transition-opacity"
+          >
+            <i className="fas fa-user-shield text-lg"></i>
+            <span className="text-[9px] font-black uppercase tracking-widest">Admin</span>
+          </button>
+        )}
+      </div>
 
-             <div className="flex gap-2 py-1 overflow-x-auto no-scrollbar mb-6">
-                <button onClick={() => setActiveFolderId(null)} className={`px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 border ${activeFolderId === null ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20' : 'bg-white border-slate-200 text-slate-500'}`}>Todos</button>
-                {folders.map(f => (
-                  <button key={f.id} onClick={() => setActiveFolderId(f.id)} className={`px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 border ${activeFolderId === f.id ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20' : 'bg-white border-slate-200 text-slate-500'}`}>{f.name}</button>
-                ))}
-             </div>
+      {/* Seção de Protocolos - Lista Estilo iOS */}
+      <section className="px-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Meus Protocolos</h3>
+          <button 
+            onClick={() => navigate('editor')}
+            className="w-10 h-10 flex items-center justify-center text-blue-600 active:scale-90 transition-all"
+          >
+            <i className="fas fa-plus text-lg"></i>
+          </button>
+        </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredWorkouts.length === 0 && (
-                  <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-200 rounded-3xl bg-white/50">
-                    <i className="fas fa-dumbbell text-slate-300 text-3xl mb-3"></i>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nenhum treino encontrado</p>
+        {/* Filtro de Pastas - Minimalista */}
+        <div className="flex gap-4 overflow-x-auto no-scrollbar mb-8 -mx-6 px-6">
+          <button 
+            onClick={() => setActiveFolderId(null)} 
+            className={`text-[10px] font-black uppercase tracking-widest whitespace-nowrap pb-2 border-b-2 transition-all ${activeFolderId === null ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-400'}`}
+          >
+            Todos
+          </button>
+          {folders.map(f => (
+            <button 
+              key={f.id} 
+              onClick={() => setActiveFolderId(f.id)} 
+              className={`text-[10px] font-black uppercase tracking-widest whitespace-nowrap pb-2 border-b-2 transition-all ${activeFolderId === f.id ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-400'}`}
+            >
+              {f.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Lista de Treinos - iOS Style */}
+        <div className="space-y-1">
+          {filteredWorkouts.length === 0 ? (
+            <div className="py-20 text-center">
+              <i className="fas fa-dumbbell text-slate-200 text-4xl mb-4"></i>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhum protocolo ativo</p>
+            </div>
+          ) : (
+            filteredWorkouts.map((w, idx) => (
+              <div 
+                key={w.id} 
+                onClick={() => navigate('workout', { id: w.id })}
+                className={`group flex items-center justify-between py-6 active:bg-slate-50 transition-colors cursor-pointer ${idx !== filteredWorkouts.length - 1 ? 'border-b border-slate-100' : ''}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-lg font-black text-slate-900 uppercase tracking-tight truncate pr-4">{w.name}</h4>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">8 Exercícios</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">• 45 min</span>
                   </div>
-                )}
-                {filteredWorkouts.map(w => (
-                  <div key={w.id} onClick={() => navigate('workout', { id: w.id })} className="premium-card p-6 cursor-pointer group relative">
-                     <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => { e.stopPropagation(); navigate('editor', { id: w.id }); }} className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 border border-slate-100"><i className="fas fa-pen text-[10px]"></i></button>
-                        <button onClick={(e) => handleDeleteWorkout(e, w.id, w.name)} disabled={isDeleting === w.id} className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center text-red-400 hover:text-red-600 border border-red-100">
-                           {isDeleting === w.id ? <i className="fas fa-spinner animate-spin text-[10px]"></i> : <i className="fas fa-trash text-[10px]"></i>}
-                        </button>
-                     </div>
-                     <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
-                          <i className="fas fa-bolt text-lg"></i>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                           <h4 className="font-bold text-slate-900 text-lg truncate pr-12">{w.name}</h4>
-                           <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{w.description || 'Ficha técnica para otimização de volume e força.'}</p>
-                           <div className="flex items-center gap-3 mt-4">
-                              <span className="text-[10px] font-bold text-blue-600 uppercase bg-blue-50 px-2 py-1 rounded-md">8 Exercícios</span>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase">Aprox. 45 min</span>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-                ))}
-             </div>
-          </section>
-        </main>
-
-        <aside className="lg:col-span-4 space-y-6">
-           <section className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-8">
-              <div>
-                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Resumo Semanal</h3>
-                 <div className="grid grid-cols-7 gap-1">
-                    {['S','T','Q','Q','S','S','D'].map((day, i) => (
-                      <div key={i} className="flex flex-col items-center gap-2">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${i < 3 ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'}`}>
-                          {i < 3 ? <i className="fas fa-check"></i> : ''}
-                        </div>
-                        <span className="text-[9px] font-bold text-slate-400">{day}</span>
-                      </div>
-                    ))}
-                 </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); navigate('editor', { id: w.id }); }}
+                    className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-blue-600 transition-colors"
+                  >
+                    <i className="fas fa-pen text-xs"></i>
+                  </button>
+                  <i className="fas fa-chevron-right text-[10px] text-slate-300"></i>
+                </div>
               </div>
+            ))
+          )}
+        </div>
+      </section>
 
-              {profile?.is_admin && (
-                <button onClick={() => navigate('admin')} className="w-full py-4 bg-slate-900 rounded-2xl font-bold text-white uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3">
-                  <i className="fas fa-user-shield"></i> Painel Admin
-                </button>
-              )}
-
-              <div>
-                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Conquistas</h3>
-                 <div className="grid grid-cols-4 gap-3">
-                    {achievedBadges.length === 0 ? [1,2,3,4].map(i => <div key={i} className="aspect-square bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center text-slate-200"><i className="fas fa-medal"></i></div>) : achievedBadges.map(b => (
-                      <div key={b.id} className={`aspect-square bg-gradient-to-br ${b.color} rounded-xl p-0.5 shadow-sm group cursor-help`}><div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center overflow-hidden"><i className={`fas ${b.icon} text-blue-600 transition-transform group-hover:scale-110`}></i></div></div>
-                    ))}
-                 </div>
+      {/* Resumo Semanal e Conquistas - Integrados sem cards pesados */}
+      <section className="mt-16 px-6 space-y-12">
+        <div>
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Frequência Semanal</h3>
+          <div className="flex justify-between items-center">
+            {['S','T','Q','Q','S','S','D'].map((day, i) => (
+              <div key={i} className="flex flex-col items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs ${i < 3 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white border border-slate-100 text-slate-300'}`}>
+                  {i < 3 ? <i className="fas fa-check"></i> : ''}
+                </div>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{day}</span>
               </div>
+            ))}
+          </div>
+        </div>
 
-              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                 <div className="flex items-center gap-2 mb-2">
-                    <i className="fas fa-lightbulb text-blue-600 text-xs"></i>
-                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Dica do Coach</p>
-                 </div>
-                 <p className="text-xs font-medium text-slate-600 leading-relaxed">"Mantenha a consistência. O seu volume de trabalho está progredindo de forma linear."</p>
-              </div>
-           </section>
-        </aside>
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Conquistas</h3>
+            <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">{achievedBadges.length} Ativas</span>
+          </div>
+          <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-6 px-6">
+            {achievedBadges.length === 0 ? (
+              [1,2,3,4].map(i => (
+                <div key={i} className="w-16 h-16 shrink-0 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-100">
+                  <i className="fas fa-medal text-xl"></i>
+                </div>
+              ))
+            ) : (
+              achievedBadges.map(b => (
+                <div key={b.id} className="w-16 h-16 shrink-0 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-sm active:scale-95 transition-all">
+                  <i className={`fas ${b.icon} text-blue-600 text-xl`}></i>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Dica do Dia - Estilo Quote Minimalista */}
+        <div className="pt-8 border-t border-slate-100">
+          <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2">Dica do Coach</p>
+          <p className="text-sm font-medium text-slate-600 leading-relaxed italic">
+            "A consistência supera a intensidade no longo prazo. Mantenha o foco no processo."
+          </p>
+        </div>
+      </section>
+
+      {/* Botão de Ação Principal Flutuante (Thumb Zone) */}
+      <div className="fixed bottom-24 left-0 right-0 px-6 flex justify-center pointer-events-none">
+        <button 
+          onClick={() => navigate('editor')}
+          className="pointer-events-auto h-16 px-8 bg-slate-900 text-white rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 active:scale-95 transition-all"
+        >
+          <i className="fas fa-bolt"></i>
+          Novo Treino
+        </button>
       </div>
     </div>
   );

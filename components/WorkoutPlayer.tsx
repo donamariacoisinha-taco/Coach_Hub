@@ -249,248 +249,260 @@ const WorkoutPlayer: React.FC<{ workoutId: string }> = ({ workoutId }) => {
   );
 
   return (
-    <div className="h-[100dvh] bg-[#F7F8FA] flex flex-col overflow-hidden text-slate-900">
-       <div className="h-1 w-full bg-slate-200 overflow-hidden">
+    <div className="h-[100dvh] bg-[#F7F8FA] flex flex-col overflow-hidden text-slate-900 animate-in fade-in duration-500">
+       {/* Barra de Progresso Minimalista */}
+       <div className="h-1 w-full bg-slate-100 overflow-hidden">
           <div className="h-full bg-blue-600 transition-all duration-700" style={{ width: `${((currentIndex + (currentSet/(currentEx?.sets_json?.length || 1))) / exercises.length) * 100}%` }}></div>
        </div>
 
+       {/* Vitória / Conclusão */}
        {showVictory && (
-         <div className="fixed inset-0 z-[1000] bg-white flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in">
-            <div className="w-24 h-24 bg-blue-50 rounded-[2rem] flex items-center justify-center text-blue-600 text-4xl mb-8 shadow-sm animate-bounce"><i className="fas fa-trophy"></i></div>
-            <h2 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">Treino Concluído!</h2>
-            <p className="text-slate-500 font-medium mb-12">Sua performance foi sincronizada com sucesso.</p>
-            <button onClick={() => navigate('dashboard')} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all">Sair do Player</button>
+         <div className="fixed inset-0 z-[1000] bg-white flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in">
+            <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 text-4xl mb-12 shadow-sm animate-bounce">
+              <i className="fas fa-trophy"></i>
+            </div>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase mb-4">Treino Concluído</h2>
+            <p className="text-slate-500 font-medium mb-16 leading-relaxed">Sua performance foi sincronizada com sucesso. Ótimo trabalho hoje.</p>
+            <button 
+              onClick={() => navigate('dashboard')} 
+              className="w-full py-6 bg-slate-900 text-white rounded-full font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl active:scale-95 transition-all"
+            >
+              Finalizar Sessão
+            </button>
          </div>
        )}
 
+       {/* Modal de Saída */}
        {showExitModal && (
-         <div className="fixed inset-0 z-[1100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6">
-            <div className="w-full max-w-xs bg-white rounded-[2rem] p-8 shadow-2xl space-y-6">
+         <div className="fixed inset-0 z-[1100] bg-slate-900/20 backdrop-blur-md flex items-center justify-center p-6">
+            <div className="w-full max-w-xs bg-white rounded-[3rem] p-10 shadow-2xl space-y-8">
                <div className="text-center">
-                  <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 mx-auto mb-4"><i className="fas fa-sign-out-alt text-xl"></i></div>
-                  <h3 className="text-xl font-bold text-slate-900">Encerrar Treino?</h3>
-                  <p className="text-slate-500 text-xs font-medium mt-2">Deseja finalizar esta sessão ou descartar o progresso?</p>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Encerrar?</h3>
+                  <p className="text-slate-500 text-xs font-medium mt-4 leading-relaxed">Deseja finalizar esta sessão ou descartar o progresso atual?</p>
                </div>
-               <div className="space-y-3">
-                  <button onClick={async () => { await finishWorkout(true); navigate('dashboard'); }} className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest">Finalizar e Salvar</button>
-                  <button onClick={async () => { await finishWorkout(false); navigate('dashboard'); }} className="w-full py-4 bg-red-50 text-red-500 rounded-xl font-bold uppercase text-[10px] tracking-widest">Descartar Treino</button>
-                  <button onClick={() => setShowExitModal(false)} className="w-full py-3 text-slate-400 font-bold uppercase text-[9px] tracking-wider">Voltar ao Exercício</button>
+               <div className="space-y-4">
+                  <button onClick={async () => { await finishWorkout(true); navigate('dashboard'); }} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Salvar e Sair</button>
+                  <button onClick={async () => { await finishWorkout(false); navigate('dashboard'); }} className="w-full py-5 bg-red-50 text-red-500 rounded-2xl font-black uppercase text-[10px] tracking-widest">Descartar</button>
+                  <button onClick={() => setShowExitModal(false)} className="w-full py-3 text-slate-400 font-black uppercase text-[9px] tracking-widest">Continuar Treinando</button>
                </div>
             </div>
          </div>
        )}
 
-       <header className="px-6 pt-6 pb-4 flex justify-between items-center shrink-0 bg-white border-b border-slate-100 shadow-sm">
-          <div className="flex items-center gap-3">
-             <button onClick={() => setShowExitModal(true)} className="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 active:scale-90 transition-all">
-               <i className="fas fa-times text-sm"></i>
+       {/* Header Minimalista */}
+       <header className="px-6 pt-12 pb-6 flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-4">
+             <button 
+               onClick={() => setShowExitModal(true)} 
+               className="w-10 h-10 flex items-center justify-center text-slate-300 active:scale-90 transition-all"
+             >
+               <i className="fas fa-times text-lg"></i>
              </button>
              <div>
-               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">EX {currentIndex + 1} / {exercises.length}</p>
-               <h2 className="text-lg font-bold text-slate-900 tracking-tight leading-none truncate max-w-[150px]">{currentEx?.exercise_name || '...'}</h2>
+               <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">EX {currentIndex + 1} / {exercises.length}</p>
+               <h2 className="text-xl font-black text-slate-900 tracking-tighter uppercase truncate max-w-[180px]">{currentEx?.exercise_name || '...'}</h2>
              </div>
           </div>
           
-          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">
-             <button 
-               disabled={currentIndex === 0} 
-               onClick={() => { setCurrentIndex(prev => prev - 1); setCurrentSet(1); }}
-               className="w-8 h-8 flex items-center justify-center text-slate-400 disabled:opacity-20 active:text-blue-600"
-             >
-               <i className="fas fa-chevron-left text-xs"></i>
-             </button>
-             <button 
-               onClick={() => setShowExerciseList(true)}
-               className="w-8 h-8 flex items-center justify-center text-blue-600"
-             >
-               <i className="fas fa-list-ul text-xs"></i>
-             </button>
-             <button 
-               disabled={currentIndex === exercises.length - 1} 
-               onClick={() => { setCurrentIndex(prev => prev + 1); setCurrentSet(1); }}
-               className="w-8 h-8 flex items-center justify-center text-slate-400 disabled:opacity-20 active:text-blue-600"
-             >
-               <i className="fas fa-chevron-right text-xs"></i>
-             </button>
-          </div>
+          <button 
+            onClick={() => setShowExerciseList(true)}
+            className="w-10 h-10 flex items-center justify-center text-blue-600 active:scale-90 transition-all"
+          >
+            <i className="fas fa-list-ul text-lg"></i>
+          </button>
        </header>
 
-       <div className="flex-1 overflow-y-auto no-scrollbar px-6 flex flex-col items-center relative">
+       {/* Área Principal */}
+       <div className="flex-1 overflow-y-auto no-scrollbar px-6 flex flex-col items-center">
           {isResting ? (
-             <div className="flex-1 flex flex-col items-center justify-center space-y-10 animate-in zoom-in duration-500 w-full max-w-sm">
+             <div className="flex-1 flex flex-col items-center justify-center space-y-12 animate-in zoom-in duration-500 w-full max-w-sm">
                 <div className="relative">
-                   <svg className="w-56 h-56 -rotate-90">
-                      <circle cx="112" cy="112" r="100" className="stroke-slate-100 fill-none" strokeWidth="8" />
-                      <circle cx="112" cy="112" r="100" className="stroke-blue-600 fill-none transition-all duration-1000 ease-linear" strokeWidth="8" strokeLinecap="round" style={{ strokeDasharray: '628', strokeDashoffset: 628 - (628 * (timeLeft / (currentEx?.rest_time || 60))) }} />
+                   <svg className="w-64 h-64 -rotate-90">
+                      <circle cx="128" cy="128" r="110" className="stroke-slate-100 fill-none" strokeWidth="4" />
+                      <circle cx="128" cy="128" r="110" className="stroke-blue-600 fill-none transition-all duration-1000 ease-linear" strokeWidth="4" strokeLinecap="round" style={{ strokeDasharray: '691', strokeDashoffset: 691 - (691 * (timeLeft / (currentEx?.rest_time || 60))) }} />
                    </svg>
                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Descanso</p>
-                      <p className="text-6xl font-bold tabular-nums text-slate-900">{timeLeft}s</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Descanso</p>
+                      <p className="text-7xl font-black tabular-nums text-slate-900 tracking-tighter">{timeLeft}s</p>
                       
-                      <div className="flex gap-3 mt-4">
-                        <button onClick={() => setTimeLeft(prev => Math.max(0, prev - 15))} className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[10px] font-bold border border-slate-200 shadow-sm">-15</button>
-                        <button onClick={() => setTimeLeft(prev => prev + 15)} className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[10px] font-bold border border-slate-200 shadow-sm">+15</button>
+                      <div className="flex gap-4 mt-6">
+                        <button onClick={() => setTimeLeft(prev => Math.max(0, prev - 15))} className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[10px] font-black border border-slate-100 shadow-sm active:scale-90">-15</button>
+                        <button onClick={() => setTimeLeft(prev => prev + 15)} className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[10px] font-black border border-slate-100 shadow-sm active:scale-90">+15</button>
                       </div>
                    </div>
                 </div>
-                <button onClick={handleNextStep} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-all">Pular Descanso</button>
+                <button 
+                  onClick={handleNextStep} 
+                  className="w-full py-6 bg-slate-900 text-white rounded-full font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl active:scale-95 transition-all"
+                >
+                  Pular Descanso
+                </button>
              </div>
           ) : (
-             <div className="w-full max-w-sm space-y-6 py-6 animate-in slide-in-from-bottom-4 duration-500 pb-24">
-                <div className="premium-card p-4 aspect-video flex items-center justify-center relative overflow-hidden bg-white">
-                   <img src={currentEx?.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=400&h=300&auto=format&fit=crop'} className="w-full h-full object-contain rounded-xl" />
-                   <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-100 flex items-center gap-2 shadow-sm">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></span>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-900">SÉRIE {currentSet} / {currentEx?.sets_json?.length || 3}</p>
+             <div className="w-full max-w-sm space-y-10 py-8 animate-in slide-in-from-bottom-4 duration-500 pb-32">
+                {/* Imagem do Exercício - Estilo Minimalista */}
+                <div className="aspect-square bg-white rounded-[3rem] overflow-hidden flex items-center justify-center p-12 relative">
+                   <img 
+                    src={currentEx?.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=400&h=300&auto=format&fit=crop'} 
+                    className="w-full h-full object-contain mix-blend-multiply" 
+                   />
+                   <div className="absolute top-6 right-6 flex flex-col items-end gap-1">
+                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Série {currentSet}</p>
+                      <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">de {currentEx?.sets_json?.length || 3}</p>
                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center">
-                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3">Carga (kg)</p>
-                     <div className="flex items-center gap-4">
-                        <button onClick={() => setLiveWeight(w => Math.max(0, w - 1))} className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 border border-slate-100">-</button>
-                        <input type="number" inputMode="decimal" value={liveWeight} onChange={e => setLiveWeight(parseFloat(e.target.value) || 0)} className="w-14 bg-transparent text-3xl font-bold text-slate-900 text-center outline-none" />
-                        <button onClick={() => setLiveWeight(w => w + 1)} className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 border border-slate-100">+</button>
+                {/* Inputs de Carga e Reps - Minimalistas */}
+                <div className="grid grid-cols-2 gap-12">
+                  <div className="text-center">
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Carga (kg)</p>
+                     <div className="flex items-center justify-center gap-6">
+                        <button onClick={() => setLiveWeight(w => Math.max(0, w - 1))} className="text-slate-300 active:text-blue-600 transition-colors"><i className="fas fa-minus"></i></button>
+                        <input 
+                          type="number" 
+                          inputMode="decimal" 
+                          value={liveWeight} 
+                          onChange={e => setLiveWeight(parseFloat(e.target.value) || 0)} 
+                          className="w-20 bg-transparent text-5xl font-black text-slate-900 text-center outline-none tracking-tighter" 
+                        />
+                        <button onClick={() => setLiveWeight(w => w + 1)} className="text-slate-300 active:text-blue-600 transition-colors"><i className="fas fa-plus"></i></button>
                      </div>
                   </div>
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center">
-                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3">Reps</p>
-                     <div className="flex items-center gap-4">
-                        <button onClick={() => setLiveReps(r => Math.max(0, r - 1))} className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 border border-slate-100">-</button>
-                        <input type="number" inputMode="numeric" value={liveReps} onChange={e => setLiveReps(parseInt(e.target.value) || 0)} className="w-14 bg-transparent text-3xl font-bold text-slate-900 text-center outline-none" />
-                        <button onClick={() => setLiveReps(r => r + 1)} className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 border border-slate-100">+</button>
+                  <div className="text-center">
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Reps</p>
+                     <div className="flex items-center justify-center gap-6">
+                        <button onClick={() => setLiveReps(r => Math.max(0, r - 1))} className="text-slate-300 active:text-blue-600 transition-colors"><i className="fas fa-minus"></i></button>
+                        <input 
+                          type="number" 
+                          inputMode="numeric" 
+                          value={liveReps} 
+                          onChange={e => setLiveReps(parseInt(e.target.value) || 0)} 
+                          className="w-20 bg-transparent text-5xl font-black text-slate-900 text-center outline-none tracking-tighter" 
+                        />
+                        <button onClick={() => setLiveReps(r => r + 1)} className="text-slate-300 active:text-blue-600 transition-colors"><i className="fas fa-plus"></i></button>
                      </div>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <button onClick={handleSetComplete} disabled={saving} className="w-full py-6 bg-blue-600 text-white rounded-2xl font-bold uppercase text-xs tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all">
-                    {saving ? <i className="fas fa-spinner animate-spin"></i> : `CONCLUIR SÉRIE ${currentSet}`}
-                  </button>
-                  
-                  <button 
-                    onClick={handleAddSetDuringWorkout}
-                    className="w-full py-3 border border-dashed border-slate-200 rounded-xl text-[9px] font-bold uppercase text-slate-400 hover:text-blue-600 transition-colors"
-                  >
-                    + Adicionar Série Extra
-                  </button>
-                </div>
-                
-                <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4 text-center">Esforço Percebido (RPE)</p>
+                {/* RPE - Minimalista */}
+                <div className="pt-4">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Esforço (RPE)</p>
                   <div className="flex justify-between items-center gap-2">
                     {[6, 7, 8, 9, 10].map((val) => (
-                      <button key={val} onClick={() => setLiveRpe(val)} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all border ${liveRpe === val ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>{val}</button>
+                      <button 
+                        key={val} 
+                        onClick={() => setLiveRpe(val)} 
+                        className={`flex-1 py-4 rounded-2xl text-xs font-black transition-all ${liveRpe === val ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20' : 'bg-white border border-slate-100 text-slate-400'}`}
+                      >
+                        {val}
+                      </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
-                   <div className="space-y-3">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">Navegar Séries</p>
-                      <div className="flex flex-wrap justify-center gap-2">
-                         {Array.from({ length: currentEx?.sets_json?.length || 0 }).map((_, i) => (
-                           <button 
-                             key={i} 
-                             onClick={() => { setCurrentSet(i + 1); if ('vibrate' in navigator) navigator.vibrate(5); }}
-                             className={`w-9 h-9 rounded-lg font-bold text-[10px] transition-all border ${currentSet === i + 1 ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-400 border-slate-100'}`}
-                           >
-                             S{i + 1}
-                           </button>
-                         ))}
-                      </div>
-                   </div>
-
-                   <div className="h-px bg-slate-100 w-1/2 mx-auto"></div>
-
-                   <div className="flex items-center justify-between gap-3">
-                      <button 
-                        disabled={currentIndex === 0}
-                        onClick={() => { setCurrentIndex(prev => prev - 1); setCurrentSet(1); if ('vibrate' in navigator) navigator.vibrate(10); }}
-                        className="flex-1 py-3 bg-slate-50 rounded-xl text-[9px] font-bold uppercase tracking-widest text-slate-400 border border-slate-100 disabled:opacity-30"
-                      >
-                        <i className="fas fa-arrow-left mr-1"></i> Anterior
-                      </button>
-                      <button 
-                        disabled={currentIndex === exercises.length - 1}
-                        onClick={() => { setCurrentIndex(prev => prev + 1); setCurrentSet(1); if ('vibrate' in navigator) navigator.vibrate(10); }}
-                        className="flex-1 py-3 bg-slate-50 rounded-xl text-[9px] font-bold uppercase tracking-widest text-slate-400 border border-slate-100 disabled:opacity-30"
-                      >
-                        Próximo <i className="fas fa-arrow-right ml-1"></i>
-                      </button>
-                   </div>
+                {/* Botão de Conclusão - Thumb Zone */}
+                <div className="fixed bottom-32 left-0 right-0 px-6 flex flex-col gap-4 pointer-events-none">
+                  <button 
+                    onClick={handleSetComplete} 
+                    disabled={saving} 
+                    className="pointer-events-auto w-full py-6 bg-blue-600 text-white rounded-full font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl active:scale-95 transition-all"
+                  >
+                    {saving ? <i className="fas fa-spinner animate-spin"></i> : `Concluir Série ${currentSet}`}
+                  </button>
+                  <button 
+                    onClick={handleAddSetDuringWorkout}
+                    className="pointer-events-auto w-full py-3 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 active:text-blue-600 transition-colors"
+                  >
+                    + Adicionar Série
+                  </button>
                 </div>
              </div>
           )}
        </div>
 
-       <footer className="bg-white border-t border-slate-100 px-6 py-4 grid grid-cols-4 gap-2 shrink-0 pb-safe">
+       {/* Footer Minimalista com Dados da Sessão */}
+       <footer className="bg-white px-8 py-6 flex justify-between items-center shrink-0 pb-safe border-t border-slate-50">
           <div className="text-center">
-             <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Tempo</p>
-             <p className="text-[11px] font-bold text-slate-900 tabular-nums">{formatDuration(now - startTime)}</p>
+             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Tempo</p>
+             <p className="text-xs font-black text-slate-900 tabular-nums">{formatDuration(now - startTime)}</p>
           </div>
           <div className="text-center">
-             <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Ativo</p>
-             <p className="text-[11px] font-bold text-blue-600 tabular-nums">{formatDuration(totalExecutionMs)}</p>
+             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Volume</p>
+             <p className="text-xs font-black text-slate-900 tabular-nums">{(sessionTonnage >= 1000 ? (sessionTonnage/1000).toFixed(1) + 'T' : sessionTonnage + 'kg')}</p>
           </div>
-          <div className="text-center">
-             <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Descanso</p>
-             <p className="text-[11px] font-bold text-orange-500 tabular-nums">{formatDuration(totalRestMs + (isResting && restStartTs ? (now - restStartTs) : 0))}</p>
-          </div>
-          <div className="text-center border-l border-slate-100">
-             <p className="text-[7px] font-bold text-blue-600 uppercase tracking-widest mb-0.5">Volume</p>
-             <p className="text-[11px] font-bold text-slate-900 tabular-nums">{(sessionTonnage >= 1000 ? (sessionTonnage/1000).toFixed(1) + 'T' : sessionTonnage + 'kg')}</p>
+          <div className="flex items-center gap-4">
+            <button 
+              disabled={currentIndex === 0} 
+              onClick={() => { setCurrentIndex(prev => prev - 1); setCurrentSet(1); }}
+              className="w-10 h-10 flex items-center justify-center text-slate-300 disabled:opacity-20 active:text-blue-600"
+            >
+              <i className="fas fa-chevron-left"></i>
+            </button>
+            <button 
+              disabled={currentIndex === exercises.length - 1} 
+              onClick={() => { setCurrentIndex(prev => prev + 1); setCurrentSet(1); }}
+              className="w-10 h-10 flex items-center justify-center text-slate-300 disabled:opacity-20 active:text-blue-600"
+            >
+              <i className="fas fa-chevron-right"></i>
+            </button>
           </div>
        </footer>
 
+       {/* Cronograma - iOS Style */}
        {showExerciseList && (
-        <div className="fixed inset-0 z-[1200] bg-white flex flex-col p-6 animate-in slide-in-from-bottom duration-300">
-          <header className="flex justify-between items-center mb-8 pt-4">
+        <div className="fixed inset-0 z-[1200] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
+          <header className="px-6 pt-12 pb-6 flex items-center justify-between border-b border-slate-50">
             <div>
-              <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Cronograma</h3>
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">Sua jornada de hoje</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Cronograma</p>
+              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Sua Jornada</h3>
             </div>
-            <button onClick={() => setShowExerciseList(false)} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 text-slate-400"><i className="fas fa-times"></i></button>
+            <button 
+              onClick={() => setShowExerciseList(false)} 
+              className="w-10 h-10 flex items-center justify-center text-slate-900 active:scale-90 transition-all"
+            >
+              <i className="fas fa-times text-lg"></i>
+            </button>
           </header>
           
-          <div className="flex-1 overflow-y-auto space-y-3 no-scrollbar pb-8">
-            {exercises.map((ex, idx) => (
-              <div 
-                key={ex.id} 
-                className={`p-4 rounded-2xl border flex items-center gap-4 transition-all relative ${idx === currentIndex ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-100'}`}
-                onClick={() => { setCurrentIndex(idx); setCurrentSet(1); setShowExerciseList(false); }}
-              >
-                <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center font-bold text-[11px] shrink-0 text-slate-400 shadow-sm">{idx + 1}</div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold text-slate-900 truncate">{ex.exercise_name}</h4>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{ex.muscle_group} • {ex.sets_json?.length || 3} Séries</p>
-                </div>
-                
-                <button 
-                  onClick={(e) => { e.stopPropagation(); navigate('editor', { id: workoutId }); }}
-                  className="w-9 h-9 bg-white rounded-lg flex items-center justify-center text-blue-600 border border-slate-100 shadow-sm active:scale-90"
+          <div className="flex-1 overflow-y-auto px-6 py-6 no-scrollbar">
+            <div className="space-y-1">
+              {exercises.map((ex, idx) => (
+                <div 
+                  key={ex.id} 
+                  onClick={() => { setCurrentIndex(idx); setCurrentSet(1); setShowExerciseList(false); }}
+                  className={`flex items-center justify-between py-5 active:bg-slate-50 transition-colors cursor-pointer ${idx !== exercises.length - 1 ? 'border-b border-slate-100' : ''}`}
                 >
-                  <i className="fas fa-pen text-xs"></i>
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-[10px] shrink-0 border ${idx === currentIndex ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white border-slate-100 text-slate-300'}`}>
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className={`text-sm font-black uppercase tracking-tight truncate pr-4 ${idx === currentIndex ? 'text-blue-600' : 'text-slate-900'}`}>{ex.exercise_name}</h4>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{ex.muscle_group} • {ex.sets_json?.length || 3} Séries</p>
+                    </div>
+                  </div>
+                  <i className="fas fa-chevron-right text-[10px] text-slate-300"></i>
+                </div>
+              ))}
+            </div>
 
             <button 
               onClick={() => navigate('editor', { id: workoutId })}
-              className="w-full py-6 border-2 border-dashed border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-300 hover:text-blue-600 hover:border-blue-200 transition-all mt-4"
+              className="w-full py-8 mt-8 border-2 border-dashed border-slate-100 rounded-[2rem] flex flex-col items-center justify-center gap-3 text-slate-300 active:text-blue-600 active:border-blue-200 transition-all"
             >
-              <i className="fas fa-plus-circle text-xl"></i>
-              <span className="text-[10px] font-bold uppercase tracking-widest">Adicionar Exercício</span>
+              <i className="fas fa-plus text-xl"></i>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Adicionar Exercício</span>
             </button>
           </div>
           
-          <button 
-            onClick={() => setShowExerciseList(false)}
-            className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold uppercase text-xs tracking-widest mb-6 active:scale-95 transition-all shadow-lg"
-          >
-            Voltar ao Treino
-          </button>
+          <div className="px-6 pb-12">
+            <button 
+              onClick={() => setShowExerciseList(false)}
+              className="w-full py-6 bg-slate-900 text-white rounded-full font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl active:scale-95 transition-all"
+            >
+              Voltar ao Treino
+            </button>
+          </div>
         </div>
        )}
     </div>

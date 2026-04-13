@@ -153,150 +153,161 @@ const HistoryView: React.FC = () => {
   );
 
   return (
-    <div className="space-y-8 px-4 pt-6 pb-32 animate-in fade-in duration-500">
-      <header className="flex flex-col gap-6">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Evolução</h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Sincronização de Bio-Dados</p>
-        </div>
-        <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto no-scrollbar">
-          <button onClick={() => setActiveTab('sessions')} className={`flex-1 px-4 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'sessions' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>Sessões</button>
-          <button onClick={() => setActiveTab('bio')} className={`flex-1 px-4 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'bio' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>Bio</button>
-          <button onClick={() => setActiveTab('charts')} className={`flex-1 px-4 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'charts' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>Força</button>
-          <button onClick={() => setActiveTab('visual')} className={`flex-1 px-4 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'visual' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>Visual</button>
+    <div className="min-h-screen bg-[#F7F8FA] pb-32 animate-in fade-in duration-500">
+      <header className="px-6 pt-12 pb-8">
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Performance</p>
+        <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Evolução</h2>
+        
+        {/* Tab Switcher Minimalista */}
+        <div className="flex gap-8 mt-10 overflow-x-auto no-scrollbar border-b border-slate-100">
+          {[
+            { id: 'sessions', label: 'Sessões' },
+            { id: 'bio', label: 'Bio' },
+            { id: 'charts', label: 'Força' },
+            { id: 'visual', label: 'Visual' }
+          ].map(tab => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as TabType)}
+              className={`text-[10px] font-black uppercase tracking-widest pb-4 border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-400'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </header>
 
-      {activeTab === 'visual' ? <ProgressPhotos /> : activeTab === 'bio' ? <BioReport /> : activeTab === 'charts' ? (
-        <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-           <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-2 px-2 py-2">
-              {exerciseList.map(ex => (
-                <button 
-                  key={ex.id} 
-                  onClick={() => { setSelectedExerciseId(ex.id); if ('vibrate' in navigator) navigator.vibrate(5); }}
-                  className={`px-6 py-3 rounded-full text-[9px] font-bold uppercase tracking-widest whitespace-nowrap border transition-all ${selectedExerciseId === ex.id ? 'bg-slate-900 border-slate-900 text-white shadow-xl' : 'bg-white border-slate-200 text-slate-400 shadow-sm'}`}
-                >
-                  {ex.name}
-                </button>
-              ))}
-           </div>
-
-           {chartPoints.length < 2 ? (
-             <div className="py-24 text-center border-2 border-dashed border-slate-200 rounded-[3rem] bg-white/50">
-                <i className="fas fa-chart-line text-slate-200 text-5xl mb-6"></i>
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Aguardando mais dados para projetar curva de força</p>
+      <div className="px-6">
+        {activeTab === 'visual' ? <ProgressPhotos /> : activeTab === 'bio' ? <BioReport /> : activeTab === 'charts' ? (
+          <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
+             <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-6 px-6">
+                {exerciseList.map(ex => (
+                  <button 
+                    key={ex.id} 
+                    onClick={() => { setSelectedExerciseId(ex.id); if ('vibrate' in navigator) navigator.vibrate(5); }}
+                    className={`px-8 py-5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${selectedExerciseId === ex.id ? 'bg-slate-900 border-slate-900 text-white shadow-2xl' : 'bg-white border-slate-100 text-slate-400'}`}
+                  >
+                    {ex.name}
+                  </button>
+                ))}
              </div>
-           ) : (
-             <div className="bg-white p-8 lg:p-12 rounded-[3.5rem] border border-slate-200 shadow-sm relative overflow-hidden group">
-                <div className="flex justify-between items-start mb-12 relative z-10">
-                   <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Estimativa 1RM</p>
-                      <h4 className="text-2xl font-bold text-slate-900 uppercase tracking-tight">{exerciseList.find(e => e.id === selectedExerciseId)?.name}</h4>
-                   </div>
-                   <div className="text-right">
-                      <p className="text-4xl font-bold text-blue-600 tabular-nums">{chartPoints[chartPoints.length - 1].val}<span className="text-sm font-bold opacity-30 ml-1">KG</span></p>
-                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Último Recorde</p>
-                   </div>
-                </div>
 
-                <div className="relative h-64 w-full">
-                   <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <defs>
-                         <linearGradient id="strengthGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
-                            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                         </linearGradient>
-                      </defs>
-                      <path 
-                        d={`${bezierPath} L ${chartPoints[chartPoints.length - 1].x} 100 L ${chartPoints[0].x} 100 Z`}
-                        fill="url(#strengthGradient)"
-                        className="animate-in fade-in duration-1000"
-                      />
-                      <path 
-                        d={bezierPath}
-                        fill="none"
-                        stroke="#3b82f6"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        className="animate-in slide-in-from-left-4 duration-1000"
-                      />
-                      {chartPoints.map((p, i) => (
-                        <circle key={i} cx={p.x} cy={p.y} r="2" fill="white" stroke="#3b82f6" strokeWidth="2" className="hover:r-4 transition-all" />
-                      ))}
-                   </svg>
-                </div>
-             </div>
-           )}
-        </div>
-      ) : (
-        <div className="space-y-4">
-           {history.length === 0 ? (
-              <div className="py-20 text-center opacity-40">
-                 <i className="fas fa-history text-5xl mb-4 text-slate-300"></i>
-                 <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Nenhuma sessão registrada</p>
-              </div>
-           ) : (
-             history.map(item => (
-               <div 
-                 key={item.id} 
-                 onClick={() => selectedWorkout === item.id ? setSelectedWorkout(null) : fetchWorkoutDetails(item.id)}
-                 className={`bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm transition-all ${selectedWorkout === item.id ? 'border-blue-200 ring-4 ring-blue-50' : ''}`}
-               >
-                  <div className="flex justify-between items-center">
-                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-100">
-                           {isDeleting === item.id ? <i className="fas fa-spinner animate-spin"></i> : <i className="fas fa-calendar-alt text-lg"></i>}
-                        </div>
-                        <div>
-                           <h4 className="font-bold text-slate-900 uppercase text-sm">{item.category_name}</h4>
-                           <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">{new Date(item.completed_at).toLocaleDateString()} • {item.duration_minutes || '--'} min</p>
-                        </div>
+             {chartPoints.length < 2 ? (
+               <div className="py-24 text-center">
+                  <i className="fas fa-chart-line text-slate-100 text-4xl mb-6"></i>
+                  <p className="text-slate-300 text-[10px] font-black uppercase tracking-[0.2em]">Aguardando dados</p>
+               </div>
+             ) : (
+               <div className="space-y-10">
+                  <div className="flex justify-between items-end">
+                     <div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Estimativa 1RM</p>
+                        <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{exerciseList.find(e => e.id === selectedExerciseId)?.name}</h4>
                      </div>
-                     <div className="flex items-center gap-3">
-                        <button 
-                          onClick={(e) => handleShareHistory(e, item)}
-                          className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors border border-slate-100"
-                        >
-                           <i className="fas fa-share-alt text-[10px]"></i>
-                        </button>
-                        <button 
-                          onClick={(e) => handleDeleteHistory(e, item.id)}
-                          disabled={!!isDeleting}
-                          className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-400 hover:bg-red-100 hover:text-red-600 transition-all active:scale-90 border border-red-100"
-                        >
-                           <i className="fas fa-trash-alt text-[10px]"></i>
-                        </button>
-                        <i className={`fas fa-chevron-${selectedWorkout === item.id ? 'up' : 'down'} text-[10px] text-slate-300 ml-1`}></i>
+                     <div className="text-right">
+                        <p className="text-4xl font-black text-blue-600 tabular-nums tracking-tighter">{chartPoints[chartPoints.length - 1].val}<span className="text-xs font-black opacity-30 ml-1">KG</span></p>
                      </div>
                   </div>
 
-                  {selectedWorkout === item.id && (
-                    <div className="mt-8 pt-8 border-t border-slate-100 space-y-6 animate-in fade-in duration-500">
-                       {loadingDetails ? <div className="text-center py-4"><i className="fas fa-spinner animate-spin text-blue-600"></i></div> : (
-                          workoutLogs.map(([exName, sets]: [string, any[]]) => (
-                            <div key={exName} className="space-y-3">
-                               <div className="flex items-center gap-3">
-                                  <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
-                                  <h5 className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">{exName}</h5>
-                               </div>
-                               <div className="grid grid-cols-4 gap-2">
-                                  {sets.map((set, idx) => (
-                                    <div key={idx} className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
-                                       <p className="text-[9px] font-bold text-slate-900 uppercase">{set.weight_achieved}kg</p>
-                                       <p className="text-[8px] font-bold text-blue-600 uppercase">{set.reps_achieved} reps</p>
-                                    </div>
-                                  ))}
-                               </div>
-                            </div>
-                          ))
-                       )}
-                    </div>
-                  )}
+                  <div className="relative h-64 w-full">
+                     <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <defs>
+                           <linearGradient id="strengthGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.1" />
+                              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                           </linearGradient>
+                        </defs>
+                        <path 
+                          d={`${bezierPath} L ${chartPoints[chartPoints.length - 1].x} 100 L ${chartPoints[0].x} 100 Z`}
+                          fill="url(#strengthGradient)"
+                          className="animate-in fade-in duration-1000"
+                        />
+                        <path 
+                          d={bezierPath}
+                          fill="none"
+                          stroke="#3b82f6"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          className="animate-in slide-in-from-left-4 duration-1000"
+                        />
+                        {chartPoints.map((p, i) => (
+                          <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="white" stroke="#3b82f6" strokeWidth="2" />
+                        ))}
+                     </svg>
+                  </div>
                </div>
-             ))
-           )}
-        </div>
-      )}
+             )}
+          </div>
+        ) : (
+          <div className="space-y-1">
+             {history.length === 0 ? (
+                <div className="py-20 text-center">
+                   <i className="fas fa-history text-slate-100 text-4xl mb-4"></i>
+                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Sem registros</p>
+                </div>
+             ) : (
+               history.map((item, idx) => (
+                 <div 
+                   key={item.id} 
+                   className={`${idx !== history.length - 1 ? 'border-b border-slate-100' : ''}`}
+                 >
+                    <div 
+                      onClick={() => selectedWorkout === item.id ? setSelectedWorkout(null) : fetchWorkoutDetails(item.id)}
+                      className="flex justify-between items-center py-8 active:bg-slate-50 transition-colors cursor-pointer"
+                    >
+                       <div className="flex-1 min-w-0">
+                          <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{item.category_name}</h4>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1.5">
+                            {new Date(item.completed_at).toLocaleDateString()} • {item.duration_minutes || '--'} min
+                          </p>
+                       </div>
+                       <div className="flex items-center gap-4">
+                          <button 
+                            onClick={(e) => handleShareHistory(e, item)}
+                            className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"
+                          >
+                             <i className="fas fa-share-alt"></i>
+                          </button>
+                          <button 
+                            onClick={(e) => handleDeleteHistory(e, item.id)}
+                            disabled={!!isDeleting}
+                            className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-red-500 transition-colors"
+                          >
+                             {isDeleting === item.id ? <i className="fas fa-spinner animate-spin"></i> : <i className="fas fa-trash-alt"></i>}
+                          </button>
+                          <i className={`fas fa-chevron-${selectedWorkout === item.id ? 'up' : 'down'} text-[10px] text-slate-200 ml-2`}></i>
+                       </div>
+                    </div>
+
+                    {selectedWorkout === item.id && (
+                      <div className="pb-10 space-y-10 animate-in fade-in duration-500">
+                         {loadingDetails ? (
+                           <div className="text-center py-4">
+                             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                           </div>
+                         ) : (
+                            workoutLogs.map(([exName, sets]: [string, any[]]) => (
+                              <div key={exName} className="space-y-6">
+                                 <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">{exName}</h5>
+                                 <div className="grid grid-cols-4 gap-6">
+                                    {sets.map((set, idx) => (
+                                      <div key={idx} className="space-y-1">
+                                         <p className="text-lg font-black text-slate-900 tracking-tighter">{set.weight_achieved}<span className="text-[10px] ml-0.5">kg</span></p>
+                                         <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">{set.reps_achieved} reps</p>
+                                      </div>
+                                    ))}
+                                 </div>
+                              </div>
+                            ))
+                         )}
+                      </div>
+                    )}
+                 </div>
+               ))
+             )}
+          </div>
+        )}
+      </div>
 
       {shareData && (
         <ShareCard 
