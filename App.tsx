@@ -60,6 +60,8 @@ const getStateFromUrl = (): NavigationState => {
   return { view: 'landing', params: {} };
 };
 
+import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt } from 'lucide-react';
+
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -200,9 +202,9 @@ const App: React.FC = () => {
   };
 
   if (loading) return (
-    <div className="h-screen bg-[#F7F8FA] flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6"></div>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Carregando...</p>
+    <div className="h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-10 h-10 border-4 border-black border-t-transparent rounded-full animate-spin mb-6"></div>
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em]">Carregando...</p>
     </div>
   );
 
@@ -210,15 +212,15 @@ const App: React.FC = () => {
 
   return (
     <NavigationContext.Provider value={{ current: navState, navigate, goBack, theme, toggleTheme, profile }}>
-      <div className="h-screen flex flex-col lg:flex-row bg-[#F7F8FA] overflow-hidden text-slate-900">
+      <div className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden text-gray-900">
         {!isImmersive && session && (
-          <aside className="hidden lg:flex w-20 bg-white border-r border-slate-200 flex-col items-center shrink-0">
-             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white mt-8 mb-12 shadow-lg shadow-blue-600/20"><i className="fas fa-bolt"></i></div>
+          <aside className="hidden lg:flex w-20 bg-white border-r border-gray-100 flex-col items-center shrink-0">
+             <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white mt-8 mb-12 shadow-lg shadow-black/20"><Bolt size={20} /></div>
              <div className="flex flex-col items-center gap-8 w-full">
-                <button onClick={() => navigate('dashboard')} className={`flex flex-col items-center transition-all ${navState.view === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600'}`}><i className="fas fa-house text-xl"></i></button>
-                <button onClick={() => navigate('library')} className={`flex flex-col items-center transition-all ${navState.view === 'library' ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600'}`}><i className="fas fa-dumbbell text-xl"></i></button>
-                <button onClick={() => navigate('history')} className={`flex flex-col items-center transition-all ${navState.view === 'history' ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600'}`}><i className="fas fa-chart-bar text-xl"></i></button>
-                <button onClick={() => navigate('profile')} className={`flex flex-col items-center transition-all ${navState.view === 'profile' ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600'}`}><i className="fas fa-user text-xl"></i></button>
+                <button onClick={() => navigate('dashboard')} className={`flex flex-col items-center transition-all ${navState.view === 'dashboard' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><Home size={24} /></button>
+                <button onClick={() => navigate('library')} className={`flex flex-col items-center transition-all ${navState.view === 'library' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><Dumbbell size={24} /></button>
+                <button onClick={() => navigate('history')} className={`flex flex-col items-center transition-all ${navState.view === 'history' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><HistoryIcon size={24} /></button>
+                <button onClick={() => navigate('profile')} className={`flex flex-col items-center transition-all ${navState.view === 'profile' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><User size={24} /></button>
              </div>
           </aside>
         )}
@@ -237,11 +239,11 @@ const App: React.FC = () => {
         </main>
 
         {!isImmersive && session && (
-          <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-xl border-t border-slate-200 px-6 flex items-center justify-around z-50 pb-safe">
-            <button onClick={() => navigate('dashboard')} className={navState.view === 'dashboard' ? 'text-blue-600' : 'text-slate-400'}><i className="fas fa-house text-lg"></i></button>
-            <button onClick={() => navigate('library')} className={navState.view === 'library' ? 'text-blue-600' : 'text-slate-400'}><i className="fas fa-dumbbell text-lg"></i></button>
-            <button onClick={() => navigate('history')} className={navState.view === 'history' ? 'text-blue-600' : 'text-slate-400'}><i className="fas fa-chart-bar text-lg"></i></button>
-            <button onClick={() => navigate('profile')} className={navState.view === 'profile' ? 'text-blue-600' : 'text-slate-400'}><i className="fas fa-user text-lg"></i></button>
+          <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 flex items-center justify-around z-50 pb-safe">
+            <button onClick={() => navigate('dashboard')} className={`p-2 transition ${navState.view === 'dashboard' ? 'text-black' : 'text-gray-300'}`}><Home size={22} /></button>
+            <button onClick={() => navigate('library')} className={`p-2 transition ${navState.view === 'library' ? 'text-black' : 'text-gray-300'}`}><Dumbbell size={22} /></button>
+            <button onClick={() => navigate('history')} className={`p-2 transition ${navState.view === 'history' ? 'text-black' : 'text-gray-300'}`}><HistoryIcon size={22} /></button>
+            <button onClick={() => navigate('profile')} className={`p-2 transition ${navState.view === 'profile' ? 'text-black' : 'text-gray-300'}`}><User size={22} /></button>
           </nav>
         )}
       </div>
