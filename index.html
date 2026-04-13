@@ -1,0 +1,172 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    
+    <!-- SEO & Social Media -->
+    <title>Coach Rubi | Ficha de Treino Online e IA Adaptativa</title>
+    <meta name="description" content="A evolução da musculação. Monte sua ficha de treino online, acompanhe recordes de carga e use IA para otimizar sua performance.">
+    <meta property="og:title" content="Coach Rubi | Sua Ficha de Treino Inteligente">
+    <meta property="og:description" content="Chega de fichas de papel. Treine com IA adaptativa, controle de 1RM e evolução real direto no celular.">
+    <meta property="og:image" content="https://res.cloudinary.com/dq11mcq7v/image/upload/v1740000000/og-image_pnf.png">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="https://res.cloudinary.com/dq11mcq7v/image/upload/v1740000000/icon-192_pnf.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --theme-bg: #0f172a;
+        --theme-surface: #1e293b;
+        --theme-card: #1e293b;
+        --theme-primary: #3b82f6;
+        --theme-primary-glow: rgba(59, 130, 246, 0.4);
+        --theme-text: #f1f5f9;
+        --theme-text-muted: #64748b;
+        --theme-accent: #3b82f6;
+      }
+
+      [data-theme="light"] {
+        --theme-bg: #f8fafc;
+        --theme-surface: #ffffff;
+        --theme-card: #f1f5f9;
+        --theme-primary: #2563eb;
+        --theme-primary-glow: rgba(37, 99, 235, 0.2);
+        --theme-text: #0f172a;
+        --theme-text-muted: #64748b;
+        --theme-accent: #2563eb;
+      }
+
+      [data-theme="aggressive"] {
+        --theme-bg: #044040;
+        --theme-surface: #591C21;
+        --theme-card: #8C1F28;
+        --theme-primary: #D92525;
+        --theme-primary-glow: rgba(217, 37, 37, 0.4);
+        --theme-text: #F2F2F2;
+        --theme-text-muted: #F2F2F288;
+        --theme-accent: #D92525;
+      }
+
+      [data-theme="bloom"] {
+        --theme-bg: #1A0B1A;
+        --theme-surface: #2D122D;
+        --theme-card: #3D1A3D;
+        --theme-primary: #F569DE;
+        --theme-primary-glow: rgba(245, 105, 222, 0.4);
+        --theme-text: #F5BBEB;
+        --theme-text-muted: #A669F5;
+        --theme-accent: #D469F5;
+      }
+
+      [data-theme="neon-strike"] {
+        --theme-bg: #044040;
+        --theme-surface: #591C21;
+        --theme-card: #591C21;
+        --theme-primary: #F569DE;
+        --theme-primary-glow: rgba(245, 105, 222, 0.4);
+        --theme-text: #F2F2F2;
+        --theme-text-muted: #F2F2F2aa;
+        --theme-accent: #D92525;
+      }
+
+      html, body {
+        height: 100%;
+        overflow: hidden;
+        background-color: var(--theme-bg);
+        position: fixed;
+        width: 100%;
+      }
+
+      body {
+        color: var(--theme-text);
+        font-family: 'Inter', sans-serif;
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        transition: background-color 0.3s ease, color 0.3s ease;
+        overscroll-behavior: none;
+      }
+      
+      #root {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+      }
+
+      @media (min-width: 1024px) {
+        #root {
+          max-width: 100%; 
+          margin: 0;
+          box-shadow: none;
+        }
+      }
+
+      .pb-safe { padding-bottom: calc(env(safe-area-inset-bottom) + 1rem); }
+      .pt-safe { padding-top: env(safe-area-inset-top); }
+      
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+      .active-scale:active { transform: scale(0.96); transition: transform 0.1s; }
+      
+      .glass {
+        background: var(--theme-bg);
+        opacity: 0.98;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+
+      .bg-theme-bg { background-color: var(--theme-bg); }
+      .bg-theme-surface { background-color: var(--theme-surface); }
+      .bg-theme-card { background-color: var(--theme-card); }
+      .bg-theme-primary { background-color: var(--theme-primary); }
+      .text-theme-primary { color: var(--theme-primary); }
+
+      /* Animacoes de revelacao */
+      .reveal { animation: reveal 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards; opacity: 0; }
+      @keyframes reveal { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+      .delay-1 { animation-delay: 0.1s; }
+      .delay-2 { animation-delay: 0.2s; }
+      .delay-3 { animation-delay: 0.3s; }
+    </style>
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "@google/genai": "https://esm.sh/@google/genai@^1.37.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+    
+    <!-- AUDIO ASSETS -->
+    <!-- timer-beep: Tick sutil para os últimos segundos -->
+    <audio id="timer-beep" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto"></audio>
+    <!-- timer-finish: Alerta simples e limpo (Bling/Bell) -->
+    <audio id="timer-finish" src="https://assets.mixkit.co/active_storage/sfx/2017/2017-preview.mp3" preload="auto"></audio>
+    <!-- set-complete: Som discreto de conclusão de série -->
+    <audio id="set-complete" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3" preload="auto"></audio>
+    <!-- workout-victory: Fanfarra de conclusão de treino -->
+    <audio id="workout-victory" src="https://assets.mixkit.co/active_storage/sfx/2020/2020-preview.mp3" preload="auto"></audio>
+</body>
+</html>

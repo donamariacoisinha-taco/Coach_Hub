@@ -1,0 +1,24 @@
+
+{
+  "name": "Coach Digital Adaptativo",
+  "short_name": "Coach AI",
+  "description": "Treinamento inteligente com IA e progressão de carga.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://res.cloudinary.com/dq11mcq7v/image/upload/v1740000000/icon-192_pnf.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://res.cloudinary.com/dq11mcq7v/image/upload/v1740000000/icon-512_pnf.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

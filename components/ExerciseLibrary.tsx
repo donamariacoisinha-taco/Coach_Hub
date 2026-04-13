@@ -1,0 +1,298 @@
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Exercise, MuscleGroup } from '../types';
+import { supabase } from '../lib/supabase';
+import { GoogleGenAI } from "@google/genai";
+import { useNavigation } from '../App';
+
+const ExerciseLibrary: React.FC = () => {
+  const { navigate } = useNavigation();
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
+  const [favoriteExerciseIds, setFavoriteExerciseIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMuscle, setSelectedMuscle] = useState('Todos');
+  const [selectedSide, setSelectedSide] = useState<'all' | 'front' | 'back'>('all');
+  const [adminActiveFilter, setAdminActiveFilter] = useState<'all' | 'active' | 'inactive'>('active');
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [aiTip, setAiTip] = useState<string | null>(null);
+  const [loadingAi, setLoadingAi] = useState(false);
+  
+  const [isDeletingGroup, setIsDeletingGroup] = useState<string | null>(null);
+
+  useEffect(() => {
+    const init = async () => {
+      await checkAdmin();
+      await fetchData();
+    };
+    init();
+  }, []);
+
+  const checkAdmin = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single();
+      setIsAdmin(!!data?.is_admin);
+    }
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const exQuery = supabase.from('exercises').select('*').order('name');
+      const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single();
+      if (!profile?.is_admin) {
+        exQuery.eq('is_active', true);
+      }
+
+      const [exRes, mgRes, favRes] = await Promise.all([
+        exQuery,
+        supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true }),
+        supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', user.id)
+      ]);
+
+      if (exRes.data) setExercises(exRes.data);
+      if (mgRes.data) setMuscleGroups(mgRes.data);
+      if (favRes.data) setFavoriteExerciseIds(new Set(favRes.data.map(f => f.exercise_id)));
+    } catch (err) { console.error(err); } 
+    finally { setLoading(false); }
+  };
+
+  const handleDeleteGroup = async (e: React.MouseEvent, mg: MuscleGroup) => {
+    e.stopPropagation();
+    if (!confirm(`Deseja excluir o grupo "${mg.name}"? Isso pode afetar exercícios vinculados.`)) return;
+    
+    setIsDeletingGroup(mg.id);
+    try {
+      const { error } = await supabase.from('muscle_groups').delete().eq('id', mg.id);
+      if (error) throw new Error("Não é possível excluir: existem subgrupos ou exercícios vinculados.");
+      setMuscleGroups(prev => prev.filter(m => m.id !== mg.id));
+      if (selectedMuscle === mg.name) setSelectedMuscle('Todos');
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsDeletingGroup(null);
+    }
+  };
+
+  const toggleFavorite = async (e: React.MouseEvent, exerciseId: string) => {
+    e.stopPropagation();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const isFav = favoriteExerciseIds.has(exerciseId);
+    try {
+      if (isFav) {
+        await supabase.from('user_favorite_exercises').delete().eq('user_id', user.id).eq('exercise_id', exerciseId);
+        setFavoriteExerciseIds(prev => { const next = new Set(prev); next.delete(exerciseId); return next; });
+      } else {
+        await supabase.from('user_favorite_exercises').insert([{ user_id: user.id, exercise_id: exerciseId }]);
+        setFavoriteExerciseIds(prev => new Set(prev).add(exerciseId));
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchAiTip = async (exName: string) => {
+    setLoadingAi(true);
+    setAiTip(null);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const prompt = `Dê uma dica biomecânica avançada (curta) para o exercício: ${exName}.`;
+      const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+      setAiTip(response.text || "Foque na técnica.");
+    } catch (err) { setAiTip("Conexão mente-músculo."); }
+    finally { setLoadingAi(false); }
+  };
+
+  const handleOpenDetail = (ex: Exercise) => {
+    setSelectedExercise(ex);
+    fetchAiTip(ex.name);
+  };
+
+  const filteredExercises = useMemo(() => {
+    return exercises.filter(ex => {
+      const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const mg = muscleGroups.find(m => m.name === ex.muscle_group);
+      const isParentMatch = selectedMuscle === 'Todos' || ex.muscle_group === selectedMuscle || (mg?.parent_id && muscleGroups.find(p => p.id === mg.parent_id)?.name === selectedMuscle);
+      const matchesSide = selectedSide === 'all' || mg?.body_side === selectedSide;
+      
+      let matchesStatus = true;
+      if (isAdmin) {
+        if (adminActiveFilter === 'active') matchesStatus = ex.is_active;
+        else if (adminActiveFilter === 'inactive') matchesStatus = !ex.is_active;
+      } else {
+        matchesStatus = ex.is_active;
+      }
+
+      return matchesSearch && matchesSide && isParentMatch && matchesStatus;
+    }).sort((a, b) => favoriteExerciseIds.has(b.id) ? -1 : 1);
+  }, [exercises, searchQuery, selectedMuscle, selectedSide, muscleGroups, favoriteExerciseIds, isAdmin, adminActiveFilter]);
+
+  const parentMuscleGroups = useMemo(() => {
+    return muscleGroups.filter(mg => !mg.parent_id && (selectedSide === 'all' || !mg.body_side || mg.body_side === selectedSide));
+  }, [muscleGroups, selectedSide]);
+
+  const subMuscleGroups = useMemo(() => {
+    if (selectedMuscle === 'Todos') return [];
+    const parent = muscleGroups.find(m => m.name === selectedMuscle && !m.parent_id);
+    if (!parent) return [];
+    return muscleGroups.filter(m => m.parent_id === parent.id);
+  }, [muscleGroups, selectedMuscle]);
+
+  if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
+
+  return (
+    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in pb-32">
+      <header className="flex justify-between items-start">
+        <div>
+           <h2 className="text-4xl font-black uppercase tracking-tighter text-[var(--theme-text)]">Biblioteca <span className="text-[var(--theme-primary)]">de Elite</span></h2>
+           <p className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-widest mt-1">Navegação Anatômica Multi-Nível</p>
+        </div>
+        {isAdmin && (
+          <button onClick={() => navigate('admin', { initialTab: 'anatomy' })} className="w-12 h-12 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex items-center justify-center text-blue-500 active:scale-90 transition-all">
+            <i className="fas fa-cog"></i>
+          </button>
+        )}
+      </header>
+
+      <div className="space-y-6">
+        <div className="flex gap-3 items-center">
+          <input type="text" placeholder="Pesquisar..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="flex-1 p-6 bg-theme-surface/40 border border-[var(--theme-surface)] rounded-[2rem] text-[var(--theme-text)] font-bold outline-none focus:border-[var(--theme-primary)] shadow-inner" />
+          {isAdmin && (
+            <button onClick={() => navigate('admin', { initialTab: 'exercises' })} className="w-16 h-16 bg-[var(--theme-primary)] rounded-[1.5rem] flex items-center justify-center text-white shadow-lg active:scale-90 transition-all shrink-0">
+              <i className="fas fa-plus"></i>
+            </button>
+          )}
+        </div>
+
+        {isAdmin && (
+          <div className="flex bg-slate-900/40 p-1 rounded-2xl border border-white/5 max-w-sm mx-auto shadow-inner">
+            {(['active', 'inactive', 'all'] as const).map(f => (
+              <button 
+                key={f} 
+                onClick={() => setAdminActiveFilter(f)} 
+                className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${adminActiveFilter === f ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}
+              >
+                {f === 'active' ? 'Ativos' : f === 'inactive' ? 'Inativos' : 'Todos'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="bg-theme-surface/20 p-6 rounded-[2.5rem] border border-[var(--theme-surface)]/40 space-y-4 overflow-hidden">
+          <div className="flex bg-theme-bg p-1.5 rounded-2xl border border-[var(--theme-surface)]">
+            {['all', 'front', 'back'].map(side => (
+              <button key={side} onClick={() => { setSelectedSide(side as any); setSelectedMuscle('Todos'); }} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedSide === side ? 'bg-[var(--theme-primary)] text-white' : 'text-[var(--theme-text-muted)]'}`}>
+                {side === 'all' ? 'Tudo' : side === 'front' ? 'Anterior' : 'Posterior'}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-nowrap gap-3 overflow-x-auto no-scrollbar -mx-2 px-2 items-center">
+            <button onClick={() => setSelectedMuscle('Todos')} className={`px-6 py-3 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${selectedMuscle === 'Todos' ? 'bg-white text-slate-900' : 'bg-theme-bg text-[var(--theme-text-muted)]'}`}>Todos Grupos</button>
+            
+            {parentMuscleGroups.map(mg => (
+              <div key={mg.id} className="relative group/chip flex-shrink-0">
+                <button 
+                  onClick={() => setSelectedMuscle(mg.name)} 
+                  className={`px-6 py-3 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-3 ${selectedMuscle === mg.name ? 'bg-[var(--theme-primary)]/20 border-[var(--theme-primary)] text-[var(--theme-primary)]' : 'bg-theme-bg text-[var(--theme-text-muted)]'}`}
+                >
+                  {mg.name}
+                  {isAdmin && (
+                    <div className="flex items-center gap-1.5 ml-1 border-l border-white/10 pl-2">
+                       <i onClick={(e) => { e.stopPropagation(); navigate('admin', { initialTab: 'anatomy', editGroupId: mg.id }); }} className="fas fa-pencil-alt hover:text-white transition-colors text-[8px] opacity-40"></i>
+                       <i onClick={(e) => handleDeleteGroup(e, mg)} className={`fas ${isDeletingGroup === mg.id ? 'fa-spinner animate-spin' : 'fa-trash-alt'} hover:text-red-500 transition-colors text-[8px] opacity-40`}></i>
+                    </div>
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {subMuscleGroups.length > 0 && (
+             <div className="flex flex-nowrap gap-3 overflow-x-auto no-scrollbar -mx-2 px-2 pt-2 border-t border-white/5 items-center">
+                {subMuscleGroups.map(smg => (
+                   <button 
+                    key={smg.id} 
+                    onClick={() => { setSearchQuery(smg.name); }} 
+                    className="px-4 py-2 bg-theme-surface rounded-xl text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)] hover:text-white border border-white/5 flex items-center gap-3 whitespace-nowrap shrink-0"
+                   >
+                      {smg.name}
+                      {isAdmin && (
+                        <div className="flex items-center gap-2 border-l border-white/5 pl-2">
+                           <i onClick={(e) => { e.stopPropagation(); navigate('admin', { initialTab: 'anatomy', editGroupId: smg.id }); }} className="fas fa-pencil-alt text-[7px] opacity-30 hover:opacity-100"></i>
+                           <i onClick={(e) => handleDeleteGroup(e, smg)} className="fas fa-trash-alt text-[7px] opacity-30 hover:text-red-500 hover:opacity-100"></i>
+                        </div>
+                      )}
+                   </button>
+                ))}
+             </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredExercises.map(ex => (
+          <div key={ex.id} onClick={() => handleOpenDetail(ex)} className={`bg-theme-card p-5 rounded-[2.5rem] border border-[var(--theme-surface)]/30 flex items-center gap-5 group transition-all cursor-pointer relative hover:bg-theme-surface/50 ${!ex.is_active ? 'grayscale opacity-60' : ''}`}>
+             <div className="w-16 h-16 bg-white border border-[var(--theme-surface)] rounded-2xl overflow-hidden shrink-0 group-hover:scale-105 transition-transform flex items-center justify-center p-2">
+                {ex.image_url ? <img src={ex.image_url} className="w-full h-full object-contain" /> : <i className="fas fa-dumbbell text-slate-200"></i>}
+             </div>
+             <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-black text-[var(--theme-text)] uppercase truncate leading-none mb-1">{ex.name}</h4>
+                <div className="flex items-center gap-2">
+                   <span className="text-[9px] font-black uppercase text-[var(--theme-primary)]">{ex.muscle_group}</span>
+                   <span className="text-[7px] font-bold text-[var(--theme-text-muted)] uppercase bg-theme-bg px-2 py-0.5 rounded">{ex.type}</span>
+                   {!ex.is_active && <span className="text-[6px] font-black text-red-500 uppercase bg-red-500/10 px-2 py-0.5 rounded">Inativo</span>}
+                </div>
+             </div>
+             <div className="flex flex-col gap-2">
+                {isAdmin && (
+                  <button onClick={(e) => { e.stopPropagation(); navigate('admin', { id: ex.id }); }} className="w-8 h-8 rounded-lg bg-theme-surface flex items-center justify-center text-[var(--theme-text-muted)] hover:text-white active:scale-90">
+                    <i className="fas fa-pencil-alt text-[8px]"></i>
+                  </button>
+                )}
+                <button onClick={(e) => toggleFavorite(e, ex.id)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${favoriteExerciseIds.has(ex.id) ? 'bg-amber-500/10 text-amber-500' : 'text-slate-700'}`}>
+                   <i className={`${favoriteExerciseIds.has(ex.id) ? 'fas' : 'far'} fa-heart`}></i>
+                </button>
+             </div>
+          </div>
+        ))}
+      </div>
+
+      {selectedExercise && (
+        <div className="fixed inset-0 z-[1000] bg-theme-bg/95 backdrop-blur-2xl flex flex-col animate-in slide-in-from-bottom duration-500">
+           <header className="p-8 flex justify-between items-center border-b border-[var(--theme-surface)]">
+              <div className="flex items-center gap-4">
+                 <button onClick={() => setSelectedExercise(null)} className="w-10 h-10 bg-theme-surface rounded-xl flex items-center justify-center text-[var(--theme-text-muted)] active:scale-90"><i className="fas fa-chevron-left text-xs"></i></button>
+                 <div>
+                  <h3 className="text-xl font-black text-[var(--theme-text)] uppercase">{selectedExercise.name}</h3>
+                  <p className="text-[8px] font-black text-[var(--theme-primary)] uppercase tracking-widest mt-1">Protocolo Biomecânico {!selectedExercise.is_active && <span className="text-red-500">(INATIVO)</span>}</p>
+                 </div>
+              </div>
+           </header>
+           <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-40">
+              <div className="max-w-2xl mx-auto space-y-8">
+                 <div className="aspect-video bg-white rounded-[3rem] border border-[var(--theme-surface)] overflow-hidden shadow-2xl relative flex items-center justify-center">
+                    {selectedExercise.image_url ? <img src={selectedExercise.image_url} className="w-full h-full object-contain p-8" /> : <i className="fas fa-dumbbell text-6xl opacity-20"></i>}
+                 </div>
+                 <div className="bg-[var(--theme-primary)]/10 p-8 rounded-[3rem] border border-[var(--theme-primary)]/20 italic text-[var(--theme-text)] text-lg font-bold shadow-inner">
+                    {loadingAi ? "Sincronizando dicas..." : `"${aiTip || "Foque na contração máxima."}"`}
+                 </div>
+                 <div className="bg-theme-surface/20 p-8 rounded-[3rem] border border-[var(--theme-surface)]/30 text-[var(--theme-text)] text-sm leading-relaxed shadow-inner">
+                    <h4 className="text-[10px] font-black text-[var(--theme-primary)] uppercase mb-4 tracking-widest">Protocolo de Execução</h4>
+                    {selectedExercise.instructions || "Em catalogação biomecânica."}
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ExerciseLibrary;

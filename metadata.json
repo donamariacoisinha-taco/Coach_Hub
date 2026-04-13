@@ -1,0 +1,11 @@
+{
+  "name": "20260215 Coach Digital Adaptativo",
+  "description": "Inteligência artificial aplicada ao treino de força com estimativa de 1RM, RPE e progressão de carga dinâmica.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ],
+  "permissions": [
+    "vibration"
+  ]
+}
