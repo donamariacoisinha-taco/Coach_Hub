@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#F7F8FA">
     
     <!-- SEO & Social Media -->
     <title>Coach Rubi | Ficha de Treino Online e IA Adaptativa</title>
@@ -25,58 +25,39 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
       :root {
-        --theme-bg: #0f172a;
-        --theme-surface: #1e293b;
-        --theme-card: #1e293b;
-        --theme-primary: #3b82f6;
-        --theme-primary-glow: rgba(59, 130, 246, 0.4);
-        --theme-text: #f1f5f9;
-        --theme-text-muted: #64748b;
-        --theme-accent: #3b82f6;
+        --theme-bg: #F7F8FA;
+        --theme-surface: #FFFFFF;
+        --theme-card: #FFFFFF;
+        --theme-primary: #0066FF;
+        --theme-primary-glow: rgba(0, 102, 255, 0.1);
+        --theme-text: #1A1C1E;
+        --theme-text-muted: #6B7280;
+        --theme-accent: #0066FF;
+        --theme-border: #E5E7EB;
       }
 
       [data-theme="light"] {
-        --theme-bg: #f8fafc;
-        --theme-surface: #ffffff;
-        --theme-card: #f1f5f9;
-        --theme-primary: #2563eb;
-        --theme-primary-glow: rgba(37, 99, 235, 0.2);
-        --theme-text: #0f172a;
-        --theme-text-muted: #64748b;
-        --theme-accent: #2563eb;
+        --theme-bg: #F7F8FA;
+        --theme-surface: #FFFFFF;
+        --theme-card: #FFFFFF;
+        --theme-primary: #0066FF;
+        --theme-primary-glow: rgba(0, 102, 255, 0.1);
+        --theme-text: #1A1C1E;
+        --theme-text-muted: #6B7280;
+        --theme-accent: #0066FF;
+        --theme-border: #E5E7EB;
       }
 
-      [data-theme="aggressive"] {
-        --theme-bg: #044040;
-        --theme-surface: #591C21;
-        --theme-card: #8C1F28;
-        --theme-primary: #D92525;
-        --theme-primary-glow: rgba(217, 37, 37, 0.4);
-        --theme-text: #F2F2F2;
-        --theme-text-muted: #F2F2F288;
-        --theme-accent: #D92525;
-      }
-
-      [data-theme="bloom"] {
-        --theme-bg: #1A0B1A;
-        --theme-surface: #2D122D;
-        --theme-card: #3D1A3D;
-        --theme-primary: #F569DE;
-        --theme-primary-glow: rgba(245, 105, 222, 0.4);
-        --theme-text: #F5BBEB;
-        --theme-text-muted: #A669F5;
-        --theme-accent: #D469F5;
-      }
-
-      [data-theme="neon-strike"] {
-        --theme-bg: #044040;
-        --theme-surface: #591C21;
-        --theme-card: #591C21;
-        --theme-primary: #F569DE;
-        --theme-primary-glow: rgba(245, 105, 222, 0.4);
-        --theme-text: #F2F2F2;
-        --theme-text-muted: #F2F2F2aa;
-        --theme-accent: #D92525;
+      [data-theme="dark"], [data-theme="classic"] {
+        --theme-bg: #F7F8FA;
+        --theme-surface: #FFFFFF;
+        --theme-card: #FFFFFF;
+        --theme-primary: #0066FF;
+        --theme-primary-glow: rgba(0, 102, 255, 0.1);
+        --theme-text: #1A1C1E;
+        --theme-text-muted: #6B7280;
+        --theme-accent: #0066FF;
+        --theme-border: #E5E7EB;
       }
 
       html, body {
@@ -89,7 +70,7 @@
 
       body {
         color: var(--theme-text);
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         margin: 0;
         padding: 0;
         -webkit-font-smoothing: antialiased;
@@ -123,7 +104,7 @@
       .active-scale:active { transform: scale(0.96); transition: transform 0.1s; }
       
       .glass {
-        background: var(--theme-bg);
+        background: var(--theme-surface);
         opacity: 0.98;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
@@ -134,6 +115,31 @@
       .bg-theme-card { background-color: var(--theme-card); }
       .bg-theme-primary { background-color: var(--theme-primary); }
       .text-theme-primary { color: var(--theme-primary); }
+      .border-theme { border-color: var(--theme-border); }
+
+      /* Premium Card Style */
+      .premium-card {
+        background: var(--theme-card);
+        border: 1px solid var(--theme-border);
+        border-radius: 1.5rem;
+        transition: all 0.2s ease;
+      }
+      .premium-card:active {
+        transform: scale(0.98);
+        background: #f9fafb;
+      }
+
+      /* iOS List Style */
+      .ios-list-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background: var(--theme-surface);
+        border-bottom: 1px solid var(--theme-border);
+      }
+      .ios-list-item:last-child {
+        border-bottom: none;
+      }
 
       /* Animacoes de revelacao */
       .reveal { animation: reveal 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards; opacity: 0; }

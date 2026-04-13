@@ -137,22 +137,22 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   }, [workouts, activeFolderId]);
 
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-slate-950">
-      <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Sincronizando Protocolo Rubi...</p>
+    <div className="h-screen flex flex-col items-center justify-center bg-[#F7F8FA]">
+      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Carregando...</p>
     </div>
   );
 
   if (error) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-slate-950 p-6 text-center">
-      <div className="w-16 h-16 bg-red-600/10 rounded-2xl flex items-center justify-center text-red-500 mb-6 border border-red-500/20">
+    <div className="h-screen flex flex-col items-center justify-center bg-[#F7F8FA] p-6 text-center">
+      <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 mb-6 border border-red-100">
         <i className="fas fa-exclamation-triangle text-2xl"></i>
       </div>
-      <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Falha na Sincronização</h3>
-      <p className="text-slate-500 text-xs mb-8 max-w-xs">{error}</p>
+      <h3 className="text-xl font-bold text-slate-900 mb-2">Ops! Algo deu errado</h3>
+      <p className="text-slate-500 text-sm mb-8 max-w-xs">{error}</p>
       <button 
         onClick={() => fetchData()}
-        className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-600/20 active:scale-95 transition-all"
+        className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold uppercase text-[10px] tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all"
       >
         Tentar Novamente
       </button>
@@ -160,88 +160,117 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   );
 
   return (
-    <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 px-4 md:px-8 pt-6 pb-40 animate-in fade-in duration-500">
-      <main className="lg:col-span-8 space-y-10">
-        <header className="bg-slate-900/60 p-8 md:p-12 rounded-[3.5rem] border border-white/5 shadow-2xl relative overflow-hidden">
-           <div className="absolute top-0 right-0 p-10 opacity-5"><i className="fas fa-gem text-9xl"></i></div>
-           <div className="flex items-center gap-6 relative z-10">
-              <div className="w-20 h-20 md:w-28 md:h-28 rounded-[2.5rem] border-4 border-blue-600/30 p-1 bg-slate-800 shadow-2xl overflow-hidden">
-                 <img src={profile?.avatar_url || 'https://via.placeholder.com/150'} className="w-full h-full object-cover" alt="Profile" />
-              </div>
+    <div className="max-w-[1200px] mx-auto px-4 md:px-8 pt-8 pb-32 animate-in fade-in duration-500">
+      <header className="flex items-center justify-between mb-10">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl border-2 border-white p-0.5 bg-white shadow-sm overflow-hidden">
+             <img src={profile?.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=200&h=200&auto=format&fit=crop'} className="w-full h-full object-cover rounded-[14px]" alt="Profile" />
+          </div>
+          <div>
+             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Olá, {profile?.full_name?.split(' ')[0] || 'Atleta'}</h2>
+             <p className="text-xs font-medium text-slate-500">Pronto para o treino de hoje?</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 uppercase tracking-wider shadow-sm flex items-center gap-2">
+            <i className="fas fa-fire text-orange-500"></i>
+            {stats.sessions} Treinos
+          </div>
+        </div>
+      </header>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <main className="lg:col-span-8 space-y-8">
+          <section>
+             <div className="flex items-center justify-between mb-6">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Meus Protocolos</h3>
+                <button onClick={() => navigate('editor')} className="text-blue-600 text-xs font-bold flex items-center gap-1">
+                  <i className="fas fa-plus"></i> Novo
+                </button>
+             </div>
+
+             <div className="flex gap-2 py-1 overflow-x-auto no-scrollbar mb-6">
+                <button onClick={() => setActiveFolderId(null)} className={`px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 border ${activeFolderId === null ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20' : 'bg-white border-slate-200 text-slate-500'}`}>Todos</button>
+                {folders.map(f => (
+                  <button key={f.id} onClick={() => setActiveFolderId(f.id)} className={`px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 border ${activeFolderId === f.id ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20' : 'bg-white border-slate-200 text-slate-500'}`}>{f.name}</button>
+                ))}
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredWorkouts.length === 0 && (
+                  <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-200 rounded-3xl bg-white/50">
+                    <i className="fas fa-dumbbell text-slate-300 text-3xl mb-3"></i>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nenhum treino encontrado</p>
+                  </div>
+                )}
+                {filteredWorkouts.map(w => (
+                  <div key={w.id} onClick={() => navigate('workout', { id: w.id })} className="premium-card p-6 cursor-pointer group relative">
+                     <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={(e) => { e.stopPropagation(); navigate('editor', { id: w.id }); }} className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 border border-slate-100"><i className="fas fa-pen text-[10px]"></i></button>
+                        <button onClick={(e) => handleDeleteWorkout(e, w.id, w.name)} disabled={isDeleting === w.id} className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center text-red-400 hover:text-red-600 border border-red-100">
+                           {isDeleting === w.id ? <i className="fas fa-spinner animate-spin text-[10px]"></i> : <i className="fas fa-trash text-[10px]"></i>}
+                        </button>
+                     </div>
+                     <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
+                          <i className="fas fa-bolt text-lg"></i>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                           <h4 className="font-bold text-slate-900 text-lg truncate pr-12">{w.name}</h4>
+                           <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{w.description || 'Ficha técnica para otimização de volume e força.'}</p>
+                           <div className="flex items-center gap-3 mt-4">
+                              <span className="text-[10px] font-bold text-blue-600 uppercase bg-blue-50 px-2 py-1 rounded-md">8 Exercícios</span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">Aprox. 45 min</span>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                ))}
+             </div>
+          </section>
+        </main>
+
+        <aside className="lg:col-span-4 space-y-6">
+           <section className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-8">
               <div>
-                 <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] mb-2">Protocolo Rubi Ativo</p>
-                 <h2 className="text-4xl md:text-6xl font-black uppercase text-white tracking-tighter leading-tight">Olá, {profile?.full_name?.split(' ')[0] || 'Atleta'}</h2>
-                 <div className="flex gap-3 mt-6">
-                    <span className="px-5 py-2 bg-blue-600/10 border border-blue-500/20 rounded-full text-[10px] font-black text-blue-500 uppercase tracking-widest">{stats.sessions} Sessões</span>
-                    <span className="px-5 py-2 bg-orange-600/10 border border-orange-500/20 rounded-full text-[10px] font-black text-orange-500 uppercase tracking-widest">Elite Member</span>
+                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Resumo Semanal</h3>
+                 <div className="grid grid-cols-7 gap-1">
+                    {['S','T','Q','Q','S','S','D'].map((day, i) => (
+                      <div key={i} className="flex flex-col items-center gap-2">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${i < 3 ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'}`}>
+                          {i < 3 ? <i className="fas fa-check"></i> : ''}
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400">{day}</span>
+                      </div>
+                    ))}
                  </div>
               </div>
-           </div>
-        </header>
 
-        <section className="space-y-8">
-           <div className="flex flex-wrap gap-3 py-2 overflow-x-auto no-scrollbar">
-              <button onClick={() => setActiveFolderId(null)} className={`px-10 py-5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeFolderId === null ? 'bg-white text-slate-900 shadow-2xl' : 'bg-slate-900/60 text-slate-500'}`}>Todos</button>
-              {folders.map(f => (
-                <button key={f.id} onClick={() => setActiveFolderId(f.id)} className={`px-10 py-5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${activeFolderId === f.id ? 'bg-blue-600 text-white shadow-2xl' : 'bg-slate-900/60 text-slate-500'}`}>{f.name}</button>
-              ))}
-           </div>
-
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {filteredWorkouts.length === 0 && (
-                <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem] opacity-30">
-                  <p className="text-xs font-black uppercase tracking-widest">Nenhum protocolo nesta categoria</p>
-                </div>
+              {profile?.is_admin && (
+                <button onClick={() => navigate('admin')} className="w-full py-4 bg-slate-900 rounded-2xl font-bold text-white uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3">
+                  <i className="fas fa-user-shield"></i> Painel Admin
+                </button>
               )}
-              {filteredWorkouts.map(w => (
-                <div key={w.id} className="bg-slate-900/80 p-10 rounded-[3.5rem] border border-white/5 hover:border-blue-500/40 transition-all duration-500 group relative">
-                   <div className="absolute top-8 right-8 flex gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => { e.stopPropagation(); navigate('editor', { id: w.id }); }} className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 border border-white/5 active:scale-90"><i className="fas fa-edit text-[10px]"></i></button>
-                      <button onClick={(e) => handleDeleteWorkout(e, w.id, w.name)} disabled={isDeleting === w.id} className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center text-red-500 active:scale-90 border border-red-500/10">
-                         {isDeleting === w.id ? <i className="fas fa-spinner animate-spin text-[10px]"></i> : <i className="fas fa-trash-alt text-[10px]"></i>}
-                      </button>
-                   </div>
-                   <h4 className="font-black text-white uppercase text-2xl tracking-tighter mb-4 group-hover:text-blue-500 transition-colors pr-16">{w.name}</h4>
-                   <p className="text-[11px] text-slate-500 uppercase leading-relaxed line-clamp-2 mb-10">{w.description || 'Ficha técnica Rubi para otimização de volume e força.'}</p>
-                   <button onClick={() => navigate('workout', { id: w.id })} className="w-full py-5 bg-blue-600 text-white font-black text-[11px] uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-blue-600/20 active:scale-95 transition-all">Começar Treino</button>
-                </div>
-              ))}
-              <button onClick={() => navigate('editor')} className="border-4 border-dashed border-white/5 rounded-[3.5rem] flex flex-col items-center justify-center p-12 text-slate-700 hover:text-blue-500 hover:border-blue-500/20 transition-all">
-                 <i className="fas fa-plus-circle text-4xl mb-4"></i>
-                 <span className="text-[10px] font-black uppercase tracking-widest">Novo Protocolo</span>
-              </button>
-           </div>
-        </section>
-      </main>
 
-      <aside className="lg:col-span-4 space-y-8 lg:sticky lg:top-8">
-         <section className="bg-slate-900 p-10 rounded-[3.5rem] border border-white/10 shadow-2xl space-y-12">
-            <div>
-               <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] mb-3">Status Neural</h3>
-               <div className="flex justify-between items-center">
-                  <p className="text-3xl font-black text-white uppercase tracking-tighter leading-none">Recuperação</p>
-                  <div className="w-16 h-16 bg-blue-600/20 rounded-3xl flex items-center justify-center text-blue-500 border border-blue-500/20 text-xl font-black">100%</div>
-               </div>
-            </div>
-            {profile?.is_admin && (
-              <button onClick={() => navigate('admin')} className="w-full py-6 bg-red-600 rounded-[2rem] font-black text-white uppercase text-[10px] tracking-[0.2em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3">
-                <i className="fas fa-user-shield"></i> Coach Hub
-              </button>
-            )}
-            <div>
-               <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-6">Conquistas</h3>
-               <div className="grid grid-cols-3 gap-4">
-                  {achievedBadges.length === 0 ? [1,2,3].map(i => <div key={i} className="aspect-square bg-slate-950 rounded-3xl border border-white/5 flex items-center justify-center opacity-20"><i className="fas fa-lock text-xl"></i></div>) : achievedBadges.map(b => (
-                    <div key={b.id} className={`aspect-square bg-gradient-to-br ${b.color} rounded-3xl p-0.5 shadow-xl group cursor-help`}><div className="w-full h-full bg-slate-900 rounded-[1.6rem] flex items-center justify-center overflow-hidden"><i className={`fas ${b.icon} text-xl transition-transform group-hover:scale-125`}></i></div></div>
-                  ))}
-               </div>
-            </div>
-            <div className="bg-slate-950/50 p-6 rounded-3xl border border-white/5">
-               <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Bio-Insight (Rubi AI)</p>
-               <p className="text-xs font-bold text-slate-300 italic">"Mantenha a consistência. O seu volume de trabalho está progredindo de forma linear."</p>
-            </div>
-         </section>
-      </aside>
+              <div>
+                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Conquistas</h3>
+                 <div className="grid grid-cols-4 gap-3">
+                    {achievedBadges.length === 0 ? [1,2,3,4].map(i => <div key={i} className="aspect-square bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center text-slate-200"><i className="fas fa-medal"></i></div>) : achievedBadges.map(b => (
+                      <div key={b.id} className={`aspect-square bg-gradient-to-br ${b.color} rounded-xl p-0.5 shadow-sm group cursor-help`}><div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center overflow-hidden"><i className={`fas ${b.icon} text-blue-600 transition-transform group-hover:scale-110`}></i></div></div>
+                    ))}
+                 </div>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                 <div className="flex items-center gap-2 mb-2">
+                    <i className="fas fa-lightbulb text-blue-600 text-xs"></i>
+                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Dica do Coach</p>
+                 </div>
+                 <p className="text-xs font-medium text-slate-600 leading-relaxed">"Mantenha a consistência. O seu volume de trabalho está progredindo de forma linear."</p>
+              </div>
+           </section>
+        </aside>
+      </div>
     </div>
   );
 };

@@ -154,22 +154,27 @@ const BioReport: React.FC = () => {
     }, "");
   }, [chartPoints]);
 
-  if (loading) return <div className="py-20 flex flex-col items-center justify-center space-y-4"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
+  if (loading) return (
+    <div className="py-20 flex flex-col items-center justify-center space-y-4">
+      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sincronizando Bio-Dados...</p>
+    </div>
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
       
       {/* Tab Switcher */}
-      <div className="flex bg-slate-900/40 p-1 rounded-2xl border border-white/5 mx-auto max-w-xs shadow-inner">
-        <button onClick={() => setActiveSubTab('trends')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'trends' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>Tendências</button>
-        <button onClick={() => setActiveSubTab('nutrition')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'nutrition' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>Nutrição</button>
+      <div className="flex bg-white p-1 rounded-2xl border border-slate-200 mx-auto max-w-xs shadow-sm">
+        <button onClick={() => setActiveSubTab('trends')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${activeSubTab === 'trends' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>Tendências</button>
+        <button onClick={() => setActiveSubTab('nutrition')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${activeSubTab === 'nutrition' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400'}`}>Nutrição</button>
       </div>
 
       {activeSubTab === 'trends' ? (
         <>
-          <div className="flex bg-slate-900/40 p-1.5 rounded-2xl border border-white/5 max-w-sm mx-auto shadow-inner">
+          <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 max-w-sm mx-auto shadow-sm">
             {(['7d', '30d', '90d', 'all'] as TimePeriod[]).map(p => (
-              <button key={p} onClick={() => setSelectedPeriod(p)} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedPeriod === p ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>
+              <button key={p} onClick={() => setSelectedPeriod(p)} className={`flex-1 py-3 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${selectedPeriod === p ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>
                 {p === '7d' ? '7D' : p === '30d' ? '30D' : p === '90d' ? '90D' : 'TUDO'}
               </button>
             ))}
@@ -177,24 +182,24 @@ const BioReport: React.FC = () => {
 
           <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2">
             {Object.entries(metricsConfig).map(([key, cfg]) => (
-              <button key={key} onClick={() => setSelectedMetric(key as BioMetric)} className={`px-6 py-4 rounded-[2rem] flex items-center gap-3 border transition-all whitespace-nowrap ${selectedMetric === key ? 'bg-slate-900 border-blue-500 text-white shadow-xl' : 'bg-slate-900/30 border-white/5 text-slate-500'}`}>
+              <button key={key} onClick={() => setSelectedMetric(key as BioMetric)} className={`px-6 py-4 rounded-[2rem] flex items-center gap-3 border transition-all whitespace-nowrap ${selectedMetric === key ? 'bg-slate-900 border-slate-900 text-white shadow-xl' : 'bg-white border-slate-200 text-slate-400 shadow-sm'}`}>
                 <i className={`fas ${cfg.icon}`} style={{ color: selectedMetric === key ? cfg.color : undefined }}></i>
-                <span className="text-[10px] font-black uppercase tracking-widest">{cfg.label}</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">{cfg.label}</span>
               </button>
             ))}
           </div>
 
-          <div className="bg-slate-900/60 p-8 lg:p-12 rounded-[4rem] border border-white/5 relative overflow-hidden shadow-2xl">
+          <div className="bg-white p-8 lg:p-12 rounded-[4rem] border border-slate-200 relative overflow-hidden shadow-sm">
             <div className="flex justify-between items-center mb-12 relative z-10">
               <div>
-                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Status de Bioimpedância</p>
-                <h4 className="text-3xl font-black text-white uppercase tracking-tighter">{metricsConfig[selectedMetric].label}</h4>
+                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Status de Bioimpedância</p>
+                <h4 className="text-3xl font-bold text-slate-900 uppercase tracking-tight">{metricsConfig[selectedMetric].label}</h4>
               </div>
               <div className="text-right">
-                <p className="text-4xl font-black" style={{ color: metricsConfig[selectedMetric].color }}>
+                <p className="text-4xl font-bold" style={{ color: metricsConfig[selectedMetric].color }}>
                   {chartPoints[chartPoints.length - 1]?.val || '0'} <span className="text-sm font-bold opacity-30">{metricsConfig[selectedMetric].unit}</span>
                 </p>
-                <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Leitura Atual</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Leitura Atual</p>
               </div>
             </div>
 
@@ -203,7 +208,7 @@ const BioReport: React.FC = () => {
                  <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
                     <defs>
                        <linearGradient id={`grad-${selectedMetric}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={metricsConfig[selectedMetric].color} stopOpacity="0.4" />
+                          <stop offset="0%" stopColor={metricsConfig[selectedMetric].color} stopOpacity="0.2" />
                           <stop offset="100%" stopColor={metricsConfig[selectedMetric].color} stopOpacity="0" />
                        </linearGradient>
                     </defs>
@@ -221,13 +226,13 @@ const BioReport: React.FC = () => {
                       className="animate-in slide-in-from-left-4 duration-1000"
                     />
                     {chartPoints.map((p, i) => (
-                      <circle key={i} cx={p.x} cy={p.y} r="2" fill="#0f172a" stroke={metricsConfig[selectedMetric].color} strokeWidth="2" />
+                      <circle key={i} cx={p.x} cy={p.y} r="2" fill="white" stroke={metricsConfig[selectedMetric].color} strokeWidth="2" />
                     ))}
                  </svg>
                ) : (
                  <div className="flex flex-col items-center justify-center h-full opacity-30">
-                    <i className="fas fa-chart-line text-5xl mb-4"></i>
-                    <p className="text-[10px] font-black uppercase tracking-widest">Aguardando mais medições</p>
+                    <i className="fas fa-chart-line text-5xl mb-4 text-slate-200"></i>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Aguardando mais medições</p>
                  </div>
                )}
             </div>
@@ -237,73 +242,73 @@ const BioReport: React.FC = () => {
         /* NUTRITION TAB */
         <div className="space-y-6 animate-in zoom-in duration-500">
            {!nutritionPlan ? (
-             <div className="bg-slate-900/60 p-12 rounded-[4rem] border border-indigo-500/20 text-center space-y-8 shadow-2xl">
-                <div className="w-20 h-20 bg-indigo-600 rounded-3xl mx-auto flex items-center justify-center text-white shadow-[0_20px_40px_rgba(79,70,229,0.3)]">
+             <div className="bg-white p-12 rounded-[4rem] border border-slate-200 text-center space-y-8 shadow-sm">
+                <div className="w-20 h-20 bg-indigo-600 rounded-3xl mx-auto flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
                    <i className="fas fa-apple-whole text-3xl"></i>
                 </div>
                 <div>
-                   <h4 className="text-xl font-black text-white uppercase tracking-tight">Síntese Metabólica Rubi</h4>
-                   <p className="text-xs text-slate-500 mt-2 leading-relaxed">Clique para cruzar seus dados de bioimpedância com sua meta e gerar um protocolo nutricional personalizado.</p>
+                   <h4 className="text-xl font-bold text-slate-900 uppercase tracking-tight">Síntese Metabólica Rubi</h4>
+                   <p className="text-xs text-slate-400 mt-2 leading-relaxed">Clique para cruzar seus dados de bioimpedância com sua meta e gerar um protocolo nutricional personalizado.</p>
                 </div>
                 <button 
                   onClick={generateDietStrategy}
                   disabled={generatingDiet || measurements.length === 0}
-                  className="w-full py-6 bg-indigo-600 rounded-[2.5rem] font-black text-white uppercase text-xs tracking-[0.2em] shadow-2xl active:scale-95 transition-all disabled:opacity-50"
+                  className="w-full py-6 bg-indigo-600 rounded-[2.5rem] font-bold text-white uppercase text-xs tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95 transition-all disabled:opacity-50"
                 >
                    {generatingDiet ? "Sincronizando Macros..." : "Gerar Protocolo Neural"}
                 </button>
-                {measurements.length === 0 && <p className="text-[9px] text-red-500 uppercase font-black">Requer ao menos 1 medição corporal</p>}
+                {measurements.length === 0 && <p className="text-[9px] text-red-500 uppercase font-bold">Requer ao menos 1 medição corporal</p>}
              </div>
            ) : (
              <div className="space-y-8 animate-in fade-in">
                 {/* Macros Card */}
-                <div className="bg-slate-900/60 p-10 rounded-[4rem] border border-indigo-500/20 shadow-2xl space-y-8">
+                <div className="bg-white p-10 rounded-[4rem] border border-slate-200 shadow-sm space-y-8">
                    <div className="flex justify-between items-center">
                       <div>
-                         <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Alvo Calórico</p>
-                         <h4 className="text-3xl font-black text-white">{nutritionPlan.calories} <span className="text-sm font-bold opacity-30">KCAL</span></h4>
+                         <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest">Alvo Calórico</p>
+                         <h4 className="text-3xl font-bold text-slate-900">{nutritionPlan.calories} <span className="text-sm font-bold opacity-30">KCAL</span></h4>
                       </div>
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 flex items-center justify-center text-indigo-500"><i className="fas fa-bolt"></i></div>
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100"><i className="fas fa-bolt"></i></div>
                    </div>
 
                    <div className="grid grid-cols-3 gap-4">
-                      <div className="bg-indigo-600/10 p-5 rounded-[2.5rem] text-center border border-indigo-500/10">
-                         <p className="text-[8px] font-black text-indigo-400 uppercase mb-2">Prot</p>
-                         <p className="text-xl font-black text-white">{nutritionPlan.macros.p}g</p>
+                      <div className="bg-slate-50 p-5 rounded-[2.5rem] text-center border border-slate-100">
+                         <p className="text-[8px] font-bold text-slate-400 uppercase mb-2">Prot</p>
+                         <p className="text-xl font-bold text-slate-900">{nutritionPlan.macros.p}g</p>
                       </div>
-                      <div className="bg-indigo-600/10 p-5 rounded-[2.5rem] text-center border border-indigo-500/10">
-                         <p className="text-[8px] font-black text-indigo-400 uppercase mb-2">Carb</p>
-                         <p className="text-xl font-black text-white">{nutritionPlan.macros.c}g</p>
+                      <div className="bg-slate-50 p-5 rounded-[2.5rem] text-center border border-slate-100">
+                         <p className="text-[8px] font-bold text-slate-400 uppercase mb-2">Carb</p>
+                         <p className="text-xl font-bold text-slate-900">{nutritionPlan.macros.c}g</p>
                       </div>
-                      <div className="bg-indigo-600/10 p-5 rounded-[2.5rem] text-center border border-indigo-500/10">
-                         <p className="text-[8px] font-black text-indigo-400 uppercase mb-2">Gord</p>
-                         <p className="text-xl font-black text-white">{nutritionPlan.macros.g}g</p>
+                      <div className="bg-slate-50 p-5 rounded-[2.5rem] text-center border border-slate-100">
+                         <p className="text-[8px] font-bold text-slate-400 uppercase mb-2">Gord</p>
+                         <p className="text-xl font-bold text-slate-900">{nutritionPlan.macros.g}g</p>
                       </div>
                    </div>
 
-                   <div className="pt-8 border-t border-white/5">
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4">Alimentos Prioritários</p>
+                   <div className="pt-8 border-t border-slate-100">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4">Alimentos Prioritários</p>
                       <div className="flex flex-wrap gap-2">
                          {nutritionPlan.foods.map((food, i) => (
-                           <span key={i} className="px-5 py-2.5 bg-indigo-600/5 rounded-full text-[10px] font-bold text-indigo-300 border border-indigo-500/10 uppercase tracking-tight">{food}</span>
+                           <span key={i} className="px-5 py-2.5 bg-indigo-50 rounded-full text-[10px] font-bold text-indigo-600 border border-indigo-100 uppercase tracking-tight">{food}</span>
                          ))}
                       </div>
                    </div>
                 </div>
 
                 {/* Insight Card */}
-                <div className="bg-indigo-600/10 p-8 rounded-[3rem] border border-indigo-500/20">
-                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-3">Veredito da Rubi</p>
-                   <p className="text-sm font-bold text-white italic leading-relaxed">"{nutritionPlan.insight}"</p>
+                <div className="bg-indigo-50 p-8 rounded-[3rem] border border-indigo-100 shadow-sm">
+                   <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest mb-3">Veredito da Rubi</p>
+                   <p className="text-sm font-bold text-slate-900 italic leading-relaxed">"{nutritionPlan.insight}"</p>
                    <div className="mt-6 flex items-center gap-3">
-                      <i className="fas fa-glass-water text-indigo-500"></i>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{nutritionPlan.hydration}</p>
+                      <i className="fas fa-glass-water text-indigo-400"></i>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{nutritionPlan.hydration}</p>
                    </div>
                 </div>
 
                 <button 
                   onClick={() => setNutritionPlan(null)}
-                  className="w-full text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] py-4"
+                  className="w-full text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] py-4 hover:text-blue-600 transition-colors"
                 >
                    Atualizar Estratégia
                 </button>
@@ -314,14 +319,14 @@ const BioReport: React.FC = () => {
 
       {/* Insight Geral inferior */}
       {activeSubTab === 'trends' && (
-        <div className="bg-blue-600/10 p-8 rounded-[3rem] border border-blue-500/20 relative overflow-hidden group">
+        <div className="bg-blue-50 p-8 rounded-[3rem] border border-blue-100 relative overflow-hidden group shadow-sm">
            <div className="relative z-10 flex items-start gap-5">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-xl shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/20 shrink-0">
                  <i className="fas fa-brain"></i>
               </div>
               <div>
-                 <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Análise Neural (Rubi)</p>
-                 <h5 className="text-white text-lg font-bold leading-tight italic">
+                 <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Análise Neural (Rubi)</p>
+                 <h5 className="text-slate-900 text-lg font-bold leading-tight italic">
                     {analyzing ? "Analisando padrões biométricos..." : `"${insight || "Seu corpo se adapta ao estresse que você impõe a ele. Continue consistente."}"`}
                  </h5>
               </div>

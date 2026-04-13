@@ -31,15 +31,15 @@ const Timer: React.FC<TimerProps> = ({ initialSeconds, onComplete }) => {
   };
 
   return (
-    <div className="flex flex-col items-center bg-slate-800 p-4 rounded-xl border border-blue-500/30">
-      <span className="text-xs text-slate-400 font-bold uppercase mb-1">Descanso</span>
-      <div className="text-3xl font-black text-blue-400 font-mono">{formatTime(seconds)}</div>
-      <div className="flex gap-4 mt-2">
-        <button onClick={() => setIsActive(!isActive)} className="text-slate-400 hover:text-white">
-          <i className={`fas fa-${isActive ? 'pause' : 'play'} text-sm`}></i>
+    <div className="flex flex-col items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Descanso</span>
+      <div className="text-3xl font-bold text-blue-600 tabular-nums">{formatTime(seconds)}</div>
+      <div className="flex gap-4 mt-3">
+        <button onClick={() => setIsActive(!isActive)} className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors border border-slate-100">
+          <i className={`fas fa-${isActive ? 'pause' : 'play'} text-xs`}></i>
         </button>
-        <button onClick={() => setSeconds(initialSeconds)} className="text-slate-400 hover:text-white">
-          <i className="fas fa-undo text-sm"></i>
+        <button onClick={() => setSeconds(initialSeconds)} className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors border border-slate-100">
+          <i className="fas fa-undo text-xs"></i>
         </button>
       </div>
     </div>

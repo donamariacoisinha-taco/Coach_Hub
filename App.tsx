@@ -64,7 +64,7 @@ const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('coach_theme') as Theme) || 'classic');
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('coach_theme') as Theme) || 'light');
   const [navState, setNavState] = useState<NavigationState>(getStateFromUrl);
   const isInitializing = useRef(false);
 
@@ -200,9 +200,9 @@ const App: React.FC = () => {
   };
 
   if (loading) return (
-    <div className="h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6"></div>
-      <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] animate-pulse">Sincronizando Protocolo Rubi...</p>
+    <div className="h-screen bg-[#F7F8FA] flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6"></div>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Carregando...</p>
     </div>
   );
 
@@ -210,15 +210,15 @@ const App: React.FC = () => {
 
   return (
     <NavigationContext.Provider value={{ current: navState, navigate, goBack, theme, toggleTheme, profile }}>
-      <div className="h-screen flex flex-col lg:flex-row bg-slate-950 overflow-hidden">
+      <div className="h-screen flex flex-col lg:flex-row bg-[#F7F8FA] overflow-hidden text-slate-900">
         {!isImmersive && session && (
-          <aside className="hidden lg:flex w-24 bg-slate-900 border-r border-white/5 flex-col items-center shrink-0">
-             <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white mt-8 mb-12 shadow-xl shadow-blue-600/20"><i className="fas fa-gem"></i></div>
+          <aside className="hidden lg:flex w-20 bg-white border-r border-slate-200 flex-col items-center shrink-0">
+             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white mt-8 mb-12 shadow-lg shadow-blue-600/20"><i className="fas fa-bolt"></i></div>
              <div className="flex flex-col items-center gap-8 w-full">
-                <button onClick={() => navigate('dashboard')} className={`flex flex-col items-center transition-all ${navState.view === 'dashboard' ? 'text-blue-500' : 'text-slate-600 hover:text-white'}`}><i className="fas fa-house text-xl"></i></button>
-                <button onClick={() => navigate('library')} className={`flex flex-col items-center transition-all ${navState.view === 'library' ? 'text-blue-500' : 'text-slate-600 hover:text-white'}`}><i className="fas fa-book-open text-xl"></i></button>
-                <button onClick={() => navigate('history')} className={`flex flex-col items-center transition-all ${navState.view === 'history' ? 'text-blue-500' : 'text-slate-600 hover:text-white'}`}><i className="fas fa-chart-line text-xl"></i></button>
-                <button onClick={() => navigate('profile')} className={`flex flex-col items-center transition-all ${navState.view === 'profile' ? 'text-blue-500' : 'text-slate-600 hover:text-white'}`}><i className="fas fa-user text-xl"></i></button>
+                <button onClick={() => navigate('dashboard')} className={`flex flex-col items-center transition-all ${navState.view === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600'}`}><i className="fas fa-house text-xl"></i></button>
+                <button onClick={() => navigate('library')} className={`flex flex-col items-center transition-all ${navState.view === 'library' ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600'}`}><i className="fas fa-dumbbell text-xl"></i></button>
+                <button onClick={() => navigate('history')} className={`flex flex-col items-center transition-all ${navState.view === 'history' ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600'}`}><i className="fas fa-chart-bar text-xl"></i></button>
+                <button onClick={() => navigate('profile')} className={`flex flex-col items-center transition-all ${navState.view === 'profile' ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600'}`}><i className="fas fa-user text-xl"></i></button>
              </div>
           </aside>
         )}
@@ -237,11 +237,11 @@ const App: React.FC = () => {
         </main>
 
         {!isImmersive && session && (
-          <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-slate-900/80 backdrop-blur-xl border-t border-white/5 px-6 flex items-center justify-around z-50">
-            <button onClick={() => navigate('dashboard')} className={navState.view === 'dashboard' ? 'text-blue-500' : 'text-slate-600'}><i className="fas fa-house text-xl"></i></button>
-            <button onClick={() => navigate('library')} className={navState.view === 'library' ? 'text-blue-500' : 'text-slate-600'}><i className="fas fa-book-open text-xl"></i></button>
-            <button onClick={() => navigate('history')} className={navState.view === 'history' ? 'text-blue-500' : 'text-slate-600'}><i className="fas fa-chart-line text-xl"></i></button>
-            <button onClick={() => navigate('profile')} className={navState.view === 'profile' ? 'text-blue-500' : 'text-slate-600'}><i className="fas fa-user text-xl"></i></button>
+          <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-xl border-t border-slate-200 px-6 flex items-center justify-around z-50 pb-safe">
+            <button onClick={() => navigate('dashboard')} className={navState.view === 'dashboard' ? 'text-blue-600' : 'text-slate-400'}><i className="fas fa-house text-lg"></i></button>
+            <button onClick={() => navigate('library')} className={navState.view === 'library' ? 'text-blue-600' : 'text-slate-400'}><i className="fas fa-dumbbell text-lg"></i></button>
+            <button onClick={() => navigate('history')} className={navState.view === 'history' ? 'text-blue-600' : 'text-slate-400'}><i className="fas fa-chart-bar text-lg"></i></button>
+            <button onClick={() => navigate('profile')} className={navState.view === 'profile' ? 'text-blue-600' : 'text-slate-400'}><i className="fas fa-user text-lg"></i></button>
           </nav>
         )}
       </div>

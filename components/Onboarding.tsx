@@ -147,10 +147,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 p-6 flex flex-col max-w-md mx-auto">
+    <div className="min-h-screen bg-[#F7F8FA] p-6 flex flex-col max-w-md mx-auto">
       <div className="flex gap-2 mb-10">
         {[0, 1, 2, 3, 4, 5, 6].map(s => (
-          <div key={s} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${s <= step ? 'bg-blue-600' : 'bg-slate-800'}`} />
+          <div key={s} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${s <= step ? 'bg-blue-600' : 'bg-slate-200'}`} />
         ))}
       </div>
 
@@ -159,39 +159,39 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         {step === 0 && (
           <div className="space-y-8">
             <div className="text-center">
-              <h2 className="text-3xl font-black text-white uppercase tracking-tight mb-2">Quem é você?</h2>
+              <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-2">Quem é você?</h2>
               <p className="text-slate-400 text-sm">Sua identidade visual no programa.</p>
             </div>
 
             <div className="flex flex-col items-center gap-6">
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="group relative w-32 h-32 rounded-full bg-slate-800 border-4 border-slate-700 overflow-hidden cursor-pointer active:scale-95 transition-all shadow-2xl"
+                className="group relative w-32 h-32 rounded-full bg-white border-4 border-slate-100 overflow-hidden cursor-pointer active:scale-95 transition-all shadow-xl"
               >
                 {formData.avatar_url ? (
                   <img src={formData.avatar_url} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
+                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
                     <i className="fas fa-camera text-2xl mb-1"></i>
                     <span className="text-[8px] font-black uppercase">Adicionar</span>
                   </div>
                 )}
                 {uploading && (
-                  <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
-                    <i className="fas fa-spinner animate-spin text-blue-500"></i>
+                  <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                    <i className="fas fa-spinner animate-spin text-blue-600"></i>
                   </div>
                 )}
               </div>
               <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
 
               <div className="w-full space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Como devemos te chamar?</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Como devemos te chamar?</label>
                 <input 
                   type="text" 
                   value={formData.full_name} 
                   onChange={e => setFormData({...formData, full_name: e.target.value})} 
                   placeholder="Seu nome ou apelido"
-                  className="w-full bg-slate-800 p-5 rounded-2xl text-white font-bold outline-none border border-slate-700/50 focus:border-blue-500 transition-all text-center"
+                  className="w-full bg-white p-5 rounded-2xl text-slate-900 font-bold outline-none border border-slate-200 focus:border-blue-600 transition-all text-center shadow-sm"
                 />
               </div>
             </div>
@@ -209,35 +209,35 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         {step === 1 && (
           <div className="space-y-8">
             <div className="text-center">
-              <h2 className="text-3xl font-black text-white uppercase tracking-tight mb-2">Seus Dados</h2>
+              <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-2">Seus Dados</h2>
               <p className="text-slate-400 text-sm">Precisamos disso para calcular seu progresso.</p>
             </div>
             
-            <div className="flex bg-slate-800 p-1 rounded-2xl mb-4">
-              <button onClick={() => setFormData({...formData, gender: 'Masculino'})} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.gender === 'Masculino' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>Masculino</button>
-              <button onClick={() => setFormData({...formData, gender: 'Feminino'})} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.gender === 'Feminino' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>Feminino</button>
+            <div className="flex bg-white p-1 rounded-2xl mb-4 border border-slate-200 shadow-sm">
+              <button onClick={() => setFormData({...formData, gender: 'Masculino'})} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.gender === 'Masculino' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>Masculino</button>
+              <button onClick={() => setFormData({...formData, gender: 'Feminino'})} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.gender === 'Feminino' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400'}`}>Feminino</button>
             </div>
 
-            <div className="space-y-6 bg-slate-800/40 p-6 rounded-[2rem] border border-slate-700/50">
+            <div className="space-y-6 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Peso Atual (kg)</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Peso Atual (kg)</label>
                 <div className="flex items-center gap-4">
-                  <button onClick={() => setFormData({...formData, weight: Math.max(30, (formData.weight || 75) - 1)})} className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white border border-slate-700">-</button>
-                  <div className="flex-1 text-center text-2xl font-black text-white">{formData.weight}</div>
-                  <button onClick={() => setFormData({...formData, weight: (formData.weight || 75) + 1})} className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white border border-slate-700">+</button>
+                  <button onClick={() => setFormData({...formData, weight: Math.max(30, (formData.weight || 75) - 1)})} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900 border border-slate-200">-</button>
+                  <div className="flex-1 text-center text-2xl font-black text-slate-900">{formData.weight}</div>
+                  <button onClick={() => setFormData({...formData, weight: (formData.weight || 75) + 1})} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900 border border-slate-200">+</button>
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Peso Meta (kg)</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Peso Meta (kg)</label>
                 <div className="flex items-center gap-4">
-                  <button onClick={() => setFormData({...formData, target_weight: Math.max(30, (formData.target_weight || 80) - 1)})} className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white border border-slate-700">-</button>
-                  <div className="flex-1 text-center text-2xl font-black text-white">{formData.target_weight}</div>
-                  <button onClick={() => setFormData({...formData, target_weight: (formData.target_weight || 80) + 1})} className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white border border-slate-700">+</button>
+                  <button onClick={() => setFormData({...formData, target_weight: Math.max(30, (formData.target_weight || 80) - 1)})} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900 border border-slate-200">-</button>
+                  <div className="flex-1 text-center text-2xl font-black text-slate-900">{formData.target_weight}</div>
+                  <button onClick={() => setFormData({...formData, target_weight: (formData.target_weight || 80) + 1})} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900 border border-slate-200">+</button>
                 </div>
               </div>
             </div>
             <div className="flex gap-4">
-              <button onClick={prevStep} className="flex-1 py-5 bg-slate-800 rounded-2xl font-black text-slate-500 uppercase text-[10px]">Voltar</button>
+              <button onClick={prevStep} className="flex-1 py-5 bg-white border border-slate-200 rounded-2xl font-black text-slate-400 uppercase text-[10px] shadow-sm">Voltar</button>
               <button onClick={nextStep} className="flex-[2] py-5 bg-blue-600 rounded-[2rem] font-black text-white shadow-xl shadow-blue-600/20 uppercase tracking-widest">Próximo</button>
             </div>
           </div>
@@ -246,49 +246,49 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         {step === 2 && (
           <div className="space-y-8 animate-in fade-in">
             <div className="text-center">
-              <h2 className="text-3xl font-black text-white uppercase tracking-tight mb-2">Qual seu nível?</h2>
+              <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-2">Qual seu nível?</h2>
               <div className="grid gap-4 mt-8">
                 {Object.values(ExperienceLevel).map(level => (
-                  <button key={level} onClick={() => { setFormData({...formData, experience_level: level}); nextStep(); }} className={`p-6 rounded-3xl border-2 text-left transition-all ${formData.experience_level === level ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 bg-slate-800/40 text-slate-400'}`}>
-                    <span className="block text-lg font-black uppercase text-white">{level}</span>
+                  <button key={level} onClick={() => { setFormData({...formData, experience_level: level}); nextStep(); }} className={`p-6 rounded-3xl border-2 text-left transition-all ${formData.experience_level === level ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-slate-100 bg-white text-slate-400 shadow-sm'}`}>
+                    <span className={`block text-lg font-black uppercase ${formData.experience_level === level ? 'text-blue-600' : 'text-slate-900'}`}>{level}</span>
                   </button>
                 ))}
               </div>
             </div>
-            <button onClick={prevStep} className="w-full text-slate-500 text-[10px] font-black uppercase tracking-widest mt-4">Voltar</button>
+            <button onClick={prevStep} className="w-full text-slate-400 text-[10px] font-black uppercase tracking-widest mt-4">Voltar</button>
           </div>
         )}
 
         {step === 3 && (
           <div className="space-y-8">
             <div className="text-center">
-              <h2 className="text-3xl font-black text-white uppercase tracking-tight mb-2">Qual seu objetivo?</h2>
+              <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-2">Qual seu objetivo?</h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
               {Object.values(Goal).map(goal => (
-                <button key={goal} onClick={() => { setFormData({...formData, goal}); nextStep(); }} className={`p-6 rounded-3xl border-2 text-center transition-all ${formData.goal === goal ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-slate-800 bg-slate-800/40 text-slate-400'}`}>
-                  <i className={`fas ${goal === Goal.HYPERTROPHY ? 'fa-dumbbell' : goal === Goal.WEIGHT_LOSS ? 'fa-fire' : 'fa-bolt'} text-2xl mb-3 block text-blue-500`}></i>
+                <button key={goal} onClick={() => { setFormData({...formData, goal}); nextStep(); }} className={`p-6 rounded-3xl border-2 text-center transition-all ${formData.goal === goal ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-slate-100 bg-white text-slate-400 shadow-sm'}`}>
+                  <i className={`fas ${goal === Goal.HYPERTROPHY ? 'fa-dumbbell' : goal === Goal.WEIGHT_LOSS ? 'fa-fire' : 'fa-bolt'} text-2xl mb-3 block text-blue-600`}></i>
                   <span className="block text-[10px] font-black uppercase tracking-widest">{goal}</span>
                 </button>
               ))}
             </div>
-            <button onClick={prevStep} className="w-full text-slate-500 text-[10px] font-black uppercase tracking-widest mt-4">Voltar</button>
+            <button onClick={prevStep} className="w-full text-slate-400 text-[10px] font-black uppercase tracking-widest mt-4">Voltar</button>
           </div>
         )}
 
         {step === 4 && (
           <div className="space-y-6">
             <div className="text-center mb-4">
-              <h2 className="text-3xl font-black text-white uppercase tracking-tight mb-1">Mapa de Foco</h2>
+              <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-1">Mapa de Foco</h2>
             </div>
-            <div className="flex bg-slate-800 p-1 rounded-2xl mb-4">
-              <button onClick={() => setBodyView('front')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${bodyView === 'front' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-500'}`}>Visão Frontal</button>
-              <button onClick={() => setBodyView('back')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${bodyView === 'back' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-500'}`}>Visão Traseira</button>
+            <div className="flex bg-white p-1 rounded-2xl mb-4 border border-slate-200 shadow-sm">
+              <button onClick={() => setBodyView('front')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${bodyView === 'front' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}>Visão Frontal</button>
+              <button onClick={() => setBodyView('back')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${bodyView === 'back' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}>Visão Traseira</button>
             </div>
             <BodyMap view={bodyView} selected={formData.focus_muscles || []} onToggle={updateFocus} />
             <div className="flex gap-4">
-              <button onClick={prevStep} className="flex-1 py-4 bg-slate-800 rounded-2xl text-[10px] font-black text-slate-500 uppercase">Voltar</button>
-              <button onClick={nextStep} className="flex-[2] py-4 bg-blue-600 rounded-2xl font-black text-white text-[10px] uppercase tracking-widest shadow-lg shadow-blue-600/30">Confirmar</button>
+              <button onClick={prevStep} className="flex-1 py-4 bg-white border border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase shadow-sm">Voltar</button>
+              <button onClick={nextStep} className="flex-[2] py-4 bg-blue-600 rounded-2xl font-black text-white text-[10px] uppercase tracking-widest shadow-xl shadow-blue-600/20">Confirmar</button>
             </div>
           </div>
         )}
@@ -296,22 +296,22 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         {step === 5 && (
           <div className="space-y-8">
             <div className="text-center">
-              <h2 className="text-3xl font-black text-white uppercase tracking-tight mb-2">Quase lá!</h2>
+              <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-2">Quase lá!</h2>
             </div>
-            <div className="bg-slate-800/40 p-6 rounded-[2rem] border border-slate-700/50 space-y-4 text-center">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4 text-center">
                <div className="flex flex-col items-center gap-3 mb-6">
-                  <div className="w-20 h-20 rounded-full bg-slate-900 border-2 border-blue-500 overflow-hidden">
-                     {formData.avatar_url ? <img src={formData.avatar_url} className="w-full h-full object-cover" /> : <i className="fas fa-user text-slate-700 mt-6 text-2xl"></i>}
+                  <div className="w-20 h-20 rounded-full bg-slate-50 border-2 border-blue-600 overflow-hidden">
+                     {formData.avatar_url ? <img src={formData.avatar_url} className="w-full h-full object-cover" /> : <i className="fas fa-user text-slate-200 mt-6 text-2xl"></i>}
                   </div>
-                  <h4 className="text-xl font-black text-white uppercase">{formData.full_name}</h4>
+                  <h4 className="text-xl font-black text-slate-900 uppercase">{formData.full_name}</h4>
                </div>
-              <div className="flex justify-between items-center pb-4 border-b border-slate-700/50">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Peso Atual</span>
-                <span className="text-xs font-black text-white uppercase">{formData.weight}kg</span>
+              <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Peso Atual</span>
+                <span className="text-xs font-black text-slate-900 uppercase">{formData.weight}kg</span>
               </div>
-              <div className="flex justify-between items-center pb-4 border-b border-slate-700/50">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Peso Meta</span>
-                <span className="text-xs font-black text-blue-500 uppercase">{formData.target_weight}kg</span>
+              <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Peso Meta</span>
+                <span className="text-xs font-black text-blue-600 uppercase">{formData.target_weight}kg</span>
               </div>
             </div>
             <button 
@@ -321,7 +321,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
             >
               {isFinishing ? 'GERANDO DOSSIÊ...' : 'MONTAR MEU TREINO'}
             </button>
-            <button onClick={prevStep} className="w-full text-slate-500 text-[10px] font-black uppercase tracking-widest mt-4">Corrigir Dados</button>
+            <button onClick={prevStep} className="w-full text-slate-400 text-[10px] font-black uppercase tracking-widest mt-4">Corrigir Dados</button>
           </div>
         )}
       </div>

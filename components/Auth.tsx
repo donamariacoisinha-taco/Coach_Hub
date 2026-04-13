@@ -59,19 +59,19 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="min-h-screen p-6 flex flex-col justify-center max-w-md mx-auto relative">
+    <div className="min-h-screen bg-[#F7F8FA] p-6 flex flex-col justify-center max-w-md mx-auto relative">
       {onBack && (
-        <button onClick={onBack} className="absolute top-10 left-6 text-slate-500 hover:text-white transition-colors">
+        <button onClick={onBack} className="absolute top-10 left-6 text-slate-400 hover:text-blue-600 transition-colors">
           <i className="fas fa-chevron-left mr-2"></i>
           <span className="text-[10px] font-black uppercase tracking-widest">Voltar</span>
         </button>
       )}
 
       <div className="text-center mb-10">
-        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-6 shadow-2xl">
+        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-6 shadow-xl shadow-blue-600/20">
            <i className="fas fa-gem text-2xl"></i>
         </div>
-        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter">
+        <h2 className="text-4xl font-black text-slate-900 mb-2 uppercase tracking-tighter">
            {isSignUp ? 'Criar Perfil' : 'Bem-vindo'}
         </h2>
         <p className="text-slate-400 text-sm">
@@ -81,30 +81,30 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
 
       <form onSubmit={handleAuth} className="space-y-6">
         {error && (
-          <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-500 text-[10px] font-black uppercase text-center tracking-widest animate-in fade-in slide-in-from-top-2">
+          <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-500 text-[10px] font-black uppercase text-center tracking-widest animate-in fade-in slide-in-from-top-2">
             {error}
           </div>
         )}
         
         <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Seu E-mail</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu E-mail</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-5 bg-slate-900 border border-white/5 rounded-2xl focus:border-blue-500 outline-none transition-all text-white font-bold"
+            className="w-full p-5 bg-white border border-slate-200 rounded-2xl focus:border-blue-600 outline-none transition-all text-slate-900 font-bold shadow-sm"
             placeholder="atleta@exemplo.com"
             required
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Senha de Acesso</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-5 bg-slate-900 border border-white/5 rounded-2xl focus:border-blue-500 outline-none transition-all text-white font-bold"
+            className="w-full p-5 bg-white border border-slate-200 rounded-2xl focus:border-blue-600 outline-none transition-all text-slate-900 font-bold shadow-sm"
             placeholder="••••••••"
             required
           />
@@ -113,7 +113,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-6 bg-blue-600 rounded-3xl font-black text-white text-xs uppercase tracking-[0.2em] shadow-2xl active:scale-95 transition-all disabled:opacity-50"
+          className="w-full py-6 bg-blue-600 rounded-3xl font-black text-white text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50"
         >
           {loading ? <i className="fas fa-spinner animate-spin"></i> : isSignUp ? 'FORJAR MEU ACESSO' : 'ENTRAR NO DASHBOARD'}
         </button>
@@ -122,7 +122,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
       <div className="mt-10 flex flex-col gap-4 text-center">
         <button
           onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
-          className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] hover:text-white transition-colors"
+          className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] hover:text-blue-600 transition-colors"
         >
           {isSignUp ? 'Já possuo uma conta' : 'Não possuo cadastro'}
         </button>
