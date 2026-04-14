@@ -15,6 +15,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(initialFolderId || null);
+  const [lastWorkout, setLastWorkout] = useState<WorkoutCategory | null>(null);
   const [stats, setStats] = useState({ sessions: 0 });
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
@@ -42,7 +43,13 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       if (profileRes.data) setProfile(profileRes.data);
       if (foldersRes.data) setFolders(foldersRes.data);
       if (workoutsRes.data) setWorkouts(workoutsRes.data);
-      if (historyRes.data) setStats({ sessions: historyRes.data.length });
+      if (historyRes.data) {
+        setStats({ sessions: historyRes.data.length });
+        if (historyRes.data.length > 0) {
+          const last = workoutsRes.data?.find(w => w.id === historyRes.data[0].category_id);
+          if (last) setLastWorkout(last);
+        }
+      }
 
     } catch (err: any) {
       setError(err.message || "Erro ao carregar dados.");
@@ -71,33 +78,23 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] text-slate-900 pb-32">
-      <div className="max-w-md mx-auto px-6 pt-12">
+      <div className="max-w-md mx-auto px-6 pt-16">
         
         {/* HEADER */}
-        <header className="mb-12">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-              Visão geral
-            </p>
-            {profile?.is_admin && (
-              <button 
-                onClick={() => navigate('admin')}
-                className="flex items-center gap-2 text-blue-600 active:scale-95 transition"
-              >
-                <Shield size={14} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Admin</span>
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <h1 className="text-4xl font-black tracking-tighter uppercase">
-              {profile?.full_name?.split(' ')[0] || 'Atleta'}
-            </h1>
+        <header className="mb-16">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">
+                Bem-vindo de volta
+              </p>
+              <h1 className="text-5xl font-black tracking-tighter uppercase leading-none">
+                {profile?.full_name?.split(' ')[0] || 'Atleta'}
+              </h1>
+            </div>
 
             <button 
               onClick={() => navigate('profile')}
-              className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center overflow-hidden border border-slate-50 shadow-sm active:scale-95 transition"
+              className="w-14 h-14 rounded-3xl bg-white flex items-center justify-center overflow-hidden border border-slate-50 shadow-sm active:scale-95 transition-all"
             >
               {profile?.avatar_url ? (
                 <img src={profile.avatar_url} className="w-full h-full object-cover" alt="Profile" referrerPolicy="no-referrer" />
@@ -109,46 +106,76 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             </button>
           </div>
 
-          {/* Metrics Inline */}
-          <div className="flex gap-10 mt-10">
-            <div>
-              <p className="text-2xl font-black tracking-tighter tabular-nums">{stats.sessions}</p>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sessões</p>
+          {/* Metrics Inline - Premium Style */}
+          <div className="flex items-end gap-16">
+            <div className="flex flex-col">
+              <span className="text-6xl font-black tracking-tighter tabular-nums leading-none mb-2">{stats.sessions}</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Treinos</span>
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-1">
-                <p className="text-2xl font-black tracking-tighter tabular-nums">{profile?.workout_streak || 0}</p>
-                <Flame size={16} className="text-orange-500 fill-orange-500" />
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-6xl font-black tracking-tighter tabular-nums leading-none">{profile?.workout_streak || 0}</span>
+                <Flame size={28} className="text-orange-500 fill-orange-500 animate-bounce" />
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sequência</p>
-            </div>
-            <div>
-              <p className="text-2xl font-black tracking-tighter uppercase">{profile?.is_admin ? 'Elite' : 'Base'}</p>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nível</p>
+              <span className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em]">
+                {profile?.workout_streak && profile.workout_streak > 0 ? `🔥 ${profile.workout_streak} dias seguidos` : 'Começar sequência'}
+              </span>
             </div>
           </div>
         </header>
+        
+        {/* QUICK START - PREMIUM LIGHT */}
+        <AnimatePresence>
+          {lastWorkout && (
+            <motion.section 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-16"
+            >
+              <div className="w-full bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm flex flex-col items-start">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">Sugerido para hoje</p>
+                
+                <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase leading-tight mb-2">
+                  {lastWorkout.name}
+                </h3>
+                
+                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-10">
+                  Continuar de onde parou • {lastWorkout.description || 'Treino'}
+                </p>
+
+                <button 
+                  onClick={() => navigate('workout', { id: lastWorkout.id })}
+                  className="w-full py-6 bg-slate-900 text-white rounded-full font-black uppercase text-[11px] tracking-[0.4em] active:scale-[0.97] transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3"
+                >
+                  <Play size={16} fill="currentColor" />
+                  Iniciar Treino
+                </button>
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
 
         {/* PROTOCOLS */}
-        <section className="space-y-10">
+        <section className="space-y-12">
           <div className="flex items-center justify-between">
-            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-              Protocolos
+            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
+              Seus Protocolos
             </h2>
             <button 
               onClick={() => navigate('editor')}
-              className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-slate-900 active:scale-90 transition-all"
+              className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors"
             >
-              <Plus size={20} />
+              <span className="text-[9px] font-black uppercase tracking-widest">Novo</span>
+              <Plus size={16} />
             </button>
           </div>
 
-          {/* Tabs Minimalistas */}
-          <div className="flex gap-8 overflow-x-auto no-scrollbar border-b border-slate-100">
+          {/* Tabs Minimalistas - Scroll Horizontal */}
+          <div className="flex gap-10 overflow-x-auto no-scrollbar border-b border-slate-100 -mx-6 px-6">
             <button
               onClick={() => setActiveFolderId(null)}
-              className={`text-[10px] font-black uppercase tracking-widest pb-4 border-b-2 transition-all whitespace-nowrap ${
-                activeFolderId === null ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400"
+              className={`text-[10px] font-black uppercase tracking-[0.2em] pb-6 border-b-4 transition-all whitespace-nowrap ${
+                activeFolderId === null ? "border-slate-900 text-slate-900" : "border-transparent text-slate-300"
               }`}
             >
               Todos
@@ -157,8 +184,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               <button
                 key={folder.id}
                 onClick={() => setActiveFolderId(folder.id)}
-                className={`text-[10px] font-black uppercase tracking-widest pb-4 border-b-2 transition-all whitespace-nowrap ${
-                  activeFolderId === folder.id ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400"
+                className={`text-[10px] font-black uppercase tracking-[0.2em] pb-6 border-b-4 transition-all whitespace-nowrap ${
+                  activeFolderId === folder.id ? "border-slate-900 text-slate-900" : "border-transparent text-slate-300"
                 }`}
               >
                 {folder.name}
@@ -166,28 +193,34 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             ))}
           </div>
 
-          {/* List iOS Style */}
-          <div className="space-y-1">
+          {/* List iOS Style - Refined */}
+          <div className="space-y-2">
             {filteredWorkouts.length === 0 ? (
-              <div className="py-20 text-center">
-                <p className="text-[10px] font-black text-slate-200 uppercase tracking-[0.2em]">Nenhum protocolo ativo</p>
+              <div className="py-24 text-center">
+                <p className="text-[10px] font-black text-slate-200 uppercase tracking-[0.3em]">Nenhum protocolo ativo</p>
               </div>
             ) : (
               filteredWorkouts.map((workout, idx) => (
-                <div key={workout.id} className="relative">
+                <div key={workout.id} className="relative group">
                   <div 
                     onClick={() => navigate('workout', { id: workout.id })}
-                    className={`flex items-center justify-between py-8 active:bg-slate-50 transition-colors cursor-pointer ${
-                      idx !== filteredWorkouts.length - 1 ? 'border-b border-slate-100' : ''
+                    className={`flex items-center justify-between py-10 px-4 rounded-[2rem] hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all cursor-pointer group-active:scale-[0.98] ${
+                      idx !== filteredWorkouts.length - 1 ? 'border-b border-slate-50' : ''
                     }`}
                   >
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-xl font-black tracking-tighter text-slate-900 uppercase truncate pr-4">
+                      <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase truncate pr-4">
                         {workout.name}
                       </h3>
-                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">
-                        {workout.description || 'Sessão de treinamento'}
-                      </p>
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em]">
+                          {workout.description || 'Treino'}
+                        </span>
+                        <div className="w-1 h-1 bg-slate-200 rounded-full" />
+                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">
+                          {idx % 2 === 0 ? '45 min' : '60 min'}
+                        </span>
+                      </div>
                     </div>
 
                     <button 
@@ -195,7 +228,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         e.stopPropagation(); 
                         setActiveMenuId(activeMenuId === workout.id ? null : workout.id); 
                       }}
-                      className="w-12 h-12 flex items-center justify-center text-slate-200 active:text-slate-900 transition-colors"
+                      className="w-12 h-12 flex items-center justify-center text-slate-200 hover:text-slate-900 transition-colors"
                     >
                       <MoreVertical size={18} />
                     </button>
@@ -237,14 +270,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           </div>
         </section>
       </div>
-
-      {/* FAB Discreto */}
-      <button 
-        onClick={() => navigate('editor')}
-        className="fixed bottom-24 right-6 w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-2xl shadow-slate-900/40 active:scale-90 transition-all z-40"
-      >
-        <Plus size={24} />
-      </button>
     </div>
   );
 };

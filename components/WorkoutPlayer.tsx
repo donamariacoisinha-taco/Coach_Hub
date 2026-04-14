@@ -8,6 +8,7 @@ import {
   X,
   Check,
   MoreHorizontal,
+  Play,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "../lib/supabase";
@@ -319,8 +320,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen bg-[#F7F8FA] flex flex-col items-center justify-center p-12 text-center">
+      <motion.div 
+        animate={{ 
+          scale: [1, 1.1, 1],
+          opacity: [0.3, 0.6, 0.3]
+        }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        className="w-20 h-20 bg-slate-900 rounded-[2.5rem] flex items-center justify-center text-white mb-8 shadow-2xl shadow-slate-900/20"
+      >
+        <Play size={32} fill="currentColor" />
+      </motion.div>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] animate-pulse">Preparando ambiente...</p>
     </div>
   );
 
@@ -406,9 +417,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     último: {lastSet.weight}kg × {lastSet.reps}
                   </p>
                 )}
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">
-                  próxima: {weight}kg × {reps}
-                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">
+                    Meta: {weight}kg × {reps}
+                  </p>
+                  {currentIndex < exercises.length - 1 && currentSet === (currentEx?.sets_json?.length || 3) && (
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-200 px-2 py-0.5 bg-slate-50 rounded-full">
+                      Próximo: {exercises[currentIndex + 1].exercise_name}
+                    </span>
+                  )}
+                </div>
               </div>
               
               <div className="mt-10 space-y-2">

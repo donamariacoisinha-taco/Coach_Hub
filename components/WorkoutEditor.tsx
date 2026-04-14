@@ -59,32 +59,53 @@ const SortableExerciseItem: React.FC<SortableItemProps> = ({
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 100 : 1,
-    opacity: isDragging ? 0.5 : 1,
   };
 
   return (
     <div ref={setNodeRef} style={style} className="relative">
       <div 
-        className={`flex items-center gap-6 py-8 active:bg-slate-50 transition-all ${idx !== total - 1 ? 'border-b border-slate-100' : ''}`}
+        className={`flex items-center gap-4 py-5 px-1 transition-all active:bg-slate-50 ${isDragging ? 'bg-white shadow-2xl rounded-3xl scale-[1.02] z-50 border border-slate-100' : ''}`}
       >
-        <div {...attributes} {...listeners} className="flex flex-col gap-4 text-slate-200 cursor-grab active:cursor-grabbing p-2 -ml-2">
-          <GripVertical size={20} />
-        </div>
-
-        <div className="w-16 h-16 bg-white rounded-2xl overflow-hidden shrink-0 flex items-center justify-center p-3 border border-slate-50 shadow-sm">
-          <img src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h4 className="font-black text-xl tracking-tighter text-slate-900 truncate pr-4 uppercase">{ex.exercise_name}</h4>
-          <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.sets_json?.length || 3} Séries</p>
-        </div>
-
-        <button 
-          onClick={() => setActiveMenuId(activeMenuId === ex.tempId ? null : ex.tempId)}
-          className="w-12 h-12 flex items-center justify-center text-slate-200 active:text-slate-900 transition-colors"
+        {/* DRAG HANDLE */}
+        <div 
+          {...attributes} 
+          {...listeners} 
+          className="flex items-center justify-center w-6 h-12 text-slate-200 cursor-grab active:cursor-grabbing"
         >
-          <MoreVertical size={18} />
-        </button>
+          <GripVertical size={18} />
+        </div>
+
+        {/* EXERCISE IMAGE */}
+        <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden shrink-0 flex items-center justify-center p-1.5 border border-slate-100">
+          <img 
+            src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
+            className="w-full h-full object-contain mix-blend-multiply" 
+            referrerPolicy="no-referrer" 
+          />
+        </div>
+
+        {/* INFO */}
+        <div 
+          className="flex-1 min-w-0 cursor-pointer py-0.5"
+          onClick={() => setEditingSetsIndex(idx)}
+        >
+          <h4 className="font-semibold text-[16px] text-slate-900 leading-snug break-words pr-2">
+            {ex.exercise_name}
+          </h4>
+          <p className="text-[12px] font-medium text-slate-400 mt-0.5">
+            {ex.sets_json?.length || 3} Séries • {ex.sets_json?.[0]?.reps || '12'} Reps
+          </p>
+        </div>
+
+        {/* ACTIONS */}
+        <div className="flex items-center">
+          <button 
+            onClick={() => setActiveMenuId(activeMenuId === ex.tempId ? null : ex.tempId)}
+            className="w-10 h-10 flex items-center justify-center text-slate-200 active:text-slate-900 transition-colors"
+          >
+            <MoreVertical size={18} />
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -323,49 +344,55 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   );
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] flex flex-col relative text-slate-900 pb-32">
-      <header className="px-6 pt-12 pb-8 flex justify-between items-center">
-        <div className="flex items-center gap-6">
-          <button onClick={() => goBack()} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-slate-900 active:scale-90 transition-all">
+    <div className="min-h-screen bg-white flex flex-col relative text-slate-900 pb-32">
+      <header className="px-6 pt-12 pb-6 flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-xl z-[100]">
+        <div className="flex items-center gap-4">
+          <button onClick={() => goBack()} className="w-10 h-10 flex items-center justify-center text-slate-400 active:text-slate-900 active:scale-90 transition-all">
             <ChevronLeft size={24} />
           </button>
-          <h2 className="text-4xl font-black tracking-tighter uppercase text-slate-900">{workoutId ? 'Editar' : 'Novo'}</h2>
+          <div className="flex flex-col">
+            <h2 className="text-xl font-black tracking-tight text-slate-900 uppercase leading-none">
+              {name || 'Novo Treino'}
+            </h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+              {folders.find(f => f.id === folderId)?.name || 'Sem Pasta'}
+            </p>
+          </div>
         </div>
         <button 
           onClick={() => setShowSaveModal(true)} 
           disabled={saving} 
-          className="w-12 h-12 flex items-center justify-center bg-slate-900 rounded-2xl text-white shadow-2xl shadow-slate-900/20 active:scale-90 transition-all"
+          className="px-6 py-3 bg-slate-900 rounded-full text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-slate-900/20 active:scale-90 transition-all disabled:opacity-50"
         >
-          {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save size={20} />}
+          {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Salvar'}
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-12 w-full">
-        <section className="space-y-10">
-          <div className="space-y-2">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Identificação</p>
-            <input 
-              type="text" placeholder="NOME DO PROTOCOLO" value={name} 
-              onChange={e => setName(e.target.value)} 
-              className="w-full py-6 bg-transparent border-b border-slate-200 font-black text-2xl outline-none focus:border-slate-900 transition-all text-slate-900 uppercase tracking-tighter" 
-            />
-          </div>
+      <div className="flex-1 px-6 py-4 space-y-12 w-full">
+        {/* BASIC INFO SECTION */}
+        <section className="space-y-4">
+          <input 
+            type="text" 
+            placeholder="Nome do Treino" 
+            value={name} 
+            onChange={e => setName(e.target.value)} 
+            className="w-full py-4 bg-transparent border-b border-slate-100 font-bold text-3xl outline-none focus:border-slate-900 transition-all text-slate-900 tracking-tight placeholder:text-slate-200" 
+          />
           
-          <div className="space-y-2">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Pasta</p>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">Pasta:</span>
             <select 
               value={folderId} onChange={e => setFolderId(e.target.value)} 
-              className="w-full py-4 bg-transparent border-b border-slate-200 font-black text-sm outline-none focus:border-slate-900 transition-all text-slate-900 appearance-none uppercase tracking-widest"
+              className="flex-1 py-2 bg-transparent font-bold text-[13px] outline-none text-slate-500 appearance-none tracking-tight focus:text-slate-900 transition-all"
             >
-              <option value="">SEM PASTA</option>
+              <option value="">Nenhuma</option>
               {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           </div>
         </section>
 
-        <div className="space-y-1">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Estrutura</p>
-          
+        {/* EXERCISES SECTION */}
+        <div className="space-y-2">
           <DndContext 
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -375,29 +402,31 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
               items={exercises.map(ex => ex.tempId)}
               strategy={verticalListSortingStrategy}
             >
-              {exercises.map((ex, idx) => (
-                <SortableExerciseItem 
-                  key={ex.tempId}
-                  ex={ex}
-                  idx={idx}
-                  total={exercises.length}
-                  activeMenuId={activeMenuId}
-                  setActiveMenuId={setActiveMenuId}
-                  setEditingSetsIndex={setEditingSetsIndex}
-                  setReplacingIndex={setReplacingIndex}
-                  setShowExerciseSelector={setShowExerciseSelector}
-                  setExercises={setExercises}
-                />
-              ))}
+              <div className="space-y-2">
+                {exercises.map((ex, idx) => (
+                  <SortableExerciseItem 
+                    key={ex.tempId}
+                    ex={ex}
+                    idx={idx}
+                    total={exercises.length}
+                    activeMenuId={activeMenuId}
+                    setActiveMenuId={setActiveMenuId}
+                    setEditingSetsIndex={setEditingSetsIndex}
+                    setReplacingIndex={setReplacingIndex}
+                    setShowExerciseSelector={setShowExerciseSelector}
+                    setExercises={setExercises}
+                  />
+                ))}
+              </div>
             </SortableContext>
           </DndContext>
 
           <button 
             onClick={() => { setReplacingIndex(null); setShowExerciseSelector(true); }} 
-            className="w-full py-12 mt-10 border-2 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center gap-4 text-slate-200 active:text-slate-900 active:border-slate-300 transition-all bg-white/30"
+            className="w-full py-6 mt-4 border border-slate-100 rounded-2xl flex items-center justify-center gap-2 text-slate-400 active:text-slate-900 active:bg-slate-50 transition-all bg-white shadow-sm"
           >
-             <PlusCircle size={32} />
-             <span className="text-[10px] font-black uppercase tracking-[0.3em]">Adicionar Exercício</span>
+             <PlusCircle size={18} />
+             <span className="text-[12px] font-bold tracking-tight">Adicionar Exercício</span>
           </button>
         </div>
       </div>

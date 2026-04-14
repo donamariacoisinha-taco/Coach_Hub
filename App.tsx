@@ -62,6 +62,7 @@ const getStateFromUrl = (): NavigationState => {
 };
 
 import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt, Flame } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -238,24 +239,58 @@ const App: React.FC = () => {
         )}
 
         <main className="flex-1 overflow-y-auto no-scrollbar relative">
-          {navState.view === 'landing' && <LandingPage onStart={() => navigate('auth')} onLogin={() => navigate('auth')} />}
-          {navState.view === 'auth' && <Auth onBack={() => navigate('landing')} />}
-          {navState.view === 'onboarding' && <Onboarding onComplete={() => navigate('dashboard')} />}
-          {navState.view === 'dashboard' && <Dashboard />}
-          {navState.view === 'workout' && <WorkoutPlayer workoutId={navState.params.id} />}
-          {navState.view === 'editor' && <WorkoutEditor workoutId={navState.params.id} />}
-          {navState.view === 'history' && <HistoryView />}
-          {navState.view === 'library' && <ExerciseLibrary />}
-          {navState.view === 'profile' && profile && <ProfileView profile={profile} onUpdate={() => fetchProfile(session.user.id)} />}
-          {navState.view === 'admin' && <AdminPanel onBack={goBack} />}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={navState.view + (navState.params.id || '')}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="min-h-full"
+            >
+              {navState.view === 'landing' && <LandingPage onStart={() => navigate('auth')} onLogin={() => navigate('auth')} />}
+              {navState.view === 'auth' && <Auth onBack={() => navigate('landing')} />}
+              {navState.view === 'onboarding' && <Onboarding onComplete={() => navigate('dashboard')} />}
+              {navState.view === 'dashboard' && <Dashboard />}
+              {navState.view === 'workout' && <WorkoutPlayer workoutId={navState.params.id} />}
+              {navState.view === 'editor' && <WorkoutEditor workoutId={navState.params.id} />}
+              {navState.view === 'history' && <HistoryView />}
+              {navState.view === 'library' && <ExerciseLibrary />}
+              {navState.view === 'profile' && profile && <ProfileView profile={profile} onUpdate={() => fetchProfile(session.user.id)} />}
+              {navState.view === 'admin' && <AdminPanel onBack={goBack} />}
+            </motion.div>
+          </AnimatePresence>
         </main>
 
         {!isImmersive && session && (
-          <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 flex items-center justify-around z-50 pb-safe">
-            <button onClick={() => navigate('dashboard')} className={`p-2 transition ${navState.view === 'dashboard' ? 'text-black' : 'text-gray-300'}`}><Home size={22} /></button>
-            <button onClick={() => navigate('library')} className={`p-2 transition ${navState.view === 'library' ? 'text-black' : 'text-gray-300'}`}><Dumbbell size={22} /></button>
-            <button onClick={() => navigate('history')} className={`p-2 transition ${navState.view === 'history' ? 'text-black' : 'text-gray-300'}`}><HistoryIcon size={22} /></button>
-            <button onClick={() => navigate('profile')} className={`p-2 transition ${navState.view === 'profile' ? 'text-black' : 'text-gray-300'}`}><User size={22} /></button>
+          <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-2xl border-t border-slate-50 px-8 flex items-center justify-around z-50 pb-safe">
+            {[
+              { id: 'dashboard', icon: Home },
+              { id: 'library', icon: Dumbbell },
+              { id: 'history', icon: HistoryIcon },
+              { id: 'profile', icon: User }
+            ].map((item) => {
+              const Icon = item.icon;
+              const isActive = navState.view === item.id;
+              return (
+                <button 
+                  key={item.id}
+                  onClick={() => navigate(item.id as View)} 
+                  className="relative p-4 group"
+                >
+                  <Icon 
+                    size={24} 
+                    className={`transition-all duration-300 ${isActive ? 'text-slate-900 scale-110' : 'text-slate-300 group-active:scale-90'}`} 
+                  />
+                  {isActive && (
+                    <motion.div 
+                      layoutId="nav-active"
+                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-slate-900 rounded-full"
+                    />
+                  )}
+                </button>
+              );
+            })}
           </nav>
         )}
       </div>
