@@ -14,3 +14,8 @@ export async function removeFromQueue(id: number) {
   const db = await dbPromise;
   await db.delete("queue", id);
 }
+
+export async function updateQueueItem(item: QueueItem) {
+  const db = await dbPromise;
+  await db.put("queue", item);
+}

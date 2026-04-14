@@ -2,18 +2,28 @@ import { addToQueue } from "./offlineQueue";
 import { supabase } from "./supabase";
 
 export async function saveSet(payload: any) {
+  // Validação básica
+  if (!payload.weight_achieved || !payload.reps_achieved) {
+    console.warn("Tentativa de salvar set inválido:", payload);
+    return;
+  }
+
+  // Garante client_id para idempotência
+  const finalPayload = {
+    ...payload,
+    client_id: payload.client_id || crypto.randomUUID(),
+    created_at: payload.created_at || new Date().toISOString()
+  };
+
   try {
-    // Se estiver offline, pula direto para o catch
     if (!navigator.onLine) throw new Error("offline");
 
-    const { error } = await supabase.from("workout_sets_log").upsert([payload], { onConflict: 'history_id,exercise_id,set_number' });
+    const { error } = await supabase.from("workout_sets_log").upsert([finalPayload], { onConflict: 'client_id' });
     
-    // Se houver erro de rede (não erro de RLS/Validação), salva offline
     if (error) {
       if (error.message.includes('Failed to fetch') || error.code === 'PGRST301') {
         throw error;
       }
-      // Se for outro erro (ex: permissão), loga mas não enfileira para não travar o sync
       console.error("Erro ao salvar série (não-rede):", error);
       return;
     }
@@ -22,8 +32,9 @@ export async function saveSet(payload: any) {
 
     await addToQueue({
       type: "SET_LOG",
-      payload,
+      payload: finalPayload,
       createdAt: Date.now(),
+      retryCount: 0
     });
   }
 }

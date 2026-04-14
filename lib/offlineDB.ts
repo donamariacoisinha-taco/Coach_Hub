@@ -13,4 +13,5 @@ export type QueueItem = {
   type: "SET_LOG";
   payload: any;
   createdAt: number;
+  retryCount: number;
 };

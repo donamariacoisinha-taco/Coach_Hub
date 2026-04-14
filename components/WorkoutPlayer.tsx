@@ -15,6 +15,7 @@ import { WorkoutExercise, SetType, LastSetData, ProgressionInput } from "../type
 import { getPreSetHint } from "../lib/preSetEngine";
 import { getEmotionalFeedback } from "../lib/feedbackEngine";
 import { saveSet } from "../lib/saveSet";
+import { useSyncStatus } from "../hooks/useSyncStatus";
 
 // --- PROGRESSION ENGINE ---
 const getNextSetDecision = (input: ProgressionInput, history?: LastSetData) => {
@@ -72,6 +73,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [showExitModal, setShowExitModal] = useState(false);
+
+  const { pendingCount, isOnline } = useSyncStatus();
 
   const currentEx = useMemo(() => exercises[currentIndex] || null, [exercises, currentIndex]);
 
@@ -381,11 +384,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </p>
               </div>
               
-              {!navigator.onLine && (
-                <div className="mt-6 text-[10px] font-bold uppercase tracking-widest text-gray-400 animate-pulse">
-                  Modo Offline — Sincronizando depois
-                </div>
-              )}
+              <div className="mt-8 space-y-2">
+                {!isOnline && (
+                  <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">
+                    Modo Offline — Salvando Local
+                  </div>
+                )}
+                {pendingCount > 0 && isOnline && (
+                  <div className="text-[10px] font-black uppercase tracking-widest text-blue-400">
+                    Sincronizando {pendingCount} {pendingCount === 1 ? 'série' : 'séries'}...
+                  </div>
+                )}
+                {pendingCount === 0 && isOnline && (
+                  <div className="text-[10px] font-black uppercase tracking-widest text-green-500/50">
+                    Sincronizado
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="animate-in fade-in zoom-in duration-500">
