@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '../App';
 
+import { notifyError, translateErrorMessage } from '../lib/errorHandling';
+
 interface AuthProps {
   onBack?: () => void;
 }
@@ -14,14 +16,6 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const translateError = (err: string) => {
-    if (err.includes('Invalid login credentials')) return 'E-mail ou senha incorretos.';
-    if (err.includes('Email not confirmed')) return 'Por favor, confirme seu e-mail antes de entrar.';
-    if (err.includes('Password should be at least 6 characters')) return 'A senha deve ter pelo menos 6 caracteres.';
-    if (err.includes('User already registered')) return 'Este e-mail já está cadastrado.';
-    return 'Ocorreu um erro técnico. Tente novamente.';
-  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +46,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
       }
     } catch (err: any) {
       console.error('[AUTH][ERROR] Falha na autenticação:', err.message);
-      setError(translateError(err.message));
+      setError(translateErrorMessage(err.message));
     } finally {
       setLoading(false);
     }

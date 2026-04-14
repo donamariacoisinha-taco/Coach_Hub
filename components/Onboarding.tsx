@@ -4,6 +4,7 @@ import { UserProfile, ExperienceLevel, Goal, EquipmentPreference } from '../type
 import { supabase } from '../lib/supabase';
 import BodyMap from './BodyMap';
 import { GoogleGenAI, Type } from "@google/genai";
+import { notifyError } from '../lib/errorHandling';
 
 interface OnboardingProps {
   onComplete: (data: Partial<UserProfile>) => void;
@@ -51,7 +52,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         setFormData({ ...formData, avatar_url: json.secure_url });
       }
     } catch (err) {
-      alert("Erro ao subir imagem.");
+      notifyError(err, "Erro ao subir imagem");
     } finally {
       setUploading(false);
     }
@@ -140,7 +141,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
       onComplete(finalData);
     } catch (err: any) {
-      alert("Erro ao salvar perfil: " + err.message);
+      notifyError(err, "Erro ao salvar perfil");
     } finally {
       setIsFinishing(false);
     }

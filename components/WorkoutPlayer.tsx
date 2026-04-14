@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "../lib/supabase";
+import { notifyError } from "../lib/errorHandling";
 import { useNavigation } from "../App";
 import { WorkoutExercise, SetType, LastSetData, ProgressionInput } from "../types";
 import { getPreSetHint } from "../lib/preSetEngine";
@@ -276,8 +277,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
       
     } catch (err) {
-      console.error("Error saving set:", err);
-      alert("Erro ao salvar série.");
+      notifyError(err, "Erro ao salvar série");
     } finally {
       setSaving(false);
     }

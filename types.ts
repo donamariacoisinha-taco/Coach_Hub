@@ -123,6 +123,7 @@ export interface Exercise {
   image_url?: string;
   difficulty_level: 'beginner' | 'intermediate' | 'advanced';
   technical_prompt?: string;
+  anatomical_cut?: string;
 }
 
 export interface WorkoutCategory {
@@ -148,6 +149,7 @@ export interface WorkoutExercise {
   exercise_name: string;
   exercise_image?: string;
   muscle_group?: string;
+  type?: string;
   sets: number;
   reps: string;
   weight: number;

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Exercise, MuscleGroup } from '../types';
 import { useNavigation } from '../App';
+import { notifyError } from '../lib/errorHandling';
 
 interface AdminPanelProps {
   onBack: () => void;
@@ -60,7 +61,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       const { data: { publicUrl } } = supabase.storage.from('exercise-images').getPublicUrl(filePath);
       setEditingExercise({ ...editingExercise, image_url: publicUrl });
     } catch (err: any) {
-      alert("Erro ao subir imagem: " + err.message);
+      notifyError(err, "Erro ao subir imagem");
     } finally {
       setUploadingImage(false);
     }
@@ -84,7 +85,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       setExercises(prev => prev.map(ex => ex.id === editingExercise.id ? editingExercise : ex));
       setEditingExercise(null);
     } catch (err: any) {
-      alert("Erro ao atualizar: " + err.message);
+      notifyError(err, "Erro ao atualizar");
     } finally {
       setSaving(false);
     }
@@ -121,7 +122,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       await fetchData();
       setEditingMuscle(null);
     } catch (err: any) {
-      alert("Erro ao salvar anatomia: " + err.message);
+      notifyError(err, "Erro ao salvar anatomia");
     } finally {
       setSaving(false);
     }
@@ -148,7 +149,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       await fetchData();
       if ('vibrate' in navigator) navigator.vibrate(10);
     } catch (err: any) {
-      alert(err.message);
+      notifyError(err);
     } finally {
       setLoading(false);
     }
@@ -170,7 +171,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       setExercises(prev => prev.filter(item => item.id !== ex.id));
       if ('vibrate' in navigator) navigator.vibrate([10, 30]);
     } catch (err: any) {
-      alert("Falha ao remover: " + err.message);
+      notifyError(err, "Falha ao remover");
     } finally {
       setSaving(false);
     }
@@ -184,7 +185,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       if (error) throw error;
       setMuscleGroups(prev => prev.filter(m => m.id !== id));
     } catch (err: any) {
-      alert("Erro ao excluir: " + err.message);
+      notifyError(err, "Erro ao excluir");
     } finally {
       setSaving(false);
     }

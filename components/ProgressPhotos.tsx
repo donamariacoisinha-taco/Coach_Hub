@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { ProgressPhoto } from '../types';
+import { notifyError } from '../lib/errorHandling';
 
 const ProgressPhotos: React.FC = () => {
   const [photos, setPhotos] = useState<ProgressPhoto[]>([]);
@@ -53,7 +54,7 @@ const ProgressPhotos: React.FC = () => {
       });
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
-      alert("Não foi possível acessar a câmera.");
+      notifyError(err, "Não foi possível acessar a câmera");
       setShowCamera(false);
     }
   };
@@ -68,7 +69,7 @@ const ProgressPhotos: React.FC = () => {
 
   const captureAndUpload = async () => {
     if (!canvasRef.current || !videoRef.current || !cloudName || !uploadPreset) {
-      alert("Configure o Cloudinary no Painel de Controle.");
+      notifyError("Configure o Cloudinary no Painel de Controle.");
       return;
     }
     setUploading(true);
@@ -103,7 +104,7 @@ const ProgressPhotos: React.FC = () => {
           fetchPhotos();
         }
       }
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { notifyError(err); }
     finally { setUploading(false); }
   };
 

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, BodyMeasurement } from '../types';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '../App';
+import { notifyError } from '../lib/errorHandling';
 
 interface ProfileViewProps {
   profile: UserProfile;
@@ -88,7 +89,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
       const { error } = await supabase.from('body_measurements').delete().eq('id', id);
       if (error) throw error;
       fetchMeasurements();
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { notifyError(err); }
   };
 
   const handleSaveMeasurement = async () => {
@@ -129,7 +130,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
       fetchMeasurements();
       onUpdate();
     } catch (err: any) {
-      alert("Erro ao salvar: " + err.message);
+      notifyError(err, "Erro ao salvar");
     } finally {
       setSaving(false);
     }

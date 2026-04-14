@@ -3,6 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { WorkoutExercise, Exercise, SetConfig, WorkoutFolder, MuscleGroup, SetType } from '../types';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '../App';
+import { ExerciseReplaceScreen } from './ExerciseReplaceScreen';
+import { notifyError } from '../lib/errorHandling';
 import { ChevronLeft, Save, PlusCircle, GripVertical, SlidersHorizontal, Trash2, Search, X, MoreVertical, Play, Edit2, Replace, Copy, Clock, Dumbbell, Sparkles, ArrowUpCircle, Info, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -285,10 +287,6 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
     if ('vibrate' in navigator) navigator.vibrate([10, 50]);
   };
 
-  const [selectorSearch, setSelectorSearch] = useState('');
-  const [selectorMuscle, setSelectorMuscle] = useState('Todos');
-  const [selectorSide, setSelectorSide] = useState<'all' | 'front' | 'back'>('all');
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -454,46 +452,12 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
         navigate('workout', { id: currentId });
       }
     } catch (err) {
-      alert("Erro ao salvar alterações.");
+      notifyError(err, "Erro ao salvar alterações");
     } finally {
       setSaving(false);
       setShowSaveModal(false);
     }
   };
-
-  const filteredCatalog = useMemo(() => {
-    const search = selectorSearch.toLowerCase();
-    
-    // Priorizar exercícios que combinam com o treino atual
-    const currentMuscles = stats.muscles;
-    
-    return availableExercises
-      .filter(ex => {
-        const matchesSearch = ex.name.toLowerCase().includes(search);
-        const matchesMuscle = selectorMuscle === 'Todos' || ex.muscle_group === selectorMuscle;
-        const mg = muscleGroups.find(m => m.name === ex.muscle_group);
-        const matchesSide = selectorSide === 'all' || (mg && mg.body_side === selectorSide);
-        return matchesSearch && matchesMuscle && matchesSide;
-      })
-      .sort((a, b) => {
-        // Se estiver pesquisando, priorizar match exato no início do nome
-        if (search) {
-          const aStart = a.name.toLowerCase().startsWith(search) ? 0 : 1;
-          const bStart = b.name.toLowerCase().startsWith(search) ? 0 : 1;
-          if (aStart !== bStart) return aStart - bStart;
-        }
-        
-        // Priorizar músculos já presentes no treino
-        const aMatch = currentMuscles.includes(a.muscle_group) ? 0 : 1;
-        const bMatch = currentMuscles.includes(b.muscle_group) ? 0 : 1;
-        if (aMatch !== bMatch) return aMatch - bMatch;
-        
-        // Priorizar compostos
-        const aComp = a.type?.toLowerCase().includes('composto') ? 0 : 1;
-        const bComp = b.type?.toLowerCase().includes('composto') ? 0 : 1;
-        return aComp - bComp;
-      });
-  }, [availableExercises, selectorSearch, selectorMuscle, selectorSide, muscleGroups, stats.muscles]);
 
   if (loading) return (
     <div className="h-screen flex flex-col items-center justify-center bg-[#F7F8FA]">
@@ -814,79 +778,14 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
       </AnimatePresence>
 
       {/* SELETOR DE EXERCÍCIOS - PREMIUM BOTTOM SHEET */}
-      <AnimatePresence>
-        {showExerciseSelector && (
-          <div className="fixed inset-0 z-[1200] flex items-end justify-center">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowExerciseSelector(false)}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="w-full h-[92vh] bg-white rounded-t-[3rem] flex flex-col relative z-10 overflow-hidden"
-            >
-              <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mt-4 mb-2 shrink-0" />
-              
-              <header className="px-8 pt-4 pb-6 flex justify-between items-center bg-white">
-                <div className="flex flex-col">
-                  <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">
-                    {replacingIndex !== null ? 'Substituir' : 'Biblioteca'}
-                  </h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                    {filteredCatalog.length} opções disponíveis
-                  </p>
-                </div>
-                <button onClick={() => setShowExerciseSelector(false)} className="w-12 h-12 flex items-center justify-center bg-slate-50 rounded-2xl text-slate-400 active:text-slate-900 transition-colors">
-                  <X size={24} />
-                </button>
-              </header>
-
-              <div className="px-8 pb-8 space-y-8 flex-1 overflow-y-auto no-scrollbar">
-                <div className="relative sticky top-0 bg-white z-10 pb-4">
-                  <Search size={18} className="absolute left-6 top-[calc(50%-8px)] -translate-y-1/2 text-slate-300" />
-                  <input 
-                    type="text" placeholder="BUSCAR EXERCÍCIO..." value={selectorSearch}
-                    onChange={e => setSelectorSearch(e.target.value)}
-                    className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-transparent rounded-3xl text-slate-900 font-black text-sm outline-none focus:bg-white focus:border-slate-200 transition-all uppercase tracking-widest placeholder:text-slate-200"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  {filteredCatalog.map((ex, idx) => (
-                    <motion.div 
-                      key={ex.id} 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.03 }}
-                      onClick={() => handleAddOrReplaceExercise(ex)} 
-                      className={`flex items-center justify-between py-5 active:bg-slate-50 transition-colors cursor-pointer group ${idx !== filteredCatalog.length - 1 ? 'border-b border-slate-50' : ''}`}
-                    >
-                      <div className="flex items-center gap-5 flex-1 min-w-0">
-                        <div className="w-14 h-14 bg-slate-50 rounded-2xl overflow-hidden flex items-center justify-center p-2 shrink-0 group-active:scale-90 transition-transform">
-                          <img src={ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-[16px] font-bold text-slate-900 tracking-tight truncate pr-4">{ex.name}</h4>
-                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1">{ex.muscle_group}</p>
-                        </div>
-                      </div>
-                      <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-active:bg-slate-900 group-active:text-white transition-all">
-                        {replacingIndex !== null ? <Replace size={16} /> : <PlusCircle size={16} />}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <ExerciseReplaceScreen 
+        isOpen={showExerciseSelector}
+        onClose={() => setShowExerciseSelector(false)}
+        availableExercises={availableExercises}
+        onSelect={handleAddOrReplaceExercise}
+        replacingIndex={replacingIndex}
+        currentExercise={replacingIndex !== null ? exercises[replacingIndex] : undefined}
+      />
     </div>
   );
 };
