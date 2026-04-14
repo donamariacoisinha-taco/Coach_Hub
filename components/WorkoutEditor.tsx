@@ -3,6 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { WorkoutExercise, Exercise, SetConfig, WorkoutFolder, MuscleGroup, SetType } from '../types';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '../App';
+import { ChevronLeft, Save, PlusCircle, GripVertical, SlidersHorizontal, Trash2, Search, X, MoreVertical, Play, Edit2, Replace } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface WorkoutEditorProps {
   workoutId: string | null;
@@ -29,8 +31,8 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  // Estados para edição de séries (Fine-tuning)
   const [editingSetsIndex, setEditingSetsIndex] = useState<number | null>(null);
 
   const [selectorSearch, setSelectorSearch] = useState('');
@@ -187,132 +189,145 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
 
   if (loading) return (
     <div className="h-screen flex flex-col items-center justify-center bg-[#F7F8FA]">
-      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Carregando Editor...</p>
+      <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Editor...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] flex flex-col relative text-slate-900">
+    <div className="min-h-screen bg-[#F7F8FA] flex flex-col relative text-slate-900 pb-32">
       <header className="px-6 pt-12 pb-8 flex justify-between items-center">
         <div className="flex items-center gap-6">
-          <button onClick={() => goBack()} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-slate-900 transition-all">
-            <i className="fas fa-chevron-left text-lg"></i>
+          <button onClick={() => goBack()} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-slate-900 active:scale-90 transition-all">
+            <ChevronLeft size={24} />
           </button>
-          <h2 className="text-2xl font-black tracking-tighter uppercase text-slate-900">{workoutId ? 'Editar Treino' : 'Nova Ficha'}</h2>
+          <h2 className="text-4xl font-black tracking-tighter uppercase text-slate-900">{workoutId ? 'Editar' : 'Novo'}</h2>
         </div>
         <button 
           onClick={() => setShowSaveModal(true)} 
           disabled={saving} 
-          className="px-8 py-4 bg-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all text-white"
+          className="w-12 h-12 flex items-center justify-center bg-slate-900 rounded-2xl text-white shadow-2xl shadow-slate-900/20 active:scale-90 transition-all"
         >
-          {saving ? <i className="fas fa-spinner animate-spin"></i> : 'SALVAR'}
+          {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save size={20} />}
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-12 max-w-4xl mx-auto w-full pb-40">
-        <section className="space-y-8">
-          <div>
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block">Identificação</label>
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-12 w-full">
+        <section className="space-y-10">
+          <div className="space-y-2">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Identificação</p>
             <input 
-              type="text" placeholder="NOME DO TREINO" value={name} 
+              type="text" placeholder="NOME DO PROTOCOLO" value={name} 
               onChange={e => setName(e.target.value)} 
-              className="w-full p-5 bg-white border border-slate-50 rounded-[1.5rem] font-black text-sm outline-none focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all text-slate-900" 
+              className="w-full py-6 bg-transparent border-b border-slate-200 font-black text-2xl outline-none focus:border-slate-900 transition-all text-slate-900 uppercase tracking-tighter" 
             />
           </div>
-          <div>
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block">Pasta / Categoria</label>
-            <div className="relative">
-              <select 
-                value={folderId} onChange={e => setFolderId(e.target.value)} 
-                className="w-full p-5 bg-white border border-slate-50 rounded-[1.5rem] font-black text-sm outline-none focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all text-slate-900 appearance-none"
-              >
-                <option value="">SELECIONAR PASTA</option>
-                {folders.map(f => <option key={f.id} value={f.id}>{f.name.toUpperCase()}</option>)}
-              </select>
-              <i className="fas fa-chevron-down absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"></i>
-            </div>
+          
+          <div className="space-y-2">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Pasta</p>
+            <select 
+              value={folderId} onChange={e => setFolderId(e.target.value)} 
+              className="w-full py-4 bg-transparent border-b border-slate-200 font-black text-sm outline-none focus:border-slate-900 transition-all text-slate-900 appearance-none uppercase tracking-widest"
+            >
+              <option value="">SEM PASTA</option>
+              {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
           </div>
         </section>
 
         <div className="space-y-1">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Estrutura do Treino</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Estrutura</p>
           {exercises.map((ex, idx) => (
-            <div 
-              key={ex.tempId}
-              draggable
-              onDragStart={() => setDraggedIndex(idx)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (draggedIndex !== null && draggedIndex !== idx) {
-                  handleReorder(draggedIndex, idx);
-                  setDraggedIndex(null);
-                }
-              }}
-              className={`flex items-center gap-6 py-8 active:bg-slate-50 transition-all ${idx !== exercises.length - 1 ? 'border-b border-slate-100' : ''} ${draggedIndex === idx ? 'opacity-30 scale-95' : ''}`}
-            >
-              <div className="flex flex-col gap-3 text-slate-200">
-                <button onClick={() => handleReorder(idx, idx - 1)} className="active:text-blue-600"><i className="fas fa-caret-up"></i></button>
-                <div className="cursor-grab active:cursor-grabbing"><i className="fas fa-grip-vertical"></i></div>
-                <button onClick={() => handleReorder(idx, idx + 1)} className="active:text-blue-600"><i className="fas fa-caret-down"></i></button>
+            <div key={ex.tempId} className="relative">
+              <div 
+                className={`flex items-center gap-6 py-8 active:bg-slate-50 transition-all ${idx !== exercises.length - 1 ? 'border-b border-slate-100' : ''}`}
+              >
+                <div className="flex flex-col gap-4 text-slate-200">
+                  <button onClick={() => handleReorder(idx, idx - 1)} className="active:text-slate-900"><GripVertical size={16} /></button>
+                </div>
+
+                <div className="w-16 h-16 bg-white rounded-2xl overflow-hidden shrink-0 flex items-center justify-center p-3 border border-slate-50 shadow-sm">
+                  <img src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-black text-xl tracking-tighter text-slate-900 truncate pr-4 uppercase">{ex.exercise_name}</h4>
+                  <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.sets_json?.length || 3} Séries</p>
+                </div>
+
+                <button 
+                  onClick={() => setActiveMenuId(activeMenuId === ex.tempId ? null : ex.tempId)}
+                  className="w-12 h-12 flex items-center justify-center text-slate-200 active:text-slate-900 transition-colors"
+                >
+                  <MoreVertical size={18} />
+                </button>
               </div>
 
-              <div className="w-16 h-16 bg-white rounded-[1.5rem] overflow-hidden shrink-0 flex items-center justify-center p-3 border border-slate-50 shadow-sm">
-                <img src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-black text-lg tracking-tighter text-slate-900 truncate pr-4 uppercase">{ex.exercise_name}</h4>
-                <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.sets_json?.length || 3} Séries Configuradas</p>
-              </div>
-
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setEditingSetsIndex(idx)}
-                  className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"
-                >
-                  <i className="fas fa-sliders-h"></i>
-                </button>
-                <button 
-                  onClick={() => { setReplacingIndex(idx); setShowExerciseSelector(true); }}
-                  className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"
-                >
-                  <i className="fas fa-exchange-alt"></i>
-                </button>
-                <button 
-                  onClick={() => setExercises(prev => prev.filter(e => e.tempId !== ex.tempId))} 
-                  className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-red-500 transition-colors"
-                >
-                  <i className="fas fa-trash"></i>
-                </button>
-              </div>
+              <AnimatePresence>
+                {activeMenuId === ex.tempId && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute right-0 top-16 z-50 bg-white rounded-2xl shadow-2xl border border-slate-50 p-4 min-w-[160px] space-y-2"
+                  >
+                    <button 
+                      onClick={() => { setEditingSetsIndex(idx); setActiveMenuId(null); }}
+                      className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+                    >
+                      <SlidersHorizontal size={14} /> Ajustar Séries
+                    </button>
+                    <button 
+                      onClick={() => { setReplacingIndex(idx); setShowExerciseSelector(true); setActiveMenuId(null); }}
+                      className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+                    >
+                      <Replace size={14} /> Substituir
+                    </button>
+                    <button 
+                      onClick={() => { setExercises(prev => prev.filter(e => e.tempId !== ex.tempId)); setActiveMenuId(null); }}
+                      className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-xl transition"
+                    >
+                      <Trash2 size={14} /> Remover
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ))}
 
           <button 
             onClick={() => { setReplacingIndex(null); setShowExerciseSelector(true); }} 
-            className="w-full py-12 mt-10 border-2 border-dashed border-slate-100 rounded-[3rem] flex flex-col items-center justify-center gap-4 text-slate-200 active:text-blue-600 active:border-blue-100 transition-all bg-white/30"
+            className="w-full py-12 mt-10 border-2 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center gap-4 text-slate-200 active:text-slate-900 active:border-slate-300 transition-all bg-white/30"
           >
-             <i className="fas fa-plus-circle text-3xl"></i>
-             <span className="text-[10px] font-black uppercase tracking-[0.3em]">Adicionar Movimento</span>
+             <PlusCircle size={32} />
+             <span className="text-[10px] font-black uppercase tracking-[0.3em]">Adicionar Exercício</span>
           </button>
         </div>
       </div>
 
-      {/* MODAL DE EDIÇÃO DE SÉRIES (FINE-TUNING) */}
-      {editingSetsIndex !== null && (
-        <div className="fixed inset-0 z-[1000] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
-           <header className="px-6 pt-12 pb-8 flex justify-between items-center border-b border-slate-50">
+      {/* MODAL DE EDIÇÃO DE SÉRIES */}
+      <AnimatePresence>
+        {editingSetsIndex !== null && (
+          <motion.div 
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[1000] bg-white flex flex-col"
+          >
+            <header className="px-6 pt-12 pb-8 flex justify-between items-center border-b border-slate-50">
               <div>
                  <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Ajuste Técnico</h3>
                  <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{exercises[editingSetsIndex].exercise_name}</p>
               </div>
-              <button onClick={() => setEditingSetsIndex(null)} className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 transition-colors"><i className="fas fa-times text-xl"></i></button>
-           </header>
-           
-           <div className="flex-1 overflow-y-auto p-6 space-y-10 no-scrollbar pb-32">
+              <button onClick={() => setEditingSetsIndex(null)} className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 transition-colors">
+                <X size={24} />
+              </button>
+            </header>
+            
+            <div className="flex-1 overflow-y-auto p-6 space-y-10 no-scrollbar pb-32">
               <div className="space-y-4">
                 {exercises[editingSetsIndex].sets_json?.map((set, sIdx) => (
-                  <div key={sIdx} className="bg-white p-8 rounded-[2.5rem] border border-slate-50 shadow-2xl shadow-slate-200/50 space-y-8">
+                  <div key={sIdx} className="bg-[#F7F8FA] p-8 rounded-3xl space-y-8">
                     <div className="flex justify-between items-center">
                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Série {sIdx + 1}</span>
                        <button 
@@ -321,7 +336,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                           newSets.splice(sIdx, 1);
                           handleUpdateSets(editingSetsIndex!, newSets);
                         }}
-                        className="text-red-500 text-[10px] font-black uppercase tracking-widest"
+                        className="text-red-500 text-[10px] font-black uppercase tracking-widest active:opacity-50 transition"
                        >Remover</button>
                     </div>
                     <div className="grid grid-cols-3 gap-6">
@@ -334,7 +349,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                               newSets[sIdx].weight = parseFloat(e.target.value) || 0;
                               handleUpdateSets(editingSetsIndex!, newSets);
                             }}
-                            className="w-full bg-[#F7F8FA] p-4 rounded-2xl text-center font-black text-blue-600 outline-none border border-transparent focus:border-blue-600 focus:bg-white transition-all" 
+                            className="w-full bg-white p-4 rounded-2xl text-center font-black text-slate-900 outline-none border border-transparent focus:border-slate-900 tabular-nums transition-all" 
                           />
                        </div>
                        <div className="space-y-2">
@@ -346,7 +361,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                               newSets[sIdx].reps = e.target.value;
                               handleUpdateSets(editingSetsIndex!, newSets);
                             }}
-                            className="w-full bg-[#F7F8FA] p-4 rounded-2xl text-center font-black text-slate-900 outline-none border border-transparent focus:border-blue-600 focus:bg-white transition-all" 
+                            className="w-full bg-white p-4 rounded-2xl text-center font-black text-slate-900 outline-none border border-transparent focus:border-slate-900 transition-all" 
                           />
                        </div>
                        <div className="space-y-2">
@@ -358,7 +373,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                               newSets[sIdx].rest_time = parseInt(e.target.value) || 0;
                               handleUpdateSets(editingSetsIndex!, newSets);
                             }}
-                            className="w-full bg-[#F7F8FA] p-4 rounded-2xl text-center font-black text-orange-500 outline-none border border-transparent focus:border-blue-600 focus:bg-white transition-all" 
+                            className="w-full bg-white p-4 rounded-2xl text-center font-black text-slate-900 outline-none border border-transparent focus:border-slate-900 tabular-nums transition-all" 
                           />
                        </div>
                     </div>
@@ -372,80 +387,107 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                   newSets.push({ ...lastSet });
                   handleUpdateSets(editingSetsIndex!, newSets);
                 }}
-                className="w-full py-6 border-2 border-dashed border-slate-100 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 active:text-blue-600 transition-all"
+                className="w-full py-6 border-2 border-dashed border-slate-100 rounded-3xl text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 active:text-slate-900 transition-all"
               >+ Adicionar Série</button>
-           </div>
-           
-           <footer className="px-6 py-10 border-t border-slate-50 bg-white pb-safe">
+            </div>
+            
+            <footer className="px-6 py-10 border-t border-slate-50 bg-white pb-safe">
               <button 
                 onClick={() => setEditingSetsIndex(null)}
-                className="w-full py-6 bg-blue-600 rounded-[2rem] font-black text-white uppercase text-xs tracking-[0.3em] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all"
-              >Confirmar Ajustes</button>
-           </footer>
-        </div>
-      )}
+                className="w-full py-6 bg-slate-900 rounded-3xl font-black text-white uppercase text-xs tracking-[0.3em] shadow-2xl shadow-slate-900/20 active:scale-95 transition-all"
+              >Confirmar</button>
+            </footer>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {showSaveModal && (
-        <div className="fixed inset-0 z-[1100] bg-slate-900/40 backdrop-blur-sm flex items-end justify-center animate-in fade-in duration-300">
-          <div className="w-full bg-white rounded-t-[4rem] p-10 space-y-10 shadow-2xl animate-in slide-in-from-bottom duration-500">
-            <div className="text-center space-y-4">
-              <div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center text-blue-600 mx-auto mb-4">
-                <i className="fas fa-save text-3xl"></i>
+      {/* MODAL DE SALVAMENTO */}
+      <AnimatePresence>
+        {showSaveModal && (
+          <div className="fixed inset-0 z-[1100] flex items-end justify-center">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSaveModal(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="w-full bg-white rounded-t-[3rem] p-10 space-y-10 shadow-2xl relative z-10"
+            >
+              <div className="text-center space-y-4">
+                <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Salvar Alterações?</h3>
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-relaxed max-w-[250px] mx-auto">Deseja tornar essas edições permanentes?</p>
               </div>
-              <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Salvar Alterações?</h3>
-              <p className="text-slate-400 text-sm font-medium leading-relaxed max-w-[250px] mx-auto">Deseja que essas edições sejam permanentes para os próximos treinos?</p>
-            </div>
-            <div className="flex flex-col gap-4">
-              <button onClick={() => handleSave(true)} className="w-full py-6 bg-blue-600 rounded-[2rem] font-black text-white uppercase text-[10px] tracking-[0.2em] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all">Sim, tornar permanente</button>
-              <button onClick={() => handleSave(false)} className="w-full py-6 bg-slate-100 rounded-[2rem] font-black text-slate-600 uppercase text-[10px] tracking-[0.2em] active:bg-slate-200 transition-all">Não, apenas para agora</button>
-              <button onClick={() => setShowSaveModal(false)} className="w-full py-4 text-slate-300 font-black uppercase text-[10px] tracking-[0.2em] active:text-slate-900 transition-colors">Cancelar</button>
-            </div>
+              <div className="flex flex-col gap-4">
+                <button onClick={() => handleSave(true)} className="w-full py-6 bg-slate-900 rounded-3xl font-black text-white uppercase text-[10px] tracking-[0.2em] shadow-2xl shadow-slate-900/20 active:scale-95 transition-all">Sim, Permanente</button>
+                <button onClick={() => handleSave(false)} className="w-full py-6 bg-slate-100 rounded-3xl font-black text-slate-600 uppercase text-[10px] tracking-[0.2em] active:bg-slate-200 transition-all">Não, apenas agora</button>
+                <button onClick={() => setShowSaveModal(false)} className="w-full py-4 text-slate-300 font-black uppercase text-[10px] tracking-[0.2em] active:text-slate-900 transition-colors">Cancelar</button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
-      {showExerciseSelector && (
-        <div className="fixed inset-0 z-[1200] bg-[#F7F8FA] flex flex-col animate-in slide-in-from-bottom duration-500">
-          <header className="px-6 pt-12 pb-8 flex justify-between items-center bg-white border-b border-slate-50">
-            <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">
-              {replacingIndex !== null ? 'Substituir' : 'Biblioteca'}
-            </h3>
-            <button onClick={() => setShowExerciseSelector(false)} className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 transition-colors"><i className="fas fa-times text-xl"></i></button>
-          </header>
+      {/* SELETOR DE EXERCÍCIOS */}
+      <AnimatePresence>
+        {showExerciseSelector && (
+          <motion.div 
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[1200] bg-[#F7F8FA] flex flex-col"
+          >
+            <header className="px-6 pt-12 pb-8 flex justify-between items-center bg-white border-b border-slate-50">
+              <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">
+                {replacingIndex !== null ? 'Substituir' : 'Biblioteca'}
+              </h3>
+              <button onClick={() => setShowExerciseSelector(false)} className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 transition-colors">
+                <X size={24} />
+              </button>
+            </header>
 
-          <div className="px-6 py-8 space-y-10 flex-1 overflow-y-auto no-scrollbar">
-            <div className="relative">
-              <i className="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
-              <input 
-                type="text" placeholder="BUSCAR EXERCÍCIO..." value={selectorSearch}
-                onChange={e => setSelectorSearch(e.target.value)}
-                className="w-full pl-14 pr-6 py-5 bg-white border border-slate-50 rounded-[2rem] text-slate-900 font-black text-sm outline-none focus:border-blue-600 shadow-2xl shadow-slate-200/50 transition-all"
-              />
-            </div>
+            <div className="px-6 py-8 space-y-10 flex-1 overflow-y-auto no-scrollbar">
+              <div className="relative">
+                <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" />
+                <input 
+                  type="text" placeholder="BUSCAR..." value={selectorSearch}
+                  onChange={e => setSelectorSearch(e.target.value)}
+                  className="w-full pl-14 pr-6 py-5 bg-white border border-slate-50 rounded-3xl text-slate-900 font-black text-sm outline-none focus:border-slate-900 transition-all uppercase tracking-widest"
+                />
+              </div>
 
-            <div className="space-y-1">
-              {filteredCatalog.map((ex, idx) => (
-                <div 
-                  key={ex.id} 
-                  onClick={() => handleAddOrReplaceExercise(ex)} 
-                  className={`flex items-center justify-between py-6 active:bg-slate-50 transition-colors cursor-pointer ${idx !== filteredCatalog.length - 1 ? 'border-b border-slate-100' : ''}`}
-                >
-                  <div className="flex items-center gap-6 flex-1 min-w-0">
-                    <div className="w-14 h-14 bg-white border border-slate-50 rounded-[1.5rem] overflow-hidden flex items-center justify-center p-3 shrink-0 shadow-sm">
-                      <img src={ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" />
+              <div className="space-y-1">
+                {filteredCatalog.map((ex, idx) => (
+                  <div 
+                    key={ex.id} 
+                    onClick={() => handleAddOrReplaceExercise(ex)} 
+                    className={`flex items-center justify-between py-6 active:bg-slate-50 transition-colors cursor-pointer ${idx !== filteredCatalog.length - 1 ? 'border-b border-slate-100' : ''}`}
+                  >
+                    <div className="flex items-center gap-6 flex-1 min-w-0">
+                      <div className="w-14 h-14 bg-white border border-slate-50 rounded-2xl overflow-hidden flex items-center justify-center p-3 shrink-0 shadow-sm">
+                        <img src={ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{ex.name}</h4>
+                        <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.muscle_group}</p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{ex.name}</h4>
-                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.muscle_group}</p>
+                    <div className="text-slate-200">
+                      {replacingIndex !== null ? <Replace size={18} /> : <PlusCircle size={18} />}
                     </div>
                   </div>
-                  <i className={`fas ${replacingIndex !== null ? 'fa-exchange-alt' : 'fa-plus-circle'} text-blue-600 opacity-20 text-lg`}></i>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

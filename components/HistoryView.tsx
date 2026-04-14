@@ -1,13 +1,15 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { WorkoutHistory } from '../types';
 import { supabase } from '../lib/supabase';
 import ProgressPhotos from './ProgressPhotos';
 import BioReport from './BioReport';
 import ShareCard from './ShareCard';
 import { ExerciseProgress } from './ExerciseProgress';
+import { MoreVertical, Share2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
-type TabType = 'sessions' | 'charts' | 'visual' | 'bio' | 'monthly';
+type TabType = 'sessions' | 'charts' | 'visual' | 'bio';
 
 const HistoryView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('sessions');
@@ -21,6 +23,7 @@ const HistoryView: React.FC = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [shareData, setShareData] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHistory();
@@ -43,7 +46,6 @@ const HistoryView: React.FC = () => {
 
   const fetchExerciseList = async () => {
     try {
-      // Busca exercícios que possuem logs para popular o seletor de progresso
       const { data } = await supabase
         .from('exercise_progress')
         .select('exercise_id, exercises(name)')
@@ -92,30 +94,24 @@ const HistoryView: React.FC = () => {
         exercises_count: item.exercises_count,
         totalTonnage: totalTonnage
       });
+      setActiveMenuId(null);
     } catch (err) { console.error(err); }
     finally { setLoadingDetails(false); }
   };
 
   const handleDeleteHistory = async (e: React.MouseEvent, historyId: string) => {
     e.stopPropagation();
-    if (!confirm("⚠️ ATENÇÃO: Deseja apagar este treino permanentemente? Isso removerá todos os recordes e volumes associados a esta sessão.")) return;
+    if (!confirm("Deseja apagar este registro permanentemente?")) return;
 
     setIsDeleting(historyId);
     try {
-      const { error } = await supabase
-        .from('workout_history')
-        .delete()
-        .eq('id', historyId);
-
+      const { error } = await supabase.from('workout_history').delete().eq('id', historyId);
       if (error) throw error;
-
       setHistory(prev => prev.filter(h => h.id !== historyId));
       if (selectedWorkout === historyId) setSelectedWorkout(null);
-      if ('vibrate' in navigator) navigator.vibrate([10, 30, 10]);
-      
+      setActiveMenuId(null);
       fetchExerciseList();
     } catch (err) {
-      alert("Erro ao excluir treino. Tente novamente.");
       console.error(err);
     } finally {
       setIsDeleting(null);
@@ -124,29 +120,28 @@ const HistoryView: React.FC = () => {
 
   if (loading) return (
     <div className="h-screen flex flex-col items-center justify-center bg-[#F7F8FA]">
-      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Carregando Histórico...</p>
+      <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Histórico...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] pb-32 animate-in fade-in duration-500">
+    <div className="min-h-screen bg-[#F7F8FA] pb-32">
       <header className="px-6 pt-12 pb-8">
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Performance</p>
-        <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Evolução</h2>
+        <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Evolução</h2>
         
-        {/* Tab Switcher Minimalista */}
         <div className="flex gap-8 mt-10 overflow-x-auto no-scrollbar border-b border-slate-100">
           {[
             { id: 'sessions', label: 'Sessões' },
-            { id: 'bio', label: 'Bio' },
             { id: 'charts', label: 'Força' },
-            { id: 'visual', label: 'Visual' }
+            { id: 'visual', label: 'Visual' },
+            { id: 'bio', label: 'Bio' }
           ].map(tab => (
             <button 
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
-              className={`text-[10px] font-black uppercase tracking-widest pb-4 border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-400'}`}
+              className={`text-[10px] font-black uppercase tracking-widest pb-4 border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'}`}
             >
               {tab.label}
             </button>
@@ -185,57 +180,70 @@ const HistoryView: React.FC = () => {
           <div className="space-y-1">
              {history.length === 0 ? (
                 <div className="py-20 text-center">
-                   <i className="fas fa-history text-slate-100 text-4xl mb-4"></i>
-                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Sem registros</p>
+                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Sem registros</p>
                 </div>
              ) : (
                history.map((item, idx) => (
-                 <div 
-                   key={item.id} 
-                   className={`${idx !== history.length - 1 ? 'border-b border-slate-100' : ''}`}
-                 >
+                 <div key={item.id} className="relative">
                     <div 
                       onClick={() => selectedWorkout === item.id ? setSelectedWorkout(null) : fetchWorkoutDetails(item.id)}
-                      className="flex justify-between items-center py-8 active:bg-slate-50 transition-colors cursor-pointer"
+                      className={`flex justify-between items-center py-8 active:bg-slate-50 transition-colors cursor-pointer ${idx !== history.length - 1 ? 'border-b border-slate-100' : ''}`}
                     >
                        <div className="flex-1 min-w-0">
-                          <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{item.category_name}</h4>
+                          <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{item.category_name}</h4>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1.5">
-                            {new Date(item.completed_at).toLocaleDateString()} • {item.duration_minutes || '--'} min
+                            {new Date(item.completed_at!).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} • {item.duration_minutes || '--'} min
                           </p>
                        </div>
                        <div className="flex items-center gap-4">
                           <button 
-                            onClick={(e) => handleShareHistory(e, item)}
-                            className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === item.id ? null : item.id); }}
+                            className="w-12 h-12 flex items-center justify-center text-slate-200 active:text-slate-900 transition-colors"
                           >
-                             <i className="fas fa-share-alt"></i>
+                             <MoreVertical size={18} />
                           </button>
-                          <button 
-                            onClick={(e) => handleDeleteHistory(e, item.id)}
-                            disabled={!!isDeleting}
-                            className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-red-500 transition-colors"
-                          >
-                             {isDeleting === item.id ? <i className="fas fa-spinner animate-spin"></i> : <i className="fas fa-trash-alt"></i>}
-                          </button>
-                          <i className={`fas fa-chevron-${selectedWorkout === item.id ? 'up' : 'down'} text-[10px] text-slate-200 ml-2`}></i>
+                          {selectedWorkout === item.id ? <ChevronUp size={14} className="text-slate-200" /> : <ChevronDown size={14} className="text-slate-200" />}
                        </div>
                     </div>
 
+                    <AnimatePresence>
+                      {activeMenuId === item.id && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          className="absolute right-0 top-16 z-50 bg-white rounded-2xl shadow-2xl border border-slate-50 p-4 min-w-[160px] space-y-2"
+                        >
+                          <button 
+                            onClick={(e) => handleShareHistory(e, item)}
+                            className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+                          >
+                            <Share2 size={14} /> Compartilhar
+                          </button>
+                          <button 
+                            onClick={(e) => handleDeleteHistory(e, item.id)}
+                            className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-xl transition"
+                          >
+                            <Trash2 size={14} /> {isDeleting === item.id ? 'Excluindo...' : 'Excluir'}
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                     {selectedWorkout === item.id && (
-                      <div className="pb-10 space-y-10 animate-in fade-in duration-500">
+                      <div className="pb-10 pt-4 space-y-10 animate-in fade-in duration-500">
                          {loadingDetails ? (
                            <div className="text-center py-4">
-                             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                             <div className="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
                            </div>
                          ) : (
                             workoutLogs.map(([exName, sets]: [string, any[]]) => (
                               <div key={exName} className="space-y-6">
                                  <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">{exName}</h5>
                                  <div className="grid grid-cols-4 gap-6">
-                                    {sets.map((set, idx) => (
-                                      <div key={idx} className="space-y-1">
-                                         <p className="text-lg font-black text-slate-900 tracking-tighter">{set.weight_achieved}<span className="text-[10px] ml-0.5">kg</span></p>
+                                    {sets.map((set, sIdx) => (
+                                      <div key={sIdx} className="space-y-1">
+                                         <p className="text-lg font-black text-slate-900 tracking-tighter tabular-nums">{set.weight_achieved}<span className="text-[10px] ml-0.5">kg</span></p>
                                          <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">{set.reps_achieved} reps</p>
                                       </div>
                                     ))}
