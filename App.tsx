@@ -61,7 +61,7 @@ const getStateFromUrl = (): NavigationState => {
   return { view: 'landing', params: {} };
 };
 
-import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt } from 'lucide-react';
+import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt, Flame } from 'lucide-react';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -220,6 +220,14 @@ const App: React.FC = () => {
         {!isImmersive && session && (
           <aside className="hidden lg:flex w-20 bg-white border-r border-gray-100 flex-col items-center shrink-0">
              <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white mt-8 mb-12 shadow-lg shadow-black/20"><Bolt size={20} /></div>
+             
+             {profile?.workout_streak && profile.workout_streak > 0 && (
+               <div className="flex flex-col items-center gap-1 mb-10">
+                 <Flame size={20} className="text-orange-500 fill-orange-500" />
+                 <span className="text-[10px] font-black text-orange-600 tabular-nums">{profile.workout_streak}</span>
+               </div>
+             )}
+
              <div className="flex flex-col items-center gap-8 w-full">
                 <button onClick={() => navigate('dashboard')} className={`flex flex-col items-center transition-all ${navState.view === 'dashboard' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><Home size={24} /></button>
                 <button onClick={() => navigate('library')} className={`flex flex-col items-center transition-all ${navState.view === 'library' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><Dumbbell size={24} /></button>

@@ -1,9 +1,16 @@
 
 import React, { useEffect, useState } from "react";
-import { motion } from "motion/react";
-import { Trophy, ArrowRight, Share2, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { Trophy, ArrowRight, Share2, CheckCircle2, Flame, Star } from "lucide-react";
 import { useNavigation } from "../App";
 import { supabase } from "../lib/supabase";
+import { calculateStreak } from "../lib/streakEngine";
+import { checkAchievements, Achievement } from "../lib/achievementEngine";
+import { getAdvancedEmotionalFeedback } from "../lib/emotionalFeedbackEngine";
+import { getNextGoal } from "../lib/goalEngine";
+import { getExerciseProgress } from "../lib/getExerciseProgress";
+import { getPR } from "../lib/getPR";
+import { getProgressInsights } from "../lib/progressInsights";
 
 interface VictoryScreenProps {
   historyId: string;
@@ -14,20 +21,64 @@ interface VictoryScreenProps {
 export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duration, exercisesCount }) => {
   const { navigate } = useNavigation();
   const [totalVolume, setTotalVolume] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [feedback, setFeedback] = useState("");
+  const [goal, setGoal] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadStats() {
       try {
-        const { data } = await supabase
-          .from('workout_sets_log')
-          .select('weight_achieved, reps_achieved')
-          .eq('history_id', historyId);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // 1. Volume e Histórico
+        const [logsRes, historyRes] = await Promise.all([
+          supabase.from('workout_sets_log').select('weight_achieved, reps_achieved, exercise_id').eq('history_id', historyId),
+          supabase.from('workout_history').select('*').eq('user_id', user.id).not('completed_at', 'is', null)
+        ]);
         
-        if (data) {
-          const volume = data.reduce((acc, curr) => acc + (curr.weight_achieved * curr.reps_achieved), 0);
-          setTotalVolume(volume);
+        const logs = logsRes.data || [];
+        const history = historyRes.data || [];
+        
+        const volume = logs.reduce((acc, curr) => acc + (curr.weight_achieved * curr.reps_achieved), 0);
+        setTotalVolume(volume);
+
+        // 2. Streak
+        const currentStreak = calculateStreak(history);
+        setStreak(currentStreak);
+
+        // 3. PR Check (simplificado para o último exercício do treino)
+        let isPR = false;
+        let volumeTrend = 0;
+        if (logs.length > 0) {
+          const lastExId = logs[logs.length - 1].exercise_id;
+          const progress = await getExerciseProgress(lastExId);
+          const pr = getPR(progress);
+          const lastSetWeight = logs[logs.length - 1].weight_achieved;
+          isPR = lastSetWeight >= pr;
+          
+          const insights = getProgressInsights(progress);
+          volumeTrend = insights?.volumeTrend || 0;
         }
+
+        // 4. Achievements
+        const newAchievements = checkAchievements({
+          totalWorkouts: history.length,
+          streak: currentStreak,
+          totalVolume: volume,
+          isPR
+        });
+        setAchievements(newAchievements);
+
+        // 5. Feedback & Goals
+        setFeedback(getAdvancedEmotionalFeedback({ streak: currentStreak, pr: isPR, volumeTrend }));
+        setGoal(getNextGoal({ streak: currentStreak }));
+
+        // 6. Update Profile Streak
+        await supabase.from('profiles').update({ workout_streak: currentStreak }).eq('id', user.id);
+
       } catch (err) {
         console.error(err);
       } finally {
@@ -55,10 +106,22 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
         className="space-y-4"
       >
         <h1 className="text-4xl font-black tracking-tighter uppercase">Treino Concluído</h1>
-        <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.3em]">Você está mais perto do seu objetivo</p>
+        <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.3em]">{feedback || "Você está mais perto do seu objetivo"}</p>
       </motion.div>
 
-      <div className="grid grid-cols-2 gap-4 w-full max-w-xs mt-16">
+      {streak > 0 && (
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="mt-8 flex items-center gap-3 px-6 py-3 bg-orange-50 rounded-full border border-orange-100"
+        >
+          <Flame size={18} className="text-orange-500 fill-orange-500" />
+          <span className="text-sm font-black text-orange-600 tabular-nums">{streak} dias seguidos</span>
+        </motion.div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 w-full max-w-xs mt-12">
         <motion.div
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -78,6 +141,40 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
           <p className="text-xl font-black tabular-nums">{(totalVolume / 1000).toFixed(1)}t</p>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {achievements.length > 0 && (
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="mt-10 space-y-4 w-full max-w-xs"
+          >
+            <p className="text-[8px] font-black uppercase tracking-widest text-gray-400">Conquistas Desbloqueadas</p>
+            {achievements.map((ach) => (
+              <div key={ach.id} className="flex items-center gap-4 p-4 bg-amber-50/50 rounded-2xl border border-amber-100">
+                <div className="text-2xl">{ach.icon}</div>
+                <div className="text-left">
+                  <p className="text-[10px] font-black uppercase tracking-tight text-amber-900">{ach.title}</p>
+                  <p className="text-[8px] font-bold text-amber-700/60 uppercase tracking-widest">{ach.description}</p>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {goal && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="mt-8 px-8 py-4 bg-gray-50 rounded-3xl border border-gray-100"
+        >
+          <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 leading-relaxed">
+            {goal.message}
+          </p>
+        </motion.div>
+      )}
 
       <motion.div
         initial={{ y: 20, opacity: 0 }}

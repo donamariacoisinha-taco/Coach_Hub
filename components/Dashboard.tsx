@@ -34,13 +34,13 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
         supabase.from('workout_folders').select('id, name').eq('user_id', userId).order('name'),
         supabase.from('workout_categories').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('workout_history').select('id', { count: 'exact', head: true }).eq('user_id', userId)
+        supabase.from('workout_history').select('*').eq('user_id', userId).not('completed_at', 'is', null).order('completed_at', { ascending: false })
       ]);
 
       if (profileRes.data) setProfile(profileRes.data);
       if (foldersRes.data) setFolders(foldersRes.data);
       if (workoutsRes.data) setWorkouts(workoutsRes.data);
-      if (historyRes) setStats({ sessions: historyRes.count || 0 });
+      if (historyRes.data) setStats({ sessions: historyRes.data.length });
 
     } catch (err: any) {
       setError(err.message || "Erro ao carregar dados.");
@@ -97,7 +97,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               <p className="text-xs text-gray-500">Sessões</p>
             </div>
             <div>
-              <p className="text-xl font-semibold">3</p>
+              <p className="text-xl font-semibold">{profile?.workout_streak || 0}</p>
               <p className="text-xs text-gray-500">Sequência</p>
             </div>
             <div>
