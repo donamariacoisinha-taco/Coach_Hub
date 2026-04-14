@@ -12,6 +12,7 @@ import HistoryView from './components/HistoryView';
 import ProfileView from './components/ProfileView';
 import ExerciseLibrary from './components/ExerciseLibrary';
 import LandingPage from './components/LandingPage';
+import { useSync } from './hooks/useSync';
 
 type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'editor' | 'history' | 'admin' | 'profile' | 'library';
 type Theme = 'classic' | 'light' | 'aggressive' | 'bloom' | 'neon-strike';
@@ -69,6 +70,9 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('coach_theme') as Theme) || 'light');
   const [navState, setNavState] = useState<NavigationState>(getStateFromUrl);
   const isInitializing = useRef(false);
+
+  // Inicializa o sistema de sincronização offline
+  useSync();
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);

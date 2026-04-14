@@ -7,10 +7,14 @@ import {
   Minus,
   X,
   Check,
+  MoreHorizontal,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useNavigation } from "../App";
 import { WorkoutExercise, SetType, LastSetData, ProgressionInput } from "../types";
+import { getPreSetHint } from "../lib/preSetEngine";
+import { getEmotionalFeedback } from "../lib/feedbackEngine";
+import { saveSet } from "../lib/saveSet";
 
 // --- PROGRESSION ENGINE ---
 const getNextSetDecision = (input: ProgressionInput, history?: LastSetData) => {
@@ -60,6 +64,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   
   // Progression & Feedback
   const [lastSet, setLastSet] = useState<LastSetData | null>(null);
+  const [previousSet, setPreviousSet] = useState<LastSetData | null>(null);
+  const [preHint, setPreHint] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   
   // Session Tracking
@@ -173,13 +179,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   useEffect(() => {
     if (currentEx) {
       const plan = currentEx.sets_json?.[currentSet - 1];
+      const targetReps = parseInt(plan?.reps as string) || 10;
+      
       if (plan) {
         setWeight(plan.weight);
-        setReps(parseInt(plan.reps as string) || 0);
+        setReps(targetReps);
       }
+      
       fetchLastSet(currentEx.exercise_id);
+      
+      setPreHint(
+        getPreSetHint({
+          lastSet,
+          targetReps,
+        })
+      );
     }
-  }, [currentIndex, currentSet, currentEx]);
+  }, [currentIndex, currentSet, currentEx, lastSet]);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -194,15 +210,29 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      const currentSetData: LastSetData = {
+        weight,
+        reps,
+        rpe,
+      };
+
       // Progression Logic
       const repsTarget = parseInt(currentEx.sets_json?.[currentSet - 1]?.reps as string) || 10;
+      
+      // Emotional Feedback
+      const emotional = getEmotionalFeedback({
+        current: currentSetData,
+        lastSet: lastSet || undefined,
+        previousSet: previousSet || undefined,
+      });
+
       const decision = getNextSetDecision(
         { weight, repsDone: reps, repsTarget, rpe },
         lastSet || undefined
       );
 
       // Save Log
-      await supabase.from('workout_sets_log').upsert([{ 
+      await saveSet({ 
         history_id: historyId,
         user_id: user?.id,
         exercise_id: currentEx.exercise_id,
@@ -211,11 +241,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         reps_achieved: reps,
         rpe: rpe,
         set_type: SetType.NORMAL
-      }], { onConflict: 'history_id,exercise_id,set_number' });
+      });
 
       // Apply Decision
       setWeight(decision.nextWeight);
-      setFeedback(decision.message);
+      setFeedback(emotional);
+      setPreviousSet(currentSetData);
+      
       setTimeout(() => setFeedback(null), 1800);
 
       // Update partial session
@@ -230,7 +262,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setIsResting(true);
       
       // Haptic
-      if ('vibrate' in navigator) navigator.vibrate(50);
+      if (emotional.includes("recorde")) {
+        if ('vibrate' in navigator) navigator.vibrate([50, 50, 100]);
+      } else {
+        if ('vibrate' in navigator) navigator.vibrate(40);
+      }
       
     } catch (err) {
       console.error("Error saving set:", err);
@@ -311,7 +347,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               onClick={() => setShowExitModal(true)}
               className="w-10 h-10 flex items-center justify-center text-gray-300 hover:text-gray-900 active:scale-90 transition-all"
             >
-              <X size={20} />
+              <MoreHorizontal size={20} />
             </button>
           </div>
         </header>
@@ -326,6 +362,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 {reps}
               </div>
 
+              {/* PRÉ-SÉRIE */}
+              {preHint && (
+                <p className="mt-4 text-sm text-gray-400 font-medium animate-in fade-in duration-500">
+                  {preHint}
+                </p>
+              )}
+
               {/* CONTEXTO INTELIGENTE */}
               <div className="mt-10 space-y-2">
                 {lastSet && (
@@ -334,9 +377,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </p>
                 )}
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">
-                  próxima: {weight + 2.5}kg × {reps}
+                  próxima: {weight}kg × {reps}
                 </p>
               </div>
+              
+              {!navigator.onLine && (
+                <div className="mt-6 text-[10px] font-bold uppercase tracking-widest text-gray-400 animate-pulse">
+                  Modo Offline — Sincronizando depois
+                </div>
+              )}
             </div>
           ) : (
             <div className="animate-in fade-in zoom-in duration-500">
