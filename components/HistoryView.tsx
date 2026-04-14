@@ -5,13 +5,14 @@ import { supabase } from '../lib/supabase';
 import ProgressPhotos from './ProgressPhotos';
 import BioReport from './BioReport';
 import ShareCard from './ShareCard';
+import { ExerciseProgress } from './ExerciseProgress';
 
 type TabType = 'sessions' | 'charts' | 'visual' | 'bio' | 'monthly';
 
 const HistoryView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('sessions');
   const [history, setHistory] = useState<WorkoutHistory[]>([]);
-  const [progressionData, setProgressionData] = useState<any[]>([]);
+  const [exerciseList, setExerciseList] = useState<{id: string, name: string}[]>([]);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
@@ -23,13 +24,12 @@ const HistoryView: React.FC = () => {
 
   useEffect(() => {
     fetchHistory();
-    fetchProgression();
+    fetchExerciseList();
   }, []);
 
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      // CORREÇÃO ITEM (2): Filtro "not.is.null" em completed_at garante que treinos descartados ou não salvos sejam omitidos
       const { data } = await supabase
         .from('workout_history')
         .select('*')
@@ -41,12 +41,22 @@ const HistoryView: React.FC = () => {
     finally { setLoading(false); }
   };
 
-  const fetchProgression = async () => {
+  const fetchExerciseList = async () => {
     try {
-      const { data } = await supabase.from('view_strength_progression').select('*').order('workout_date', { ascending: true });
+      // Busca exercícios que possuem logs para popular o seletor de progresso
+      const { data } = await supabase
+        .from('exercise_progress')
+        .select('exercise_id, exercises(name)')
+        .order('date', { ascending: false });
+      
       if (data) {
-        setProgressionData(data);
-        if (data.length > 0 && !selectedExerciseId) setSelectedExerciseId(data[0].exercise_id);
+        const unique = new Map();
+        data.forEach((d: any) => {
+          if (d.exercises) unique.set(d.exercise_id, d.exercises.name);
+        });
+        const list = Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
+        setExerciseList(list);
+        if (list.length > 0 && !selectedExerciseId) setSelectedExerciseId(list[0].id);
       }
     } catch (err) { console.error(err); }
   };
@@ -103,7 +113,7 @@ const HistoryView: React.FC = () => {
       if (selectedWorkout === historyId) setSelectedWorkout(null);
       if ('vibrate' in navigator) navigator.vibrate([10, 30, 10]);
       
-      fetchProgression();
+      fetchExerciseList();
     } catch (err) {
       alert("Erro ao excluir treino. Tente novamente.");
       console.error(err);
@@ -111,39 +121,6 @@ const HistoryView: React.FC = () => {
       setIsDeleting(null);
     }
   };
-
-  const exerciseList = useMemo(() => {
-    const unique = new Map();
-    progressionData.forEach(d => unique.set(d.exercise_id, d.exercise_name));
-    return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
-  }, [progressionData]);
-
-  const chartPoints = useMemo(() => {
-    if (!selectedExerciseId) return [];
-    const filtered = progressionData.filter(d => d.exercise_id === selectedExerciseId);
-    if (filtered.length < 2) return filtered.map((d, i) => ({ x: i * 50 + 25, y: 50, val: d.daily_max_1rm, date: d.workout_date }));
-
-    const maxVal = Math.max(...filtered.map(d => d.daily_max_1rm));
-    const minVal = Math.min(...filtered.map(d => d.daily_max_1rm));
-    const range = (maxVal - minVal) || (maxVal * 0.1) || 10;
-
-    return filtered.map((d, i) => ({
-      x: (i / (filtered.length - 1)) * 100,
-      y: 100 - ((d.daily_max_1rm - minVal) / range) * 70 - 15,
-      val: Math.round(d.daily_max_1rm),
-      date: d.workout_date
-    }));
-  }, [progressionData, selectedExerciseId]);
-
-  const bezierPath = useMemo(() => {
-    if (chartPoints.length < 2) return "";
-    return chartPoints.reduce((acc, p, i, a) => {
-      if (i === 0) return `M ${p.x},${p.y}`;
-      const prev = a[i - 1];
-      const cp1x = prev.x + (p.x - prev.x) / 2;
-      return `${acc} C ${cp1x},${prev.y} ${cp1x},${p.y} ${p.x},${p.y}`;
-    }, "");
-  }, [chartPoints]);
 
   if (loading) return (
     <div className="h-screen flex flex-col items-center justify-center bg-[#F7F8FA]">
@@ -192,49 +169,15 @@ const HistoryView: React.FC = () => {
                 ))}
              </div>
 
-             {chartPoints.length < 2 ? (
+             {selectedExerciseId ? (
+               <ExerciseProgress 
+                 exerciseId={selectedExerciseId} 
+                 name={exerciseList.find(e => e.id === selectedExerciseId)?.name || ''} 
+               />
+             ) : (
                <div className="py-24 text-center">
                   <i className="fas fa-chart-line text-slate-100 text-4xl mb-6"></i>
                   <p className="text-slate-300 text-[10px] font-black uppercase tracking-[0.2em]">Aguardando dados</p>
-               </div>
-             ) : (
-               <div className="space-y-10">
-                  <div className="flex justify-between items-end">
-                     <div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Estimativa 1RM</p>
-                        <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{exerciseList.find(e => e.id === selectedExerciseId)?.name}</h4>
-                     </div>
-                     <div className="text-right">
-                        <p className="text-4xl font-black text-blue-600 tabular-nums tracking-tighter">{chartPoints[chartPoints.length - 1].val}<span className="text-xs font-black opacity-30 ml-1">KG</span></p>
-                     </div>
-                  </div>
-
-                  <div className="relative h-64 w-full">
-                     <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <defs>
-                           <linearGradient id="strengthGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.1" />
-                              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                           </linearGradient>
-                        </defs>
-                        <path 
-                          d={`${bezierPath} L ${chartPoints[chartPoints.length - 1].x} 100 L ${chartPoints[0].x} 100 Z`}
-                          fill="url(#strengthGradient)"
-                          className="animate-in fade-in duration-1000"
-                        />
-                        <path 
-                          d={bezierPath}
-                          fill="none"
-                          stroke="#3b82f6"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          className="animate-in slide-in-from-left-4 duration-1000"
-                        />
-                        {chartPoints.map((p, i) => (
-                          <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="white" stroke="#3b82f6" strokeWidth="2" />
-                        ))}
-                     </svg>
-                  </div>
                </div>
              )}
           </div>

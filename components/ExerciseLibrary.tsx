@@ -4,6 +4,7 @@ import { Exercise, MuscleGroup } from '../types';
 import { supabase } from '../lib/supabase';
 import { GoogleGenAI } from "@google/genai";
 import { useNavigation } from '../App';
+import { ExerciseProgress } from './ExerciseProgress';
 
 const ExerciseLibrary: React.FC = () => {
   const { navigate } = useNavigation();
@@ -296,6 +297,10 @@ const ExerciseLibrary: React.FC = () => {
                 <p className="text-base text-slate-600 leading-relaxed font-medium">
                   {selectedExercise.instructions || "Protocolo em catalogação."}
                 </p>
+              </div>
+
+              <div className="border-t border-slate-50 pt-12">
+                <ExerciseProgress exerciseId={selectedExercise.id} name={selectedExercise.name} />
               </div>
             </div>
           </div>

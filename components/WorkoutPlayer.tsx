@@ -16,6 +16,7 @@ import { getPreSetHint } from "../lib/preSetEngine";
 import { getEmotionalFeedback } from "../lib/feedbackEngine";
 import { saveSet } from "../lib/saveSet";
 import { useSyncStatus } from "../hooks/useSyncStatus";
+import { VictoryScreen } from "./VictoryScreen";
 
 // --- PROGRESSION ENGINE ---
 const getNextSetDecision = (input: ProgressionInput, history?: LastSetData) => {
@@ -73,6 +74,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
 
   const { pendingCount, isOnline } = useSyncStatus();
 
@@ -304,11 +306,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           completed_at: new Date().toISOString(), 
           exercises_count: exercises.length 
         }).eq('id', historyId);
+        setIsFinished(true);
       } else {
         await supabase.from('workout_history').delete().eq('id', historyId);
+        navigate('dashboard');
       }
       await supabase.from('partial_workout_sessions').delete().eq('user_id', user?.id);
-      navigate('dashboard');
     } catch (err) {
       console.error("Error finishing workout:", err);
     }
@@ -322,6 +325,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 flex flex-col font-sans selection:bg-blue-100">
+      {isFinished && (
+        <VictoryScreen 
+          historyId={historyId!} 
+          duration={Math.round((Date.now() - startTime) / 60000)}
+          exercisesCount={exercises.length}
+        />
+      )}
       <div className="max-w-md mx-auto w-full px-6 pt-8 pb-32 flex-1 flex flex-col relative">
         
         {/* HEADER */}
