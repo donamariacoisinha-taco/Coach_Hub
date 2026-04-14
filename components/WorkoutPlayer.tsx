@@ -188,7 +188,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       const targetReps = parseInt(plan?.reps as string) || 10;
       
       if (plan) {
-        setWeight(plan.weight);
+        setWeight(plan.weight || 0);
         setReps(targetReps);
       }
       
@@ -201,7 +201,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         })
       );
     }
-  }, [currentIndex, currentSet, currentEx, lastSet]);
+  }, [currentIndex, currentSet, currentEx]); // Removed lastSet from dependencies to avoid loop
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -369,11 +369,27 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         {/* MAIN DISPLAY */}
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           {!isResting ? (
-            <div className="animate-in fade-in zoom-in duration-500">
-              <div className="text-8xl font-black tracking-tighter tabular-nums text-slate-900 leading-none">
-                {weight}<span className="text-2xl ml-1 text-slate-300 font-bold">kg</span>
-                <span className="text-4xl text-slate-100 mx-4">×</span>
-                {reps}
+            <div className="animate-in fade-in zoom-in duration-500 w-full">
+              <div className="flex items-center justify-center gap-4">
+                <div className="flex flex-col items-center">
+                  <input 
+                    type="number"
+                    value={weight}
+                    onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                    className="text-7xl font-black tracking-tighter tabular-nums text-slate-900 leading-none bg-transparent border-none outline-none text-center w-32"
+                  />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 mt-2">Peso (kg)</span>
+                </div>
+                <span className="text-4xl text-slate-100 font-black mt-[-20px]">×</span>
+                <div className="flex flex-col items-center">
+                  <input 
+                    type="number"
+                    value={reps}
+                    onChange={(e) => setReps(parseInt(e.target.value) || 0)}
+                    className="text-7xl font-black tracking-tighter tabular-nums text-slate-900 leading-none bg-transparent border-none outline-none text-center w-24"
+                  />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 mt-2">Reps</span>
+                </div>
               </div>
 
               {/* PRÉ-SÉRIE */}
@@ -498,15 +514,17 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
               {/* ADJUSTMENTS */}
               <div className="flex items-center gap-8">
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setWeight(w => Math.max(0, w - 2.5))} className="p-2 text-slate-200 active:text-slate-900"><Minus size={18} /></button>
-                  <span className="text-sm font-black tabular-nums min-w-[2.5rem] text-center">{weight}</span>
-                  <button onClick={() => setWeight(w => w + 2.5)} className="p-2 text-slate-200 active:text-slate-900"><Plus size={18} /></button>
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setWeight(w => Math.max(0, w - 2.5))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={16} /></button>
+                    <button onClick={() => setWeight(w => w + 2.5)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={16} /></button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setReps(r => Math.max(0, r - 1))} className="p-2 text-slate-200 active:text-slate-900"><Minus size={18} /></button>
-                  <span className="text-sm font-black tabular-nums min-w-[1.5rem] text-center">{reps}</span>
-                  <button onClick={() => setReps(r => r + 1)} className="p-2 text-slate-200 active:text-slate-900"><Plus size={18} /></button>
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setReps(r => Math.max(0, r - 1))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={16} /></button>
+                    <button onClick={() => setReps(r => r + 1)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={16} /></button>
+                  </div>
                 </div>
               </div>
             </div>

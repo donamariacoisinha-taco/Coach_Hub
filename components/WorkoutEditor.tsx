@@ -5,6 +5,120 @@ import { supabase } from '../lib/supabase';
 import { useNavigation } from '../App';
 import { ChevronLeft, Save, PlusCircle, GripVertical, SlidersHorizontal, Trash2, Search, X, MoreVertical, Play, Edit2, Replace } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface SortableItemProps {
+  ex: EditorExercise;
+  idx: number;
+  total: number;
+  activeMenuId: string | null;
+  setActiveMenuId: (id: string | null) => void;
+  setEditingSetsIndex: (idx: number) => void;
+  setReplacingIndex: (idx: number) => void;
+  setShowExerciseSelector: (show: boolean) => void;
+  setExercises: React.Dispatch<React.SetStateAction<EditorExercise[]>>;
+}
+
+const SortableExerciseItem: React.FC<SortableItemProps> = ({
+  ex,
+  idx,
+  total,
+  activeMenuId,
+  setActiveMenuId,
+  setEditingSetsIndex,
+  setReplacingIndex,
+  setShowExerciseSelector,
+  setExercises
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: ex.tempId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 100 : 1,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      <div 
+        className={`flex items-center gap-6 py-8 active:bg-slate-50 transition-all ${idx !== total - 1 ? 'border-b border-slate-100' : ''}`}
+      >
+        <div {...attributes} {...listeners} className="flex flex-col gap-4 text-slate-200 cursor-grab active:cursor-grabbing p-2 -ml-2">
+          <GripVertical size={20} />
+        </div>
+
+        <div className="w-16 h-16 bg-white rounded-2xl overflow-hidden shrink-0 flex items-center justify-center p-3 border border-slate-50 shadow-sm">
+          <img src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-black text-xl tracking-tighter text-slate-900 truncate pr-4 uppercase">{ex.exercise_name}</h4>
+          <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.sets_json?.length || 3} Séries</p>
+        </div>
+
+        <button 
+          onClick={() => setActiveMenuId(activeMenuId === ex.tempId ? null : ex.tempId)}
+          className="w-12 h-12 flex items-center justify-center text-slate-200 active:text-slate-900 transition-colors"
+        >
+          <MoreVertical size={18} />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {activeMenuId === ex.tempId && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute right-0 top-16 z-50 bg-white rounded-2xl shadow-2xl border border-slate-50 p-4 min-w-[160px] space-y-2"
+          >
+            <button 
+              onClick={() => { setEditingSetsIndex(idx); setActiveMenuId(null); }}
+              className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+            >
+              <SlidersHorizontal size={14} /> Ajustar Séries
+            </button>
+            <button 
+              onClick={() => { setReplacingIndex(idx); setShowExerciseSelector(true); setActiveMenuId(null); }}
+              className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+            >
+              <Replace size={14} /> Substituir
+            </button>
+            <button 
+              onClick={() => { setExercises(prev => prev.filter(e => e.tempId !== ex.tempId)); setActiveMenuId(null); }}
+              className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-xl transition"
+            >
+              <Trash2 size={14} /> Remover
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 interface WorkoutEditorProps {
   workoutId: string | null;
@@ -38,6 +152,17 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   const [selectorSearch, setSelectorSearch] = useState('');
   const [selectorMuscle, setSelectorMuscle] = useState('Todos');
   const [selectorSide, setSelectorSide] = useState<'all' | 'front' | 'back'>('all');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     fetchData();
@@ -113,13 +238,16 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
     setExercises(newExs);
   };
 
-  const handleReorder = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= exercises.length) return;
-    const newExs = [...exercises];
-    const [movedItem] = newExs.splice(fromIndex, 1);
-    newExs.splice(toIndex, 0, movedItem);
-    setExercises(newExs);
-    if ('vibrate' in navigator) navigator.vibrate(5);
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setExercises((items) => {
+        const oldIndex = items.findIndex((item) => item.tempId === active.id);
+        const newIndex = items.findIndex((item) => item.tempId === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+      if ('vibrate' in navigator) navigator.vibrate(5);
+    }
   };
 
   const handleSave = async (isPermanent: boolean) => {
@@ -237,62 +365,32 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
 
         <div className="space-y-1">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Estrutura</p>
-          {exercises.map((ex, idx) => (
-            <div key={ex.tempId} className="relative">
-              <div 
-                className={`flex items-center gap-6 py-8 active:bg-slate-50 transition-all ${idx !== exercises.length - 1 ? 'border-b border-slate-100' : ''}`}
-              >
-                <div className="flex flex-col gap-4 text-slate-200">
-                  <button onClick={() => handleReorder(idx, idx - 1)} className="active:text-slate-900"><GripVertical size={16} /></button>
-                </div>
-
-                <div className="w-16 h-16 bg-white rounded-2xl overflow-hidden shrink-0 flex items-center justify-center p-3 border border-slate-50 shadow-sm">
-                  <img src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-black text-xl tracking-tighter text-slate-900 truncate pr-4 uppercase">{ex.exercise_name}</h4>
-                  <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.sets_json?.length || 3} Séries</p>
-                </div>
-
-                <button 
-                  onClick={() => setActiveMenuId(activeMenuId === ex.tempId ? null : ex.tempId)}
-                  className="w-12 h-12 flex items-center justify-center text-slate-200 active:text-slate-900 transition-colors"
-                >
-                  <MoreVertical size={18} />
-                </button>
-              </div>
-
-              <AnimatePresence>
-                {activeMenuId === ex.tempId && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute right-0 top-16 z-50 bg-white rounded-2xl shadow-2xl border border-slate-50 p-4 min-w-[160px] space-y-2"
-                  >
-                    <button 
-                      onClick={() => { setEditingSetsIndex(idx); setActiveMenuId(null); }}
-                      className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
-                    >
-                      <SlidersHorizontal size={14} /> Ajustar Séries
-                    </button>
-                    <button 
-                      onClick={() => { setReplacingIndex(idx); setShowExerciseSelector(true); setActiveMenuId(null); }}
-                      className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
-                    >
-                      <Replace size={14} /> Substituir
-                    </button>
-                    <button 
-                      onClick={() => { setExercises(prev => prev.filter(e => e.tempId !== ex.tempId)); setActiveMenuId(null); }}
-                      className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-xl transition"
-                    >
-                      <Trash2 size={14} /> Remover
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ))}
+          
+          <DndContext 
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext 
+              items={exercises.map(ex => ex.tempId)}
+              strategy={verticalListSortingStrategy}
+            >
+              {exercises.map((ex, idx) => (
+                <SortableExerciseItem 
+                  key={ex.tempId}
+                  ex={ex}
+                  idx={idx}
+                  total={exercises.length}
+                  activeMenuId={activeMenuId}
+                  setActiveMenuId={setActiveMenuId}
+                  setEditingSetsIndex={setEditingSetsIndex}
+                  setReplacingIndex={setReplacingIndex}
+                  setShowExerciseSelector={setShowExerciseSelector}
+                  setExercises={setExercises}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
 
           <button 
             onClick={() => { setReplacingIndex(null); setShowExerciseSelector(true); }} 
