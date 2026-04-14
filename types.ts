@@ -169,3 +169,16 @@ export interface WorkoutHistory {
   duration_minutes: number;
   exercises_count: number;
 }
+
+export type LastSetData = {
+  weight: number;
+  reps: number;
+  rpe: number;
+};
+
+export type ProgressionInput = {
+  weight: number;
+  repsDone: number;
+  repsTarget: number;
+  rpe: number;
+};
