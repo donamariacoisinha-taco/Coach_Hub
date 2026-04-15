@@ -3,7 +3,15 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Exercise, MuscleGroup } from '../types';
 import { useNavigation } from '../App';
-import { notifyError } from '../lib/errorHandling';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { ScreenState } from './ui/ScreenState';
+import { ExerciseSkeleton } from './ui/Skeleton';
+import { useAsyncState } from '../hooks/useAsyncState';
+import { 
+  ChevronLeft, Search, Dumbbell, Pencil, Trash2, 
+  ChevronUp, ChevronDown, Plus, X, Camera, Image as ImageIcon,
+  Loader2, Activity
+} from 'lucide-react';
 
 interface AdminPanelProps {
   onBack: () => void;
@@ -11,9 +19,11 @@ interface AdminPanelProps {
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const { current } = useNavigation();
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { showError, showSuccess } = useErrorHandler();
+  
+  const exercisesState = useAsyncState<Exercise[]>([]);
+  const muscleGroupsState = useAsyncState<MuscleGroup[]>([]);
+  
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,19 +42,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   }, []);
 
   const fetchData = async () => {
-    setLoading(true);
+    exercisesState.setLoading(true);
+    muscleGroupsState.setLoading(true);
     try {
       const [exRes, mgRes] = await Promise.all([
         supabase.from('exercises').select('*').order('name'),
         supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true })
       ]);
       
-      if (exRes.data) setExercises(exRes.data);
-      if (mgRes.data) setMuscleGroups(mgRes.data);
+      if (exRes.error) throw exRes.error;
+      if (mgRes.error) throw mgRes.error;
+
+      if (exRes.data) exercisesState.setData(exRes.data);
+      if (mgRes.data) muscleGroupsState.setData(mgRes.data);
     } catch (err) {
-      console.error('Erro ao buscar dados:', err);
-    } finally {
-      setLoading(false);
+      exercisesState.setError(err);
+      muscleGroupsState.setError(err);
+      showError(err);
     }
   };
 
@@ -60,8 +74,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('exercise-images').getPublicUrl(filePath);
       setEditingExercise({ ...editingExercise, image_url: publicUrl });
+      showSuccess('Imagem enviada', 'A imagem do exercício foi atualizada.');
     } catch (err: any) {
-      notifyError(err, "Erro ao subir imagem");
+      showError(err);
     } finally {
       setUploadingImage(false);
     }
@@ -82,10 +97,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         image_url: editingExercise.image_url
       }).eq('id', editingExercise.id);
       if (error) throw error;
-      setExercises(prev => prev.map(ex => ex.id === editingExercise.id ? editingExercise : ex));
+      exercisesState.setData((exercisesState.data || []).map(ex => ex.id === editingExercise.id ? editingExercise : ex));
       setEditingExercise(null);
+      showSuccess('Exercício atualizado', 'As alterações foram salvas com sucesso.');
     } catch (err: any) {
-      notifyError(err, "Erro ao atualizar");
+      showError(err);
     } finally {
       setSaving(false);
     }
@@ -96,6 +112,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     if (!editingMuscle || !editingMuscle.name) return;
     setSaving(true);
     try {
+      const muscleGroups = muscleGroupsState.data || [];
       // Se for subgrupo, herda o body_side do novo pai para consistência anatômica
       let side = editingMuscle.body_side || 'front';
       if (editingMuscle.parent_id) {
@@ -121,14 +138,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       }
       await fetchData();
       setEditingMuscle(null);
+      showSuccess('Anatomia salva', 'As configurações musculares foram atualizadas.');
     } catch (err: any) {
-      notifyError(err, "Erro ao salvar anatomia");
+      showError(err);
     } finally {
       setSaving(false);
     }
   };
 
   const handleMoveMuscle = async (index: number, direction: 'up' | 'down') => {
+    const muscleGroups = muscleGroupsState.data || [];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= muscleGroups.length) return;
 
@@ -137,7 +156,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
 
     if (currentItem.parent_id !== neighborItem.parent_id) return;
 
-    setLoading(true);
+    muscleGroupsState.setLoading(true);
     try {
       const currentOrder = currentItem.sort_order || 0;
       const neighborOrder = neighborItem.sort_order || 0;
@@ -149,9 +168,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       await fetchData();
       if ('vibrate' in navigator) navigator.vibrate(10);
     } catch (err: any) {
-      notifyError(err);
+      showError(err);
     } finally {
-      setLoading(false);
+      muscleGroupsState.setLoading(false);
     }
   };
 
@@ -168,10 +187,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       if (error) throw error;
       if (count === 0) throw new Error("Permissão negada.");
 
-      setExercises(prev => prev.filter(item => item.id !== ex.id));
+      exercisesState.setData((exercisesState.data || []).filter(item => item.id !== ex.id));
       if ('vibrate' in navigator) navigator.vibrate([10, 30]);
+      showSuccess('Exercício removido', 'O exercício foi excluído com sucesso.');
     } catch (err: any) {
-      notifyError(err, "Falha ao remover");
+      showError(err);
     } finally {
       setSaving(false);
     }
@@ -183,15 +203,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     try {
       const { error } = await supabase.from('muscle_groups').delete().eq('id', id);
       if (error) throw error;
-      setMuscleGroups(prev => prev.filter(m => m.id !== id));
+      muscleGroupsState.setData((muscleGroupsState.data || []).filter(m => m.id !== id));
+      showSuccess('Grupo removido', 'O grupo muscular foi excluído.');
     } catch (err: any) {
-      notifyError(err, "Erro ao excluir");
+      showError(err);
     } finally {
       setSaving(false);
     }
   };
 
   const filteredExercisesList = useMemo(() => {
+    const exercises = exercisesState.data || [];
+    const muscleGroups = muscleGroupsState.data || [];
     return exercises.filter(ex => {
       const matchesStatus = statusFilter === 'all' ? true : (statusFilter === 'active' ? ex.is_active : !ex.is_active);
       const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase()) || ex.muscle_group.toLowerCase().includes(searchQuery.toLowerCase());
@@ -200,23 +223,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       const matchesSide = selectedSide === 'all' || mg?.body_side === selectedSide;
       return matchesStatus && matchesSearch && matchesMuscle && matchesSide;
     });
-  }, [exercises, statusFilter, searchQuery, selectedMuscle, selectedSide, muscleGroups]);
+  }, [exercisesState.data, statusFilter, searchQuery, selectedMuscle, selectedSide, muscleGroupsState.data]);
 
   const parentMuscleGroups = useMemo(() => {
+    const muscleGroups = muscleGroupsState.data || [];
     return muscleGroups.filter(mg => !mg.parent_id && (selectedSide === 'all' || mg.body_side === selectedSide));
-  }, [muscleGroups, selectedSide]);
+  }, [muscleGroupsState.data, selectedSide]);
 
   const allPossibleParents = useMemo(() => {
+    const muscleGroups = muscleGroupsState.data || [];
     // Apenas grupos sem parent_id podem ser pais
     return muscleGroups.filter(mg => !mg.parent_id);
-  }, [muscleGroups]);
+  }, [muscleGroupsState.data]);
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] flex flex-col text-slate-900">
       <header className="px-6 pt-12 pb-8 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <button onClick={onBack} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-slate-900 transition-all">
-            <i className="fas fa-chevron-left text-lg"></i>
+            <ChevronLeft className="w-6 h-6" />
           </button>
           <h2 className="text-2xl font-black tracking-tighter uppercase text-slate-900">Coach <span className="text-blue-600">Hub</span></h2>
         </div>
@@ -244,7 +269,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
           <div className="space-y-12">
             <div className="space-y-8">
               <div className="relative group">
-                <i className="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 w-5 h-5" />
                 <input 
                   type="text" placeholder="BUSCAR NO ACERVO..." value={searchQuery} 
                   onChange={e => setSearchQuery(e.target.value)} 
@@ -284,12 +309,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
               </div>
             </div>
 
-            {loading ? (
-              <div className="py-20 flex flex-col items-center justify-center">
-                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sincronizando...</p>
-              </div>
-            ) : (
+            <ScreenState
+              state={exercisesState.uiState}
+              loadingComponent={<ExerciseSkeleton />}
+              onRetry={fetchData}
+              emptyTitle="Nenhum exercício"
+              emptyDescription="Não encontramos exercícios com os filtros selecionados."
+              emptyIcon={<Dumbbell className="w-12 h-12 text-slate-200" />}
+            >
               <div className="space-y-1">
                 {filteredExercisesList.map((ex, idx) => (
                   <div 
@@ -297,22 +324,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                     className={`flex items-center gap-6 py-8 active:bg-slate-50 transition-all ${idx !== filteredExercisesList.length - 1 ? 'border-b border-slate-100' : ''} ${!ex.is_active ? 'opacity-40' : ''}`}
                   >
                     <div className="w-16 h-16 bg-white rounded-[1.5rem] overflow-hidden shrink-0 flex items-center justify-center p-3 border border-slate-50 shadow-sm">
-                      {ex.image_url ? <img src={ex.image_url} alt={ex.name} className="w-full h-full object-contain" /> : <i className="fas fa-dumbbell text-slate-200"></i>}
+                      {ex.image_url ? <img src={ex.image_url} alt={ex.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : <Dumbbell className="w-6 h-6 text-slate-200" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{ex.name}</h4>
                       <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.muscle_group} {!ex.is_active && '(Inativo)'}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => setEditingExercise(ex)} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"><i className="fas fa-pencil-alt"></i></button>
+                      <button onClick={() => setEditingExercise(ex)} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"><Pencil className="w-4 h-4" /></button>
                       <button onClick={() => handleDeleteExercise(ex)} disabled={saving} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-red-500 transition-colors">
-                        {saving ? <i className="fas fa-spinner animate-spin"></i> : <i className="fas fa-trash-alt"></i>}
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
+            </ScreenState>
           </div>
         )}
 
@@ -331,53 +358,56 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
               </button>
             </div>
 
-            <div className="space-y-1">
-              {parentMuscleGroups.length === 0 && !loading && (
-                <div className="py-24 text-center border-2 border-dashed border-slate-100 rounded-[3rem] bg-white/30">
-                  <p className="text-slate-300 text-[10px] font-black uppercase tracking-[0.3em]">Nenhum grupo definido</p>
-                </div>
-              )}
-              
-              {parentMuscleGroups.map((mg, idx) => (
-                <div key={mg.id} className="space-y-4 py-8 border-b border-slate-100">
-                  <div className="flex items-center justify-between group">
-                    <div className="flex items-center gap-6">
-                      <div className="flex flex-col gap-2 text-slate-200">
-                        <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(mg), 'up')} className="active:text-blue-600 transition-colors"><i className="fas fa-chevron-up text-xs"></i></button>
-                        <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(mg), 'down')} className="active:text-blue-600 transition-colors"><i className="fas fa-chevron-down text-xs"></i></button>
+            <ScreenState
+              state={muscleGroupsState.uiState}
+              loadingComponent={<ExerciseSkeleton />}
+              onRetry={fetchData}
+              emptyTitle="Anatomia vazia"
+              emptyDescription="Comece definindo os grupos musculares principais."
+              emptyIcon={<Activity className="w-12 h-12 text-slate-200" />}
+            >
+              <div className="space-y-1">
+                {parentMuscleGroups.map((mg, idx) => (
+                  <div key={mg.id} className="space-y-4 py-8 border-b border-slate-100">
+                    <div className="flex items-center justify-between group">
+                      <div className="flex items-center gap-6">
+                        <div className="flex flex-col gap-2 text-slate-200">
+                          <button onClick={() => handleMoveMuscle((muscleGroupsState.data || []).indexOf(mg), 'up')} className="active:text-blue-600 transition-colors"><ChevronUp className="w-4 h-4" /></button>
+                          <button onClick={() => handleMoveMuscle((muscleGroupsState.data || []).indexOf(mg), 'down')} className="active:text-blue-600 transition-colors"><ChevronDown className="w-4 h-4" /></button>
+                        </div>
+                        <div>
+                          <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">{mg.name}</h4>
+                          <span className="text-[8px] font-black text-blue-600 uppercase tracking-[0.3em] mt-1.5 block">{mg.body_side === 'front' ? 'Anterior' : 'Posterior'}</span>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">{mg.name}</h4>
-                        <span className="text-[8px] font-black text-blue-600 uppercase tracking-[0.3em] mt-1.5 block">{mg.body_side === 'front' ? 'Anterior' : 'Posterior'}</span>
+                      <div className="flex gap-2">
+                        <button onClick={() => setEditingMuscle({ name: '', body_side: mg.body_side, parent_id: mg.id })} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors" title="Adicionar Subgrupo"><Plus className="w-4 h-4" /></button>
+                        <button onClick={() => setEditingMuscle(mg)} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => handleDeleteMuscle(mg.id)} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => setEditingMuscle({ name: '', body_side: mg.body_side, parent_id: mg.id })} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors" title="Adicionar Subgrupo"><i className="fas fa-plus"></i></button>
-                      <button onClick={() => setEditingMuscle(mg)} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"><i className="fas fa-pencil-alt"></i></button>
-                      <button onClick={() => handleDeleteMuscle(mg.id)} className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-red-500 transition-colors"><i className="fas fa-trash-alt"></i></button>
-                    </div>
-                  </div>
 
-                  <div className="ml-14 space-y-1">
-                    {muscleGroups.filter(sub => sub.parent_id === mg.id).map((sub, sIdx) => (
-                      <div key={sub.id} className="flex items-center justify-between py-4 group">
-                        <div className="flex items-center gap-4">
-                           <div className="flex flex-col gap-1 text-slate-200">
-                              <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(sub), 'up')} className="active:text-blue-600 transition-colors"><i className="fas fa-caret-up text-[10px]"></i></button>
-                              <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(sub), 'down')} className="active:text-blue-600 transition-colors"><i className="fas fa-caret-down text-[10px]"></i></button>
-                           </div>
-                           <h5 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">{sub.name}</h5>
+                    <div className="ml-14 space-y-1">
+                      {(muscleGroupsState.data || []).filter(sub => sub.parent_id === mg.id).map((sub, sIdx) => (
+                        <div key={sub.id} className="flex items-center justify-between py-4 group">
+                          <div className="flex items-center gap-4">
+                             <div className="flex flex-col gap-1 text-slate-200">
+                                <button onClick={() => handleMoveMuscle((muscleGroupsState.data || []).indexOf(sub), 'up')} className="active:text-blue-600 transition-colors"><ChevronUp className="w-3 h-3" /></button>
+                                <button onClick={() => handleMoveMuscle((muscleGroupsState.data || []).indexOf(sub), 'down')} className="active:text-blue-600 transition-colors"><ChevronDown className="w-3 h-3" /></button>
+                             </div>
+                             <h5 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">{sub.name}</h5>
+                          </div>
+                          <div className="flex gap-4">
+                             <button onClick={() => setEditingMuscle(sub)} className="text-slate-300 active:text-blue-600 transition-colors"><Pencil className="w-3 h-3" /></button>
+                             <button onClick={() => handleDeleteMuscle(sub.id)} className="text-slate-300 active:text-red-500 transition-colors"><Trash2 className="w-3 h-3" /></button>
+                          </div>
                         </div>
-                        <div className="flex gap-4">
-                           <button onClick={() => setEditingMuscle(sub)} className="text-slate-300 active:text-blue-600 transition-colors"><i className="fas fa-pencil-alt text-xs"></i></button>
-                           <button onClick={() => handleDeleteMuscle(sub.id)} className="text-slate-300 active:text-red-500 transition-colors"><i className="fas fa-trash-alt text-xs"></i></button>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </ScreenState>
           </div>
         )}
       </main>
@@ -449,14 +479,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         <div className="fixed inset-0 z-[1300] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
           <header className="px-6 pt-12 pb-8 flex justify-between items-center bg-white border-b border-slate-50">
             <div><h3 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Editar Movimento</h3></div>
-            <button onClick={() => setEditingExercise(null)} className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 transition-colors"><i className="fas fa-times text-xl"></i></button>
+            <button onClick={() => setEditingExercise(null)} className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 transition-colors"><X className="w-6 h-6" /></button>
           </header>
           <form onSubmit={handleUpdateExercise} className="flex-1 overflow-y-auto p-6 space-y-12 no-scrollbar bg-[#F7F8FA]">
             <div className="flex flex-col items-center gap-8 bg-white p-10 rounded-[3rem] border border-slate-50 shadow-2xl shadow-slate-200/50">
               <div onClick={() => fileInputRef.current?.click()} className="relative w-40 h-40 bg-[#F7F8FA] rounded-[2rem] overflow-hidden shrink-0 flex items-center justify-center p-4 border border-slate-50 cursor-pointer group transition-all">
-                {editingExercise.image_url ? <img src={editingExercise.image_url} className="w-full h-full object-contain" /> : <i className="fas fa-image text-slate-200 text-4xl"></i>}
-                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity"><i className="fas fa-camera mb-2 text-xl"></i><span className="text-[9px] font-black uppercase tracking-widest">Alterar</span></div>
-                {uploadingImage && <div className="absolute inset-0 bg-white/80 flex items-center justify-center"><i className="fas fa-spinner animate-spin text-blue-600"></i></div>}
+                {editingExercise.image_url ? <img src={editingExercise.image_url} className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : <ImageIcon className="w-10 h-10 text-slate-200" />}
+                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity"><Camera className="w-6 h-6 mb-2" /><span className="text-[9px] font-black uppercase tracking-widest">Alterar</span></div>
+                {uploadingImage && <div className="absolute inset-0 bg-white/80 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-blue-600" /></div>}
               </div>
               <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
               <div className="w-full space-y-3">
@@ -497,7 +527,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
           </form>
           <footer className="px-6 py-10 border-t border-slate-50 bg-white pb-safe">
             <button onClick={handleUpdateExercise} disabled={saving} className="w-full py-6 bg-blue-600 rounded-[2rem] font-black text-white uppercase text-xs tracking-[0.3em] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-4">
-              {saving ? <i className="fas fa-spinner animate-spin"></i> : 'SINCRONIZAR ALTERAÇÕES'}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'SINCRONIZAR ALTERAÇÕES'}
             </button>
           </footer>
         </div>

@@ -13,6 +13,7 @@ import ProfileView from './components/ProfileView';
 import ExerciseLibrary from './components/ExerciseLibrary';
 import LandingPage from './components/LandingPage';
 import { useSync } from './hooks/useSync';
+import { ErrorProvider } from './hooks/useErrorHandler';
 
 type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'editor' | 'history' | 'admin' | 'profile' | 'library';
 type Theme = 'classic' | 'light' | 'aggressive' | 'bloom' | 'neon-strike';
@@ -216,85 +217,87 @@ const App: React.FC = () => {
   const isImmersive = ['workout', 'onboarding', 'editor', 'landing', 'auth'].includes(navState.view);
 
   return (
-    <NavigationContext.Provider value={{ current: navState, navigate, goBack, theme, toggleTheme, profile }}>
-      <div className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden text-gray-900">
-        {!isImmersive && session && (
-          <aside className="hidden lg:flex w-20 bg-white border-r border-gray-100 flex-col items-center shrink-0">
-             <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white mt-8 mb-12 shadow-lg shadow-black/20"><Bolt size={20} /></div>
-             
-             {profile?.workout_streak && profile.workout_streak > 0 && (
-               <div className="flex flex-col items-center gap-1 mb-10">
-                 <Flame size={20} className="text-orange-500 fill-orange-500" />
-                 <span className="text-[10px] font-black text-orange-600 tabular-nums">{profile.workout_streak}</span>
+    <ErrorProvider>
+      <NavigationContext.Provider value={{ current: navState, navigate, goBack, theme, toggleTheme, profile }}>
+        <div className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden text-gray-900">
+          {!isImmersive && session && (
+            <aside className="hidden lg:flex w-20 bg-white border-r border-gray-100 flex-col items-center shrink-0">
+               <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white mt-8 mb-12 shadow-lg shadow-black/20"><Bolt size={20} /></div>
+               
+               {profile?.workout_streak && profile.workout_streak > 0 && (
+                 <div className="flex flex-col items-center gap-1 mb-10">
+                   <Flame size={20} className="text-orange-500 fill-orange-500" />
+                   <span className="text-[10px] font-black text-orange-600 tabular-nums">{profile.workout_streak}</span>
+                 </div>
+               )}
+
+               <div className="flex flex-col items-center gap-8 w-full">
+                  <button onClick={() => navigate('dashboard')} className={`flex flex-col items-center transition-all ${navState.view === 'dashboard' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><Home size={24} /></button>
+                  <button onClick={() => navigate('library')} className={`flex flex-col items-center transition-all ${navState.view === 'library' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><Dumbbell size={24} /></button>
+                  <button onClick={() => navigate('history')} className={`flex flex-col items-center transition-all ${navState.view === 'history' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><HistoryIcon size={24} /></button>
+                  <button onClick={() => navigate('profile')} className={`flex flex-col items-center transition-all ${navState.view === 'profile' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><User size={24} /></button>
                </div>
-             )}
+            </aside>
+          )}
 
-             <div className="flex flex-col items-center gap-8 w-full">
-                <button onClick={() => navigate('dashboard')} className={`flex flex-col items-center transition-all ${navState.view === 'dashboard' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><Home size={24} /></button>
-                <button onClick={() => navigate('library')} className={`flex flex-col items-center transition-all ${navState.view === 'library' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><Dumbbell size={24} /></button>
-                <button onClick={() => navigate('history')} className={`flex flex-col items-center transition-all ${navState.view === 'history' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><HistoryIcon size={24} /></button>
-                <button onClick={() => navigate('profile')} className={`flex flex-col items-center transition-all ${navState.view === 'profile' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><User size={24} /></button>
-             </div>
-          </aside>
-        )}
+          <main className="flex-1 overflow-y-auto no-scrollbar relative">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={navState.view + (navState.params.id || '')}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="min-h-full"
+              >
+                {navState.view === 'landing' && <LandingPage onStart={() => navigate('auth')} onLogin={() => navigate('auth')} />}
+                {navState.view === 'auth' && <Auth onBack={() => navigate('landing')} />}
+                {navState.view === 'onboarding' && <Onboarding onComplete={() => navigate('dashboard')} />}
+                {navState.view === 'dashboard' && <Dashboard />}
+                {navState.view === 'workout' && <WorkoutPlayer workoutId={navState.params.id} />}
+                {navState.view === 'editor' && <WorkoutEditor workoutId={navState.params.id} />}
+                {navState.view === 'history' && <HistoryView />}
+                {navState.view === 'library' && <ExerciseLibrary />}
+                {navState.view === 'profile' && profile && <ProfileView profile={profile} onUpdate={() => fetchProfile(session.user.id)} />}
+                {navState.view === 'admin' && <AdminPanel onBack={goBack} />}
+              </motion.div>
+            </AnimatePresence>
+          </main>
 
-        <main className="flex-1 overflow-y-auto no-scrollbar relative">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={navState.view + (navState.params.id || '')}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="min-h-full"
-            >
-              {navState.view === 'landing' && <LandingPage onStart={() => navigate('auth')} onLogin={() => navigate('auth')} />}
-              {navState.view === 'auth' && <Auth onBack={() => navigate('landing')} />}
-              {navState.view === 'onboarding' && <Onboarding onComplete={() => navigate('dashboard')} />}
-              {navState.view === 'dashboard' && <Dashboard />}
-              {navState.view === 'workout' && <WorkoutPlayer workoutId={navState.params.id} />}
-              {navState.view === 'editor' && <WorkoutEditor workoutId={navState.params.id} />}
-              {navState.view === 'history' && <HistoryView />}
-              {navState.view === 'library' && <ExerciseLibrary />}
-              {navState.view === 'profile' && profile && <ProfileView profile={profile} onUpdate={() => fetchProfile(session.user.id)} />}
-              {navState.view === 'admin' && <AdminPanel onBack={goBack} />}
-            </motion.div>
-          </AnimatePresence>
-        </main>
-
-        {!isImmersive && session && (
-          <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-2xl border-t border-slate-50 px-8 flex items-center justify-around z-50 pb-safe">
-            {[
-              { id: 'dashboard', icon: Home },
-              { id: 'library', icon: Dumbbell },
-              { id: 'history', icon: HistoryIcon },
-              { id: 'profile', icon: User }
-            ].map((item) => {
-              const Icon = item.icon;
-              const isActive = navState.view === item.id;
-              return (
-                <button 
-                  key={item.id}
-                  onClick={() => navigate(item.id as View)} 
-                  className="relative p-4 group"
-                >
-                  <Icon 
-                    size={24} 
-                    className={`transition-all duration-300 ${isActive ? 'text-slate-900 scale-110' : 'text-slate-300 group-active:scale-90'}`} 
-                  />
-                  {isActive && (
-                    <motion.div 
-                      layoutId="nav-active"
-                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-slate-900 rounded-full"
+          {!isImmersive && session && (
+            <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-2xl border-t border-slate-50 px-8 flex items-center justify-around z-50 pb-safe">
+              {[
+                { id: 'dashboard', icon: Home },
+                { id: 'library', icon: Dumbbell },
+                { id: 'history', icon: HistoryIcon },
+                { id: 'profile', icon: User }
+              ].map((item) => {
+                const Icon = item.icon;
+                const isActive = navState.view === item.id;
+                return (
+                  <button 
+                    key={item.id}
+                    onClick={() => navigate(item.id as View)} 
+                    className="relative p-4 group"
+                  >
+                    <Icon 
+                      size={24} 
+                      className={`transition-all duration-300 ${isActive ? 'text-slate-900 scale-110' : 'text-slate-300 group-active:scale-90'}`} 
                     />
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-        )}
-      </div>
-    </NavigationContext.Provider>
+                    {isActive && (
+                      <motion.div 
+                        layoutId="nav-active"
+                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-slate-900 rounded-full"
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          )}
+        </div>
+      </NavigationContext.Provider>
+    </ErrorProvider>
   );
 };
 

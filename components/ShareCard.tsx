@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { WorkoutHistory } from '../types';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 interface ShareCardProps {
   workout: Partial<WorkoutHistory> & { totalTonnage?: number, topExercise?: string };
@@ -8,6 +9,7 @@ interface ShareCardProps {
 }
 
 const ShareCard: React.FC<ShareCardProps> = ({ workout, onClose }) => {
+  const { showSuccess } = useErrorHandler();
   const dateStr = new Date(workout.completed_at || Date.now()).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   const tonnageStr = workout.totalTonnage ? (workout.totalTonnage >= 1000 ? `${(workout.totalTonnage / 1000).toFixed(1)}T` : `${workout.totalTonnage}KG`) : '--';
 
@@ -21,7 +23,7 @@ const ShareCard: React.FC<ShareCardProps> = ({ workout, onClose }) => {
         });
       } catch (err) { console.log('Share cancelado'); }
     } else {
-      alert("Tire um print da tela para compartilhar sua evolução!");
+      showSuccess("Print da tela", "Tire um print da tela para compartilhar sua evolução!");
     }
   };
 

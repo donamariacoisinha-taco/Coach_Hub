@@ -4,8 +4,11 @@ import { WorkoutExercise, Exercise, SetConfig, WorkoutFolder, MuscleGroup, SetTy
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '../App';
 import { ExerciseReplaceScreen } from './ExerciseReplaceScreen';
-import { notifyError } from '../lib/errorHandling';
-import { ChevronLeft, Save, PlusCircle, GripVertical, SlidersHorizontal, Trash2, Search, X, MoreVertical, Play, Edit2, Replace, Copy, Clock, Dumbbell, Sparkles, ArrowUpCircle, Info, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { ScreenState } from './ui/ScreenState';
+import { WorkoutSkeleton } from './ui/Skeleton';
+import { useAsyncState } from '../hooks/useAsyncState';
+import { ChevronLeft, Save, PlusCircle, GripVertical, SlidersHorizontal, Trash2, Search, X, MoreVertical, Play, Edit2, Replace, Copy, Clock, Dumbbell, Sparkles, ArrowUpCircle, Info, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   DndContext,
@@ -215,6 +218,7 @@ interface EditorExercise extends Partial<WorkoutExercise> {
 
 const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderId }) => {
   const { navigate, goBack, current } = useNavigation();
+  const { showError, showSuccess } = useErrorHandler();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [folderId, setFolderId] = useState<string>(initialFolderId || current.params?.folderId || '');
@@ -222,7 +226,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   const [exercises, setExercises] = useState<EditorExercise[]>([]);
   const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const editorState = useAsyncState<boolean>(false);
   const [saving, setSaving] = useState(false);
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
   
@@ -303,7 +307,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   }, [workoutId]);
 
   const fetchData = async () => {
-    setLoading(true);
+    editorState.setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -314,13 +318,21 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
         supabase.from('muscle_groups').select('*').order('name')
       ]);
 
+      if (exRes.error) throw exRes.error;
+      if (foldersRes.error) throw foldersRes.error;
+      if (mgRes.error) throw mgRes.error;
+
       if (exRes.data) setAvailableExercises(exRes.data);
       if (foldersRes.data) setFolders(foldersRes.data);
       if (mgRes.data) setMuscleGroups(mgRes.data);
 
       if (workoutId) {
-        const { data: catData } = await supabase.from('workout_categories').select('*').eq('id', workoutId).single();
-        const { data: workExData } = await supabase.from('workout_exercises').select(`*, exercises (*)`).eq('category_id', workoutId).order('sort_order');
+        const { data: catData, error: catError } = await supabase.from('workout_categories').select('*').eq('id', workoutId).single();
+        const { data: workExData, error: workExError } = await supabase.from('workout_exercises').select(`*, exercises (*)`).eq('category_id', workoutId).order('sort_order');
+        
+        if (catError) throw catError;
+        if (workExError) throw workExError;
+
         if (catData) {
           setName(catData.name);
           setDescription(catData.description || '');
@@ -340,7 +352,11 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
           })));
         }
       }
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+      editorState.setData(true);
+    } catch (err) { 
+      editorState.setError(err);
+      showError(err);
+    }
   };
 
   const handleAddOrReplaceExercise = (ex: Exercise) => {
@@ -405,7 +421,10 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   };
 
   const handleSave = async (isPermanent: boolean) => {
-    if (!name.trim()) return alert("Dê um nome ao treino!");
+    if (!name.trim()) {
+      showError({ message: 'validation: Dê um nome ao treino!' });
+      return;
+    }
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -452,19 +471,12 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
         navigate('workout', { id: currentId });
       }
     } catch (err) {
-      notifyError(err, "Erro ao salvar alterações");
+      showError(err);
     } finally {
       setSaving(false);
       setShowSaveModal(false);
     }
   };
-
-  if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-[#F7F8FA]">
-      <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Editor...</p>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-white flex flex-col relative text-slate-900 pb-32">
@@ -487,166 +499,172 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
           disabled={saving} 
           className="px-5 py-2.5 bg-slate-900 rounded-full text-white font-black text-[9px] uppercase tracking-[0.2em] shadow-lg shadow-slate-900/20 active:scale-90 transition-all disabled:opacity-50"
         >
-          {saving ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Salvar'}
+          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Salvar'}
         </button>
       </header>
 
-      <div className="flex-1 px-6 py-4 space-y-6 w-full">
-        {/* WORKOUT STATS CONTEXT */}
-        <div className="flex items-center gap-6 py-0.5 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-2 shrink-0">
-            <Clock size={12} className="text-slate-300" />
-            <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">{stats.estimatedMinutes} min</span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Dumbbell size={12} className="text-slate-300" />
-            <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">{exercises.length} Exer.</span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex -space-x-2">
-              {stats.muscles.slice(0, 3).map((m, i) => (
-                <div key={i} className="w-5 h-5 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center">
-                  <span className="text-[6px] font-black text-slate-400 uppercase">{m?.charAt(0)}</span>
-                </div>
-              ))}
+      <ScreenState
+        state={editorState.uiState}
+        loadingComponent={<WorkoutSkeleton />}
+        onRetry={fetchData}
+      >
+        <div className="flex-1 px-6 py-4 space-y-6 w-full">
+          {/* WORKOUT STATS CONTEXT */}
+          <div className="flex items-center gap-6 py-0.5 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-2 shrink-0">
+              <Clock size={12} className="text-slate-300" />
+              <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">{stats.estimatedMinutes} min</span>
             </div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-              {stats.muscles.length > 0 ? stats.muscles[0] : 'Vazio'}
-            </span>
-          </div>
-
-          {qualityScore !== null && (
-            <div className="flex items-center gap-2 shrink-0 ml-auto">
-              <div className="flex flex-col items-end">
-                <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Qualidade</span>
-                <span className={`text-[10px] font-black uppercase tracking-widest ${qualityScore > 85 ? 'text-emerald-500' : qualityScore > 70 ? 'text-blue-500' : 'text-amber-500'}`}>
-                  {qualityScore}%
-                </span>
-              </div>
-              <div className="w-8 h-8 rounded-full border-2 border-slate-50 flex items-center justify-center relative">
-                <svg className="w-full h-full -rotate-90">
-                  <circle 
-                    cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="2" 
-                    className="text-slate-50"
-                  />
-                  <circle 
-                    cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="2" 
-                    strokeDasharray={88}
-                    strokeDashoffset={88 - (88 * qualityScore) / 100}
-                    className={qualityScore > 85 ? 'text-emerald-500' : qualityScore > 70 ? 'text-blue-500' : 'text-amber-500'}
-                  />
-                </svg>
-                <Sparkles size={10} className="absolute text-slate-300" />
-              </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Dumbbell size={12} className="text-slate-300" />
+              <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">{exercises.length} Exer.</span>
             </div>
-          )}
-        </div>
-
-        {/* BASIC INFO SECTION */}
-        <section className="space-y-4">
-          <input 
-            type="text" 
-            placeholder="Nome do Treino" 
-            value={name} 
-            onChange={e => setName(e.target.value)} 
-            className="w-full py-4 bg-transparent border-b border-slate-100 font-bold text-3xl outline-none focus:border-slate-900 transition-all text-slate-900 tracking-tight placeholder:text-slate-200" 
-          />
-          
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">Pasta:</span>
-            <select 
-              value={folderId} onChange={e => setFolderId(e.target.value)} 
-              className="flex-1 py-2 bg-transparent font-bold text-[13px] outline-none text-slate-500 appearance-none tracking-tight focus:text-slate-900 transition-all"
-            >
-              <option value="">Nenhuma</option>
-              {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-          </div>
-        </section>
-
-        {/* EXERCISES SECTION */}
-        <div className="space-y-0">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Exercícios</h3>
-            <button 
-              onClick={handleSmartSort}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full text-[9px] font-black text-slate-600 uppercase tracking-widest active:scale-95 transition-all"
-            >
-              <Sparkles size={12} className="text-blue-500" /> Smart Sort
-            </button>
-          </div>
-          <DndContext 
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext 
-              items={exercises.map(ex => ex.tempId)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="w-full">
-                {exercises.map((ex, idx) => {
-                  const prevEx = idx > 0 ? exercises[idx - 1] : null;
-                  const showGroupLabel = prevEx?.muscle_group !== ex.muscle_group ? ex.muscle_group : null;
-                  
-                  return (
-                    <SortableExerciseItem 
-                      key={ex.tempId}
-                      ex={ex}
-                      idx={idx}
-                      total={exercises.length}
-                      activeMenuId={activeMenuId}
-                      setActiveMenuId={setActiveMenuId}
-                      setEditingSetsIndex={setEditingSetsIndex}
-                      setReplacingIndex={setReplacingIndex}
-                      setShowExerciseSelector={setShowExerciseSelector}
-                      setExercises={setExercises}
-                      onDuplicate={handleDuplicate}
-                      lastAddedId={lastAddedId}
-                      showGroupLabel={showGroupLabel}
-                    />
-                  );
-                })}
-              </div>
-            </SortableContext>
-          </DndContext>
-
-          {/* INLINE SUGGESTIONS */}
-          {suggestions.length > 0 && (
-            <div className="mt-8 space-y-4">
-              <div className="flex items-center gap-2">
-                <Sparkles size={14} className="text-blue-500" />
-                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Sugeridos para você</span>
-              </div>
-              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-                {suggestions.map((ex) => (
-                  <button 
-                    key={ex.id}
-                    onClick={() => handleAddOrReplaceExercise(ex)}
-                    className="shrink-0 w-40 bg-slate-50 rounded-2xl p-4 text-left space-y-3 active:scale-95 transition-all border border-transparent hover:border-blue-100"
-                  >
-                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-sm">
-                      <img src={ex.image_url} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
-                    </div>
-                    <div>
-                      <h5 className="text-[11px] font-bold text-slate-900 leading-tight line-clamp-2">{ex.name}</h5>
-                      <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest mt-1">{ex.muscle_group}</p>
-                    </div>
-                  </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex -space-x-2">
+                {stats.muscles.slice(0, 3).map((m, i) => (
+                  <div key={i} className="w-5 h-5 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center">
+                    <span className="text-[6px] font-black text-slate-400 uppercase">{m?.charAt(0)}</span>
+                  </div>
                 ))}
               </div>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                {stats.muscles.length > 0 ? stats.muscles[0] : 'Vazio'}
+              </span>
             </div>
-          )}
 
-          <button 
-            onClick={() => { setReplacingIndex(null); setShowExerciseSelector(true); }} 
-            className="w-full py-6 mt-8 border border-slate-100 rounded-2xl flex items-center justify-center gap-2 text-slate-400 active:text-slate-900 active:bg-slate-50 transition-all bg-white shadow-sm"
-          >
-             <PlusCircle size={18} />
-             <span className="text-[12px] font-bold tracking-tight">Adicionar Exercício</span>
-          </button>
+            {qualityScore !== null && (
+              <div className="flex items-center gap-2 shrink-0 ml-auto">
+                <div className="flex flex-col items-end">
+                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Qualidade</span>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${qualityScore > 85 ? 'text-emerald-500' : qualityScore > 70 ? 'text-blue-500' : 'text-amber-500'}`}>
+                    {qualityScore}%
+                  </span>
+                </div>
+                <div className="w-8 h-8 rounded-full border-2 border-slate-50 flex items-center justify-center relative">
+                  <svg className="w-full h-full -rotate-90">
+                    <circle 
+                      cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="2" 
+                      className="text-slate-50"
+                    />
+                    <circle 
+                      cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="2" 
+                      strokeDasharray={88}
+                      strokeDashoffset={88 - (88 * qualityScore) / 100}
+                      className={qualityScore > 85 ? 'text-emerald-500' : qualityScore > 70 ? 'text-blue-500' : 'text-amber-500'}
+                    />
+                  </svg>
+                  <Sparkles size={10} className="absolute text-slate-300" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* BASIC INFO SECTION */}
+          <section className="space-y-4">
+            <input 
+              type="text" 
+              placeholder="Nome do Treino" 
+              value={name} 
+              onChange={e => setName(e.target.value)} 
+              className="w-full py-4 bg-transparent border-b border-slate-100 font-bold text-3xl outline-none focus:border-slate-900 transition-all text-slate-900 tracking-tight placeholder:text-slate-200" 
+            />
+            
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">Pasta:</span>
+              <select 
+                value={folderId} onChange={e => setFolderId(e.target.value)} 
+                className="flex-1 py-2 bg-transparent font-bold text-[13px] outline-none text-slate-500 appearance-none tracking-tight focus:text-slate-900 transition-all"
+              >
+                <option value="">Nenhuma</option>
+                {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            </div>
+          </section>
+
+          {/* EXERCISES SECTION */}
+          <div className="space-y-0">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Exercícios</h3>
+              <button 
+                onClick={handleSmartSort}
+                className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full text-[9px] font-black text-slate-600 uppercase tracking-widest active:scale-95 transition-all"
+              >
+                <Sparkles size={12} className="text-blue-500" /> Smart Sort
+              </button>
+            </div>
+            <DndContext 
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext 
+                items={exercises.map(ex => ex.tempId)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="w-full">
+                  {exercises.map((ex, idx) => {
+                    const prevEx = idx > 0 ? exercises[idx - 1] : null;
+                    const showGroupLabel = prevEx?.muscle_group !== ex.muscle_group ? ex.muscle_group : null;
+                    
+                    return (
+                      <SortableExerciseItem 
+                        key={ex.tempId}
+                        ex={ex}
+                        idx={idx}
+                        total={exercises.length}
+                        activeMenuId={activeMenuId}
+                        setActiveMenuId={setActiveMenuId}
+                        setEditingSetsIndex={setEditingSetsIndex}
+                        setReplacingIndex={setReplacingIndex}
+                        setShowExerciseSelector={setShowExerciseSelector}
+                        setExercises={setExercises}
+                        onDuplicate={handleDuplicate}
+                        lastAddedId={lastAddedId}
+                        showGroupLabel={showGroupLabel}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+
+            {/* INLINE SUGGESTIONS */}
+            {suggestions.length > 0 && (
+              <div className="mt-8 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={14} className="text-blue-500" />
+                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Sugeridos para você</span>
+                </div>
+                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                  {suggestions.map((ex) => (
+                    <button 
+                      key={ex.id}
+                      onClick={() => handleAddOrReplaceExercise(ex)}
+                      className="shrink-0 w-40 bg-slate-50 rounded-2xl p-4 text-left space-y-3 active:scale-95 transition-all border border-transparent hover:border-blue-100"
+                    >
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-sm">
+                        <img src={ex.image_url} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
+                      </div>
+                      <div>
+                        <h5 className="text-[11px] font-bold text-slate-900 leading-tight line-clamp-2">{ex.name}</h5>
+                        <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest mt-1">{ex.muscle_group}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button 
+              onClick={() => { setReplacingIndex(null); setShowExerciseSelector(true); }} 
+              className="w-full py-6 mt-8 border border-slate-100 rounded-2xl flex items-center justify-center gap-2 text-slate-400 active:text-slate-900 active:bg-slate-50 transition-all bg-white shadow-sm"
+            >
+               <PlusCircle size={18} />
+               <span className="text-[12px] font-bold tracking-tight">Adicionar Exercício</span>
+            </button>
+          </div>
         </div>
-      </div>
+      </ScreenState>
 
       {/* MODAL DE EDIÇÃO DE SÉRIES */}
       <AnimatePresence>

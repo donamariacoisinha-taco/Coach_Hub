@@ -3,7 +3,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, BodyMeasurement } from '../types';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '../App';
-import { notifyError } from '../lib/errorHandling';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { ScreenState } from './ui/ScreenState';
+import { WorkoutSkeleton } from './ui/Skeleton';
+import { useAsyncState } from '../hooks/useAsyncState';
+import { TrendingUp, Plus, Edit2, Trash2, ChevronLeft, User, Sun, Moon, X, ChartLine } from 'lucide-react';
 
 interface ProfileViewProps {
   profile: UserProfile;
@@ -12,9 +16,10 @@ interface ProfileViewProps {
 
 const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
   const { theme, toggleTheme, navigate } = useNavigation();
+  const { showError, showSuccess } = useErrorHandler();
   const [activeTab, setActiveTab] = useState<'profile' | 'measurements' | 'settings'>('profile');
   const [saving, setSaving] = useState(false);
-  const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
+  const measurementsState = useAsyncState<BodyMeasurement[]>([]);
   const [showMeasureForm, setShowMeasureForm] = useState(false);
   const [editingMeasureId, setEditingMeasureId] = useState<string | null>(null);
   
@@ -64,11 +69,18 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
   }, []);
 
   const fetchMeasurements = async () => {
-    const { data } = await supabase
-      .from('body_measurements')
-      .select('*')
-      .order('measured_at', { ascending: false });
-    if (data) setMeasurements(data);
+    measurementsState.setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('body_measurements')
+        .select('*')
+        .order('measured_at', { ascending: false });
+      
+      if (error) throw error;
+      if (data) measurementsState.setData(data);
+    } catch (err) {
+      measurementsState.setError(err);
+    }
   };
 
   const formatDisplayDate = (dateStr: string) => {
@@ -89,7 +101,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
       const { error } = await supabase.from('body_measurements').delete().eq('id', id);
       if (error) throw error;
       fetchMeasurements();
-    } catch (err: any) { notifyError(err); }
+    } catch (err: any) { showError(err); }
   };
 
   const handleSaveMeasurement = async () => {
@@ -119,7 +131,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
       
       if (error) throw error;
       
-      const latest = measurements[0];
+      const latest = measurementsState.data?.[0];
       if (!latest || new Date(newMeasure.measured_at!) >= new Date(latest.measured_at)) {
         await supabase.from('profiles').update({ weight: newMeasure.weight }).eq('id', user.id);
       }
@@ -129,8 +141,9 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
       setEditingMeasureId(null);
       fetchMeasurements();
       onUpdate();
+      showSuccess('Registro salvo', 'Sua evolução foi atualizada com sucesso.');
     } catch (err: any) {
-      notifyError(err, "Erro ao salvar");
+      showError(err);
     } finally {
       setSaving(false);
     }
@@ -148,11 +161,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
   };
 
   const getTrendIcon = (currentIndex: number) => {
+    const measurements = measurementsState.data || [];
     if (currentIndex >= measurements.length - 1) return null;
     const current = measurements[currentIndex].weight;
     const previous = measurements[currentIndex + 1].weight;
-    if (current > previous) return <i className="fas fa-caret-up text-red-500 ml-1"></i>;
-    if (current < previous) return <i className="fas fa-caret-down text-green-500 ml-1"></i>;
+    if (current > previous) return <TrendingUp className="w-3 h-3 text-red-500 ml-1 rotate-45" />;
+    if (current < previous) return <TrendingUp className="w-3 h-3 text-green-500 ml-1 -rotate-45" />;
     return null;
   };
 
@@ -164,7 +178,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
             onClick={() => navigate('dashboard')} 
             className="w-10 h-10 flex items-center justify-center text-slate-300 active:scale-90 transition-all"
           >
-            <i className="fas fa-chevron-left text-lg"></i>
+            <ChevronLeft className="w-6 h-6" />
           </button>
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Evolução</p>
@@ -172,7 +186,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
           </div>
         </div>
         <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden">
-           {profile.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" /> : <i className="fas fa-user text-slate-200"></i>}
+           {profile.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <User className="w-6 h-6 text-slate-200" />}
         </div>
       </header>
 
@@ -199,7 +213,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
                   <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{profile.full_name || 'Atleta'}</h3>
                 </div>
                 <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">
-                  {measurements[0] ? formatDisplayDate(measurements[0].measured_at) : 'Sem registros'}
+                  {measurementsState.data?.[0] ? formatDisplayDate(measurementsState.data[0].measured_at) : 'Sem registros'}
                 </p>
               </div>
 
@@ -214,7 +228,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
                 </div>
                 <div className="space-y-2">
                   <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Gordura</p>
-                  <p className="text-2xl font-black text-blue-600 tracking-tighter">{measurements[0]?.body_fat_pct || 0}<span className="text-[10px] ml-0.5">%</span></p>
+                  <p className="text-2xl font-black text-blue-600 tracking-tighter">{measurementsState.data?.[0]?.body_fat_pct || 0}<span className="text-[10px] ml-0.5">%</span></p>
                 </div>
               </div>
             </div>
@@ -223,22 +237,24 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
               onClick={() => { setEditingMeasureId(null); setNewMeasure(initialMeasureState); setShowMeasureForm(true); }}
               className="w-full py-6 bg-blue-600 rounded-full font-black text-white uppercase text-[10px] tracking-[0.2em] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-3"
             >
-              <i className="fas fa-plus"></i>
+              <Plus className="w-4 h-4" />
               Nova Medição
             </button>
           </div>
         ) : activeTab === 'measurements' ? (
           <div className="space-y-1">
-             {measurements.length === 0 ? (
-               <div className="py-20 text-center">
-                  <i className="fas fa-chart-line text-slate-200 text-4xl mb-4"></i>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhum registro</p>
-               </div>
-             ) : (
-               measurements.map((m, idx) => (
+             <ScreenState
+               state={measurementsState.uiState}
+               loadingComponent={<WorkoutSkeleton />}
+               onRetry={fetchMeasurements}
+               emptyTitle="Nenhum registro"
+               emptyDescription="Acompanhe sua evolução registrando suas medidas regularmente."
+               emptyIcon={<ChartLine className="w-12 h-12 text-slate-200" />}
+             >
+               {(measurementsState.data || []).map((m, idx) => (
                  <div 
                   key={m.id} 
-                  className={`flex items-center justify-between py-6 active:bg-slate-50 transition-colors ${idx !== measurements.length - 1 ? 'border-b border-slate-100' : ''}`}
+                  className={`flex items-center justify-between py-6 active:bg-slate-50 transition-colors ${idx !== (measurementsState.data || []).length - 1 ? 'border-b border-slate-100' : ''}`}
                  >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -255,18 +271,18 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
                         onClick={() => handleEdit(m)} 
                         className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-blue-600 transition-colors"
                       >
-                        <i className="fas fa-edit"></i>
+                        <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => handleDelete(m.id)} 
                         className="w-10 h-10 flex items-center justify-center text-slate-300 active:text-red-500 transition-colors"
                       >
-                        <i className="fas fa-trash"></i>
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                  </div>
-               ))
-             )}
+               ))}
+             </ScreenState>
           </div>
         ) : (
           <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
@@ -291,7 +307,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
                    >
                       <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${theme === 'light' ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-300'}`}>
-                          <i className="fas fa-sun"></i>
+                          <Sun className="w-5 h-5" />
                         </div>
                         <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">Tema Claro</span>
                       </div>
@@ -303,7 +319,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
                    >
                       <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${theme === 'classic' ? 'bg-white text-slate-900' : 'bg-slate-50 text-slate-300'}`}>
-                          <i className="fas fa-moon"></i>
+                          <Moon className="w-5 h-5" />
                         </div>
                         <span className={`text-[11px] font-black uppercase tracking-widest ${theme === 'classic' ? 'text-white' : 'text-slate-900'}`}>Tema Escuro</span>
                       </div>
@@ -332,7 +348,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
                 onClick={() => setShowMeasureForm(false)} 
                 className="w-10 h-10 flex items-center justify-center text-slate-900 active:scale-90 transition-all"
               >
-                <i className="fas fa-times text-lg"></i>
+                <X className="w-6 h-6" />
               </button>
               <div className="text-center flex-1">
                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{editingMeasureId ? 'Editar' : 'Nova'} Medição</h3>

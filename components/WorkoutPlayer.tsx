@@ -9,11 +9,14 @@ import {
   Check,
   MoreHorizontal,
   Play,
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "../lib/supabase";
-import { notifyError } from "../lib/errorHandling";
 import { useNavigation } from "../App";
+import { useErrorHandler } from "../hooks/useErrorHandler";
+import { ScreenState } from "./ui/ScreenState";
+import { useAsyncState } from "../hooks/useAsyncState";
 import { WorkoutExercise, SetType, LastSetData, ProgressionInput } from "../types";
 import { getPreSetHint } from "../lib/preSetEngine";
 import { getEmotionalFeedback } from "../lib/feedbackEngine";
@@ -51,13 +54,14 @@ const getNextSetDecision = (input: ProgressionInput, history?: LastSetData) => {
 
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { navigate } = useNavigation();
+  const { showError, showSuccess } = useErrorHandler();
   
   // Core State
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
   const [historyId, setHistoryId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const playerState = useAsyncState<boolean>(false);
   const [saving, setSaving] = useState(false);
   
   // Execution State
@@ -105,6 +109,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   // Initial Fetch
   useEffect(() => {
     const init = async () => {
+      playerState.setLoading(true);
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -114,6 +119,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           supabase.from('workout_exercises').select(`*, exercises (*)`).eq('category_id', workoutId).order('sort_order'),
           supabase.from('partial_workout_sessions').select('*').eq('user_id', user.id).eq('workout_id', workoutId).maybeSingle()
         ]);
+
+        if (catRes.error) throw catRes.error;
+        if (exRes.error) throw exRes.error;
 
         if (exRes.data) {
           const loadedExercises = exRes.data.filter((item: any) => item.exercises).map((item: any) => ({
@@ -130,12 +138,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             setCurrentIndex(partialRes.data.current_index || 0);
             setCurrentSet(partialRes.data.current_set || 1);
           } else {
-            const { data: newHistory } = await supabase.from('workout_history').insert([{ 
+            const { data: newHistory, error: historyError } = await supabase.from('workout_history').insert([{ 
               user_id: user.id, 
               category_id: workoutId, 
               category_name: catRes.data?.name || 'Treino' 
             }]).select().single();
             
+            if (historyError) throw historyError;
+
             setHistoryId(newHistory?.id);
             setStartTime(Date.now());
             
@@ -149,10 +159,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             });
           }
         }
+        playerState.setData(true);
       } catch (err) {
-        console.error("Error initializing workout:", err);
-      } finally {
-        setLoading(false);
+        playerState.setError(err);
+        showError(err);
       }
     };
     init();
@@ -277,7 +287,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
       
     } catch (err) {
-      notifyError(err, "Erro ao salvar série");
+      showError(err);
     } finally {
       setSaving(false);
     }
@@ -319,22 +329,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
   };
 
-  if (loading) return (
-    <div className="min-h-screen bg-[#F7F8FA] flex flex-col items-center justify-center p-12 text-center">
-      <motion.div 
-        animate={{ 
-          scale: [1, 1.1, 1],
-          opacity: [0.3, 0.6, 0.3]
-        }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        className="w-20 h-20 bg-slate-900 rounded-[2.5rem] flex items-center justify-center text-white mb-8 shadow-2xl shadow-slate-900/20"
-      >
-        <Play size={32} fill="currentColor" />
-      </motion.div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] animate-pulse">Preparando ambiente...</p>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-[#F7F8FA] text-slate-900 flex flex-col font-sans selection:bg-blue-100">
       {isFinished && (
@@ -344,251 +338,271 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           exercisesCount={exercises.length}
         />
       )}
-      <div className="max-w-md mx-auto w-full px-6 pt-12 pb-32 flex-1 flex flex-col relative">
-        
-        {/* HEADER */}
-        <header className="flex items-center justify-between mb-16">
-          <div className="flex items-center gap-6">
-            <div className="w-12 h-12 bg-white rounded-2xl overflow-hidden flex items-center justify-center p-2.5 border border-slate-50 shadow-sm">
-              {currentEx?.image_url ? (
-                <img src={currentEx.image_url} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="w-4 h-4 bg-slate-100 rounded-full" />
-              )}
-            </div>
-            <div>
-              <h1 className="text-sm font-black tracking-tight uppercase text-slate-900">{currentEx?.exercise_name || 'Exercício'}</h1>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">
-                {currentEx?.muscle_group || 'Geral'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <span className="text-[10px] font-black tabular-nums text-slate-300 tracking-widest">
-              {formatTime(workoutDuration)}
-            </span>
-            <button 
-              onClick={() => setShowExitModal(true)}
-              className="w-12 h-12 flex items-center justify-center text-slate-300 hover:text-slate-900 active:scale-90 transition-all"
+      <ScreenState
+        state={playerState.uiState}
+        loadingComponent={
+          <div className="min-h-screen bg-[#F7F8FA] flex flex-col items-center justify-center p-12 text-center">
+            <motion.div 
+              animate={{ 
+                scale: [1, 1.1, 1],
+                opacity: [0.3, 0.6, 0.3]
+              }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="w-20 h-20 bg-slate-900 rounded-[2.5rem] flex items-center justify-center text-white mb-8 shadow-2xl shadow-slate-900/20"
             >
-              <MoreHorizontal size={20} />
-            </button>
+              <Play size={32} fill="currentColor" />
+            </motion.div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] animate-pulse">Preparando ambiente...</p>
           </div>
-        </header>
-
-        {/* MAIN DISPLAY */}
-        <div className="flex-1 flex flex-col items-center justify-center text-center">
-          {!isResting ? (
-            <div className="animate-in fade-in zoom-in duration-500 w-full">
-              <div className="flex items-center justify-center gap-4">
-                <div className="flex flex-col items-center">
-                  <input 
-                    type="number"
-                    value={weight}
-                    onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
-                    className="text-7xl font-black tracking-tighter tabular-nums text-slate-900 leading-none bg-transparent border-none outline-none text-center w-32"
-                  />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 mt-2">Peso (kg)</span>
-                </div>
-                <span className="text-4xl text-slate-100 font-black mt-[-20px]">×</span>
-                <div className="flex flex-col items-center">
-                  <input 
-                    type="number"
-                    value={reps}
-                    onChange={(e) => setReps(parseInt(e.target.value) || 0)}
-                    className="text-7xl font-black tracking-tighter tabular-nums text-slate-900 leading-none bg-transparent border-none outline-none text-center w-24"
-                  />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 mt-2">Reps</span>
-                </div>
+        }
+        onRetry={() => window.location.reload()}
+      >
+        <div className="max-w-md mx-auto w-full px-6 pt-12 pb-32 flex-1 flex flex-col relative">
+          
+          {/* HEADER */}
+          <header className="flex items-center justify-between mb-16">
+            <div className="flex items-center gap-6">
+              <div className="w-12 h-12 bg-white rounded-2xl overflow-hidden flex items-center justify-center p-2.5 border border-slate-50 shadow-sm">
+                {currentEx?.image_url ? (
+                  <img src={currentEx.image_url} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-4 h-4 bg-slate-100 rounded-full" />
+                )}
               </div>
-
-              {/* PRÉ-SÉRIE */}
-              {preHint && (
-                <p className="mt-6 text-sm text-slate-400 font-medium animate-in fade-in duration-500">
-                  {preHint}
+              <div>
+                <h1 className="text-sm font-black tracking-tight uppercase text-slate-900">{currentEx?.exercise_name || 'Exercício'}</h1>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">
+                  {currentEx?.muscle_group || 'Geral'}
                 </p>
-              )}
+              </div>
+            </div>
 
-              {/* CONTEXTO INTELIGENTE */}
-              <div className="mt-12 space-y-3">
-                {lastSet && (
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
-                    último: {lastSet.weight}kg × {lastSet.reps}
+            <div className="flex items-center gap-6">
+              <span className="text-[10px] font-black tabular-nums text-slate-300 tracking-widest">
+                {formatTime(workoutDuration)}
+              </span>
+              <button 
+                onClick={() => setShowExitModal(true)}
+                className="w-12 h-12 flex items-center justify-center text-slate-300 hover:text-slate-900 active:scale-90 transition-all"
+              >
+                <MoreHorizontal size={20} />
+              </button>
+            </div>
+          </header>
+
+          {/* MAIN DISPLAY */}
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            {!isResting ? (
+              <div className="animate-in fade-in zoom-in duration-500 w-full">
+                <div className="flex items-center justify-center gap-4">
+                  <div className="flex flex-col items-center">
+                    <input 
+                      type="number"
+                      value={weight}
+                      onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                      className="text-7xl font-black tracking-tighter tabular-nums text-slate-900 leading-none bg-transparent border-none outline-none text-center w-32"
+                    />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 mt-2">Peso (kg)</span>
+                  </div>
+                  <span className="text-4xl text-slate-100 font-black mt-[-20px]">×</span>
+                  <div className="flex flex-col items-center">
+                    <input 
+                      type="number"
+                      value={reps}
+                      onChange={(e) => setReps(parseInt(e.target.value) || 0)}
+                      className="text-7xl font-black tracking-tighter tabular-nums text-slate-900 leading-none bg-transparent border-none outline-none text-center w-24"
+                    />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 mt-2">Reps</span>
+                  </div>
+                </div>
+
+                {/* PRÉ-SÉRIE */}
+                {preHint && (
+                  <p className="mt-6 text-sm text-slate-400 font-medium animate-in fade-in duration-500">
+                    {preHint}
                   </p>
                 )}
-                <div className="flex items-center justify-center gap-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">
-                    Meta: {weight}kg × {reps}
-                  </p>
-                  {currentIndex < exercises.length - 1 && currentSet === (currentEx?.sets_json?.length || 3) && (
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-200 px-2 py-0.5 bg-slate-50 rounded-full">
-                      Próximo: {exercises[currentIndex + 1].exercise_name}
-                    </span>
+
+                {/* CONTEXTO INTELIGENTE */}
+                <div className="mt-12 space-y-3">
+                  {lastSet && (
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
+                      último: {lastSet.weight}kg × {lastSet.reps}
+                    </p>
+                  )}
+                  <div className="flex items-center justify-center gap-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">
+                      Meta: {weight}kg × {reps}
+                    </p>
+                    {currentIndex < exercises.length - 1 && currentSet === (currentEx?.sets_json?.length || 3) && (
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-200 px-2 py-0.5 bg-slate-50 rounded-full">
+                        Próximo: {exercises[currentIndex + 1].exercise_name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="mt-10 space-y-2">
+                  {!isOnline && (
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 animate-pulse">
+                      Modo Offline — Salvando Local
+                    </div>
+                  )}
+                  {pendingCount > 0 && isOnline && (
+                    <div className="text-[10px] font-black uppercase tracking-widest text-blue-500">
+                      Sincronizando {pendingCount} {pendingCount === 1 ? 'série' : 'séries'}...
+                    </div>
+                  )}
+                  {pendingCount === 0 && isOnline && (
+                    <div className="text-[10px] font-black uppercase tracking-widest text-green-500/30">
+                      Sincronizado
+                    </div>
                   )}
                 </div>
               </div>
-              
-              <div className="mt-10 space-y-2">
-                {!isOnline && (
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 animate-pulse">
-                    Modo Offline — Salvando Local
-                  </div>
-                )}
-                {pendingCount > 0 && isOnline && (
-                  <div className="text-[10px] font-black uppercase tracking-widest text-blue-500">
-                    Sincronizando {pendingCount} {pendingCount === 1 ? 'série' : 'séries'}...
-                  </div>
-                )}
-                {pendingCount === 0 && isOnline && (
-                  <div className="text-[10px] font-black uppercase tracking-widest text-green-500/30">
-                    Sincronizado
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="animate-in fade-in zoom-in duration-500">
-              <div className="text-8xl font-black tracking-tighter tabular-nums text-slate-900 leading-none">
-                {formatTime(timeLeft)}
-              </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300 mt-8">Descanso</p>
-
-              {/* TIMER CONTROLS */}
-              <div className="flex items-center gap-10 mt-16">
-                <button
-                  onClick={() => setTimeLeft((t) => Math.max(0, t - 15))}
-                  className="w-16 h-16 rounded-full bg-white text-slate-300 active:scale-90 active:text-slate-900 border border-slate-50 shadow-sm flex items-center justify-center transition-all"
-                >
-                  <Minus size={20} />
-                </button>
-                <button
-                  onClick={() => setTimeLeft((t) => t + 15)}
-                  className="w-16 h-16 rounded-full bg-white text-slate-300 active:scale-90 active:text-slate-900 border border-slate-50 shadow-sm flex items-center justify-center transition-all"
-                >
-                  <Plus size={20} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* CONTROLES DISCRETOS */}
-        {!isResting && (
-          <div className="mt-auto space-y-12 animate-in slide-in-from-bottom-4 duration-700">
-            
-            {/* RPE SELECTOR */}
-            <div className="flex flex-col items-center gap-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Esforço (RPE)</p>
-              <div className="flex gap-3">
-                {[7, 8, 9, 10].map((val) => (
-                  <button
-                    key={val}
-                    onClick={() => setRpe(val)}
-                    className={`w-12 h-12 rounded-2xl text-[10px] font-black transition-all ${
-                      rpe === val 
-                        ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/20 scale-110" 
-                        : "bg-white text-slate-300 border border-slate-50 shadow-sm active:bg-slate-50"
-                    }`}
-                  >
-                    {val}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              {/* SET NAVIGATION */}
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => {
-                    if (currentSet > 1) setCurrentSet(s => s - 1);
-                    else if (currentIndex > 0) {
-                      setCurrentIndex(i => i - 1);
-                      setCurrentSet(exercises[currentIndex - 1].sets_json?.length || 3);
-                    }
-                  }}
-                  className="p-3 text-slate-200 hover:text-slate-900 transition-colors"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">
-                  {currentSet} / {currentEx?.sets_json?.length || 3}
-                </span>
-                <button
-                  onClick={() => {
-                    const totalSets = currentEx?.sets_json?.length || 3;
-                    if (currentSet < totalSets) setCurrentSet(s => s + 1);
-                    else if (currentIndex < exercises.length - 1) {
-                      setCurrentIndex(i => i + 1);
-                      setCurrentSet(1);
-                    }
-                  }}
-                  className="p-3 text-slate-200 hover:text-slate-900 transition-colors"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-
-              {/* ADJUSTMENTS */}
-              <div className="flex items-center gap-8">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setWeight(w => Math.max(0, w - 2.5))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={16} /></button>
-                    <button onClick={() => setWeight(w => w + 2.5)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={16} /></button>
-                  </div>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setReps(r => Math.max(0, r - 1))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={16} /></button>
-                    <button onClick={() => setReps(r => r + 1)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={16} /></button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* FEEDBACK TOAST */}
-        <AnimatePresence>
-          {feedback && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20, x: "-50%" }}
-              animate={{ opacity: 1, y: 0, x: "-50%" }}
-              exit={{ opacity: 0, y: 20, x: "-50%" }}
-              className="fixed bottom-32 left-1/2 z-[1200]
-                         bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-8 py-4 rounded-full
-                         shadow-2xl"
-            >
-              <div className="flex items-center gap-4">
-                <Check size={14} className="text-green-400" />
-                {feedback}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* CTA PRINCIPAL */}
-        <div className="fixed bottom-0 left-0 right-0 p-6 bg-[#F7F8FA]/80 backdrop-blur-md">
-          <button
-            onClick={isResting ? handleNextStep : handleCompleteSet}
-            disabled={saving}
-            className={`w-full h-20 rounded-3xl font-black uppercase text-[11px] tracking-[0.4em] transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center ${
-              isResting 
-                ? "bg-white text-slate-900 border border-slate-50 shadow-sm" 
-                : "bg-slate-900 text-white shadow-slate-900/20"
-            }`}
-          >
-            {saving ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : isResting ? (
-              "Pular descanso"
             ) : (
-              "Concluir série"
+              <div className="animate-in fade-in zoom-in duration-500">
+                <div className="text-8xl font-black tracking-tighter tabular-nums text-slate-900 leading-none">
+                  {formatTime(timeLeft)}
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300 mt-8">Descanso</p>
+
+                {/* TIMER CONTROLS */}
+                <div className="flex items-center gap-10 mt-16">
+                  <button
+                    onClick={() => setTimeLeft((t) => Math.max(0, t - 15))}
+                    className="w-16 h-16 rounded-full bg-white text-slate-300 active:scale-90 active:text-slate-900 border border-slate-50 shadow-sm flex items-center justify-center transition-all"
+                  >
+                    <Minus size={20} />
+                  </button>
+                  <button
+                    onClick={() => setTimeLeft((t) => t + 15)}
+                    className="w-16 h-16 rounded-full bg-white text-slate-300 active:scale-90 active:text-slate-900 border border-slate-50 shadow-sm flex items-center justify-center transition-all"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+              </div>
             )}
-          </button>
+          </div>
+
+          {/* CONTROLES DISCRETOS */}
+          {!isResting && (
+            <div className="mt-auto space-y-12 animate-in slide-in-from-bottom-4 duration-700">
+              
+              {/* RPE SELECTOR */}
+              <div className="flex flex-col items-center gap-6">
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Esforço (RPE)</p>
+                <div className="flex gap-3">
+                  {[7, 8, 9, 10].map((val) => (
+                    <button
+                      key={val}
+                      onClick={() => setRpe(val)}
+                      className={`w-12 h-12 rounded-2xl text-[10px] font-black transition-all ${
+                        rpe === val 
+                          ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/20 scale-110" 
+                          : "bg-white text-slate-300 border border-slate-50 shadow-sm active:bg-slate-50"
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                {/* SET NAVIGATION */}
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => {
+                      if (currentSet > 1) setCurrentSet(s => s - 1);
+                      else if (currentIndex > 0) {
+                        setCurrentIndex(i => i - 1);
+                        setCurrentSet(exercises[currentIndex - 1].sets_json?.length || 3);
+                      }
+                    }}
+                    className="p-3 text-slate-200 hover:text-slate-900 transition-colors"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">
+                    {currentSet} / {currentEx?.sets_json?.length || 3}
+                  </span>
+                  <button
+                    onClick={() => {
+                      const totalSets = currentEx?.sets_json?.length || 3;
+                      if (currentSet < totalSets) setCurrentSet(s => s + 1);
+                      else if (currentIndex < exercises.length - 1) {
+                        setCurrentIndex(i => i + 1);
+                        setCurrentSet(1);
+                      }
+                    }}
+                    className="p-3 text-slate-200 hover:text-slate-900 transition-colors"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+
+                {/* ADJUSTMENTS */}
+                <div className="flex items-center gap-8">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setWeight(w => Math.max(0, w - 2.5))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={16} /></button>
+                      <button onClick={() => setWeight(w => w + 2.5)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={16} /></button>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setReps(r => Math.max(0, r - 1))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={16} /></button>
+                      <button onClick={() => setReps(r => r + 1)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={16} /></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* FEEDBACK TOAST */}
+          <AnimatePresence>
+            {feedback && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20, x: "-50%" }}
+                animate={{ opacity: 1, y: 0, x: "-50%" }}
+                exit={{ opacity: 0, y: 20, x: "-50%" }}
+                className="fixed bottom-32 left-1/2 z-[1200]
+                           bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-8 py-4 rounded-full
+                           shadow-2xl"
+              >
+                <div className="flex items-center gap-4">
+                  <Check size={14} className="text-green-400" />
+                  {feedback}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* CTA PRINCIPAL */}
+          <div className="fixed bottom-0 left-0 right-0 p-6 bg-[#F7F8FA]/80 backdrop-blur-md">
+            <button
+              onClick={isResting ? handleNextStep : handleCompleteSet}
+              disabled={saving}
+              className={`w-full h-20 rounded-3xl font-black uppercase text-[11px] tracking-[0.4em] transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center ${
+                isResting 
+                  ? "bg-white text-slate-900 border border-slate-50 shadow-sm" 
+                  : "bg-slate-900 text-white shadow-slate-900/20"
+              }`}
+            >
+              {saving ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : isResting ? (
+                "Pular descanso"
+              ) : (
+                "Concluir série"
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      </ScreenState>
 
       {/* EXIT MODAL */}
       <AnimatePresence>

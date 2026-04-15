@@ -5,15 +5,17 @@ import { supabase } from '../lib/supabase';
 import { GoogleGenAI } from "@google/genai";
 import { useNavigation } from '../App';
 import { ExerciseProgress } from './ExerciseProgress';
-import { Search, MoreVertical, Info, History, TrendingUp, X, ChevronRight, Heart, Settings, Sparkles } from 'lucide-react';
+import { ScreenState } from './ui/ScreenState';
+import { ExerciseSkeleton } from './ui/Skeleton';
+import { useAsyncState } from '../hooks/useAsyncState';
+import { Search, MoreVertical, Info, History, TrendingUp, X, ChevronRight, Heart, Settings, Sparkles, Dumbbell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const ExerciseLibrary: React.FC = () => {
   const { navigate } = useNavigation();
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
+  const exercisesState = useAsyncState<Exercise[]>([]);
+  const muscleGroupsState = useAsyncState<MuscleGroup[]>([]);
   const [favoriteExerciseIds, setFavoriteExerciseIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,7 +44,8 @@ const ExerciseLibrary: React.FC = () => {
   };
 
   const fetchData = async () => {
-    setLoading(true);
+    exercisesState.setLoading(true);
+    muscleGroupsState.setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -59,11 +62,16 @@ const ExerciseLibrary: React.FC = () => {
         supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', user.id)
       ]);
 
-      if (exRes.data) setExercises(exRes.data);
-      if (mgRes.data) setMuscleGroups(mgRes.data);
+      if (exRes.error) throw exRes.error;
+      if (mgRes.error) throw mgRes.error;
+
+      if (exRes.data) exercisesState.setData(exRes.data);
+      if (mgRes.data) muscleGroupsState.setData(mgRes.data);
       if (favRes.data) setFavoriteExerciseIds(new Set(favRes.data.map(f => f.exercise_id)));
-    } catch (err) { console.error(err); } 
-    finally { setLoading(false); }
+    } catch (err) { 
+      exercisesState.setError(err);
+      muscleGroupsState.setError(err);
+    }
   };
 
   const toggleFavorite = async (e: React.MouseEvent, exerciseId: string) => {
@@ -101,6 +109,8 @@ const ExerciseLibrary: React.FC = () => {
   };
 
   const filteredExercises = useMemo(() => {
+    const exercises = exercisesState.data || [];
+    const muscleGroups = muscleGroupsState.data || [];
     return exercises.filter(ex => {
       const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase());
       const mg = muscleGroups.find(m => m.name === ex.muscle_group);
@@ -117,18 +127,12 @@ const ExerciseLibrary: React.FC = () => {
 
       return matchesSearch && matchesSide && isParentMatch && matchesStatus;
     }).sort((a, b) => favoriteExerciseIds.has(b.id) ? -1 : 1);
-  }, [exercises, searchQuery, selectedMuscle, selectedSide, muscleGroups, favoriteExerciseIds, isAdmin, adminActiveFilter]);
+  }, [exercisesState.data, searchQuery, selectedMuscle, selectedSide, muscleGroupsState.data, favoriteExerciseIds, isAdmin, adminActiveFilter]);
 
   const parentMuscleGroups = useMemo(() => {
+    const muscleGroups = muscleGroupsState.data || [];
     return muscleGroups.filter(mg => !mg.parent_id && (selectedSide === 'all' || !mg.body_side || mg.body_side === selectedSide));
-  }, [muscleGroups, selectedSide]);
-
-  if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-[#F7F8FA]">
-      <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Biblioteca...</p>
-    </div>
-  );
+  }, [muscleGroupsState.data, selectedSide]);
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] pb-32">
@@ -190,12 +194,15 @@ const ExerciseLibrary: React.FC = () => {
         </div>
 
         <div className="space-y-1">
-          {filteredExercises.length === 0 ? (
-            <div className="py-20 text-center">
-              <p className="text-[10px] font-black text-slate-200 uppercase tracking-[0.2em]">Nenhum resultado</p>
-            </div>
-          ) : (
-            filteredExercises.map((ex, idx) => (
+          <ScreenState
+            state={exercisesState.uiState}
+            loadingComponent={<ExerciseSkeleton />}
+            onRetry={fetchData}
+            emptyTitle="Biblioteca vazia"
+            emptyDescription="Não encontramos exercícios com os filtros selecionados."
+            emptyIcon={<Dumbbell className="w-12 h-12 text-slate-200" />}
+          >
+            {filteredExercises.map((ex, idx) => (
               <div key={ex.id} className="relative">
                 <div 
                   onClick={() => handleOpenDetail(ex)}
@@ -221,8 +228,8 @@ const ExerciseLibrary: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))
-          )}
+            ))}
+          </ScreenState>
         </div>
       </div>
 

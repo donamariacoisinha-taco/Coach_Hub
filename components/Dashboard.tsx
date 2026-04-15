@@ -3,17 +3,20 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { WorkoutCategory, UserProfile, WorkoutFolder } from '../types';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '../App';
-import { MoreVertical, Plus, Shield, Flame, Play, Edit2, Trash2, FolderPlus } from 'lucide-react';
-import { DashboardSkeleton } from './Skeleton';
+import { MoreVertical, Plus, Shield, Flame, Play, Edit2, Trash2, FolderPlus, Dumbbell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ScreenState } from './ui/ScreenState';
+import { DashboardSkeleton } from './ui/Skeleton';
+import { useAsyncState } from '../hooks/useAsyncState';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
+  const { showError } = useErrorHandler();
+  
+  const workoutsState = useAsyncState<WorkoutCategory[]>([]);
   const [folders, setFolders] = useState<WorkoutFolder[]>([]);
-  const [workouts, setWorkouts] = useState<WorkoutCategory[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(initialFolderId || null);
   const [lastWorkout, setLastWorkout] = useState<WorkoutCategory | null>(null);
   const [stats, setStats] = useState({ sessions: 0 });
@@ -24,9 +27,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   }, []);
 
   const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-
+    workoutsState.setLoading(true);
     try {
       const { data: { session }, error: authError } = await supabase.auth.getSession();
       if (authError || !session?.user) throw new Error("Sessão expirada.");
@@ -42,39 +43,38 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
       if (profileRes.data) setProfile(profileRes.data);
       if (foldersRes.data) setFolders(foldersRes.data);
-      if (workoutsRes.data) setWorkouts(workoutsRes.data);
+      if (workoutsRes.data) workoutsState.setData(workoutsRes.data);
+      
       if (historyRes.data) {
         setStats({ sessions: historyRes.data.length });
-        if (historyRes.data.length > 0) {
-          const last = workoutsRes.data?.find(w => w.id === historyRes.data[0].category_id);
+        if (historyRes.data.length > 0 && workoutsRes.data) {
+          const last = workoutsRes.data.find(w => w.id === historyRes.data[0].category_id);
           if (last) setLastWorkout(last);
         }
       }
 
     } catch (err: any) {
-      setError(err.message || "Erro ao carregar dados.");
-    } finally {
-      setLoading(false);
+      workoutsState.setError(err);
+      showError(err);
     }
   };
 
   const filteredWorkouts = useMemo(() => {
+    const workouts = workoutsState.data || [];
     if (activeFolderId === null) return workouts;
     return workouts.filter(w => w.folder_id === activeFolderId || (!w.folder_id && activeFolderId === 'uncategorized'));
-  }, [workouts, activeFolderId]);
+  }, [workoutsState.data, activeFolderId]);
 
   const handleDeleteWorkout = async (id: string) => {
     if (!confirm("Deseja excluir este protocolo?")) return;
     try {
       await supabase.from('workout_categories').delete().eq('id', id);
-      setWorkouts(prev => prev.filter(w => w.id !== id));
+      workoutsState.setData((workoutsState.data || []).filter(w => w.id !== id));
       setActiveMenuId(null);
     } catch (err) {
-      console.error(err);
+      showError(err);
     }
   };
-
-  if (loading) return <DashboardSkeleton />;
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] text-slate-900 pb-32">
@@ -195,12 +195,17 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
           {/* List iOS Style - Refined */}
           <div className="space-y-2">
-            {filteredWorkouts.length === 0 ? (
-              <div className="py-24 text-center">
-                <p className="text-[10px] font-black text-slate-200 uppercase tracking-[0.3em]">Nenhum protocolo ativo</p>
-              </div>
-            ) : (
-              filteredWorkouts.map((workout, idx) => (
+            <ScreenState
+              state={workoutsState.uiState}
+              loadingComponent={<DashboardSkeleton />}
+              onRetry={fetchData}
+              emptyIcon={<Dumbbell className="w-12 h-12 text-slate-200" />}
+              emptyTitle="Nenhum protocolo"
+              emptyDescription="Você ainda não criou nenhum treino nesta pasta."
+              onEmptyAction={() => navigate('editor')}
+              emptyActionLabel="Criar Treino"
+            >
+              {filteredWorkouts.map((workout, idx) => (
                 <div key={workout.id} className="relative group">
                   <div 
                     onClick={() => navigate('workout', { id: workout.id })}
@@ -265,8 +270,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     )}
                   </AnimatePresence>
                 </div>
-              ))
-            )}
+              ))}
+            </ScreenState>
           </div>
         </section>
       </div>

@@ -2,8 +2,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '../App';
-
-import { notifyError, translateErrorMessage } from '../lib/errorHandling';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 interface AuthProps {
   onBack?: () => void;
@@ -11,6 +10,7 @@ interface AuthProps {
 
 const Auth: React.FC<AuthProps> = ({ onBack }) => {
   const { navigate } = useNavigation();
+  const { showError, showSuccess } = useErrorHandler();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,8 +33,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
       if (isSignUp) {
         const { error: signUpError } = await supabase.auth.signUp({ email, password });
         if (signUpError) throw signUpError;
-        console.log('[AUTH][DEBUG] Cadastro realizado com sucesso.');
-        alert('Cadastro realizado! Verifique seu e-mail para ativar a conta.');
+        showSuccess('Cadastro realizado', 'Verifique seu e-mail para ativar a conta.');
       } else {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
@@ -45,8 +44,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
         navigate('dashboard');
       }
     } catch (err: any) {
-      console.error('[AUTH][ERROR] Falha na autenticação:', err.message);
-      setError(translateErrorMessage(err.message));
+      showError(err);
     } finally {
       setLoading(false);
     }

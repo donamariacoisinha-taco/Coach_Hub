@@ -6,20 +6,24 @@ import ProgressPhotos from './ProgressPhotos';
 import BioReport from './BioReport';
 import ShareCard from './ShareCard';
 import { ExerciseProgress } from './ExerciseProgress';
-import { MoreVertical, Share2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { MoreVertical, Share2, Trash2, ChevronDown, ChevronUp, History, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ScreenState } from './ui/ScreenState';
+import { WorkoutSkeleton } from './ui/Skeleton';
+import { useAsyncState } from '../hooks/useAsyncState';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 type TabType = 'sessions' | 'charts' | 'visual' | 'bio';
 
 const HistoryView: React.FC = () => {
+  const { showError } = useErrorHandler();
   const [activeTab, setActiveTab] = useState<TabType>('sessions');
-  const [history, setHistory] = useState<WorkoutHistory[]>([]);
-  const [exerciseList, setExerciseList] = useState<{id: string, name: string}[]>([]);
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
+  const historyState = useAsyncState<WorkoutHistory[]>([]);
+  const exerciseListState = useAsyncState<{id: string, name: string}[]>([]);
   
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [workoutLogs, setWorkoutLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [shareData, setShareData] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -31,36 +35,43 @@ const HistoryView: React.FC = () => {
   }, []);
 
   const fetchHistory = async () => {
-    setLoading(true);
+    historyState.setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('workout_history')
         .select('*')
         .not('completed_at', 'is', null)
         .order('completed_at', { ascending: false });
       
-      if (data) setHistory(data);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+      if (error) throw error;
+      if (data) historyState.setData(data);
+    } catch (err) { 
+      historyState.setError(err);
+      showError(err);
+    }
   };
 
   const fetchExerciseList = async () => {
+    exerciseListState.setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('exercise_progress')
         .select('exercise_id, exercises(name)')
         .order('date', { ascending: false });
       
+      if (error) throw error;
       if (data) {
         const unique = new Map();
         data.forEach((d: any) => {
           if (d.exercises) unique.set(d.exercise_id, d.exercises.name);
         });
         const list = Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
-        setExerciseList(list);
+        exerciseListState.setData(list);
         if (list.length > 0 && !selectedExerciseId) setSelectedExerciseId(list[0].id);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      exerciseListState.setError(err);
+    }
   };
 
   const fetchWorkoutDetails = async (historyId: string) => {
@@ -107,23 +118,16 @@ const HistoryView: React.FC = () => {
     try {
       const { error } = await supabase.from('workout_history').delete().eq('id', historyId);
       if (error) throw error;
-      setHistory(prev => prev.filter(h => h.id !== historyId));
+      historyState.setData((historyState.data || []).filter(h => h.id !== historyId));
       if (selectedWorkout === historyId) setSelectedWorkout(null);
       setActiveMenuId(null);
       fetchExerciseList();
     } catch (err) {
-      console.error(err);
+      showError(err);
     } finally {
       setIsDeleting(null);
     }
   };
-
-  if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-[#F7F8FA]">
-      <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Histórico...</p>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] pb-32">
@@ -152,42 +156,48 @@ const HistoryView: React.FC = () => {
       <div className="px-6">
         {activeTab === 'visual' ? <ProgressPhotos /> : activeTab === 'bio' ? <BioReport /> : activeTab === 'charts' ? (
           <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
-             <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-6 px-6">
-                {exerciseList.map(ex => (
-                  <button 
-                    key={ex.id} 
-                    onClick={() => { setSelectedExerciseId(ex.id); if ('vibrate' in navigator) navigator.vibrate(5); }}
-                    className={`px-8 py-5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${selectedExerciseId === ex.id ? 'bg-slate-900 border-slate-900 text-white shadow-2xl' : 'bg-white border-slate-100 text-slate-400'}`}
-                  >
-                    {ex.name}
-                  </button>
-                ))}
-             </div>
-
-             {selectedExerciseId ? (
-               <ExerciseProgress 
-                 exerciseId={selectedExerciseId} 
-                 name={exerciseList.find(e => e.id === selectedExerciseId)?.name || ''} 
-               />
-             ) : (
-               <div className="py-24 text-center">
-                  <i className="fas fa-chart-line text-slate-100 text-4xl mb-6"></i>
-                  <p className="text-slate-300 text-[10px] font-black uppercase tracking-[0.2em]">Aguardando dados</p>
+             <ScreenState
+               state={exerciseListState.uiState}
+               loadingComponent={<div className="flex gap-4 overflow-x-auto no-scrollbar -mx-6 px-6"><div className="w-32 h-12 bg-slate-200 animate-pulse rounded-full" /><div className="w-32 h-12 bg-slate-200 animate-pulse rounded-full" /></div>}
+               emptyTitle="Sem dados de força"
+               emptyDescription="Complete treinos para ver seu progresso de carga aqui."
+               emptyIcon={<TrendingUp className="w-12 h-12 text-slate-200" />}
+             >
+               <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-6 px-6">
+                  {(exerciseListState.data || []).map(ex => (
+                    <button 
+                      key={ex.id} 
+                      onClick={() => { setSelectedExerciseId(ex.id); if ('vibrate' in navigator) navigator.vibrate(5); }}
+                      className={`px-8 py-5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${selectedExerciseId === ex.id ? 'bg-slate-900 border-slate-900 text-white shadow-2xl' : 'bg-white border-slate-100 text-slate-400'}`}
+                    >
+                      {ex.name}
+                    </button>
+                  ))}
                </div>
-             )}
+
+               {selectedExerciseId && (
+                 <ExerciseProgress 
+                   exerciseId={selectedExerciseId} 
+                   name={(exerciseListState.data || []).find(e => e.id === selectedExerciseId)?.name || ''} 
+                 />
+               )}
+             </ScreenState>
           </div>
         ) : (
           <div className="space-y-1">
-             {history.length === 0 ? (
-                <div className="py-20 text-center">
-                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Sem registros</p>
-                </div>
-             ) : (
-               history.map((item, idx) => (
+             <ScreenState
+               state={historyState.uiState}
+               loadingComponent={<WorkoutSkeleton />}
+               onRetry={fetchHistory}
+               emptyTitle="Sem registros"
+               emptyDescription="Seu histórico de treinos aparecerá aqui assim que você completar sua primeira sessão."
+               emptyIcon={<History className="w-12 h-12 text-slate-200" />}
+             >
+               {(historyState.data || []).map((item, idx) => (
                  <div key={item.id} className="relative">
                     <div 
                       onClick={() => selectedWorkout === item.id ? setSelectedWorkout(null) : fetchWorkoutDetails(item.id)}
-                      className={`flex justify-between items-center py-8 active:bg-slate-50 transition-colors cursor-pointer ${idx !== history.length - 1 ? 'border-b border-slate-100' : ''}`}
+                      className={`flex justify-between items-center py-8 active:bg-slate-50 transition-colors cursor-pointer ${idx !== (historyState.data || []).length - 1 ? 'border-b border-slate-100' : ''}`}
                     >
                        <div className="flex-1 min-w-0">
                           <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{item.category_name}</h4>
@@ -254,8 +264,8 @@ const HistoryView: React.FC = () => {
                       </div>
                     )}
                  </div>
-               ))
-             )}
+               ))}
+             </ScreenState>
           </div>
         )}
       </div>

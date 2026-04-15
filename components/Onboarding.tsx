@@ -4,13 +4,14 @@ import { UserProfile, ExperienceLevel, Goal, EquipmentPreference } from '../type
 import { supabase } from '../lib/supabase';
 import BodyMap from './BodyMap';
 import { GoogleGenAI, Type } from "@google/genai";
-import { notifyError } from '../lib/errorHandling';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 interface OnboardingProps {
   onComplete: (data: Partial<UserProfile>) => void;
 }
 
 const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
+  const { showError, showSuccess } = useErrorHandler();
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<Partial<UserProfile>>({
     full_name: '',
@@ -50,9 +51,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       const json = await res.json();
       if (json.secure_url) {
         setFormData({ ...formData, avatar_url: json.secure_url });
+        showSuccess('Foto enviada', 'Seu perfil está quase pronto.');
       }
     } catch (err) {
-      notifyError(err, "Erro ao subir imagem");
+      showError(err);
     } finally {
       setUploading(false);
     }
@@ -139,9 +141,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       // Inicia a geração do dossiê e notificação em background
       await notifyAdminOfNewUser(finalData, user.email || 'atleta@email.com');
 
+      showSuccess('Bem-vindo!', 'Seu perfil foi configurado com sucesso.');
       onComplete(finalData);
     } catch (err: any) {
-      notifyError(err, "Erro ao salvar perfil");
+      showError(err);
     } finally {
       setIsFinishing(false);
     }
