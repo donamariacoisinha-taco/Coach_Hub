@@ -6,7 +6,7 @@ import { useNavigation } from '../App';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { ScreenState } from './ui/ScreenState';
 import { ExerciseSkeleton } from './ui/Skeleton';
-import { useAsyncState } from '../hooks/useAsyncState';
+import { useSmartQuery } from '../hooks/useSmartQuery';
 import { 
   ChevronLeft, Search, Dumbbell, Pencil, Trash2, 
   ChevronUp, ChevronDown, Plus, X, Camera, Image as ImageIcon,
@@ -21,9 +21,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const { current } = useNavigation();
   const { showError, showSuccess } = useErrorHandler();
   
-  const exercisesState = useAsyncState<Exercise[]>([]);
-  const muscleGroupsState = useAsyncState<MuscleGroup[]>([]);
-  
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,30 +34,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const initialTab = current.params?.initialTab || 'exercises';
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const adminQuery = useSmartQuery('admin_data', async () => {
+    const [exRes, mgRes] = await Promise.all([
+      supabase.from('exercises').select('*').order('name'),
+      supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true })
+    ]);
+    
+    if (exRes.error) throw exRes.error;
+    if (mgRes.error) throw mgRes.error;
 
-  const fetchData = async () => {
-    exercisesState.setLoading(true);
-    muscleGroupsState.setLoading(true);
-    try {
-      const [exRes, mgRes] = await Promise.all([
-        supabase.from('exercises').select('*').order('name'),
-        supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true })
-      ]);
-      
-      if (exRes.error) throw exRes.error;
-      if (mgRes.error) throw mgRes.error;
+    return {
+      exercises: exRes.data as Exercise[],
+      muscleGroups: mgRes.data as MuscleGroup[]
+    };
+  }, {
+    revalidateOnFocus: true
+  });
 
-      if (exRes.data) exercisesState.setData(exRes.data);
-      if (mgRes.data) muscleGroupsState.setData(mgRes.data);
-    } catch (err) {
-      exercisesState.setError(err);
-      muscleGroupsState.setError(err);
-      showError(err);
-    }
-  };
+  const { data, uiState, isRefreshing, refresh, mutate } = adminQuery;
+  const exercises = data?.exercises || [];
+  const muscleGroups = data?.muscleGroups || [];
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -97,7 +90,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         image_url: editingExercise.image_url
       }).eq('id', editingExercise.id);
       if (error) throw error;
-      exercisesState.setData((exercisesState.data || []).map(ex => ex.id === editingExercise.id ? editingExercise : ex));
+      if (data) {
+        mutate({
+          ...data,
+          exercises: data.exercises.map(ex => ex.id === editingExercise.id ? editingExercise : ex)
+        });
+      }
       setEditingExercise(null);
       showSuccess('Exercício atualizado', 'As alterações foram salvas com sucesso.');
     } catch (err: any) {
@@ -112,7 +110,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     if (!editingMuscle || !editingMuscle.name) return;
     setSaving(true);
     try {
-      const muscleGroups = muscleGroupsState.data || [];
       // Se for subgrupo, herda o body_side do novo pai para consistência anatômica
       let side = editingMuscle.body_side || 'front';
       if (editingMuscle.parent_id) {
@@ -136,7 +133,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         const { error } = await supabase.from('muscle_groups').insert([{ ...payload, sort_order: nextOrder }]);
         if (error) throw error;
       }
-      await fetchData();
+      await refresh();
       setEditingMuscle(null);
       showSuccess('Anatomia salva', 'As configurações musculares foram atualizadas.');
     } catch (err: any) {
@@ -147,7 +144,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   };
 
   const handleMoveMuscle = async (index: number, direction: 'up' | 'down') => {
-    const muscleGroups = muscleGroupsState.data || [];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= muscleGroups.length) return;
 
@@ -156,7 +152,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
 
     if (currentItem.parent_id !== neighborItem.parent_id) return;
 
-    muscleGroupsState.setLoading(true);
+    setSaving(true);
     try {
       const currentOrder = currentItem.sort_order || 0;
       const neighborOrder = neighborItem.sort_order || 0;
@@ -165,12 +161,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       const { error: err2 } = await supabase.from('muscle_groups').update({ sort_order: currentOrder }).eq('id', neighborItem.id);
       
       if (err1 || err2) throw new Error("Falha na reordenação");
-      await fetchData();
+      await refresh();
       if ('vibrate' in navigator) navigator.vibrate(10);
     } catch (err: any) {
       showError(err);
     } finally {
-      muscleGroupsState.setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -187,7 +183,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       if (error) throw error;
       if (count === 0) throw new Error("Permissão negada.");
 
-      exercisesState.setData((exercisesState.data || []).filter(item => item.id !== ex.id));
+      if (data) {
+        mutate({
+          ...data,
+          exercises: data.exercises.filter(item => item.id !== ex.id)
+        });
+      }
       if ('vibrate' in navigator) navigator.vibrate([10, 30]);
       showSuccess('Exercício removido', 'O exercício foi excluído com sucesso.');
     } catch (err: any) {
@@ -203,7 +204,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     try {
       const { error } = await supabase.from('muscle_groups').delete().eq('id', id);
       if (error) throw error;
-      muscleGroupsState.setData((muscleGroupsState.data || []).filter(m => m.id !== id));
+      if (data) {
+        mutate({
+          ...data,
+          muscleGroups: data.muscleGroups.filter(m => m.id !== id)
+        });
+      }
       showSuccess('Grupo removido', 'O grupo muscular foi excluído.');
     } catch (err: any) {
       showError(err);
@@ -213,8 +219,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   };
 
   const filteredExercisesList = useMemo(() => {
-    const exercises = exercisesState.data || [];
-    const muscleGroups = muscleGroupsState.data || [];
     return exercises.filter(ex => {
       const matchesStatus = statusFilter === 'all' ? true : (statusFilter === 'active' ? ex.is_active : !ex.is_active);
       const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase()) || ex.muscle_group.toLowerCase().includes(searchQuery.toLowerCase());
@@ -223,18 +227,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       const matchesSide = selectedSide === 'all' || mg?.body_side === selectedSide;
       return matchesStatus && matchesSearch && matchesMuscle && matchesSide;
     });
-  }, [exercisesState.data, statusFilter, searchQuery, selectedMuscle, selectedSide, muscleGroupsState.data]);
+  }, [exercises, statusFilter, searchQuery, selectedMuscle, selectedSide, muscleGroups]);
 
   const parentMuscleGroups = useMemo(() => {
-    const muscleGroups = muscleGroupsState.data || [];
     return muscleGroups.filter(mg => !mg.parent_id && (selectedSide === 'all' || mg.body_side === selectedSide));
-  }, [muscleGroupsState.data, selectedSide]);
+  }, [muscleGroups, selectedSide]);
 
   const allPossibleParents = useMemo(() => {
-    const muscleGroups = muscleGroupsState.data || [];
     // Apenas grupos sem parent_id podem ser pais
     return muscleGroups.filter(mg => !mg.parent_id);
-  }, [muscleGroupsState.data]);
+  }, [muscleGroups]);
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] flex flex-col text-slate-900">
@@ -310,9 +312,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             </div>
 
             <ScreenState
-              state={exercisesState.uiState}
+              state={uiState}
+              isRefreshing={isRefreshing}
               loadingComponent={<ExerciseSkeleton />}
-              onRetry={fetchData}
+              onRetry={refresh}
               emptyTitle="Nenhum exercício"
               emptyDescription="Não encontramos exercícios com os filtros selecionados."
               emptyIcon={<Dumbbell className="w-12 h-12 text-slate-200" />}
@@ -359,9 +362,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             </div>
 
             <ScreenState
-              state={muscleGroupsState.uiState}
+              state={uiState}
+              isRefreshing={isRefreshing}
               loadingComponent={<ExerciseSkeleton />}
-              onRetry={fetchData}
+              onRetry={refresh}
               emptyTitle="Anatomia vazia"
               emptyDescription="Comece definindo os grupos musculares principais."
               emptyIcon={<Activity className="w-12 h-12 text-slate-200" />}
@@ -372,8 +376,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                     <div className="flex items-center justify-between group">
                       <div className="flex items-center gap-6">
                         <div className="flex flex-col gap-2 text-slate-200">
-                          <button onClick={() => handleMoveMuscle((muscleGroupsState.data || []).indexOf(mg), 'up')} className="active:text-blue-600 transition-colors"><ChevronUp className="w-4 h-4" /></button>
-                          <button onClick={() => handleMoveMuscle((muscleGroupsState.data || []).indexOf(mg), 'down')} className="active:text-blue-600 transition-colors"><ChevronDown className="w-4 h-4" /></button>
+                          <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(mg), 'up')} className="active:text-blue-600 transition-colors"><ChevronUp className="w-4 h-4" /></button>
+                          <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(mg), 'down')} className="active:text-blue-600 transition-colors"><ChevronDown className="w-4 h-4" /></button>
                         </div>
                         <div>
                           <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">{mg.name}</h4>
@@ -388,12 +392,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                     </div>
 
                     <div className="ml-14 space-y-1">
-                      {(muscleGroupsState.data || []).filter(sub => sub.parent_id === mg.id).map((sub, sIdx) => (
+                      {muscleGroups.filter(sub => sub.parent_id === mg.id).map((sub, sIdx) => (
                         <div key={sub.id} className="flex items-center justify-between py-4 group">
                           <div className="flex items-center gap-4">
                              <div className="flex flex-col gap-1 text-slate-200">
-                                <button onClick={() => handleMoveMuscle((muscleGroupsState.data || []).indexOf(sub), 'up')} className="active:text-blue-600 transition-colors"><ChevronUp className="w-3 h-3" /></button>
-                                <button onClick={() => handleMoveMuscle((muscleGroupsState.data || []).indexOf(sub), 'down')} className="active:text-blue-600 transition-colors"><ChevronDown className="w-3 h-3" /></button>
+                                <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(sub), 'up')} className="active:text-blue-600 transition-colors"><ChevronUp className="w-3 h-3" /></button>
+                                <button onClick={() => handleMoveMuscle(muscleGroups.indexOf(sub), 'down')} className="active:text-blue-600 transition-colors"><ChevronDown className="w-3 h-3" /></button>
                              </div>
                              <h5 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">{sub.name}</h5>
                           </div>

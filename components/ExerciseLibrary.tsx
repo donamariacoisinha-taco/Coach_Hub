@@ -7,14 +7,12 @@ import { useNavigation } from '../App';
 import { ExerciseProgress } from './ExerciseProgress';
 import { ScreenState } from './ui/ScreenState';
 import { ExerciseSkeleton } from './ui/Skeleton';
-import { useAsyncState } from '../hooks/useAsyncState';
+import { useSmartQuery } from '../hooks/useSmartQuery';
 import { Search, MoreVertical, Info, History, TrendingUp, X, ChevronRight, Heart, Settings, Sparkles, Dumbbell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const ExerciseLibrary: React.FC = () => {
   const { navigate } = useNavigation();
-  const exercisesState = useAsyncState<Exercise[]>([]);
-  const muscleGroupsState = useAsyncState<MuscleGroup[]>([]);
   const [favoriteExerciseIds, setFavoriteExerciseIds] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   
@@ -25,54 +23,49 @@ const ExerciseLibrary: React.FC = () => {
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  const libraryQuery = useSmartQuery('exercise_library', async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Usuário não autenticado");
+
+    const exQuery = supabase.from('exercises').select('*').order('name');
+    const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single();
+    const isAdminUser = !!profile?.is_admin;
+
+    if (!isAdminUser) {
+      exQuery.eq('is_active', true);
+    }
+
+    const [exRes, mgRes, favRes] = await Promise.all([
+      exQuery,
+      supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true }),
+      supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', user.id)
+    ]);
+
+    if (exRes.error) throw exRes.error;
+    if (mgRes.error) throw mgRes.error;
+
+    return {
+      exercises: exRes.data as Exercise[],
+      muscleGroups: mgRes.data as MuscleGroup[],
+      favorites: new Set((favRes.data || []).map(f => f.exercise_id)),
+      isAdmin: isAdminUser
+    };
+  }, {
+    revalidateOnFocus: true,
+    refreshInterval: 300000 // 5 minutes
+  });
+
+  const { data, uiState, isRefreshing, refresh } = libraryQuery;
+  const exercises = data?.exercises || [];
+  const muscleGroups = data?.muscleGroups || [];
 
   useEffect(() => {
-    const init = async () => {
-      await checkAdmin();
-      await fetchData();
-    };
-    init();
-  }, []);
-
-  const checkAdmin = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single();
-      setIsAdmin(!!data?.is_admin);
+    if (data) {
+      setFavoriteExerciseIds(data.favorites);
+      setIsAdmin(data.isAdmin);
     }
-  };
-
-  const fetchData = async () => {
-    exercisesState.setLoading(true);
-    muscleGroupsState.setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const exQuery = supabase.from('exercises').select('*').order('name');
-      const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single();
-      if (!profile?.is_admin) {
-        exQuery.eq('is_active', true);
-      }
-
-      const [exRes, mgRes, favRes] = await Promise.all([
-        exQuery,
-        supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true }),
-        supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', user.id)
-      ]);
-
-      if (exRes.error) throw exRes.error;
-      if (mgRes.error) throw mgRes.error;
-
-      if (exRes.data) exercisesState.setData(exRes.data);
-      if (mgRes.data) muscleGroupsState.setData(mgRes.data);
-      if (favRes.data) setFavoriteExerciseIds(new Set(favRes.data.map(f => f.exercise_id)));
-    } catch (err) { 
-      exercisesState.setError(err);
-      muscleGroupsState.setError(err);
-    }
-  };
+  }, [data]);
 
   const toggleFavorite = async (e: React.MouseEvent, exerciseId: string) => {
     e.stopPropagation();
@@ -95,9 +88,9 @@ const ExerciseLibrary: React.FC = () => {
     setLoadingAi(true);
     setAiTip(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       const prompt = `Dê uma dica biomecânica avançada (curta) para o exercício: ${exName}.`;
-      const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+      const response = await ai.models.generateContent({ model: 'gemini-1.5-flash', contents: prompt });
       setAiTip(response.text || "Foque na técnica.");
     } catch (err) { setAiTip("Conexão mente-músculo."); }
     finally { setLoadingAi(false); }
@@ -109,8 +102,6 @@ const ExerciseLibrary: React.FC = () => {
   };
 
   const filteredExercises = useMemo(() => {
-    const exercises = exercisesState.data || [];
-    const muscleGroups = muscleGroupsState.data || [];
     return exercises.filter(ex => {
       const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase());
       const mg = muscleGroups.find(m => m.name === ex.muscle_group);
@@ -127,12 +118,11 @@ const ExerciseLibrary: React.FC = () => {
 
       return matchesSearch && matchesSide && isParentMatch && matchesStatus;
     }).sort((a, b) => favoriteExerciseIds.has(b.id) ? -1 : 1);
-  }, [exercisesState.data, searchQuery, selectedMuscle, selectedSide, muscleGroupsState.data, favoriteExerciseIds, isAdmin, adminActiveFilter]);
+  }, [exercises, searchQuery, selectedMuscle, selectedSide, muscleGroups, favoriteExerciseIds, isAdmin, adminActiveFilter]);
 
   const parentMuscleGroups = useMemo(() => {
-    const muscleGroups = muscleGroupsState.data || [];
     return muscleGroups.filter(mg => !mg.parent_id && (selectedSide === 'all' || !mg.body_side || mg.body_side === selectedSide));
-  }, [muscleGroupsState.data, selectedSide]);
+  }, [muscleGroups, selectedSide]);
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] pb-32">
@@ -195,9 +185,10 @@ const ExerciseLibrary: React.FC = () => {
 
         <div className="space-y-1">
           <ScreenState
-            state={exercisesState.uiState}
+            state={uiState}
+            isRefreshing={isRefreshing}
             loadingComponent={<ExerciseSkeleton />}
-            onRetry={fetchData}
+            onRetry={refresh}
             emptyTitle="Biblioteca vazia"
             emptyDescription="Não encontramos exercícios com os filtros selecionados."
             emptyIcon={<Dumbbell className="w-12 h-12 text-slate-200" />}

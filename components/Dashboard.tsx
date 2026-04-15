@@ -1,75 +1,100 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { WorkoutCategory, UserProfile, WorkoutFolder } from '../types';
+import { WorkoutCategory, UserProfile, WorkoutFolder, WorkoutHistory } from '../types';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '../App';
 import { MoreVertical, Plus, Shield, Flame, Play, Edit2, Trash2, FolderPlus, Dumbbell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScreenState } from './ui/ScreenState';
 import { DashboardSkeleton } from './ui/Skeleton';
-import { useAsyncState } from '../hooks/useAsyncState';
+import { useSmartQuery } from '../hooks/useSmartQuery';
+import { usePrefetch } from '../hooks/usePrefetch';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import { usePredictive } from '../hooks/usePredictive';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
   const { showError } = useErrorHandler();
+  const prefetch = usePrefetch();
   
-  const workoutsState = useAsyncState<WorkoutCategory[]>([]);
-  const [folders, setFolders] = useState<WorkoutFolder[]>([]);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(initialFolderId || null);
-  const [lastWorkout, setLastWorkout] = useState<WorkoutCategory | null>(null);
-  const [stats, setStats] = useState({ sessions: 0 });
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const dashboardQuery = useSmartQuery('dashboard_data', async () => {
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    if (authError || !session?.user) throw new Error("Sessão expirada.");
 
-  const fetchData = async () => {
-    workoutsState.setLoading(true);
-    try {
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      if (authError || !session?.user) throw new Error("Sessão expirada.");
+    const userId = session.user.id;
 
-      const userId = session.user.id;
+    const [profileRes, foldersRes, workoutsRes, historyRes] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+      supabase.from('workout_folders').select('id, name').eq('user_id', userId).order('name'),
+      supabase.from('workout_categories').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('workout_history').select('*').eq('user_id', userId).not('completed_at', 'is', null).order('completed_at', { ascending: false })
+    ]);
 
-      const [profileRes, foldersRes, workoutsRes, historyRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-        supabase.from('workout_folders').select('id, name').eq('user_id', userId).order('name'),
-        supabase.from('workout_categories').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('workout_history').select('*').eq('user_id', userId).not('completed_at', 'is', null).order('completed_at', { ascending: false })
-      ]);
+    if (profileRes.error) throw profileRes.error;
+    if (foldersRes.error) throw foldersRes.error;
+    if (workoutsRes.error) throw workoutsRes.error;
+    if (historyRes.error) throw historyRes.error;
 
-      if (profileRes.data) setProfile(profileRes.data);
-      if (foldersRes.data) setFolders(foldersRes.data);
-      if (workoutsRes.data) workoutsState.setData(workoutsRes.data);
-      
-      if (historyRes.data) {
-        setStats({ sessions: historyRes.data.length });
-        if (historyRes.data.length > 0 && workoutsRes.data) {
-          const last = workoutsRes.data.find(w => w.id === historyRes.data[0].category_id);
-          if (last) setLastWorkout(last);
-        }
-      }
-
-    } catch (err: any) {
-      workoutsState.setError(err);
-      showError(err);
+    let lastWorkout: WorkoutCategory | null = null;
+    if (historyRes.data && historyRes.data.length > 0 && workoutsRes.data) {
+      lastWorkout = workoutsRes.data.find(w => w.id === historyRes.data[0].category_id) || null;
     }
-  };
+
+    return {
+      profile: profileRes.data as UserProfile | null,
+      folders: foldersRes.data as WorkoutFolder[],
+      workouts: workoutsRes.data as WorkoutCategory[],
+      history: historyRes.data as WorkoutHistory[],
+      stats: { sessions: historyRes.data?.length || 0 },
+      lastWorkout
+    };
+  }, {
+    revalidateOnFocus: true,
+    refreshInterval: 60000 // Refresh every minute
+  });
+
+  const { data, uiState, isRefreshing, isLoading, refresh, mutate } = dashboardQuery;
+  const profile = data?.profile;
+  const folders = data?.folders || [];
+  const workouts = data?.workouts || [];
+  const history = data?.history || [];
+  const stats = data?.stats || { sessions: 0 };
+  const lastWorkout = data?.lastWorkout;
+
+  const { nextAction } = usePredictive(profile || null, history, workouts);
 
   const filteredWorkouts = useMemo(() => {
-    const workouts = workoutsState.data || [];
     if (activeFolderId === null) return workouts;
     return workouts.filter(w => w.folder_id === activeFolderId || (!w.folder_id && activeFolderId === 'uncategorized'));
-  }, [workoutsState.data, activeFolderId]);
+  }, [workouts, activeFolderId]);
+
+  const handlePrefetchWorkout = (id: string) => {
+    prefetch(`workout_init_${id}`, async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const [catRes, exRes] = await Promise.all([
+        supabase.from('workout_categories').select('*').eq('id', id).single(),
+        supabase.from('workout_exercises').select(`*, exercises (*)`).eq('category_id', id).order('sort_order')
+      ]);
+      
+      return { category: catRes.data, exercises: exRes.data };
+    });
+  };
 
   const handleDeleteWorkout = async (id: string) => {
     if (!confirm("Deseja excluir este protocolo?")) return;
     try {
       await supabase.from('workout_categories').delete().eq('id', id);
-      workoutsState.setData((workoutsState.data || []).filter(w => w.id !== id));
+      if (data) {
+        mutate({
+          ...data,
+          workouts: data.workouts.filter(w => w.id !== id)
+        });
+      }
       setActiveMenuId(null);
     } catch (err) {
       showError(err);
@@ -126,30 +151,35 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         
         {/* QUICK START - PREMIUM LIGHT */}
         <AnimatePresence>
-          {lastWorkout && (
+          {nextAction && (
             <motion.section 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-16"
             >
               <div className="w-full bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm flex flex-col items-start">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">Sugerido para hoje</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">
+                  {nextAction.type === 'start_workout' ? 'Hoje para você' : 'Sugestão'}
+                </p>
                 
                 <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase leading-tight mb-2">
-                  {lastWorkout.name}
+                  {nextAction.title}
                 </h3>
                 
                 <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-10">
-                  Continuar de onde parou • {lastWorkout.description || 'Treino'}
+                  {nextAction.description}
                 </p>
 
-                <button 
-                  onClick={() => navigate('workout', { id: lastWorkout.id })}
-                  className="w-full py-6 bg-slate-900 text-white rounded-full font-black uppercase text-[11px] tracking-[0.4em] active:scale-[0.97] transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3"
-                >
-                  <Play size={16} fill="currentColor" />
-                  Iniciar Treino
-                </button>
+                {nextAction.suggestedWorkoutId && (
+                  <button 
+                    onClick={() => navigate('workout', { id: nextAction.suggestedWorkoutId })}
+                    onMouseEnter={() => handlePrefetchWorkout(nextAction.suggestedWorkoutId!)}
+                    className="w-full py-6 bg-slate-900 text-white rounded-full font-black uppercase text-[11px] tracking-[0.4em] active:scale-[0.97] transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3"
+                  >
+                    <Play size={16} fill="currentColor" />
+                    {nextAction.type === 'start_workout' ? 'Iniciar Treino' : 'Retomar Agora'}
+                  </button>
+                )}
               </div>
             </motion.section>
           )}
@@ -196,9 +226,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           {/* List iOS Style - Refined */}
           <div className="space-y-2">
             <ScreenState
-              state={workoutsState.uiState}
+              state={uiState}
+              isRefreshing={isRefreshing}
               loadingComponent={<DashboardSkeleton />}
-              onRetry={fetchData}
+              onRetry={refresh}
               emptyIcon={<Dumbbell className="w-12 h-12 text-slate-200" />}
               emptyTitle="Nenhum protocolo"
               emptyDescription="Você ainda não criou nenhum treino nesta pasta."
@@ -209,6 +240,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 <div key={workout.id} className="relative group">
                   <div 
                     onClick={() => navigate('workout', { id: workout.id })}
+                    onMouseEnter={() => handlePrefetchWorkout(workout.id)}
                     className={`flex items-center justify-between py-10 px-4 rounded-[2rem] hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all cursor-pointer group-active:scale-[0.98] ${
                       idx !== filteredWorkouts.length - 1 ? 'border-b border-slate-50' : ''
                     }`}

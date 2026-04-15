@@ -16,7 +16,7 @@ import { supabase } from "../lib/supabase";
 import { useNavigation } from "../App";
 import { useErrorHandler } from "../hooks/useErrorHandler";
 import { ScreenState } from "./ui/ScreenState";
-import { useAsyncState } from "../hooks/useAsyncState";
+import { useSmartQuery } from "../hooks/useSmartQuery";
 import { WorkoutExercise, SetType, LastSetData, ProgressionInput } from "../types";
 import { getPreSetHint } from "../lib/preSetEngine";
 import { getEmotionalFeedback } from "../lib/feedbackEngine";
@@ -57,16 +57,81 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { showError, showSuccess } = useErrorHandler();
   
   // Core State
-  const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
   const [historyId, setHistoryId] = useState<string | null>(null);
-  const playerState = useAsyncState<boolean>(false);
   const [saving, setSaving] = useState(false);
-  
+
+  const playerQuery = useSmartQuery(`workout_init_${workoutId}`, async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Usuário não autenticado");
+
+    const [catRes, exRes, partialRes] = await Promise.all([
+      supabase.from('workout_categories').select('*').eq('id', workoutId).single(),
+      supabase.from('workout_exercises').select(`*, exercises (*)`).eq('category_id', workoutId).order('sort_order'),
+      supabase.from('partial_workout_sessions').select('*').eq('user_id', user.id).eq('workout_id', workoutId).maybeSingle()
+    ]);
+
+    if (catRes.error) throw catRes.error;
+    if (exRes.error) throw exRes.error;
+
+    const loadedExercises = (exRes.data || []).filter((item: any) => item.exercises).map((item: any) => ({
+      ...item,
+      exercise_name: item.exercises.name,
+      muscle_group: item.exercises.muscle_group,
+      image_url: item.exercises.image_url
+    }));
+
+    let hId = null;
+    let sTime = Date.now();
+    let cIndex = 0;
+    let cSet = 1;
+
+    if (partialRes.data) {
+      hId = partialRes.data.history_id;
+      sTime = new Date(partialRes.data.start_time || Date.now()).getTime();
+      cIndex = partialRes.data.current_index || 0;
+      cSet = partialRes.data.current_set || 1;
+    } else {
+      const { data: newHistory, error: historyError } = await supabase.from('workout_history').insert([{ 
+        user_id: user.id, 
+        category_id: workoutId, 
+        category_name: catRes.data?.name || 'Treino' 
+      }]).select().single();
+      
+      if (historyError) throw historyError;
+
+      hId = newHistory?.id;
+      sTime = Date.now();
+      
+      await supabase.from('partial_workout_sessions').upsert({ 
+        user_id: user.id, 
+        workout_id: workoutId, 
+        history_id: newHistory?.id, 
+        exercises_json: loadedExercises,
+        start_time: new Date().toISOString(),
+        updated_at: new Date().toISOString() 
+      });
+    }
+
+    return {
+      exercises: loadedExercises,
+      historyId: hId,
+      startTime: sTime,
+      currentIndex: cIndex,
+      currentSet: cSet
+    };
+  }, {
+    revalidateOnFocus: false // Don't revalidate player on focus to avoid state jumps
+  });
+
+  const { data: initData, uiState, isRefreshing, isLoading, refresh } = playerQuery;
+  const exercises = initData?.exercises || [];
+
   // Execution State
   const [isResting, setIsResting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(90);
+  const [restOvertime, setRestOvertime] = useState(0);
   const [weight, setWeight] = useState(0);
   const [reps, setReps] = useState(0);
   const [rpe, setRpe] = useState(8);
@@ -99,74 +164,22 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   useEffect(() => {
     if (!isResting) return;
     if (timeLeft <= 0) {
-      handleNextStep();
+      setRestOvertime(prev => prev + 1);
       return;
     }
     const timer = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearTimeout(timer);
   }, [isResting, timeLeft]);
-
-  // Initial Fetch
+  
+  // Sync internal state with query data once loaded
   useEffect(() => {
-    const init = async () => {
-      playerState.setLoading(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const [catRes, exRes, partialRes] = await Promise.all([
-          supabase.from('workout_categories').select('*').eq('id', workoutId).single(),
-          supabase.from('workout_exercises').select(`*, exercises (*)`).eq('category_id', workoutId).order('sort_order'),
-          supabase.from('partial_workout_sessions').select('*').eq('user_id', user.id).eq('workout_id', workoutId).maybeSingle()
-        ]);
-
-        if (catRes.error) throw catRes.error;
-        if (exRes.error) throw exRes.error;
-
-        if (exRes.data) {
-          const loadedExercises = exRes.data.filter((item: any) => item.exercises).map((item: any) => ({
-            ...item,
-            exercise_name: item.exercises.name,
-            muscle_group: item.exercises.muscle_group,
-            image_url: item.exercises.image_url
-          }));
-          setExercises(loadedExercises);
-
-          if (partialRes.data) {
-            setHistoryId(partialRes.data.history_id);
-            setStartTime(new Date(partialRes.data.start_time || Date.now()).getTime());
-            setCurrentIndex(partialRes.data.current_index || 0);
-            setCurrentSet(partialRes.data.current_set || 1);
-          } else {
-            const { data: newHistory, error: historyError } = await supabase.from('workout_history').insert([{ 
-              user_id: user.id, 
-              category_id: workoutId, 
-              category_name: catRes.data?.name || 'Treino' 
-            }]).select().single();
-            
-            if (historyError) throw historyError;
-
-            setHistoryId(newHistory?.id);
-            setStartTime(Date.now());
-            
-            await supabase.from('partial_workout_sessions').upsert({ 
-              user_id: user.id, 
-              workout_id: workoutId, 
-              history_id: newHistory?.id, 
-              exercises_json: loadedExercises,
-              start_time: new Date().toISOString(),
-              updated_at: new Date().toISOString() 
-            });
-          }
-        }
-        playerState.setData(true);
-      } catch (err) {
-        playerState.setError(err);
-        showError(err);
-      }
-    };
-    init();
-  }, [workoutId]);
+    if (initData) {
+      setHistoryId(initData.historyId);
+      setStartTime(initData.startTime);
+      setCurrentIndex(initData.currentIndex);
+      setCurrentSet(initData.currentSet);
+    }
+  }, [initData]);
 
   // Fetch Last Set Data
   const fetchLastSet = async (exerciseId: string) => {
@@ -295,6 +308,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const handleNextStep = () => {
     setIsResting(false);
+    setRestOvertime(0);
     if (!currentEx) return;
     
     const totalSets = currentEx.sets_json?.length || 3;
@@ -339,7 +353,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         />
       )}
       <ScreenState
-        state={playerState.uiState}
+        state={uiState}
+        isRefreshing={isRefreshing}
         loadingComponent={
           <div className="min-h-screen bg-[#F7F8FA] flex flex-col items-center justify-center p-12 text-center">
             <motion.div 
@@ -466,6 +481,33 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   {formatTime(timeLeft)}
                 </div>
                 <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300 mt-8">Descanso</p>
+
+                {/* OVERTIME SUGGESTION */}
+                <AnimatePresence>
+                  {restOvertime > 60 && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-100"
+                    >
+                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Equipamento ocupado?</p>
+                      <p className="text-xs text-blue-900 font-medium mb-4">Você pode pular este exercício e voltar nele depois.</p>
+                      <button 
+                        onClick={() => {
+                          if (currentIndex < exercises.length - 1) {
+                            setCurrentIndex(prev => prev + 1);
+                            setCurrentSet(1);
+                            setIsResting(false);
+                            setRestOvertime(0);
+                          }
+                        }}
+                        className="text-[10px] font-black text-blue-600 uppercase tracking-widest border-b border-blue-600 pb-1"
+                      >
+                        Pular Exercício
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* TIMER CONTROLS */}
                 <div className="flex items-center gap-10 mt-16">

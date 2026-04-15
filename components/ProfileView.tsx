@@ -6,7 +6,7 @@ import { useNavigation } from '../App';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { ScreenState } from './ui/ScreenState';
 import { WorkoutSkeleton } from './ui/Skeleton';
-import { useAsyncState } from '../hooks/useAsyncState';
+import { useSmartQuery } from '../hooks/useSmartQuery';
 import { TrendingUp, Plus, Edit2, Trash2, ChevronLeft, User, Sun, Moon, X, ChartLine } from 'lucide-react';
 
 interface ProfileViewProps {
@@ -19,9 +19,22 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
   const { showError, showSuccess } = useErrorHandler();
   const [activeTab, setActiveTab] = useState<'profile' | 'measurements' | 'settings'>('profile');
   const [saving, setSaving] = useState(false);
-  const measurementsState = useAsyncState<BodyMeasurement[]>([]);
   const [showMeasureForm, setShowMeasureForm] = useState(false);
   const [editingMeasureId, setEditingMeasureId] = useState<string | null>(null);
+
+  const measurementsQuery = useSmartQuery('body_measurements', async () => {
+    const { data, error } = await supabase
+      .from('body_measurements')
+      .select('*')
+      .order('measured_at', { ascending: false });
+    
+    if (error) throw error;
+    return data as BodyMeasurement[];
+  }, {
+    revalidateOnFocus: true
+  });
+
+  const { data: measurements = [], uiState, isRefreshing, refresh } = measurementsQuery;
   
   const initialMeasureState: Partial<BodyMeasurement> = {
     measured_at: new Date().toISOString().split('T')[0],
@@ -64,25 +77,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
     }
   }, [newMeasure.weight, newMeasure.body_fat_pct, newMeasure.muscle_rate_pct, showMeasureForm]);
 
-  useEffect(() => {
-    fetchMeasurements();
-  }, []);
-
-  const fetchMeasurements = async () => {
-    measurementsState.setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('body_measurements')
-        .select('*')
-        .order('measured_at', { ascending: false });
-      
-      if (error) throw error;
-      if (data) measurementsState.setData(data);
-    } catch (err) {
-      measurementsState.setError(err);
-    }
-  };
-
   const formatDisplayDate = (dateStr: string) => {
     if (!dateStr) return 'N/A';
     const [year, month, day] = dateStr.split('-');
@@ -100,7 +94,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
     try {
       const { error } = await supabase.from('body_measurements').delete().eq('id', id);
       if (error) throw error;
-      fetchMeasurements();
+      refresh();
     } catch (err: any) { showError(err); }
   };
 
@@ -131,7 +125,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
       
       if (error) throw error;
       
-      const latest = measurementsState.data?.[0];
+      const latest = measurements[0];
       if (!latest || new Date(newMeasure.measured_at!) >= new Date(latest.measured_at)) {
         await supabase.from('profiles').update({ weight: newMeasure.weight }).eq('id', user.id);
       }
@@ -139,7 +133,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
       if ('vibrate' in navigator) navigator.vibrate(50);
       setShowMeasureForm(false);
       setEditingMeasureId(null);
-      fetchMeasurements();
+      refresh();
       onUpdate();
       showSuccess('Registro salvo', 'Sua evolução foi atualizada com sucesso.');
     } catch (err: any) {
@@ -161,7 +155,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
   };
 
   const getTrendIcon = (currentIndex: number) => {
-    const measurements = measurementsState.data || [];
     if (currentIndex >= measurements.length - 1) return null;
     const current = measurements[currentIndex].weight;
     const previous = measurements[currentIndex + 1].weight;
@@ -213,7 +206,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
                   <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{profile.full_name || 'Atleta'}</h3>
                 </div>
                 <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">
-                  {measurementsState.data?.[0] ? formatDisplayDate(measurementsState.data[0].measured_at) : 'Sem registros'}
+                  {measurements[0] ? formatDisplayDate(measurements[0].measured_at) : 'Sem registros'}
                 </p>
               </div>
 
@@ -228,7 +221,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
                 </div>
                 <div className="space-y-2">
                   <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Gordura</p>
-                  <p className="text-2xl font-black text-blue-600 tracking-tighter">{measurementsState.data?.[0]?.body_fat_pct || 0}<span className="text-[10px] ml-0.5">%</span></p>
+                  <p className="text-2xl font-black text-blue-600 tracking-tighter">{measurements[0]?.body_fat_pct || 0}<span className="text-[10px] ml-0.5">%</span></p>
                 </div>
               </div>
             </div>
@@ -244,17 +237,18 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
         ) : activeTab === 'measurements' ? (
           <div className="space-y-1">
              <ScreenState
-               state={measurementsState.uiState}
+               state={uiState}
+               isRefreshing={isRefreshing}
                loadingComponent={<WorkoutSkeleton />}
-               onRetry={fetchMeasurements}
+               onRetry={refresh}
                emptyTitle="Nenhum registro"
                emptyDescription="Acompanhe sua evolução registrando suas medidas regularmente."
                emptyIcon={<ChartLine className="w-12 h-12 text-slate-200" />}
              >
-               {(measurementsState.data || []).map((m, idx) => (
+               {measurements.map((m, idx) => (
                  <div 
                   key={m.id} 
-                  className={`flex items-center justify-between py-6 active:bg-slate-50 transition-colors ${idx !== (measurementsState.data || []).length - 1 ? 'border-b border-slate-100' : ''}`}
+                  className={`flex items-center justify-between py-6 active:bg-slate-50 transition-colors ${idx !== measurements.length - 1 ? 'border-b border-slate-100' : ''}`}
                  >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
