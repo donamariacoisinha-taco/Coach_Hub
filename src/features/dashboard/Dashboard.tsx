@@ -31,7 +31,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     refreshInterval: 60000
   });
 
-  const { data, uiState, isRefreshing, refresh, mutate } = dashboardQuery;
+  const { data, status, isFetching, refresh, mutate } = dashboardQuery;
   const profile = data?.profile;
   const folders = data?.folders || [];
   const workouts = data?.workouts || [];
@@ -160,6 +160,9 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             </h2>
             <button 
               onClick={() => navigate('editor')}
+              onMouseEnter={() => prefetch('editor_init_new', async () => {
+                return { workout: null, exercises: [] };
+              })}
               className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors"
             >
               <span className="text-[9px] font-black uppercase tracking-widest">Novo</span>
@@ -191,15 +194,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
           <div className="space-y-2">
             <ScreenState
-              state={uiState}
-              isRefreshing={isRefreshing}
-              loadingComponent={<DashboardSkeleton />}
+              status={status}
+              isFetching={isFetching}
+              skeleton={<DashboardSkeleton />}
               onRetry={refresh}
-              emptyIcon={<Dumbbell className="w-12 h-12 text-slate-200" />}
-              emptyTitle="Nenhum protocolo"
-              emptyDescription="Você ainda não criou nenhum treino nesta pasta."
-              onEmptyAction={() => navigate('editor')}
-              emptyActionLabel="Criar Treino"
             >
               {filteredWorkouts.map((workout, idx) => (
                 <div key={workout.id} className="relative group">
@@ -252,6 +250,9 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         </button>
                         <button 
                           onClick={() => navigate('editor', { id: workout.id })}
+                          onMouseEnter={() => prefetch(`editor_init_${workout.id}`, async () => {
+                            return workoutApi.getWorkoutEditorData(workout.id);
+                          })}
                           className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
                         >
                           <Edit2 size={14} /> Editar

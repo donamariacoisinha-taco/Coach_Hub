@@ -80,9 +80,16 @@ export const ErrorProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       <ErrorToast 
         error={activeError} 
         onClose={clearError} 
-        onRetry={activeError?.retryable ? () => {
-          // Aqui poderíamos disparar um evento global de retry ou apenas fechar e deixar o componente tentar de novo
+        onRetry={lastFailedAction ? async () => {
+          const action = lastFailedAction;
           clearError();
+          try {
+            await action();
+            setRetryCount(0);
+            setLastFailedAction(null);
+          } catch (err) {
+            showError(err, action);
+          }
         } : undefined}
       />
     </ErrorContext.Provider>

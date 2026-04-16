@@ -1,7 +1,7 @@
 
 import { useState, useMemo } from 'react';
-import { UIState } from '../components/ui/ScreenState';
-import { AppErrorType, mapError } from '../lib/errorHandling';
+import { UIStatus } from '../components/ui/ScreenState';
+import { mapError } from '../lib/errorHandling';
 
 interface AsyncState<T> {
   data: T | null;
@@ -18,7 +18,7 @@ export function useAsyncState<T>(initialData: T | null = null) {
     isEmpty: false
   });
 
-  const uiState = useMemo((): UIState => {
+  const status = useMemo((): UIStatus => {
     if (state.loading) return 'loading';
     if (state.error) return 'error';
     if (state.isEmpty || !state.data || (Array.isArray(state.data) && state.data.length === 0)) return 'empty';
@@ -54,7 +54,7 @@ export function useAsyncState<T>(initialData: T | null = null) {
 
   return {
     ...state,
-    uiState,
+    status,
     errorDetails,
     setData,
     setLoading,

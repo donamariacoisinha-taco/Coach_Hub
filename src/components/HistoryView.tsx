@@ -148,11 +148,8 @@ const HistoryView: React.FC = () => {
         {activeTab === 'visual' ? <ProgressPhotos /> : activeTab === 'bio' ? <BioReport /> : activeTab === 'charts' ? (
           <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
              <ScreenState
-               state={exerciseListState.uiState}
-               loadingComponent={<div className="flex gap-4 overflow-x-auto no-scrollbar -mx-6 px-6"><div className="w-32 h-12 bg-slate-200 animate-pulse rounded-full" /><div className="w-32 h-12 bg-slate-200 animate-pulse rounded-full" /></div>}
-               emptyTitle="Sem dados de força"
-               emptyDescription="Complete treinos para ver seu progresso de carga aqui."
-               emptyIcon={<TrendingUp className="w-12 h-12 text-slate-200" />}
+               status={exerciseListState.status}
+               skeleton={<div className="flex gap-4 overflow-x-auto no-scrollbar -mx-6 px-6"><div className="w-32 h-12 bg-slate-200 animate-pulse rounded-full" /><div className="w-32 h-12 bg-slate-200 animate-pulse rounded-full" /></div>}
              >
                <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-6 px-6">
                   {(exerciseListState.data || []).map(ex => (
@@ -177,12 +174,9 @@ const HistoryView: React.FC = () => {
         ) : (
           <div className="space-y-1">
              <ScreenState
-               state={historyState.uiState}
-               loadingComponent={<WorkoutSkeleton />}
+               status={historyState.status}
+               skeleton={<WorkoutSkeleton />}
                onRetry={fetchHistory}
-               emptyTitle="Sem registros"
-               emptyDescription="Seu histórico de treinos aparecerá aqui assim que você completar sua primeira sessão."
-               emptyIcon={<History className="w-12 h-12 text-slate-200" />}
              >
                {(historyState.data || []).map((item, idx) => (
                  <div key={item.id} className="relative">

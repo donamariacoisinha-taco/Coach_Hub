@@ -78,7 +78,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     };
   }, { revalidateOnFocus: false });
 
-  const { uiState, isRefreshing, refresh } = playerQuery;
+  const { status: queryStatus, isFetching, refresh } = playerQuery;
 
   // Sync Store with Query Data
   useEffect(() => {
@@ -230,9 +230,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         />
       )}
       <ScreenState
-        state={uiState}
-        isRefreshing={isRefreshing}
-        onRetry={() => window.location.reload()}
+        status={queryStatus}
+        isFetching={isFetching}
+        onRetry={() => refresh()}
       >
         <div className="max-w-md mx-auto w-full px-5 pt-6 flex-1 flex flex-col relative">
           

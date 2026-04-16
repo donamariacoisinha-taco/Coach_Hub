@@ -3,17 +3,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Exercise, MuscleGroup } from '../types';
 import { authApi } from '../lib/api/authApi';
 import { exerciseApi } from '../lib/api/exerciseApi';
+import { workoutApi } from '../lib/api/workoutApi';
 import { GoogleGenAI } from "@google/genai";
 import { useNavigation } from '../App';
 import { ExerciseProgress } from './ExerciseProgress';
 import { ScreenState } from './ui/ScreenState';
 import { ExerciseSkeleton } from './ui/Skeleton';
 import { useSmartQuery } from '../hooks/useSmartQuery';
+import { usePrefetch } from '../hooks/usePrefetch';
 import { Search, MoreVertical, Info, History, TrendingUp, X, ChevronRight, Heart, Settings, Sparkles, Dumbbell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const ExerciseLibrary: React.FC = () => {
   const { navigate } = useNavigation();
+  const prefetch = usePrefetch();
   const [favoriteExerciseIds, setFavoriteExerciseIds] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   
@@ -47,7 +50,7 @@ const ExerciseLibrary: React.FC = () => {
     refreshInterval: 300000 // 5 minutes
   });
 
-  const { data, uiState, isRefreshing, refresh } = libraryQuery;
+  const { data, status, isFetching, refresh } = libraryQuery;
   const exercises = data?.exercises || [];
   const muscleGroups = data?.muscleGroups || [];
 
@@ -89,6 +92,12 @@ const ExerciseLibrary: React.FC = () => {
   const handleOpenDetail = (ex: Exercise) => {
     setSelectedExercise(ex);
     fetchAiTip(ex.name);
+  };
+
+  const handlePrefetchProgress = (id: string) => {
+    prefetch(`exercise_progress_${id}`, async () => {
+      return exerciseApi.getExerciseProgress(id);
+    });
   };
 
   const filteredExercises = useMemo(() => {
@@ -175,18 +184,16 @@ const ExerciseLibrary: React.FC = () => {
 
         <div className="space-y-1">
           <ScreenState
-            state={uiState}
-            isRefreshing={isRefreshing}
-            loadingComponent={<ExerciseSkeleton />}
+            status={status}
+            isFetching={isFetching}
+            skeleton={<ExerciseSkeleton />}
             onRetry={refresh}
-            emptyTitle="Biblioteca vazia"
-            emptyDescription="Não encontramos exercícios com os filtros selecionados."
-            emptyIcon={<Dumbbell className="w-12 h-12 text-slate-200" />}
           >
             {filteredExercises.map((ex, idx) => (
               <div key={ex.id} className="relative">
                 <div 
                   onClick={() => handleOpenDetail(ex)}
+                  onMouseEnter={() => handlePrefetchProgress(ex.id)}
                   className={`flex items-center justify-between py-8 active:bg-slate-50 transition-colors cursor-pointer ${idx !== filteredExercises.length - 1 ? 'border-b border-slate-100' : ''} ${!ex.is_active ? 'opacity-40' : ''}`}
                 >
                   <div className="flex items-center gap-6 flex-1 min-w-0">

@@ -29,7 +29,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
     revalidateOnFocus: true
   });
 
-  const { data: measurements = [], uiState, isRefreshing, refresh } = measurementsQuery;
+  const { data: measurements = [], status, isFetching, refresh } = measurementsQuery;
   
   const initialMeasureState: Partial<BodyMeasurement> = {
     measured_at: new Date().toISOString().split('T')[0],
@@ -221,13 +221,10 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
         ) : activeTab === 'measurements' ? (
           <div className="space-y-1">
              <ScreenState
-               state={uiState}
-               isRefreshing={isRefreshing}
-               loadingComponent={<WorkoutSkeleton />}
+               status={status}
+               isFetching={isFetching}
+               skeleton={<WorkoutSkeleton />}
                onRetry={refresh}
-               emptyTitle="Nenhum registro"
-               emptyDescription="Acompanhe sua evolução registrando suas medidas regularmente."
-               emptyIcon={<ChartLine className="w-12 h-12 text-slate-200" />}
              >
                {measurements.map((m, idx) => (
                  <div 

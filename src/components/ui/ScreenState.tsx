@@ -1,53 +1,55 @@
 
-import React from "react";
-import { Loader2, AlertCircle, Search, RefreshCw } from "lucide-react";
+import React, { ReactNode } from "react";
+import { AlertCircle, Search, RefreshCw, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-export type UIState = "loading" | "error" | "empty" | "success";
+export type UIStatus = "loading" | "error" | "empty" | "success";
 
 interface ScreenStateProps {
-  state: UIState;
-  isRefreshing?: boolean;
+  status: UIStatus;
+  error?: string | null;
+  isFetching?: boolean;
   onRetry?: () => void;
-  emptyTitle?: string;
-  emptyMessage?: string;
-  errorTitle?: string;
-  errorMessage?: string;
-  children: React.ReactNode;
+  skeleton?: ReactNode;
+  emptyState?: ReactNode;
+  children: ReactNode;
 }
 
 export const ScreenState: React.FC<ScreenStateProps> = ({
-  state,
-  isRefreshing,
+  status,
+  error,
+  isFetching,
   onRetry,
-  emptyTitle = "Nenhum resultado",
-  emptyMessage = "Não encontramos o que você está procurando.",
-  errorTitle = "Ops! Algo deu errado",
-  errorMessage = "Não foi possível carregar os dados. Tente novamente.",
+  skeleton,
+  emptyState,
   children,
 }) => {
   return (
     <div className="relative w-full h-full flex-1 flex flex-col">
       <AnimatePresence mode="wait">
-        {state === "loading" && !isRefreshing ? (
+        {status === "loading" && !isFetching ? (
           <motion.div
             key="loading"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex-1 flex flex-col items-center justify-center p-8 text-center"
+            className="flex-1 flex flex-col"
           >
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full border-4 border-slate-100 border-t-slate-900 animate-spin" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-2 h-2 bg-slate-900 rounded-full animate-pulse" />
+            {skeleton || (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full border-4 border-slate-100 border-t-slate-900 animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-slate-900 rounded-full animate-pulse" />
+                  </div>
+                </div>
+                <p className="mt-6 text-xs font-black uppercase tracking-[0.3em] text-slate-300 animate-pulse">
+                  Carregando...
+                </p>
               </div>
-            </div>
-            <p className="mt-6 text-xs font-black uppercase tracking-[0.3em] text-slate-300 animate-pulse">
-              Carregando...
-            </p>
+            )}
           </motion.div>
-        ) : state === "error" ? (
+        ) : status === "error" ? (
           <motion.div
             key="error"
             initial={{ opacity: 0, y: 10 }}
@@ -59,10 +61,10 @@ export const ScreenState: React.FC<ScreenStateProps> = ({
               <AlertCircle size={32} />
             </div>
             <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
-              {errorTitle}
+              Ops! Algo deu errado
             </h3>
             <p className="mt-2 text-sm text-slate-400 font-medium max-w-[240px]">
-              {errorMessage}
+              {error || "Não foi possível carregar os dados. Tente novamente."}
             </p>
             {onRetry && (
               <button
@@ -74,23 +76,27 @@ export const ScreenState: React.FC<ScreenStateProps> = ({
               </button>
             )}
           </motion.div>
-        ) : state === "empty" ? (
+        ) : status === "empty" ? (
           <motion.div
             key="empty"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex-1 flex flex-col items-center justify-center p-8 text-center"
+            className="flex-1 flex flex-col"
           >
-            <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-200 mb-6">
-              <Search size={32} />
-            </div>
-            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
-              {emptyTitle}
-            </h3>
-            <p className="mt-2 text-sm text-slate-400 font-medium max-w-[240px]">
-              {emptyMessage}
-            </p>
+            {emptyState || (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-200 mb-6">
+                  <Search size={32} />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
+                  Nenhum resultado
+                </h3>
+                <p className="mt-2 text-sm text-slate-400 font-medium max-w-[240px]">
+                  Não encontramos o que você está procurando.
+                </p>
+              </div>
+            )}
           </motion.div>
         ) : (
           <motion.div
@@ -104,18 +110,18 @@ export const ScreenState: React.FC<ScreenStateProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Overlay de Refreshing */}
+      {/* Overlay de Revalidação (Smart Cache) - Non-intrusive badge */}
       <AnimatePresence>
-        {isRefreshing && (
+        {isFetching && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-white/80 backdrop-blur-md px-4 py-2 rounded-full shadow-lg border border-slate-50 flex items-center gap-3"
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] bg-slate-900/90 backdrop-blur-md px-4 py-2 rounded-full shadow-2xl flex items-center gap-3 border border-white/10"
           >
-            <Loader2 size={14} className="animate-spin text-slate-900" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">
-              Atualizando...
+            <Loader2 size={12} className="animate-spin text-blue-400" />
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white">
+              Sincronizando...
             </span>
           </motion.div>
         )}

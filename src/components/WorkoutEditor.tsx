@@ -491,8 +491,8 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
       </header>
 
       <ScreenState
-        state={editorState.uiState}
-        loadingComponent={<WorkoutSkeleton />}
+        status={editorState.status}
+        skeleton={<WorkoutSkeleton />}
         onRetry={fetchData}
       >
         <div className="flex-1 px-6 py-4 space-y-6 w-full">

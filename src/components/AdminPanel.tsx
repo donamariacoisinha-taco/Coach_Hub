@@ -40,7 +40,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     revalidateOnFocus: true
   });
 
-  const { data, uiState, isRefreshing, refresh, mutate } = adminQuery;
+  const { data, status, isFetching, refresh, mutate } = adminQuery;
   const exercises = data?.exercises || [];
   const muscleGroups = data?.muscleGroups || [];
 
@@ -287,13 +287,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             </div>
 
             <ScreenState
-              state={uiState}
-              isRefreshing={isRefreshing}
-              loadingComponent={<ExerciseSkeleton />}
+              status={status}
+              isFetching={isFetching}
+              skeleton={<ExerciseSkeleton />}
               onRetry={refresh}
-              emptyTitle="Nenhum exercício"
-              emptyDescription="Não encontramos exercícios com os filtros selecionados."
-              emptyIcon={<Dumbbell className="w-12 h-12 text-slate-200" />}
             >
               <div className="space-y-1">
                 {filteredExercisesList.map((ex, idx) => (
@@ -337,13 +334,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             </div>
 
             <ScreenState
-              state={uiState}
-              isRefreshing={isRefreshing}
-              loadingComponent={<ExerciseSkeleton />}
+              status={status}
+              isFetching={isFetching}
+              skeleton={<ExerciseSkeleton />}
               onRetry={refresh}
-              emptyTitle="Anatomia vazia"
-              emptyDescription="Comece definindo os grupos musculares principais."
-              emptyIcon={<Activity className="w-12 h-12 text-slate-200" />}
             >
               <div className="space-y-1">
                 {parentMuscleGroups.map((mg, idx) => (

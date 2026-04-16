@@ -16,6 +16,8 @@ import { ErrorProvider } from './hooks/useErrorHandler';
 import { authApi } from './lib/api/authApi';
 import { workoutApi } from './lib/api/workoutApi';
 import { profileApi } from './lib/api/profileApi';
+import { exerciseApi } from './lib/api/exerciseApi';
+import { usePrefetch } from './hooks/usePrefetch';
 import { DebugOverlay } from './components/DebugOverlay';
 import { cacheStore } from './lib/cache/cacheStore';
 
@@ -75,6 +77,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('coach_theme') as Theme) || 'light');
   const [navState, setNavState] = useState<NavigationState>(getStateFromUrl);
+  const prefetch = usePrefetch();
   const isInitializing = useRef(false);
 
   // Inicializa o sistema de sincronização offline
@@ -233,12 +236,50 @@ const App: React.FC = () => {
                  </div>
                )}
 
-               <div className="flex flex-col items-center gap-8 w-full">
-                  <button onClick={() => navigate('dashboard')} className={`flex flex-col items-center transition-all ${navState.view === 'dashboard' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><Home size={24} /></button>
-                  <button onClick={() => navigate('library')} className={`flex flex-col items-center transition-all ${navState.view === 'library' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><Dumbbell size={24} /></button>
-                  <button onClick={() => navigate('history')} className={`flex flex-col items-center transition-all ${navState.view === 'history' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><HistoryIcon size={24} /></button>
-                  <button onClick={() => navigate('profile')} className={`flex flex-col items-center transition-all ${navState.view === 'profile' ? 'text-black' : 'text-gray-300 hover:text-black'}`}><User size={24} /></button>
-               </div>
+                <div className="flex flex-col items-center gap-8 w-full">
+                  <button 
+                    onClick={() => navigate('dashboard')} 
+                    onMouseEnter={() => prefetch('dashboard_data', async () => {
+                      const session = await authApi.getSession();
+                      return session?.user ? workoutApi.getDashboardData(session.user.id) : null;
+                    })}
+                    className={`flex flex-col items-center transition-all active:scale-90 ${navState.view === 'dashboard' ? 'text-black' : 'text-gray-300 hover:text-black'}`}
+                  ><Home size={24} /></button>
+                  
+                  <button 
+                    onClick={() => navigate('library')} 
+                    onMouseEnter={() => prefetch('exercise_library', async () => {
+                      const user = await authApi.getUser();
+                      if (!user) return null;
+                      const [exercises, muscleGroups, favorites, isAdminUser] = await Promise.all([
+                        exerciseApi.getExercises(),
+                        exerciseApi.getMuscleGroups(),
+                        exerciseApi.getFavorites(user.id),
+                        exerciseApi.isAdmin(user.id)
+                      ]);
+                      return { exercises, muscleGroups, favorites: new Set(favorites), isAdmin: isAdminUser };
+                    })}
+                    className={`flex flex-col items-center transition-all active:scale-90 ${navState.view === 'library' ? 'text-black' : 'text-gray-300 hover:text-black'}`}
+                  ><Dumbbell size={24} /></button>
+                  
+                  <button 
+                    onClick={() => navigate('history')} 
+                    onMouseEnter={() => prefetch('history_data', async () => {
+                      const user = await authApi.getUser();
+                      return user ? workoutApi.getWorkoutHistory(user.id) : null;
+                    })}
+                    className={`flex flex-col items-center transition-all active:scale-90 ${navState.view === 'history' ? 'text-black' : 'text-gray-300 hover:text-black'}`}
+                  ><HistoryIcon size={24} /></button>
+                  
+                  <button 
+                    onClick={() => navigate('profile')} 
+                    onMouseEnter={() => prefetch('profile_data', async () => {
+                      const user = await authApi.getUser();
+                      return user ? profileApi.getProfile(user.id) : null;
+                    })}
+                    className={`flex flex-col items-center transition-all active:scale-90 ${navState.view === 'profile' ? 'text-black' : 'text-gray-300 hover:text-black'}`}
+                  ><User size={24} /></button>
+                </div>
             </aside>
           )}
 
@@ -246,10 +287,10 @@ const App: React.FC = () => {
             <AnimatePresence mode="wait">
               <motion.div
                 key={navState.view + (navState.params.id || '')}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
                 className="min-h-full"
               >
                 {navState.view === 'landing' && <LandingPage onStart={() => navigate('auth')} onLogin={() => navigate('auth')} />}
@@ -281,6 +322,31 @@ const App: React.FC = () => {
                   <button 
                     key={item.id}
                     onClick={() => navigate(item.id as View)} 
+                    onMouseEnter={() => {
+                      if (item.id === 'dashboard') prefetch('dashboard_data', async () => {
+                        const session = await authApi.getSession();
+                        return session?.user ? workoutApi.getDashboardData(session.user.id) : null;
+                      });
+                      if (item.id === 'library') prefetch('exercise_library', async () => {
+                        const user = await authApi.getUser();
+                        if (!user) return null;
+                        const [exercises, muscleGroups, favorites, isAdminUser] = await Promise.all([
+                          exerciseApi.getExercises(),
+                          exerciseApi.getMuscleGroups(),
+                          exerciseApi.getFavorites(user.id),
+                          exerciseApi.isAdmin(user.id)
+                        ]);
+                        return { exercises, muscleGroups, favorites: new Set(favorites), isAdmin: isAdminUser };
+                      });
+                      if (item.id === 'history') prefetch('history_data', async () => {
+                        const user = await authApi.getUser();
+                        return user ? workoutApi.getWorkoutHistory(user.id) : null;
+                      });
+                      if (item.id === 'profile') prefetch('profile_data', async () => {
+                        const user = await authApi.getUser();
+                        return user ? profileApi.getProfile(user.id) : null;
+                      });
+                    }}
                     className="relative p-4 group"
                   >
                     <Icon 
