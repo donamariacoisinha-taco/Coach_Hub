@@ -4,7 +4,7 @@ import { WorkoutCategory, UserProfile, WorkoutFolder, WorkoutHistory } from '../
 import { authApi } from '../../lib/api/authApi';
 import { workoutApi } from '../../lib/api/workoutApi';
 import { useNavigation } from '../../App';
-import { MoreVertical, Plus, Flame, Play, Edit2, Trash2, Dumbbell } from 'lucide-react';
+import { MoreVertical, Plus, Flame, Play, Edit2, Trash2, Dumbbell, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScreenState } from '../../components/ui/ScreenState';
 import { DashboardSkeleton } from '../../components/ui/Skeleton';
@@ -12,6 +12,7 @@ import { useSmartQuery } from '../../hooks/useSmartQuery';
 import { usePrefetch } from '../../hooks/usePrefetch';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { usePredictive } from '../../hooks/usePredictive';
+import { imagePrefetcher } from '../../lib/utils/imagePrefetcher';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
@@ -45,26 +46,100 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     return workouts.filter(w => w.folder_id === activeFolderId || (!w.folder_id && activeFolderId === 'uncategorized'));
   }, [workouts, activeFolderId]);
 
-  const handlePrefetchWorkout = (id: string) => {
+  const handlePrefetchWorkout = async (id: string) => {
     prefetch(`workout_init_${id}`, async () => {
       const user = await authApi.getUser();
       if (!user) return null;
-      return workoutApi.getWorkoutInitData(id, user.id);
+      const initData = await workoutApi.getWorkoutInitData(id, user.id);
+      
+      // Prefetch exercise images for this workout
+      if (initData?.exercises) {
+        const images = initData.exercises.map(ex => ex.exercise_image).filter(Boolean) as string[];
+        imagePrefetcher.prefetchBatch(images);
+      }
+      
+      return initData;
     });
   };
 
   const handleDeleteWorkout = async (id: string) => {
     if (!confirm("Deseja excluir este protocolo?")) return;
+    
+    // Optimistic Update
+    const previousData = data;
+    if (data) {
+      mutate({
+        ...data,
+        workouts: data.workouts.filter(w => w.id !== id)
+      });
+    }
+    setActiveMenuId(null);
+
     try {
       await workoutApi.deleteWorkout(id);
+      // Success - no need to do anything as UI is already updated
+    } catch (err) {
+      // Rollback
+      if (previousData) mutate(previousData);
+      showError(err);
+    }
+  };
+
+  const handleDuplicateWorkout = async (workout: WorkoutCategory) => {
+    const session = await authApi.getSession();
+    if (!session?.user) return;
+
+    const newWorkout: WorkoutCategory = {
+      ...workout,
+      id: `temp-${Date.now()}`, // Temporary ID
+      name: `${workout.name} (Cópia)`,
+      created_at: new Date().toISOString()
+    };
+
+    // Optimistic Update
+    const previousData = data;
+    if (data) {
+      mutate({
+        ...data,
+        workouts: [newWorkout, ...data.workouts]
+      });
+    }
+    setActiveMenuId(null);
+
+    try {
+      // 1. Get original exercises
+      const { exercises } = await workoutApi.getWorkoutInitData(workout.id, session.user.id);
+      
+      // 2. Create new category
+      const created = await workoutApi.createCategory({
+        user_id: session.user.id,
+        name: newWorkout.name,
+        description: workout.description,
+        folder_id: workout.folder_id
+      });
+
+      // 3. Insert exercises
+      if (exercises.length > 0) {
+        const newExercises = exercises.map((ex, idx) => ({
+          category_id: created.id,
+          exercise_id: ex.exercise_id,
+          sort_order: idx,
+          sets_json: ex.sets_json,
+          rest_time: ex.rest_time
+        }));
+        await workoutApi.insertWorkoutExercises(newExercises);
+      }
+
+      // 4. Update with real data
       if (data) {
         mutate({
           ...data,
-          workouts: data.workouts.filter(w => w.id !== id)
+          workouts: data.workouts.map(w => w.id === newWorkout.id ? created : w)
         });
       }
-      setActiveMenuId(null);
     } catch (err) {
+      // Rollback
+      if (previousData) mutate(previousData);
       showError(err);
     }
   };
@@ -199,20 +274,30 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               skeleton={<DashboardSkeleton />}
               onRetry={refresh}
             >
-              {filteredWorkouts.map((workout, idx) => (
-                <div key={workout.id} className="relative group">
-                  <div 
-                    onClick={() => navigate('workout', { id: workout.id })}
-                    onMouseEnter={() => handlePrefetchWorkout(workout.id)}
-                    className={`flex items-center justify-between py-10 px-4 rounded-[2rem] hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all cursor-pointer group-active:scale-[0.98] ${
-                      idx !== filteredWorkouts.length - 1 ? 'border-b border-slate-50' : ''
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase truncate pr-4">
-                        {workout.name}
-                      </h3>
-                      <div className="flex items-center gap-3 mt-2">
+              {filteredWorkouts.map((workout, idx) => {
+                const isOptimistic = workout.id.startsWith('temp-');
+                
+                return (
+                  <div key={workout.id} className={`relative group ${isOptimistic ? 'opacity-60 grayscale-[0.2]' : ''}`}>
+                    <div 
+                      onClick={() => !isOptimistic && navigate('workout', { id: workout.id })}
+                      onMouseEnter={() => !isOptimistic && handlePrefetchWorkout(workout.id)}
+                      className={`flex items-center justify-between py-10 px-4 rounded-[2rem] hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all cursor-pointer group-active:scale-[0.98] ${
+                        idx !== filteredWorkouts.length - 1 ? 'border-b border-slate-50' : ''
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase truncate pr-4">
+                            {workout.name}
+                          </h3>
+                          {isOptimistic && (
+                            <span className="px-2 py-0.5 bg-slate-100 rounded text-[7px] font-black text-slate-400 uppercase tracking-widest animate-pulse">
+                              Sincronizando
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-2">
                         <span className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em]">
                           {workout.description || 'Treino'}
                         </span>
@@ -223,15 +308,17 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                       </div>
                     </div>
 
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setActiveMenuId(activeMenuId === workout.id ? null : workout.id); 
-                      }}
-                      className="w-12 h-12 flex items-center justify-center text-slate-200 hover:text-slate-900 transition-colors"
-                    >
-                      <MoreVertical size={18} />
-                    </button>
+                    {!isOptimistic && (
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setActiveMenuId(activeMenuId === workout.id ? null : workout.id); 
+                        }}
+                        className="w-12 h-12 flex items-center justify-center text-slate-200 hover:text-slate-900 transition-colors"
+                      >
+                        <MoreVertical size={18} />
+                      </button>
+                    )}
                   </div>
 
                   <AnimatePresence>
@@ -258,6 +345,12 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                           <Edit2 size={14} /> Editar
                         </button>
                         <button 
+                          onClick={() => handleDuplicateWorkout(workout)}
+                          className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+                        >
+                          <Copy size={14} /> Duplicar
+                        </button>
+                        <button 
                           onClick={() => handleDeleteWorkout(workout.id)}
                           className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-xl transition"
                         >
@@ -267,7 +360,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     )}
                   </AnimatePresence>
                 </div>
-              ))}
+              );
+            })}
             </ScreenState>
           </div>
         </section>

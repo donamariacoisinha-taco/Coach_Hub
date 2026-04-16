@@ -18,6 +18,7 @@ import { workoutApi } from './lib/api/workoutApi';
 import { profileApi } from './lib/api/profileApi';
 import { exerciseApi } from './lib/api/exerciseApi';
 import { usePrefetch } from './hooks/usePrefetch';
+import { imagePrefetcher } from './lib/utils/imagePrefetcher';
 import { DebugOverlay } from './components/DebugOverlay';
 import { cacheStore } from './lib/cache/cacheStore';
 
@@ -78,6 +79,22 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('coach_theme') as Theme) || 'light');
   const [navState, setNavState] = useState<NavigationState>(getStateFromUrl);
   const prefetch = usePrefetch();
+
+  // Initial Prefetching
+  useEffect(() => {
+    const initPrefetch = async () => {
+      // 1. Prefetch most used exercises images
+      try {
+        const exercises = await exerciseApi.getExercises();
+        const topImages = exercises.slice(0, 10).map(ex => ex.image_url).filter(Boolean) as string[];
+        imagePrefetcher.prefetchBatch(topImages);
+      } catch (e) {
+        console.warn("Initial image prefetch failed", e);
+      }
+    };
+    
+    initPrefetch();
+  }, []);
   const isInitializing = useRef(false);
 
   // Inicializa o sistema de sincronização offline

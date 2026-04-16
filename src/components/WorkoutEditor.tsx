@@ -29,6 +29,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { workoutEngine } from '../domain/workout/workoutEngine';
+import { cacheStore } from '../lib/cache/cacheStore';
 
 interface SortableItemProps {
   ex: EditorExercise;
@@ -412,15 +413,40 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
       showError({ message: 'validation: Dê um nome ao treino!' });
       return;
     }
+    
     setSaving(true);
+    const previousDashboardData = cacheStore.get('dashboard_data') as any;
+
     try {
       const user = await authApi.getUser();
       if (!user) throw new Error("Não autenticado");
       
       let currentId = workoutId;
+      const payload = { user_id: user.id, name, description, folder_id: folderId || null };
 
       if (isPermanent) {
-        const payload = { user_id: user.id, name, description, folder_id: folderId || null };
+        // Optimistic Dashboard Update
+        if (previousDashboardData) {
+          const optimisticWorkout = {
+            id: currentId || `temp-${Date.now()}`,
+            ...payload,
+            created_at: new Date().toISOString()
+          };
+          
+          const newWorkouts = currentId 
+            ? (previousDashboardData.workouts as any[]).map((w: any) => w.id === currentId ? optimisticWorkout : w)
+            : [optimisticWorkout, ...previousDashboardData.workouts];
+
+          cacheStore.set('dashboard_data', {
+            ...previousDashboardData,
+            workouts: newWorkouts
+          });
+        }
+
+        // Navigate immediately
+        navigate('dashboard', { folderId });
+
+        // Background Save
         if (!currentId) {
           const data = await workoutApi.createCategory(payload);
           currentId = data.id;
@@ -439,8 +465,11 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
             superset_id: ex.superset_id
           })));
         }
-        navigate('dashboard', { folderId });
+        
+        // Revalidate dashboard to get real IDs and data
+        // (The mutate in Dashboard will handle this when it mounts)
       } else {
+        // Just starting a workout session
         if (!currentId) {
           const data = await workoutApi.createCategory({ user_id: user.id, name, description, folder_id: folderId || null });
           currentId = data.id;
@@ -458,6 +487,10 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
         navigate('workout', { id: currentId });
       }
     } catch (err) {
+      // Rollback dashboard if needed
+      if (isPermanent && previousDashboardData) {
+        cacheStore.set('dashboard_data', previousDashboardData);
+      }
       showError(err);
     } finally {
       setSaving(false);

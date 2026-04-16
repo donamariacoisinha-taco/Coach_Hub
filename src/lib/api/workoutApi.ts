@@ -44,7 +44,7 @@ export const workoutApi = {
       ...item,
       exercise_name: item.exercises.name,
       muscle_group: item.exercises.muscle_group,
-      image_url: item.exercises.image_url
+      exercise_image: item.exercises.image_url
     }));
 
     return {

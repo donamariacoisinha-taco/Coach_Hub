@@ -28,6 +28,7 @@ import { getNextSetDecision, getPreSetHint } from "../../domain/progression/prog
 import { getEmotionalFeedback } from "../../domain/feedback/feedbackEngine";
 import { VictoryScreen } from "../../components/VictoryScreen";
 import { workoutEngine } from "../../domain/workout/workoutEngine";
+import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { navigate } = useNavigation();
@@ -96,6 +97,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const currentEx = useMemo(() => exercises[currentIndex] || null, [exercises, currentIndex]);
 
+  // Prefetch next exercise image
+  useEffect(() => {
+    const nextEx = exercises[currentIndex + 1];
+    if (nextEx?.exercise_image) {
+      imagePrefetcher.prefetch(nextEx.exercise_image);
+    }
+  }, [currentIndex, exercises]);
+
   // Timers
   useEffect(() => {
     if (!startTime) return;
@@ -138,24 +147,37 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const handleCompleteSet = async () => {
     if (saving || !currentEx || !historyId) return;
-    setSaving(true);
     
+    // 1. Calculate everything needed for UI update
+    const currentSetData = { weight, reps, rpe };
+    const repsTarget = parseInt(currentEx.sets_json?.[currentSet - 1]?.reps as string) || 10;
+    
+    const emotional = getEmotionalFeedback({
+      current: currentSetData,
+      lastSet: lastSet || undefined,
+      previousSet: previousSet || undefined,
+    });
+
+    const decision = getNextSetDecision(
+      { weight, repsDone: reps, repsTarget, rpe },
+      lastSet || undefined
+    );
+
+    // 2. Update UI Immediately (Optimistic)
+    setWeight(decision.nextWeight);
+    setFeedback(emotional);
+    setPreviousSet(currentSetData);
+    setTimeout(() => setFeedback(null), 1800);
+
+    setTimeLeft(currentEx.rest_time || 90);
+    setRestOvertime(0);
+    setIsResting(true);
+    
+    if ('vibrate' in navigator) navigator.vibrate(emotional.includes("recorde") ? [50, 50, 100] : 40);
+
+    // 3. Background Save
+    setSaving(true);
     try {
-      const currentSetData = { weight, reps, rpe };
-      const repsTarget = parseInt(currentEx.sets_json?.[currentSet - 1]?.reps as string) || 10;
-      
-      const emotional = getEmotionalFeedback({
-        current: currentSetData,
-        lastSet: lastSet || undefined,
-        previousSet: previousSet || undefined,
-      });
-
-      const decision = getNextSetDecision(
-        { weight, repsDone: reps, repsTarget, rpe },
-        lastSet || undefined
-      );
-
-      // PERSISTENCE LAYER (Resilient)
       await saveSet({ 
         history_id: historyId,
         exercise_id: currentEx.exercise_id,
@@ -166,21 +188,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         set_type: SetType.NORMAL
       });
 
-      setWeight(decision.nextWeight);
-      setFeedback(emotional);
-      setPreviousSet(currentSetData);
-      setTimeout(() => setFeedback(null), 1800);
-
       // Update partial session (fire and forget)
       workoutApi.updatePartialSession(historyId, currentIndex, currentSet).catch(console.error);
-
-      setTimeLeft(currentEx.rest_time || 90);
-      setRestOvertime(0);
-      setIsResting(true);
-      
-      if ('vibrate' in navigator) navigator.vibrate(emotional.includes("recorde") ? [50, 50, 100] : 40);
-      
     } catch (err) {
+      // For critical errors in workout, we might want to notify but not necessarily rollback 
+      // since the user is already in the rest state. 
+      // The sync queue (if implemented in saveSet) should handle retries.
       showError(err);
     } finally {
       setSaving(false);
