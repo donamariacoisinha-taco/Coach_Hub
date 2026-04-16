@@ -234,44 +234,44 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         isRefreshing={isRefreshing}
         onRetry={() => window.location.reload()}
       >
-        <div className="max-w-md mx-auto w-full px-6 pt-12 pb-32 flex-1 flex flex-col relative">
+        <div className="max-w-md mx-auto w-full px-5 pt-6 flex-1 flex flex-col relative">
           
-          {/* HEADER */}
-          <header className="flex items-center justify-between mb-16">
-            <div className="flex items-center gap-6">
-              <div className="w-12 h-12 bg-white rounded-2xl overflow-hidden flex items-center justify-center p-2.5 border border-slate-50 shadow-sm">
+          {/* HEADER COMPACTO */}
+          <header className="flex items-center justify-between py-3 mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-white rounded-xl overflow-hidden flex items-center justify-center p-2 border border-slate-50 shadow-sm">
                 {currentEx?.image_url ? (
                   <img src={currentEx.image_url} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                 ) : (
-                  <div className="w-4 h-4 bg-slate-100 rounded-full" />
+                  <div className="w-3 h-3 bg-slate-100 rounded-full" />
                 )}
               </div>
               <div>
-                <h1 className="text-sm font-black tracking-tight uppercase text-slate-900">{currentEx?.exercise_name || 'Exercício'}</h1>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">
+                <h1 className="text-xs font-black tracking-tight uppercase text-slate-900 truncate max-w-[150px]">{currentEx?.exercise_name || 'Exercício'}</h1>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-0.5">
                   {currentEx?.muscle_group || 'Geral'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
               <span className="text-[10px] font-black tabular-nums text-slate-300 tracking-widest">
                 {formatTime(workoutDuration)}
               </span>
               <button 
                 onClick={() => setShowExitModal(true)}
-                className="w-12 h-12 flex items-center justify-center text-slate-300 hover:text-slate-900 active:scale-90 transition-all"
+                className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-slate-900 active:scale-90 transition-all"
               >
-                <MoreHorizontal size={20} />
+                <MoreHorizontal size={18} />
               </button>
             </div>
           </header>
 
           {/* MAIN DISPLAY */}
-          <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <div className="flex flex-col items-center justify-center text-center py-4">
             {!isResting ? (
               <div className="animate-in fade-in zoom-in duration-500 w-full">
-                <div className="flex items-center justify-center gap-4">
+                <div className="flex items-end justify-center gap-6">
                   <div className="flex flex-col items-center">
                     <input 
                       type="number"
@@ -279,9 +279,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
                       className="text-7xl font-black tracking-tighter tabular-nums text-slate-900 leading-none bg-transparent border-none outline-none text-center w-32"
                     />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 mt-2">Peso (kg)</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-300 mt-2">Peso (kg)</span>
                   </div>
-                  <span className="text-4xl text-slate-100 font-black mt-[-20px]">×</span>
+                  <span className="text-xl text-slate-300 font-black mb-6">×</span>
                   <div className="flex flex-col items-center">
                     <input 
                       type="number"
@@ -289,45 +289,57 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       onChange={(e) => setReps(parseInt(e.target.value) || 0)}
                       className="text-7xl font-black tracking-tighter tabular-nums text-slate-900 leading-none bg-transparent border-none outline-none text-center w-24"
                     />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 mt-2">Reps</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-300 mt-2">Reps</span>
                   </div>
                 </div>
 
-                {preHint && (
-                  <p className="mt-6 text-sm text-slate-400 font-medium animate-in fade-in duration-500">
+                {/* FEEDBACK INTELIGENTE IMEDIATO */}
+                <AnimatePresence mode="wait">
+                  {feedback && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="mt-4 px-6"
+                    >
+                      <p className="text-sm text-slate-500 font-medium flex items-center justify-center gap-2">
+                        <Check size={14} className="text-green-500" />
+                        {feedback}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {preHint && !feedback && (
+                  <p className="mt-4 text-sm text-slate-400 font-medium animate-in fade-in duration-500 px-6">
                     {preHint}
                   </p>
                 )}
 
-                <div className="mt-12 space-y-3">
+                {/* CONTEXTO UNIFICADO */}
+                <div className="mt-8 flex justify-center items-center gap-4 text-[10px] font-black uppercase tracking-widest">
                   {lastSet && (
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
-                      último: {lastSet.weight}kg × {lastSet.reps}
-                    </p>
+                    <span className="text-slate-300">
+                      Último: {lastSet.weight}kg × {lastSet.reps}
+                    </span>
                   )}
-                  <div className="flex items-center justify-center gap-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">
-                      Meta: {weight}kg × {reps}
-                    </p>
-                  </div>
+                  {lastSet && <div className="w-1 h-1 rounded-full bg-slate-200" />}
+                  <span className="text-blue-600">
+                    Meta: {weight}kg × {reps}
+                  </span>
                 </div>
                 
-                {/* SYNC STATUS */}
-                <div className="mt-10 space-y-2">
+                {/* SYNC STATUS COMPACTO */}
+                <div className="mt-6 flex items-center justify-center gap-4">
                   {!isOnline && (
-                    <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      <WifiOff size={12} /> Modo Offline
+                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      <WifiOff size={10} /> Offline
                     </div>
                   )}
                   {pendingSyncCount > 0 && (
-                    <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-500">
-                      <RefreshCw size={12} className={isSyncing ? "animate-spin" : ""} />
-                      {isSyncing ? "Sincronizando..." : `${pendingSyncCount} pendentes`}
-                    </div>
-                  )}
-                  {pendingSyncCount === 0 && isOnline && (
-                    <div className="text-[10px] font-black uppercase tracking-widest text-green-500/30">
-                      Sincronizado
+                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-blue-500">
+                      <RefreshCw size={10} className={isSyncing ? "animate-spin" : ""} />
+                      {pendingSyncCount} pendentes
                     </div>
                   )}
                 </div>
@@ -337,17 +349,17 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 <div className="text-8xl font-black tracking-tighter tabular-nums text-slate-900 leading-none">
                   {formatTime(timeLeft)}
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300 mt-8">Descanso</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300 mt-6">Descanso</p>
 
                 <AnimatePresence>
                   {restOvertime > 60 && (
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-100"
+                      className="mt-6 p-5 bg-blue-50 rounded-2xl border border-blue-100 mx-4"
                     >
-                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Equipamento ocupado?</p>
-                      <p className="text-xs text-blue-900 font-medium mb-4">Você pode pular este exercício e voltar nele depois.</p>
+                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Equipamento ocupado?</p>
+                      <p className="text-[11px] text-blue-900 font-medium mb-3">Pule este exercício e volte nele depois.</p>
                       <button 
                         onClick={() => {
                           if (currentIndex < exercises.length - 1) {
@@ -356,7 +368,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             setRestOvertime(0);
                           }
                         }}
-                        className="text-[10px] font-black text-blue-600 uppercase tracking-widest border-b border-blue-600 pb-1"
+                        className="text-[9px] font-black text-blue-600 uppercase tracking-widest border-b border-blue-600 pb-0.5"
                       >
                         Pular Exercício
                       </button>
@@ -364,9 +376,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   )}
                 </AnimatePresence>
 
-                <div className="flex items-center gap-10 mt-16">
-                  <button onClick={() => setTimeLeft((t) => Math.max(0, t - 15))} className="w-16 h-16 rounded-full bg-white text-slate-300 active:scale-90 active:text-slate-900 border border-slate-50 shadow-sm flex items-center justify-center transition-all"><Minus size={20} /></button>
-                  <button onClick={() => setTimeLeft((t) => t + 15)} className="w-16 h-16 rounded-full bg-white text-slate-300 active:scale-90 active:text-slate-900 border border-slate-50 shadow-sm flex items-center justify-center transition-all"><Plus size={20} /></button>
+                <div className="flex items-center gap-8 mt-12">
+                  <button onClick={() => setTimeLeft((t) => Math.max(0, t - 15))} className="w-14 h-14 rounded-full bg-white text-slate-300 active:scale-90 active:text-slate-900 border border-slate-50 shadow-sm flex items-center justify-center transition-all"><Minus size={18} /></button>
+                  <button onClick={() => setTimeLeft((t) => t + 15)} className="w-14 h-14 rounded-full bg-white text-slate-300 active:scale-90 active:text-slate-900 border border-slate-50 shadow-sm flex items-center justify-center transition-all"><Plus size={18} /></button>
                 </div>
               </div>
             )}
@@ -374,17 +386,17 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
           {/* CONTROLES */}
           {!isResting && (
-            <div className="mt-auto space-y-12 animate-in slide-in-from-bottom-4 duration-700">
-              <div className="flex flex-col items-center gap-6">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Esforço (RPE)</p>
-                <div className="flex gap-3">
+            <div className="mt-4 space-y-8 animate-in slide-in-from-bottom-4 duration-700">
+              <div className="flex flex-col items-center gap-4">
+                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-300">Esforço (RPE)</p>
+                <div className="flex gap-2.5">
                   {[7, 8, 9, 10].map((val) => (
                     <button
                       key={val}
                       onClick={() => setRpe(val)}
-                      className={`w-12 h-12 rounded-2xl text-[10px] font-black transition-all ${
+                      className={`w-11 h-11 rounded-xl text-[10px] font-black transition-all ${
                         rpe === val 
-                          ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/20 scale-110" 
+                          ? "bg-slate-900 text-white shadow-xl shadow-slate-900/10 scale-105" 
                           : "bg-white text-slate-300 border border-slate-50 shadow-sm active:bg-slate-50"
                       }`}
                     >
@@ -394,50 +406,38 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <button onClick={prevStep} className="p-3 text-slate-200 hover:text-slate-900 transition-colors"><ChevronLeft size={20} /></button>
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-3">
+                  <button onClick={prevStep} className="p-2 text-slate-200 hover:text-slate-900 transition-colors"><ChevronLeft size={18} /></button>
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">
                     {currentSet} / {currentEx?.sets_json?.length || 3}
                   </span>
-                  <button onClick={nextStep} className="p-3 text-slate-200 hover:text-slate-900 transition-colors"><ChevronRight size={20} /></button>
+                  <button onClick={nextStep} className="p-2 text-slate-200 hover:text-slate-900 transition-colors"><ChevronRight size={18} /></button>
                 </div>
 
-                <div className="flex items-center gap-8">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setWeight(w => Math.max(0, w - 2.5))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={16} /></button>
-                    <button onClick={() => setWeight(w => w + 2.5)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={16} /></button>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => setWeight(w => Math.max(0, w - 2.5))} className="w-9 h-9 flex items-center justify-center bg-white rounded-lg border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={14} /></button>
+                    <button onClick={() => setWeight(w => w + 2.5)} className="w-9 h-9 flex items-center justify-center bg-white rounded-lg border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={14} /></button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setReps(r => Math.max(0, r - 1))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={16} /></button>
-                    <button onClick={() => setReps(r => r + 1)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={16} /></button>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => setReps(r => Math.max(0, r - 1))} className="w-9 h-9 flex items-center justify-center bg-white rounded-lg border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={14} /></button>
+                    <button onClick={() => setReps(r => r + 1)} className="w-9 h-9 flex items-center justify-center bg-white rounded-lg border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={14} /></button>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          <AnimatePresence>
-            {feedback && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20, x: "-50%" }}
-                animate={{ opacity: 1, y: 0, x: "-50%" }}
-                exit={{ opacity: 0, y: 20, x: "-50%" }}
-                className="fixed bottom-32 left-1/2 z-[1200] bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-8 py-4 rounded-full shadow-2xl"
-              >
-                <div className="flex items-center gap-4">
-                  <Check size={14} className="text-green-400" />
-                  {feedback}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* ESPAÇO FLEXÍVEL */}
+          <div className="flex-1 min-h-[20px]" />
 
-          <div className="fixed bottom-0 left-0 right-0 p-6 bg-[#F7F8FA]/80 backdrop-blur-md">
+          {/* CTA STICKY */}
+          <div className="sticky bottom-0 left-0 right-0 pt-2 pb-safe bg-[#F7F8FA] z-[100]">
             <button
               onClick={isResting ? () => { setIsResting(false); setRestOvertime(0); } : handleCompleteSet}
               disabled={saving}
-              className={`w-full h-20 rounded-3xl font-black uppercase text-[11px] tracking-[0.4em] transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center ${
+              className={`w-full h-16 rounded-full font-black uppercase text-[10px] tracking-[0.4em] transition-all active:scale-[0.98] shadow-xl flex items-center justify-center ${
                 isResting ? "bg-white text-slate-900 border border-slate-50 shadow-sm" : "bg-slate-900 text-white shadow-slate-900/20"
               }`}
             >
