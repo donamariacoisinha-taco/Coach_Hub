@@ -129,6 +129,16 @@ export interface Exercise {
   difficulty_level: 'beginner' | 'intermediate' | 'advanced';
   technical_prompt?: string;
   anatomical_cut?: string;
+  
+  // Governance & Quality
+  movement_pattern?: 'push' | 'pull' | 'hinge' | 'squat' | 'lunge' | 'carry' | 'isolation';
+  plane?: 'horizontal' | 'vertical' | 'sagittal' | 'frontal' | 'transverse';
+  training_goal?: 'strength' | 'hypertrophy' | 'power' | 'endurance';
+  quality_score?: number; // 0-100
+  quality_status?: 'premium' | 'good' | 'improvable';
+  last_review_at?: string;
+  ai_review_notes?: string[];
+  version_history?: { date: string, author: string, changes: string }[];
 }
 
 export interface WorkoutCategory {

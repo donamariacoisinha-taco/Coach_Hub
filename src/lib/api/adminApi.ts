@@ -75,6 +75,30 @@ export const adminApi = {
     };
   },
 
+  async getQualityStats() {
+    const { data: exercises, error } = await supabase.from('exercises').select('quality_status, quality_score, name');
+    if (error) throw error;
+    
+    const stats = {
+      total: exercises.length,
+      premium: exercises.filter(e => e.quality_status === 'premium').length,
+      good: exercises.filter(e => e.quality_status === 'good').length,
+      improvable: exercises.filter(e => e.quality_status === 'improvable').length,
+      avgScore: exercises.reduce((acc, curr) => acc + (curr.quality_score || 0), 0) / exercises.length || 0
+    };
+    
+    return stats;
+  },
+
+  async getLowQualityExercises() {
+    const { data, error } = await supabase.from('exercises')
+      .select('*')
+      .or('quality_status.eq.improvable,quality_score.lt.70')
+      .limit(20);
+    if (error) throw error;
+    return (data || []) as Exercise[];
+  },
+
   async reorderMuscleGroups(items: { id: string, sort_order: number }[]) {
     // Supabase doesn't support bulk update with different values easily in a single call without RPC
     // For simplicity in this audit, we'll do them sequentially or assume an RPC exists.

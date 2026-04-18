@@ -15,6 +15,7 @@ export const geminiService = {
     2. Instruções técnicas detalhadas passo a passo.
     3. Dicas de segurança e biomecânica.
     4. Músculos secundários envolvidos.
+    5. Tags estruturais: padrão de movimento, plano anatômico e objetivo principal.
 
     Retorne estritamente em JSON no formato especificado.`;
 
@@ -29,21 +30,88 @@ export const geminiService = {
             description: { type: Type.STRING },
             instructions: { type: Type.STRING },
             technical_tips: { type: Type.STRING },
-            secondary_muscles: { type: Type.ARRAY, items: { type: Type.STRING } }
+            secondary_muscles: { type: Type.ARRAY, items: { type: Type.STRING } },
+            movement_pattern: { type: Type.STRING, enum: ['push', 'pull', 'hinge', 'squat', 'lunge', 'carry', 'isolation'] },
+            plane: { type: Type.STRING, enum: ['horizontal', 'vertical', 'sagittal', 'frontal', 'transverse'] },
+            training_goal: { type: Type.STRING, enum: ['strength', 'hypertrophy', 'power', 'endurance'] }
           },
-          required: ["description", "instructions", "technical_tips", "secondary_muscles"]
+          required: ["description", "instructions", "technical_tips", "secondary_muscles", "movement_pattern", "plane", "training_goal"]
         }
       }
     });
 
     const data = JSON.parse(response.text || "{}");
-    // Combine tips into instructions or technical_prompt if needed
     return {
       description: data.description,
       instructions: data.instructions + "\n\n⚠️ DICAS TÉCNICAS:\n" + data.technical_tips,
       secondary_muscles: data.secondary_muscles,
-      technical_prompt: data.technical_tips
+      technical_prompt: data.technical_tips,
+      movement_pattern: data.movement_pattern,
+      plane: data.plane,
+      training_goal: data.training_goal
     };
+  },
+
+  async reviewExercise(exercise: Exercise): Promise<{ score: number, status: 'premium' | 'good' | 'improvable', notes: string[], biomechanic_check: boolean }> {
+    const prompt = `Como Auditor de Qualidade Rubi AI, revise este exercício:
+    NOME: ${exercise.name}
+    GRUPO: ${exercise.muscle_group}
+    DESCRIÇÃO: ${exercise.description}
+    INSTRUÇÕES: ${exercise.instructions}
+    PADRÃO: ${exercise.movement_pattern}
+    PLANO: ${exercise.plane}
+
+    Avalie:
+    1. Completude e clareza.
+    2. Coerência biomecânica (O exercício realmente trabalha o grupo muscular selecionado?).
+    3. Qualidade da linguagem.
+    4. Score de 0 a 100.
+
+    Retorne JSON.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-pro-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            score: { type: Type.NUMBER },
+            status: { type: Type.STRING, enum: ['premium', 'good', 'improvable'] },
+            notes: { type: Type.ARRAY, items: { type: Type.STRING } },
+            biomechanic_check: { type: Type.BOOLEAN }
+          },
+          required: ["score", "status", "notes", "biomechanic_check"]
+        }
+      }
+    });
+
+    return JSON.parse(response.text || "{}");
+  },
+
+  async checkSemanticSimilarity(name: string, existingNames: string[]): Promise<{ isDuplicate: boolean, similarTo?: string }> {
+    const prompt = `Verifique se o exercício "${name}" é semanticamente idêntico a algum destes existentes: ${existingNames.join(", ")}.
+    Considere variações de nome como "Supino Reto" e "Supino Barra Reto" como duplicadas.
+    Retorne JSON.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            isDuplicate: { type: Type.BOOLEAN },
+            similarTo: { type: Type.STRING }
+          },
+          required: ["isDuplicate"]
+        }
+      }
+    });
+
+    return JSON.parse(response.text || "{}");
   },
 
   async suggestVariations(name: string): Promise<string[]> {

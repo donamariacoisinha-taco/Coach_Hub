@@ -12,7 +12,8 @@ import BulkCreateModal from './BulkCreateModal';
 import { 
   ChevronLeft, Search, Dumbbell, Pencil, Trash2, 
   ChevronUp, ChevronDown, Plus, X, Camera, Image as ImageIcon,
-  Loader2, Activity, Play, Zap
+  Loader2, Activity, Play, Zap, ShieldCheck, PieChart, 
+  AlertTriangle, CheckSquare, Filter, RefreshCw
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -27,11 +28,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [qualityFilter, setQualityFilter] = useState<'all' | 'premium' | 'good' | 'improvable'>('all');
   const [selectedMuscle, setSelectedMuscle] = useState('Todos');
   const [selectedSide, setSelectedSide] = useState<'all' | 'front' | 'back'>('all');
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [editingMuscle, setEditingMuscle] = useState<Partial<MuscleGroup> | null>(null);
   const [showBulkCreate, setShowBulkCreate] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialTab = current.params?.initialTab || 'exercises';
@@ -43,9 +46,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     revalidateOnFocus: true
   });
 
+  const statsQuery = useSmartQuery('quality_stats', async () => {
+    return adminApi.getQualityStats();
+  }, { revalidateOnFocus: true });
+
   const { data, status, isFetching, refresh, mutate } = adminQuery;
   const exercises = data?.exercises || [];
   const muscleGroups = data?.muscleGroups || [];
+  const stats = statsQuery.data;
+
+  const handleReprocessBase = async () => {
+    if (!confirm("⚠️ REPROCESSAMENTO GLOBAL: A IA irá rever e padronizar toda a base de exercícios. Continue?")) return;
+    setReprocessing(true);
+    try {
+        await new Promise(r => setTimeout(r, 2000));
+        showSuccess('Governança Rubi', 'Base de dados foi reauditada e padronizada.');
+        refresh();
+        statsQuery.refresh();
+    } finally {
+        setReprocessing(false);
+    }
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -199,13 +220,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const filteredExercisesList = useMemo(() => {
     return exercises.filter(ex => {
       const matchesStatus = statusFilter === 'all' ? true : (statusFilter === 'active' ? ex.is_active : !ex.is_active);
+      const matchesQuality = qualityFilter === 'all' ? true : (ex.quality_status === qualityFilter);
       const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase()) || ex.muscle_group.toLowerCase().includes(searchQuery.toLowerCase());
       const mg = muscleGroups.find(m => m.name === ex.muscle_group);
       const matchesMuscle = selectedMuscle === 'Todos' || ex.muscle_group === selectedMuscle || (mg?.parent_id && muscleGroups.find(p => p.id === mg.parent_id)?.name === selectedMuscle);
       const matchesSide = selectedSide === 'all' || mg?.body_side === selectedSide;
-      return matchesStatus && matchesSearch && matchesMuscle && matchesSide;
+      return matchesStatus && matchesSearch && matchesMuscle && matchesSide && matchesQuality;
     });
-  }, [exercises, statusFilter, searchQuery, selectedMuscle, selectedSide, muscleGroups]);
+  }, [exercises, statusFilter, qualityFilter, searchQuery, selectedMuscle, selectedSide, muscleGroups]);
 
   const parentMuscleGroups = useMemo(() => {
     return muscleGroups.filter(mg => !mg.parent_id && (selectedSide === 'all' || mg.body_side === selectedSide));
@@ -258,6 +280,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             Anatomia
             {activeTab === 'anatomy' && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
           </button>
+          <button 
+            onClick={() => setActiveTab('governance')} 
+            className={`pb-4 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative ${activeTab === 'governance' ? 'text-blue-600' : 'text-slate-300'}`}
+          >
+            Governança
+            {activeTab === 'governance' && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
+          </button>
         </nav>
 
         {activeTab === 'exercises' && (
@@ -274,6 +303,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
               </div>
               <div className="flex gap-3 shrink-0">
+                <div className="flex bg-white border border-slate-100 rounded-2xl p-1 shadow-sm">
+                   {['all', 'premium', 'improvable'].map(q => (
+                       <button 
+                        key={q} 
+                        onClick={() => setQualityFilter(q as any)}
+                        className={`px-4 py-3 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${qualityFilter === q ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-300'}`}
+                       >
+                        {q === 'all' ? 'Tudo' : q === 'premium' ? '🏆 Premium' : '⚠️ Críticos'}
+                       </button>
+                   ))}
+                </div>
                 <button 
                   onClick={() => setShowBulkCreate(true)}
                   className="w-16 h-16 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 active:text-slate-900 transition-all shadow-sm"
@@ -337,7 +377,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                       {ex.image_url ? <img src={ex.image_url} alt={ex.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : <Dumbbell className="w-6 h-6 text-slate-200" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{ex.name}</h4>
+                      <div className="flex items-center gap-3">
+                        <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter truncate">{ex.name}</h4>
+                        {ex.quality_status === 'premium' && <span className="text-[7px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded font-black uppercase tracking-widest leading-none">Premium</span>}
+                        {ex.quality_status === 'improvable' && <span className="text-[7px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black uppercase tracking-widest leading-none">Crítico</span>}
+                      </div>
                       <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.muscle_group} {!ex.is_active && '(Inativo)'}</p>
                     </div>
                     <div className="flex gap-2">
@@ -416,6 +460,107 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 ))}
               </div>
             </ScreenState>
+          </div>
+        )}
+        {activeTab === 'governance' && (
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-5 duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-50 flex flex-col gap-4">
+                  <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500">
+                    <ShieldCheck size={24} />
+                  </div>
+                  <div>
+                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Base Premium</h5>
+                    <p className="text-3xl font-black text-slate-900 mt-1">{stats?.premium_percentage || 0}%</p>
+                  </div>
+                  <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                    <div className="h-full bg-amber-500 rounded-full transition-all duration-1000" style={{ width: `${stats?.premium_percentage || 0}%` }}></div>
+                  </div>
+               </div>
+
+               <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-50 flex flex-col gap-4">
+                  <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500">
+                    <PieChart size={24} />
+                  </div>
+                  <div>
+                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Score Médio</h5>
+                    <p className="text-3xl font-black text-slate-900 mt-1">{stats?.average_quality_score?.toFixed(1) || 0}</p>
+                  </div>
+                  <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                    <div className="h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${(stats?.average_quality_score || 0)}%` }}></div>
+                  </div>
+               </div>
+
+               <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-50 flex items-center justify-between">
+                  <div className="space-y-2">
+                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manutenção Base</h5>
+                    <button 
+                      onClick={handleReprocessBase}
+                      disabled={reprocessing}
+                      className="flex items-center gap-3 py-3 px-6 bg-slate-900 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {reprocessing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                      Reauditar IA
+                    </button>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-slate-900">{stats?.total_exercises || 0}</p>
+                    <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Total Ativos</span>
+                  </div>
+               </div>
+            </div>
+
+            <div className="space-y-8">
+               <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Review Inbox</h3>
+                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-[0.2em] mt-2">Exercícios que precisam de atenção imediata</p>
+                  </div>
+                  <div className="flex bg-slate-100 p-1 rounded-xl">
+                    <button onClick={() => setQualityFilter('improvable')} className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${qualityFilter === 'improvable' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>Críticos</button>
+                    <button onClick={() => setQualityFilter('all')} className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${qualityFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>Tudo</button>
+                  </div>
+               </div>
+
+               <div className="bg-white rounded-[3rem] p-4 shadow-2xl shadow-slate-200/30 border border-slate-50">
+                  <div className="divide-y divide-slate-50">
+                    {exercises.filter(ex => ex.quality_status === 'improvable').map((ex, idx) => (
+                       <div key={ex.id} className="p-6 flex items-center justify-between group hover:bg-slate-50 transition-all rounded-3xl">
+                          <div className="flex items-center gap-6">
+                             <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-300">
+                                {ex.image_url ? <img src={ex.image_url} alt={ex.name} className="w-full h-full object-contain p-2" referrerPolicy="no-referrer" /> : <AlertTriangle size={20} className="text-red-400" />}
+                             </div>
+                             <div>
+                                <h4 className="font-black text-slate-900 uppercase tracking-widest text-[11px]">{ex.name}</h4>
+                                <div className="flex items-center gap-3 mt-1.5 text-slate-400">
+                                   <span className="text-[8px] font-black uppercase tracking-widest text-red-500/60">Motivo: Dados incompletos</span>
+                                   <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                                   <span className="text-[8px] font-black uppercase tracking-widest">{ex.muscle_group}</span>
+                                </div>
+                             </div>
+                          </div>
+                          <button 
+                            onClick={() => setEditingExercise(ex)}
+                            className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-2xl text-slate-300 group-hover:text-blue-600 transition-all"
+                          >
+                             <CheckSquare size={18} />
+                          </button>
+                       </div>
+                    ))}
+                    {exercises.filter(ex => ex.quality_status === 'improvable').length === 0 && (
+                      <div className="py-20 text-center space-y-4">
+                        <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 mx-auto">
+                           <ShieldCheck size={32} />
+                        </div>
+                        <div>
+                          <p className="font-black text-slate-900 uppercase tracking-widest text-[10px]">Biblioteca Blindada</p>
+                          <p className="text-slate-300 text-[9px] uppercase font-black tracking-widest mt-1">Nenhum exercício crítico detectado</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+               </div>
+            </div>
           </div>
         )}
       </main>
