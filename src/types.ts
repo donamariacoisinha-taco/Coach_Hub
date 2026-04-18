@@ -53,7 +53,8 @@ export interface UserProfile {
   focus_muscles?: string[];
   days_per_week?: number;
   onboarding_completed: boolean;
-  is_admin?: boolean;
+  role?: 'admin' | 'user';
+  is_admin?: boolean; // Keep for backward compatibility if needed, but role is preferred
   last_deload_at?: string;
 }
 
@@ -136,9 +137,62 @@ export interface Exercise {
   training_goal?: 'strength' | 'hypertrophy' | 'power' | 'endurance';
   quality_score?: number; // 0-100
   quality_status?: 'premium' | 'good' | 'improvable';
+  performance_score?: number; // 0-100 based on usage frequency and RPE
+  usage_count?: number;
+  last_used_at?: string;
   last_review_at?: string;
   ai_review_notes?: string[];
   version_history?: { date: string, author: string, changes: string }[];
+}
+
+export interface EKEContext {
+  muscle_groups?: string[];
+  goal?: Goal;
+  level?: ExperienceLevel;
+  time_available?: number; // minutes
+  equipment?: EquipmentPreference;
+  user_id?: string;
+}
+
+export interface RecommendedExercise extends Exercise {
+  relevance_score: number;
+  recommendation_reason: string;
+}
+
+export interface WorkoutPlan {
+  id?: string;
+  name: string;
+  description: string;
+  exercises: WorkoutExercise[];
+  estimated_duration: number;
+  intensity_level: string;
+}
+
+export interface EKEDecisionLog {
+  id: string;
+  user_id?: string;
+  context: any;
+  selected_exercises: any;
+  scores_breakdown: any;
+  final_decision: any;
+  variant_id?: string;
+  created_at: string;
+}
+
+export interface EKEConfig {
+  id: string;
+  quality_weight: number;
+  performance_weight: number;
+  context_weight: number;
+  updated_at: string;
+}
+
+export interface UserEKEPreference {
+  user_id: string;
+  favorite_exercises: string[];
+  avoided_exercises: string[];
+  best_performing_exercises: string[];
+  variant_id?: 'A' | 'B';
 }
 
 export interface WorkoutCategory {

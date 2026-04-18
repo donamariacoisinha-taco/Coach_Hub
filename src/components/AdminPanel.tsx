@@ -9,6 +9,7 @@ import { ExerciseSkeleton } from './ui/Skeleton';
 import { useSmartQuery } from '../hooks/useSmartQuery';
 import ExerciseAdminPro from './ExerciseAdminPro';
 import BulkCreateModal from './BulkCreateModal';
+import { EKEManager } from './admin/EKEManager';
 import { 
   ChevronLeft, Search, Dumbbell, Pencil, Trash2, 
   ChevronUp, ChevronDown, Plus, X, Camera, Image as ImageIcon,
@@ -281,6 +282,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             {activeTab === 'anatomy' && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
           </button>
           <button 
+            onClick={() => setActiveTab('intelligence')} 
+            className={`pb-4 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative ${activeTab === 'intelligence' ? 'text-blue-600' : 'text-slate-300'}`}
+          >
+            Inteligência
+            {activeTab === 'intelligence' && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
+          </button>
+          <button 
             onClick={() => setActiveTab('governance')} 
             className={`pb-4 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative ${activeTab === 'governance' ? 'text-blue-600' : 'text-slate-300'}`}
           >
@@ -395,6 +403,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
               </div>
             </ScreenState>
           </div>
+        )}
+
+        {activeTab === 'intelligence' && (
+          <EKEManager />
         )}
 
         {activeTab === 'anatomy' && (

@@ -9,7 +9,7 @@ import { useErrorHandler } from '../hooks/useErrorHandler';
 import { ScreenState } from './ui/ScreenState';
 import { WorkoutSkeleton } from './ui/Skeleton';
 import { useAsyncState } from '../hooks/useAsyncState';
-import { ChevronLeft, Save, PlusCircle, GripVertical, SlidersHorizontal, Trash2, Search, X, MoreVertical, Play, Edit2, Replace, Copy, Clock, Dumbbell, Sparkles, ArrowUpCircle, Info, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { ChevronLeft, Save, PlusCircle, GripVertical, SlidersHorizontal, Trash2, Search, X, MoreVertical, Play, Edit2, Replace, Copy, Clock, Dumbbell, Sparkles, ArrowUpCircle, Info, CheckCircle2, AlertCircle, Loader2, Shield, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   DndContext,
@@ -30,6 +30,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { workoutEngine } from '../domain/workout/workoutEngine';
 import { cacheStore } from '../lib/cache/cacheStore';
+import { ekeService } from '../domain/eke/ekeService';
+import { Goal, ExperienceLevel } from '../types';
 
 interface SortableItemProps {
   ex: EditorExercise;
@@ -236,6 +238,14 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showMagicModal, setShowMagicModal] = useState(false);
+  const [magicLoading, setMagicLoading] = useState(false);
+  const [magicParams, setMagicParams] = useState({
+    goal: Goal.HYPERTROPHY,
+    duration: 60,
+    level: ExperienceLevel.BEGINNER,
+    focusMuscles: [] as string[]
+  });
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
 
@@ -279,6 +289,30 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
       .filter(ex => ex.muscle_group === lastMuscle && !exercises.some(ee => ee.exercise_id === ex.id))
       .slice(0, 4);
   }, [exercises, availableExercises]);
+
+  const handleMagicBuild = async () => {
+    if (magicParams.focusMuscles.length === 0) {
+        showError("Selecione pelo menos um grupo muscular!");
+        return;
+    }
+    setMagicLoading(true);
+    try {
+        const workout = await ekeService.generateWorkoutPlan(magicParams);
+        const editorExercises = workout.map(ex => ({
+            ...ex,
+            tempId: crypto.randomUUID()
+        })) as EditorExercise[];
+        setExercises(editorExercises);
+        setName(`Magic ${magicParams.goal}: ${magicParams.focusMuscles.join(' & ')}`);
+        setShowMagicModal(false);
+        showSuccess('EKE Ativada', 'O motor inteligente montou o treino ideal para seu contexto.');
+        if ('vibrate' in navigator) navigator.vibrate([20, 100, 20]);
+    } catch (err: any) {
+        showError(err);
+    } finally {
+        setMagicLoading(false);
+    }
+  };
 
   const handleSmartSort = () => {
     const sorted = [...exercises].sort((a, b) => {
@@ -512,6 +546,10 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
               {folders.find(f => f.id === folderId)?.name || 'Sem Pasta'}
             </p>
+            <div className="flex items-center gap-1 mt-0.5 opacity-60">
+                <Shield size={8} className="text-blue-500" />
+                <span className="text-[7px] font-black uppercase tracking-widest text-slate-400">EKE v1.0 Engaged</span>
+            </div>
           </div>
         </div>
         <button 
@@ -605,12 +643,20 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
           <div className="space-y-0">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Exercícios</h3>
-              <button 
-                onClick={handleSmartSort}
-                className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full text-[9px] font-black text-slate-600 uppercase tracking-widest active:scale-95 transition-all"
-              >
-                <Sparkles size={12} className="text-blue-500" /> Smart Sort
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setShowMagicModal(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full text-[9px] font-black text-blue-600 uppercase tracking-widest active:scale-95 transition-all"
+                >
+                  <Sparkles size={12} /> Magic Builder
+                </button>
+                <button 
+                  onClick={handleSmartSort}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full text-[9px] font-black text-slate-600 uppercase tracking-widest active:scale-95 transition-all"
+                >
+                  Smart Sort
+                </button>
+              </div>
             </div>
             <DndContext 
               sensors={sensors}
@@ -662,11 +708,19 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                       onClick={() => handleAddOrReplaceExercise(ex)}
                       className="shrink-0 w-40 bg-slate-50 rounded-2xl p-4 text-left space-y-3 active:scale-95 transition-all border border-transparent hover:border-blue-100"
                     >
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-sm">
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-sm relative">
                         <img src={ex.image_url} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
+                        {ex.quality_status === 'premium' && (
+                           <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white border-2 border-white">
+                             <Shield size={6} fill="currentColor" />
+                           </div>
+                        )}
                       </div>
                       <div>
-                        <h5 className="text-[11px] font-bold text-slate-900 leading-tight line-clamp-2">{ex.name}</h5>
+                        <div className="flex items-center gap-1">
+                          <h5 className="text-[11px] font-bold text-slate-900 leading-tight line-clamp-2">{ex.name}</h5>
+                          {(ex.performance_score || 0) > 85 && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
+                        </div>
                         <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest mt-1">{ex.muscle_group}</p>
                       </div>
                     </button>
@@ -785,6 +839,68 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
 
       {/* MODAL DE SALVAMENTO */}
       <AnimatePresence>
+        {showMagicModal && (
+          <div className="fixed inset-0 z-[1200] flex items-end justify-center">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowMagicModal(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="w-full bg-white rounded-t-[3rem] p-10 space-y-10 shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto">
+               <div className="text-center space-y-4">
+                  <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Configurar Motor EKE</h3>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-relaxed">Personalize seu treino inteligente</p>
+               </div>
+               
+               <div className="space-y-8">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Objetivo</label>
+                    <div className="grid grid-cols-2 gap-3">
+                       {Object.values(Goal).map(g => (
+                         <button 
+                          key={g} onClick={() => setMagicParams({...magicParams, goal: g})}
+                          className={`p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${magicParams.goal === g ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400'}`}
+                         >{g}</button>
+                       ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Foco Muscular</label>
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                       {muscleGroups.filter(mg => !mg.parent_id).map(mg => (
+                         <button 
+                          key={mg.id} 
+                          onClick={() => {
+                            const current = magicParams.focusMuscles;
+                            if (current.includes(mg.name)) setMagicParams({...magicParams, focusMuscles: current.filter(m => m !== mg.name)});
+                            else setMagicParams({...magicParams, focusMuscles: [...current, mg.name]});
+                          }}
+                          className={`px-6 py-3 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${magicParams.focusMuscles.includes(mg.name) ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 text-slate-400'}`}
+                         >{mg.name}</button>
+                       ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tempo Disponível: {magicParams.duration} min</label>
+                    <input 
+                      type="range" min="20" max="120" step="5" value={magicParams.duration} 
+                      onChange={e => setMagicParams({...magicParams, duration: parseInt(e.target.value)})}
+                      className="w-full accent-slate-900"
+                    />
+                  </div>
+               </div>
+
+               <div className="flex flex-col gap-4">
+                  <button 
+                    onClick={handleMagicBuild} 
+                    disabled={magicLoading}
+                    className="w-full py-6 bg-blue-600 rounded-3xl font-black text-white uppercase text-[10px] tracking-[0.2em] shadow-2xl shadow-blue-600/30 active:scale-95 transition-all flex items-center justify-center gap-3"
+                  >
+                    {magicLoading ? <Loader2 size={16} className="animate-spin" /> : <><Sparkles size={16} /> Montar Treino Mágico</>}
+                  </button>
+                  <button onClick={() => setShowMagicModal(false)} className="w-full py-2 text-slate-300 font-black uppercase text-[10px] tracking-[0.2em] active:text-slate-900 transition-colors">Cancelar</button>
+               </div>
+            </motion.div>
+          </div>
+        )}
         {showSaveModal && (
           <div className="fixed inset-0 z-[1100] flex items-end justify-center">
             <motion.div 

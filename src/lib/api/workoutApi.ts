@@ -99,13 +99,21 @@ export const workoutApi = {
   },
 
   async finishWorkout(historyId: string, durationMinutes: number, exercisesCount: number) {
-    const { error } = await supabase.from('workout_history').update({ 
+    const { error: histError } = await supabase.from('workout_history').update({ 
       duration_minutes: durationMinutes, 
       completed_at: new Date().toISOString(), 
       exercises_count: exercisesCount 
     }).eq('id', historyId);
     
-    if (error) throw error;
+    if (histError) throw histError;
+    
+    // EKE Feedback Loop
+    try {
+      const { ekeService } = await import('../../domain/eke/ekeService');
+      await ekeService.processWorkoutFeedback(historyId);
+    } catch (e) {
+      console.warn("[EKE] Feedback loop deferred or failed", e);
+    }
   },
 
   async abandonWorkout(historyId: string) {

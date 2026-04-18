@@ -11,8 +11,11 @@ import { ScreenState } from './ui/ScreenState';
 import { ExerciseSkeleton } from './ui/Skeleton';
 import { useSmartQuery } from '../hooks/useSmartQuery';
 import { usePrefetch } from '../hooks/usePrefetch';
-import { Search, MoreVertical, Info, History, TrendingUp, X, ChevronRight, Heart, Settings, Sparkles, Dumbbell } from 'lucide-react';
+import { Search, MoreVertical, Info, History, TrendingUp, X, ChevronRight, Heart, Settings, Sparkles, Dumbbell, Shield, Star, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ekeService } from '../domain/eke/ekeService';
+import { EKEExplanation } from './eke/EKEExplanation';
+import { Goal, ExperienceLevel } from '../types';
 
 const ExerciseLibrary: React.FC = () => {
   const { navigate } = useNavigation();
@@ -25,6 +28,7 @@ const ExerciseLibrary: React.FC = () => {
   const [selectedSide, setSelectedSide] = useState<'all' | 'front' | 'back'>('all');
   const [adminActiveFilter, setAdminActiveFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [showEkeExplanation, setShowEkeExplanation] = useState(false);
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
 
@@ -201,7 +205,19 @@ const ExerciseLibrary: React.FC = () => {
                       <img src={ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{ex.name}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{ex.name}</h4>
+                        {ex.quality_status === 'premium' && (
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 rounded text-[7px] font-black text-blue-600 uppercase tracking-widest shrink-0">
+                            <Shield size={8} fill="currentColor" /> Premium
+                          </div>
+                        )}
+                        {(ex.performance_score || 0) > 85 && (
+                           <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 rounded text-[7px] font-black text-amber-600 uppercase tracking-widest shrink-0">
+                            <Star size={8} fill="currentColor" /> Top
+                          </div>
+                        )}
+                      </div>
                       <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.muscle_group}</p>
                     </div>
                   </div>
@@ -231,8 +247,26 @@ const ExerciseLibrary: React.FC = () => {
             className="fixed inset-0 z-[1000] bg-white flex flex-col"
           >
             <header className="px-6 pt-12 pb-8 flex justify-between items-center border-b border-slate-50">
-              <div>
-                <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">{selectedExercise.name}</h3>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase truncate pr-4">{selectedExercise.name}</h3>
+                  <button 
+                    onClick={() => setShowEkeExplanation(true)}
+                    className="flex items-center gap-2"
+                  >
+                    {selectedExercise.quality_status === 'premium' && (
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 rounded text-[7px] font-black text-blue-600 uppercase tracking-widest shrink-0">
+                        <Shield size={8} fill="currentColor" /> Premium
+                      </div>
+                    )}
+                    {(selectedExercise.performance_score || 0) > 85 && (
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 rounded text-[7px] font-black text-amber-600 uppercase tracking-widest shrink-0">
+                        <Star size={8} fill="currentColor" /> Top
+                      </div>
+                    )}
+                    <Info size={12} className="text-slate-300" />
+                  </button>
+                </div>
                 <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{selectedExercise.muscle_group}</p>
               </div>
               <button onClick={() => setSelectedExercise(null)} className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 transition-colors">
@@ -283,6 +317,17 @@ const ExerciseLibrary: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <EKEExplanation 
+        exercise={selectedExercise!}
+        context={{
+          muscleGroup: selectedExercise?.muscle_group || '',
+          goal: Goal.HYPERTROPHY, // Default context for library explanation
+          level: ExperienceLevel.INTERMEDIATE
+        }}
+        isOpen={showEkeExplanation && !!selectedExercise}
+        onClose={() => setShowEkeExplanation(false)}
+      />
     </div>
   );
 };

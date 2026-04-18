@@ -72,6 +72,10 @@ const getStateFromUrl = (): NavigationState => {
 
 import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt, Flame } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { NavItem } from './components/ui/NavItem';
+import { isAdmin } from './lib/utils/auth';
+
+import { ekeService } from './domain/eke/ekeService';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -103,6 +107,7 @@ const App: React.FC = () => {
 
   // Periodic cache cleanup
   useEffect(() => {
+    ekeService.initialize();
     const interval = setInterval(() => {
       cacheStore.cleanup();
     }, 600000); // Every 10 minutes
@@ -276,18 +281,23 @@ const App: React.FC = () => {
                  </div>
                )}
 
-                <div className="flex flex-col items-center gap-8 w-full">
-                  <button 
-                    onClick={() => navigate('dashboard')} 
+                <div className="flex flex-col items-center gap-6 w-full py-4">
+                  <NavItem 
+                    id="dashboard"
+                    icon={Home}
+                    isActive={navState.view === 'dashboard'}
+                    onClick={() => navigate('dashboard')}
                     onMouseEnter={() => prefetch('dashboard_data', async () => {
                       const session = await authApi.getSession();
                       return session?.user ? workoutApi.getDashboardData(session.user.id) : null;
                     })}
-                    className={`flex flex-col items-center transition-all active:scale-90 ${navState.view === 'dashboard' ? 'text-black' : 'text-gray-300 hover:text-black'}`}
-                  ><Home size={24} /></button>
+                  />
                   
-                  <button 
-                    onClick={() => navigate('library')} 
+                  <NavItem 
+                    id="library"
+                    icon={Dumbbell}
+                    isActive={navState.view === 'library'}
+                    onClick={() => navigate('library')}
                     onMouseEnter={() => prefetch('exercise_library', async () => {
                       const user = await authApi.getUser();
                       if (!user) return null;
@@ -299,29 +309,42 @@ const App: React.FC = () => {
                       ]);
                       return { exercises, muscleGroups, favorites: new Set(favorites), isAdmin: isAdminUser };
                     })}
-                    className={`flex flex-col items-center transition-all active:scale-90 ${navState.view === 'library' ? 'text-black' : 'text-gray-300 hover:text-black'}`}
-                  ><Dumbbell size={24} /></button>
+                  />
                   
-                  <button 
-                    onClick={() => navigate('history')} 
+                  <NavItem 
+                    id="history"
+                    icon={HistoryIcon}
+                    isActive={navState.view === 'history'}
+                    onClick={() => navigate('history')}
                     onMouseEnter={() => prefetch('history_data', async () => {
                       const user = await authApi.getUser();
                       return user ? workoutApi.getWorkoutHistory(user.id) : null;
                     })}
-                    className={`flex flex-col items-center transition-all active:scale-90 ${navState.view === 'history' ? 'text-black' : 'text-gray-300 hover:text-black'}`}
-                  ><HistoryIcon size={24} /></button>
+                  />
+
+                  {isAdmin(profile) && (
+                    <NavItem 
+                      id="admin"
+                      icon={Shield}
+                      isActive={navState.view === 'admin'}
+                      onClick={() => navigate('admin')}
+                      badge="Pro"
+                    />
+                  )}
                   
-                  <button 
-                    onClick={() => navigate('profile')} 
+                  <NavItem 
+                    id="profile"
+                    icon={User}
+                    isActive={navState.view === 'profile'}
+                    onClick={() => navigate('profile')}
                     onMouseEnter={() => prefetch('profile_data', async () => {
                       const user = await authApi.getUser();
                       return user ? profileApi.getProfile(user.id) : null;
                     })}
-                    className={`flex flex-col items-center transition-all active:scale-90 ${navState.view === 'profile' ? 'text-black' : 'text-gray-300 hover:text-black'}`}
-                  ><User size={24} /></button>
+                  />
                 </div>
-            </aside>
-          )}
+              </aside>
+            )}
 
           <main className="flex-1 overflow-y-auto no-scrollbar relative">
             <AnimatePresence mode="wait">
@@ -342,66 +365,58 @@ const App: React.FC = () => {
                 {navState.view === 'history' && <HistoryView />}
                 {navState.view === 'library' && <ExerciseLibrary />}
                 {navState.view === 'profile' && profile && <ProfileView profile={profile} onUpdate={() => fetchProfile(session.user.id)} />}
-                {navState.view === 'admin' && <AdminPanel onBack={goBack} />}
+                {navState.view === 'admin' && (
+                  isAdmin(profile) ? <AdminPanel onBack={goBack} /> : <Dashboard />
+                )}
               </motion.div>
             </AnimatePresence>
             <DebugOverlay />
           </main>
 
           {!isImmersive && session && (
-            <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-2xl border-t border-slate-50 px-8 flex items-center justify-around z-50 pb-safe">
+            <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-2xl border-t border-slate-50 px-6 flex items-center justify-around z-50 pb-safe">
               {[
-                { id: 'dashboard', icon: Home },
-                { id: 'library', icon: Dumbbell },
-                { id: 'history', icon: HistoryIcon },
-                { id: 'profile', icon: User }
-              ].map((item) => {
-                const Icon = item.icon;
-                const isActive = navState.view === item.id;
-                return (
-                  <button 
-                    key={item.id}
-                    onClick={() => navigate(item.id as View)} 
-                    onMouseEnter={() => {
-                      if (item.id === 'dashboard') prefetch('dashboard_data', async () => {
-                        const session = await authApi.getSession();
-                        return session?.user ? workoutApi.getDashboardData(session.user.id) : null;
-                      });
-                      if (item.id === 'library') prefetch('exercise_library', async () => {
-                        const user = await authApi.getUser();
-                        if (!user) return null;
-                        const [exercises, muscleGroups, favorites, isAdminUser] = await Promise.all([
-                          exerciseApi.getExercises(),
-                          exerciseApi.getMuscleGroups(),
-                          exerciseApi.getFavorites(user.id),
-                          exerciseApi.isAdmin(user.id)
-                        ]);
-                        return { exercises, muscleGroups, favorites: new Set(favorites), isAdmin: isAdminUser };
-                      });
-                      if (item.id === 'history') prefetch('history_data', async () => {
-                        const user = await authApi.getUser();
-                        return user ? workoutApi.getWorkoutHistory(user.id) : null;
-                      });
-                      if (item.id === 'profile') prefetch('profile_data', async () => {
-                        const user = await authApi.getUser();
-                        return user ? profileApi.getProfile(user.id) : null;
-                      });
-                    }}
-                    className="relative p-4 group"
-                  >
-                    <Icon 
-                      size={24} 
-                      className={`transition-all duration-300 ${isActive ? 'text-slate-900 scale-110' : 'text-slate-300 group-active:scale-90'}`} 
-                    />
-                    {isActive && (
-                      <motion.div 
-                        layoutId="nav-active"
-                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-slate-900 rounded-full"
-                      />
-                    )}
-                  </button>
-                );
-              })}
+                { id: 'dashboard', icon: Home, label: 'Início' },
+                { id: 'library', icon: Dumbbell, label: 'Biblioteca' },
+                { id: 'admin', icon: Shield, label: 'Admin', adminOnly: true, badge: 'Pro' },
+                { id: 'history', icon: HistoryIcon, label: 'Histórico' },
+                { id: 'profile', icon: User, label: 'Perfil' }
+              ].filter(item => !item.adminOnly || isAdmin(profile)).map((item) => (
+                <NavItem 
+                  key={item.id}
+                  id={item.id}
+                  icon={item.icon}
+                  label={item.label}
+                  isActive={navState.view === item.id}
+                  onClick={() => navigate(item.id as View)}
+                  badge={item.badge}
+                  onMouseEnter={() => {
+                    if (item.id === 'dashboard') prefetch('dashboard_data', async () => {
+                      const sess = await authApi.getSession();
+                      return sess?.user ? workoutApi.getDashboardData(sess.user.id) : null;
+                    });
+                    if (item.id === 'library') prefetch('exercise_library', async () => {
+                      const user = await authApi.getUser();
+                      if (!user) return null;
+                      const [exercises, muscleGroups, favorites, isAdminUser] = await Promise.all([
+                        exerciseApi.getExercises(),
+                        exerciseApi.getMuscleGroups(),
+                        exerciseApi.getFavorites(user.id),
+                        exerciseApi.isAdmin(user.id)
+                      ]);
+                      return { exercises, muscleGroups, favorites: new Set(favorites), isAdmin: isAdminUser };
+                    });
+                    if (item.id === 'history') prefetch('history_data', async () => {
+                      const user = await authApi.getUser();
+                      return user ? workoutApi.getWorkoutHistory(user.id) : null;
+                    });
+                    if (item.id === 'profile') prefetch('profile_data', async () => {
+                      const user = await authApi.getUser();
+                      return user ? profileApi.getProfile(user.id) : null;
+                    });
+                  }}
+                />
+              ))}
             </nav>
           )}
         </div>
