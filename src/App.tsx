@@ -22,6 +22,11 @@ import { imagePrefetcher } from './lib/utils/imagePrefetcher';
 import { DebugOverlay } from './components/DebugOverlay';
 import { cacheStore } from './lib/cache/cacheStore';
 import { useWorkoutStore } from './app/store/workoutStore';
+import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt, Flame } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { NavItem } from './components/ui/NavItem';
+import { isAdmin } from './lib/utils/auth';
+import { ekeService } from './domain/eke/ekeService';
 
 type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'editor' | 'history' | 'admin' | 'profile' | 'library';
 type Theme = 'classic' | 'light' | 'aggressive' | 'bloom' | 'neon-strike';
@@ -70,20 +75,15 @@ const getStateFromUrl = (): NavigationState => {
   return { view: 'landing', params: {} };
 };
 
-import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt, Flame } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { NavItem } from './components/ui/NavItem';
-import { isAdmin } from './lib/utils/auth';
-
-import { ekeService } from './domain/eke/ekeService';
-
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('coach_theme') as Theme) || 'light');
   const [navState, setNavState] = useState<NavigationState>(getStateFromUrl);
+  const { isHydrated } = useWorkoutStore();
   const prefetch = usePrefetch();
+  const isInitializing = useRef(false);
 
   // Initial Prefetching
   useEffect(() => {
@@ -100,7 +100,6 @@ const App: React.FC = () => {
     
     initPrefetch();
   }, []);
-  const isInitializing = useRef(false);
 
   // Inicializa o sistema de sincronização offline
   useSync();
@@ -114,11 +113,16 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Re-fetch profile once store is hydrated to ensure correct redirection for logged-in users
+  useEffect(() => {
+    if (isHydrated && session && !profile) {
+      fetchProfile(session.user.id);
+    }
+  }, [isHydrated, session, profile]);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
-
-  const { isHydrated } = useWorkoutStore();
 
   const fetchProfile = async (userId: string) => {
     console.log(`[APP][DEBUG] Buscando perfil do usuário: ${userId}`);
@@ -347,7 +351,7 @@ const App: React.FC = () => {
             )}
 
           <main className="flex-1 overflow-y-auto no-scrollbar relative">
-            <AnimatePresence mode="wait">
+            <AnimatePresence>
               <motion.div
                 key={navState.view + (navState.params.id || '')}
                 initial={{ opacity: 0, y: 8 }}

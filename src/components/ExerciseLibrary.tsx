@@ -4,7 +4,7 @@ import { Exercise, MuscleGroup } from '../types';
 import { authApi } from '../lib/api/authApi';
 import { exerciseApi } from '../lib/api/exerciseApi';
 import { workoutApi } from '../lib/api/workoutApi';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { useNavigation } from '../App';
 import { ExerciseProgress } from './ExerciseProgress';
 import { ScreenState } from './ui/ScreenState';
@@ -85,11 +85,21 @@ const ExerciseLibrary: React.FC = () => {
     setLoadingAi(true);
     setAiTip(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      // Safe access to environment variables
+      const apiKey = (import.meta.env?.VITE_GEMINI_API_KEY as string) || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '');
+      
+      if (!apiKey) throw new Error("API Key not found");
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const prompt = `Dê uma dica biomecânica avançada (curta) para o exercício: ${exName}.`;
-      const response = await ai.models.generateContent({ model: 'gemini-1.5-flash', contents: prompt });
-      setAiTip(response.text || "Foque na técnica.");
-    } catch (err) { setAiTip("Conexão mente-músculo."); }
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      setAiTip(response.text() || "Foque na técnica.");
+    } catch (err) { 
+      console.warn("[AI] Tip error:", err);
+      setAiTip("Conexão mente-músculo."); 
+    }
     finally { setLoadingAi(false); }
   };
 
