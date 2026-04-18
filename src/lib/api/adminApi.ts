@@ -45,6 +45,21 @@ export const adminApi = {
     if (error) throw error;
   },
 
+  async bulkCreateExercises(exercises: Partial<Exercise>[]) {
+    const { data, error } = await supabase.from('exercises').insert(exercises).select();
+    if (error) throw error;
+    return data;
+  },
+
+  async checkExistingExercise(name: string) {
+    const { data, error } = await supabase.from('exercises')
+      .select('id, name')
+      .ilike('name', name)
+      .limit(1);
+    if (error) throw error;
+    return data && data.length > 0 ? data[0] : null;
+  },
+
   async getAdminData() {
     const [exRes, mgRes] = await Promise.all([
       supabase.from('exercises').select('*').order('name'),

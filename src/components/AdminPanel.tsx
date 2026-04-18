@@ -8,10 +8,11 @@ import { ScreenState } from './ui/ScreenState';
 import { ExerciseSkeleton } from './ui/Skeleton';
 import { useSmartQuery } from '../hooks/useSmartQuery';
 import ExerciseAdminPro from './ExerciseAdminPro';
+import BulkCreateModal from './BulkCreateModal';
 import { 
   ChevronLeft, Search, Dumbbell, Pencil, Trash2, 
   ChevronUp, ChevronDown, Plus, X, Camera, Image as ImageIcon,
-  Loader2, Activity, Play
+  Loader2, Activity, Play, Zap
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -30,6 +31,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const [selectedSide, setSelectedSide] = useState<'all' | 'front' | 'back'>('all');
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [editingMuscle, setEditingMuscle] = useState<Partial<MuscleGroup> | null>(null);
+  const [showBulkCreate, setShowBulkCreate] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialTab = current.params?.initialTab || 'exercises';
@@ -271,12 +273,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                   />
                 </div>
               </div>
-              <button 
-                onClick={handleCreateExercise}
-                className="px-8 py-5 bg-slate-900 rounded-2xl font-black text-[10px] text-white uppercase tracking-[0.2em] shadow-2xl shadow-slate-900/20 active:scale-95 transition-all mb-1"
-              >
-                Novo Movimento
-              </button>
+              <div className="flex gap-3 shrink-0">
+                <button 
+                  onClick={() => setShowBulkCreate(true)}
+                  className="w-16 h-16 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 active:text-slate-900 transition-all shadow-sm"
+                  title="Criação em Lote"
+                >
+                  <Zap size={24} />
+                </button>
+                <button 
+                  onClick={handleCreateExercise}
+                  className="px-8 py-5 bg-slate-900 rounded-2xl font-black text-[10px] text-white uppercase tracking-[0.2em] shadow-2xl shadow-slate-900/20 active:scale-95 transition-all mb-1"
+                >
+                  Novo Movimento
+                </button>
+              </div>
             </div>
 
               <div className="space-y-6">
@@ -479,10 +490,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
           onBack={() => setEditingExercise(null)}
           onSave={async (updated) => {
             if (updated.id.startsWith('temp-')) {
-               // If it was a new exercise, we'll need to refresh the list properly
-               // because adminApi.updateExercise actually does an update.
-               // We should have a createExercise method.
-               // For now, let's keep it simple and refresh.
                await refresh();
             } else {
               if (data) {
@@ -495,6 +502,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             setEditingExercise(null);
           }}
           onDelete={handleDeleteExercise}
+        />
+      )}
+
+      {showBulkCreate && (
+        <BulkCreateModal 
+          muscleGroups={muscleGroups}
+          onClose={() => setShowBulkCreate(false)}
+          onSuccess={() => {
+            setShowBulkCreate(false);
+            refresh();
+          }}
         />
       )}
     </div>
