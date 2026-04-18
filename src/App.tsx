@@ -21,6 +21,7 @@ import { usePrefetch } from './hooks/usePrefetch';
 import { imagePrefetcher } from './lib/utils/imagePrefetcher';
 import { DebugOverlay } from './components/DebugOverlay';
 import { cacheStore } from './lib/cache/cacheStore';
+import { useWorkoutStore } from './app/store/workoutStore';
 
 type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'editor' | 'history' | 'admin' | 'profile' | 'library';
 type Theme = 'classic' | 'light' | 'aggressive' | 'bloom' | 'neon-strike';
@@ -112,9 +113,17 @@ const App: React.FC = () => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  const { isHydrated } = useWorkoutStore();
+
   const fetchProfile = async (userId: string) => {
     console.log(`[APP][DEBUG] Buscando perfil do usuário: ${userId}`);
     try {
+      // Garantir hidratação antes de decidir navegação baseada no store
+      if (!isHydrated) {
+        console.log("[APP] Aguardando hidratação do store...");
+        return; 
+      }
+
       const profileData = await profileApi.getProfile(userId);
 
       if (!profileData) {
@@ -132,6 +141,15 @@ const App: React.FC = () => {
         const partial = await workoutApi.getPartialSession(userId);
 
         if (partial) {
+          const currentStoreHistoryId = useWorkoutStore.getState().historyId;
+          const currentStoreWorkoutId = useWorkoutStore.getState().currentWorkoutId;
+          
+          if (currentStoreHistoryId !== partial.history_id || currentStoreWorkoutId !== partial.workout_id) {
+            console.log("[App] New partial session detected or store mismatch, resetting workout state");
+            useWorkoutStore.getState().resetWorkout();
+          } else {
+            console.log("[App] Resuming existing session matched in store");
+          }
           navigate('workout', { id: partial.workout_id });
         } else if (!profileData.onboarding_completed) {
           navigate('onboarding');
@@ -147,7 +165,12 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isInitializing.current) return;
+    if (isInitializing.current) {
+      if (isHydrated && session && !profile) {
+        fetchProfile(session.user.id);
+      }
+      return;
+    }
     isInitializing.current = true;
 
     // Timeout de segurança para evitar loading infinito caso o Supabase não responda
@@ -203,7 +226,7 @@ const App: React.FC = () => {
       subscription.unsubscribe();
       window.removeEventListener('popstate', handlePopState);
     };
-  }, []);
+  }, [isHydrated, session]);
 
   const navigate = (view: View, params: any = {}) => {
     if ('vibrate' in navigator) navigator.vibrate(5);

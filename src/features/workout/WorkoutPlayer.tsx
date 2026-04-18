@@ -29,6 +29,7 @@ import { getEmotionalFeedback } from "../../domain/feedback/feedbackEngine";
 import { VictoryScreen } from "../../components/VictoryScreen";
 import { workoutEngine } from "../../domain/workout/workoutEngine";
 import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
+import { cacheStore } from "../../lib/cache/cacheStore";
 
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { navigate } = useNavigation();
@@ -64,9 +65,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const { category, exercises: loadedExercises, partialSession } = await workoutApi.getWorkoutInitData(workoutId, user.id);
 
     let sessionData;
-    if (partialSession) {
+    if (partialSession && partialSession.history_id) {
       sessionData = workoutEngine.initializeSession(partialSession, null);
     } else {
+      // Se partialSession existe mas está corrompida (sem history_id), 
+      // ou se não existe, criamos uma nova.
       const newHistory = await workoutApi.startWorkoutHistory(user.id, workoutId, category?.name || 'Treino');
       sessionData = workoutEngine.initializeSession(null, newHistory);
       
@@ -83,7 +86,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   // Sync Store with Query Data
   useEffect(() => {
-    if (playerQuery.data) {
+    if (playerQuery.data && playerQuery.data.historyId) {
       setWorkout({
         id: workoutId,
         exercises: playerQuery.data.exercises,
@@ -92,10 +95,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         currentIndex: playerQuery.data.currentIndex,
         currentSet: playerQuery.data.currentSet
       });
+    } else if (playerQuery.data && !playerQuery.data.historyId) {
+      console.warn("[WorkoutPlayer] Query data received without historyId - forcing refresh");
+      playerQuery.refresh();
     }
   }, [playerQuery.data, workoutId, setWorkout]);
 
-  const currentEx = useMemo(() => exercises[currentIndex] || null, [exercises, currentIndex]);
+  const currentEx = useMemo(() => (exercises && exercises[currentIndex]) || null, [exercises, currentIndex]);
 
   // Prefetch next exercise image
   useEffect(() => {
@@ -200,22 +206,57 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
   };
 
+  const [finishing, setFinishing] = useState(false);
+
   const finishWorkout = async (isSuccess: boolean) => {
-    if (!historyId) return;
+    // Pegamos do store diretamente para evitar closure stale se houver re-renders
+    const currentStore = useWorkoutStore.getState();
+    const currentHistoryId = currentStore.historyId;
+    const currentStartTime = currentStore.startTime;
+
+    if (!currentHistoryId) {
+      console.error("[finishWorkout] CRITICAL: historyId is missing from store state", {
+        store: currentStore,
+        idFromProp: workoutId,
+        isFinished
+      });
+      showError(new Error("ID da sessão não encontrado. A sessão pode ter sido expirada ou concluída em outro dispositivo. Verifique sua conexão."));
+      return;
+    }
+    
+    setFinishing(true);
     try {
+      const user = await authApi.getUser();
+      const finalDuration = Math.round((Date.now() - (currentStartTime || Date.now())) / 60000);
+
       if (isSuccess) {
-        const duration = Math.round((Date.now() - (startTime || Date.now())) / 60000);
-        await workoutApi.finishWorkout(historyId, duration, exercises.length);
+        const finalExCount = exercises.length;
+        await workoutApi.finishWorkout(currentHistoryId, finalDuration, finalExCount);
+        if (user) await workoutApi.clearPartialSession(user.id);
+        
+        // Invalida o cache da sessão para garantir que um novo treino não use dados antigos
+        cacheStore.clear(`workout_init_${workoutId}`);
+        
+        // Mantemos os dados locais para a VictoryScreen antes de resetar a store
+        setWorkoutDuration(finalDuration);
         setIsFinished(true);
       } else {
-        await workoutApi.abandonWorkout(historyId);
+        await workoutApi.abandonWorkout(currentHistoryId);
+        if (user) await workoutApi.clearPartialSession(user.id);
+        
+        // Invalida o cache da sessão
+        cacheStore.clear(`workout_init_${workoutId}`);
+        
+        // Resetamos a store e navegamos para o dashboard
+        resetWorkout();
         navigate('dashboard');
       }
-      const user = await authApi.getUser();
-      if (user) await workoutApi.clearPartialSession(user.id);
-      resetWorkout();
     } catch (err) {
+      showError(err);
       console.error("Error finishing workout:", err);
+    } finally {
+      setFinishing(false);
+      setShowExitModal(false);
     }
   };
 
@@ -240,6 +281,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           historyId={historyId!} 
           duration={Math.round((Date.now() - (startTime || Date.now())) / 60000)}
           exercisesCount={exercises.length}
+          onDone={resetWorkout}
         />
       )}
       <ScreenState
@@ -470,9 +512,27 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-6 leading-relaxed">Deseja salvar esta sessão ou descartar o progresso?</p>
               </div>
               <div className="space-y-4">
-                <button onClick={() => finishWorkout(true)} className="w-full py-6 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform shadow-xl shadow-slate-900/10">Salvar e Sair</button>
-                <button onClick={() => finishWorkout(false)} className="w-full py-6 bg-red-50 text-red-500 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform">Descartar</button>
-                <button onClick={() => setShowExitModal(false)} className="w-full py-4 text-slate-300 font-black uppercase text-[10px] tracking-widest active:text-slate-900 transition-colors">Continuar</button>
+                <button 
+                  onClick={() => finishWorkout(true)} 
+                  disabled={finishing}
+                  className="w-full py-6 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform shadow-xl shadow-slate-900/10 flex items-center justify-center disabled:opacity-50"
+                >
+                  {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar e Sair"}
+                </button>
+                <button 
+                  onClick={() => finishWorkout(false)} 
+                  disabled={finishing}
+                  className="w-full py-6 bg-red-50 text-red-500 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform flex items-center justify-center disabled:opacity-50"
+                >
+                  {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Descartar"}
+                </button>
+                <button 
+                  onClick={() => setShowExitModal(false)} 
+                  disabled={finishing}
+                  className="w-full py-4 text-slate-300 font-black uppercase text-[10px] tracking-widest active:text-slate-900 transition-colors disabled:opacity-50"
+                >
+                  Continuar
+                </button>
               </div>
             </motion.div>
           </div>

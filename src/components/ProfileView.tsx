@@ -29,7 +29,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdate }) => {
     revalidateOnFocus: true
   });
 
-  const { data: measurements = [], status, isFetching, refresh } = measurementsQuery;
+  const { data, status, isFetching, refresh } = measurementsQuery;
+  const measurements: BodyMeasurement[] = data || [];
   
   const initialMeasureState: Partial<BodyMeasurement> = {
     measured_at: new Date().toISOString().split('T')[0],

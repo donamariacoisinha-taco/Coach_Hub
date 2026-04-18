@@ -8,6 +8,11 @@ export const adminApi = {
     if (error) throw error;
   },
 
+  async createExercise(payload: Partial<Exercise>) {
+    const { error } = await supabase.from('exercises').insert([payload]);
+    if (error) throw error;
+  },
+
   async uploadExerciseImage(file: File, exerciseId: string) {
     const fileExt = file.name.split('.').pop();
     const fileName = `${exerciseId}-${Math.random()}.${fileExt}`;
@@ -48,10 +53,10 @@ export const adminApi = {
     
     if (exRes.error) throw exRes.error;
     if (mgRes.error) throw mgRes.error;
-
+    
     return {
-      exercises: exRes.data as Exercise[],
-      muscleGroups: mgRes.data as MuscleGroup[]
+      exercises: (exRes.data || []) as Exercise[],
+      muscleGroups: (mgRes.data || []) as MuscleGroup[]
     };
   },
 

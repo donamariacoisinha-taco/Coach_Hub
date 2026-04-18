@@ -115,10 +115,14 @@ export interface Exercise {
   id: string;
   user_id?: string;
   name: string;
+  alt_name?: string;
   muscle_group: string;
   muscle_group_id: string;
   type: string;
   instructions?: string;
+  description?: string;
+  video_url?: string;
+  secondary_muscles?: string[];
   is_active: boolean;
   image_url?: string;
   difficulty_level: 'beginner' | 'intermediate' | 'advanced';

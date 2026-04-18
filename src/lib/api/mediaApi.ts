@@ -11,7 +11,7 @@ export const mediaApi = {
       .order('created_at', { ascending: false });
     
     if (error) throw error;
-    return data as ProgressPhoto[];
+    return (data || []) as ProgressPhoto[];
   },
 
   async uploadPhoto(userId: string, photoUrl: string, tag: 'frente' | 'lado' | 'costas') {

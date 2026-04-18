@@ -12,6 +12,7 @@ export const calculateStreak = (historyDates: string[]): number => {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
+  if (!sortedDates || sortedDates.length === 0) return 0;
   const lastWorkoutDate = new Date(sortedDates[0]);
   lastWorkoutDate.setHours(0, 0, 0, 0);
 

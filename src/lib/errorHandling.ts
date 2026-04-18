@@ -69,7 +69,7 @@ export function mapError(error: any): AppError {
   return {
     type: 'unknown',
     title: 'Algo deu errado',
-    message: 'Ocorreu um erro inesperado. Tente novamente.',
+    message: error?.message || error?.details || 'Ocorreu um erro inesperado. Tente novamente.',
     retryable: true,
     originalError: error
   };

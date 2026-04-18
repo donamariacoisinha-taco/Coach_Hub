@@ -26,7 +26,7 @@ export const getContext = (
 ): UserContext => {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  const lastWorkout = history.length > 0 ? history[0] : undefined;
+  const lastWorkout = (history && history.length > 0) ? history[0] : undefined;
   
   let daysSinceLastWorkout = 999;
   if (lastWorkout) {
@@ -66,7 +66,7 @@ export const getNextBestAction = (
   const trainedToday = lastWorkout && new Date(lastWorkout.completed_at).toDateString() === context.currentTime.toDateString();
 
   if (isTrainingDay && !trainedToday) {
-    const suggested = workouts.find(w => w.id !== lastWorkout?.category_id) || workouts[0];
+    const suggested = (workouts && workouts.length > 0) ? (workouts.find(w => w.id !== lastWorkout?.category_id) || workouts[0]) : null;
     let timeMsg = 'Hora de esmagar!';
     if (timeOfDay === 'morning') timeMsg = 'Bom dia! Que tal começar com energia?';
     if (timeOfDay === 'evening') timeMsg = 'Fim de dia produtivo? Vamos ao treino!';
@@ -82,7 +82,7 @@ export const getNextBestAction = (
   }
 
   if (daysSinceLastWorkout >= 2 && !trainedToday) {
-    const suggested = workouts[0];
+    const suggested = (workouts && workouts.length > 0) ? workouts[0] : null;
     return {
       type: 'motivation',
       title: 'Sentimos sua falta!',

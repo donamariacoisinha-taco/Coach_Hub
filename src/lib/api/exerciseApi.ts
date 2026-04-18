@@ -6,19 +6,19 @@ export const exerciseApi = {
   async getExercises() {
     const { data, error } = await supabase.from('exercises').select('*').order('name');
     if (error) throw error;
-    return data as Exercise[];
+    return (data || []) as Exercise[];
   },
 
   async getMuscleGroups() {
     const { data, error } = await supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true });
     if (error) throw error;
-    return data as MuscleGroup[];
+    return (data || []) as MuscleGroup[];
   },
 
   async getFavorites(userId: string) {
     const { data, error } = await supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', userId);
     if (error) throw error;
-    return data.map(f => f.exercise_id);
+    return (data || []).map(f => f.exercise_id);
   },
 
   async toggleFavorite(userId: string, exerciseId: string, isFavorite: boolean) {
@@ -49,6 +49,6 @@ export const exerciseApi = {
       return [];
     }
 
-    return data;
+    return data || [];
   }
 };

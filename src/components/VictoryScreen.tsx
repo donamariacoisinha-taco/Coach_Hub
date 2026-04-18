@@ -18,9 +18,10 @@ interface VictoryScreenProps {
   historyId: string;
   duration: number;
   exercisesCount: number;
+  onDone?: () => void;
 }
 
-export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duration, exercisesCount }) => {
+export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duration, exercisesCount, onDone }) => {
   const { navigate } = useNavigation();
   const [totalVolume, setTotalVolume] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -62,14 +63,22 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
           volumeTrend = insights?.volumeTrend || 0;
         }
 
-        // 4. Achievements
-        const newAchievements = checkAchievements({
-          totalWorkouts: history.length,
-          streak: currentStreak,
-          totalVolume: volume,
-          isPR
-        });
-        setAchievements(newAchievements);
+        // 4. Achievements (Fetch from DB + Local for immediate PR)
+        const earnedBadges = await workoutApi.getAchievements(user.id);
+        const mappedAchievements = earnedBadges
+          .filter((b: any) => {
+            // Só mostramos as conquistas obtidas nos últimos minutos (ou seja, nesta sessão)
+            const achievedAt = new Date(b.achieved_at).getTime();
+            return (Date.now() - achievedAt) < 60000; 
+          })
+          .map((b: any) => ({
+            id: b.badge_id,
+            title: b.badges.name,
+            icon: b.badges.icon,
+            description: b.badges.description
+          }));
+
+        setAchievements(mappedAchievements);
 
         // 5. Feedback & Goals
         setFeedback(getAdvancedEmotionalFeedback({ streak: currentStreak, pr: isPR, volumeTrend }));
@@ -182,7 +191,10 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
         className="mt-16 w-full max-w-xs space-y-4"
       >
         <button 
-          onClick={() => navigate('dashboard')}
+          onClick={() => {
+            if (onDone) onDone();
+            navigate('dashboard');
+          }}
           className="w-full h-16 bg-gray-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-transform"
         >
           Ir para Dashboard <ArrowRight size={16} />

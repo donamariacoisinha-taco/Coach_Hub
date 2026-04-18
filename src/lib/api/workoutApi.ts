@@ -18,9 +18,9 @@ export const workoutApi = {
 
     return {
       profile: profileRes.data as UserProfile | null,
-      folders: foldersRes.data as WorkoutFolder[],
-      workouts: workoutsRes.data as WorkoutCategory[],
-      history: historyRes.data as WorkoutHistory[],
+      folders: (foldersRes.data || []) as WorkoutFolder[],
+      workouts: (workoutsRes.data || []) as WorkoutCategory[],
+      history: (historyRes.data || []) as WorkoutHistory[],
       stats: { sessions: historyRes.data?.length || 0 }
     };
   },
@@ -49,7 +49,7 @@ export const workoutApi = {
 
     return {
       category: catRes.data as WorkoutCategory,
-      exercises: loadedExercises as WorkoutExercise[],
+      exercises: (loadedExercises || []) as WorkoutExercise[],
       partialSession: partialRes.data
     };
   },
@@ -109,6 +109,13 @@ export const workoutApi = {
   },
 
   async abandonWorkout(historyId: string) {
+    // Primeiro limpamos todas as dependências que podem ter chaves estrangeiras
+    await Promise.all([
+      supabase.from('workout_sets_log').delete().eq('history_id', historyId),
+      supabase.from('partial_workout_sessions').delete().eq('history_id', historyId)
+    ]);
+
+    // Depois abandonamos o histórico
     const { error } = await supabase.from('workout_history').delete().eq('id', historyId);
     if (error) throw error;
   },
@@ -121,13 +128,13 @@ export const workoutApi = {
   async getWorkoutLogs(historyId: string) {
     const { data, error } = await supabase.from('workout_sets_log').select('weight_achieved, reps_achieved, exercise_id').eq('history_id', historyId);
     if (error) throw error;
-    return data;
+    return data || [];
   },
 
   async getWorkoutHistory(userId: string) {
     const { data, error } = await supabase.from('workout_history').select('*').eq('user_id', userId).not('completed_at', 'is', null).order('completed_at', { ascending: false });
     if (error) throw error;
-    return data;
+    return data || [];
   },
 
   async getExerciseList() {
@@ -137,13 +144,24 @@ export const workoutApi = {
       .order('date', { ascending: false });
     
     if (error) throw error;
-    return data;
+    return data || [];
   },
 
   async getWorkoutDetails(historyId: string) {
     const { data, error } = await supabase.from('workout_sets_log').select(`*, exercises (name, muscle_group)`).eq('history_id', historyId).order('created_at', { ascending: true });
     if (error) throw error;
-    return data;
+    return data || [];
+  },
+
+  async getAchievements(userId: string) {
+    const { data, error } = await supabase
+      .from('user_badges')
+      .select('*, badges(*)')
+      .eq('user_id', userId)
+      .order('achieved_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
   },
 
   async getWorkoutEditorData(userId: string, workoutId?: string) {
@@ -163,11 +181,11 @@ export const workoutApi = {
     if (errors.length > 0) throw errors[0].error;
 
     return {
-      folders: results[0].data as WorkoutFolder[],
-      muscleGroups: results[1].data as MuscleGroup[],
-      exercises: results[2].data as Exercise[],
+      folders: (results[0].data || []) as WorkoutFolder[],
+      muscleGroups: (results[1].data || []) as MuscleGroup[],
+      exercises: (results[2].data || []) as Exercise[],
       category: workoutId ? results[3].data as WorkoutCategory : null,
-      workoutExercises: workoutId ? results[4].data as WorkoutExercise[] : []
+      workoutExercises: workoutId ? (results[4].data || []) as WorkoutExercise[] : []
     };
   },
 
@@ -200,13 +218,13 @@ export const workoutApi = {
   async getWorkoutLogsSimple(historyId: string) {
     const { data, error } = await supabase.from('workout_sets_log').select('*').eq('history_id', historyId);
     if (error) throw error;
-    return data;
+    return data || [];
   },
 
   async getPartialSession(userId: string) {
     const { data, error } = await supabase
       .from('partial_workout_sessions')
-      .select('workout_id')
+      .select('workout_id, history_id')
       .eq('user_id', userId)
       .maybeSingle();
     if (error) throw error;

@@ -8,27 +8,33 @@ export interface SessionInitResult {
   currentSet: number;
 }
 
+const safeParseDate = (dateVal: any): number => {
+  if (!dateVal) return Date.now();
+  const parsed = new Date(dateVal).getTime();
+  return isNaN(parsed) ? Date.now() : parsed;
+};
+
 export const workoutEngine = {
   initializeSession(
     partialSession: any | null,
     newHistory: WorkoutHistory | null
   ): SessionInitResult {
-    if (partialSession) {
+    if (partialSession && partialSession.history_id) {
       return {
         historyId: partialSession.history_id,
-        startTime: new Date(partialSession.start_time || Date.now()).getTime(),
+        startTime: safeParseDate(partialSession.start_time),
         currentIndex: partialSession.current_index || 0,
         currentSet: partialSession.current_set || 1,
       };
     }
 
     if (!newHistory) {
-      throw new Error("Falha ao iniciar novo histórico de treino");
+      throw new Error("Sessão não pôde ser iniciada (Histórico Ausente)");
     }
 
     return {
       historyId: newHistory.id,
-      startTime: new Date(newHistory.created_at).getTime(),
+      startTime: safeParseDate(newHistory.created_at),
       currentIndex: 0,
       currentSet: 1,
     };

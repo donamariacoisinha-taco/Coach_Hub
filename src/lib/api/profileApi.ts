@@ -31,7 +31,7 @@ export const profileApi = {
       .order('measured_at', { ascending: false });
     
     if (error) throw error;
-    return data as BodyMeasurement[];
+    return (data || []) as BodyMeasurement[];
   },
 
   async deleteBodyMeasurement(id: string) {

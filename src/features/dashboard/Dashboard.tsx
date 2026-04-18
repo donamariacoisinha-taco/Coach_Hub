@@ -13,6 +13,8 @@ import { usePrefetch } from '../../hooks/usePrefetch';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { usePredictive } from '../../hooks/usePredictive';
 import { imagePrefetcher } from '../../lib/utils/imagePrefetcher';
+import { useWorkoutStore } from '../../app/store/workoutStore';
+import { cacheStore } from '../../lib/cache/cacheStore';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
@@ -47,6 +49,12 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   }, [workouts, activeFolderId]);
 
   const handlePrefetchWorkout = async (id: string) => {
+    // Reset para evitar estados fantasmas
+    const currentStoreId = useWorkoutStore.getState().currentWorkoutId;
+    if (currentStoreId !== id) {
+       cacheStore.clear(`workout_init_${id}`);
+    }
+
     prefetch(`workout_init_${id}`, async () => {
       const user = await authApi.getUser();
       if (!user) return null;
@@ -156,7 +164,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 Bem-vindo de volta
               </p>
               <h1 className="text-5xl font-black tracking-tighter uppercase leading-none">
-                {profile?.full_name?.split(' ')[0] || 'Atleta'}
+                {profile?.full_name ? profile.full_name.split(' ')[0] : 'Atleta'}
               </h1>
             </div>
 
@@ -214,7 +222,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
                 {nextAction.suggestedWorkoutId && (
                   <button 
-                    onClick={() => navigate('workout', { id: nextAction.suggestedWorkoutId })}
+                    onClick={() => {
+                      useWorkoutStore.getState().resetWorkout();
+                      navigate('workout', { id: nextAction.suggestedWorkoutId });
+                    }}
                     onMouseEnter={() => handlePrefetchWorkout(nextAction.suggestedWorkoutId!)}
                     className="w-full py-6 bg-slate-900 text-white rounded-full font-black uppercase text-[11px] tracking-[0.4em] active:scale-[0.97] transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3"
                   >
@@ -280,7 +291,12 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 return (
                   <div key={workout.id} className={`relative group ${isOptimistic ? 'opacity-60 grayscale-[0.2]' : ''}`}>
                     <div 
-                      onClick={() => !isOptimistic && navigate('workout', { id: workout.id })}
+                      onClick={() => {
+                      if (!isOptimistic) {
+                        useWorkoutStore.getState().resetWorkout();
+                        navigate('workout', { id: workout.id });
+                      }
+                    }}
                       onMouseEnter={() => !isOptimistic && handlePrefetchWorkout(workout.id)}
                       className={`flex items-center justify-between py-10 px-4 rounded-[2rem] hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all cursor-pointer group-active:scale-[0.98] ${
                         idx !== filteredWorkouts.length - 1 ? 'border-b border-slate-50' : ''
@@ -330,7 +346,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         className="absolute right-0 top-16 z-50 bg-white rounded-2xl shadow-2xl border border-slate-50 p-4 min-w-[160px] space-y-2"
                       >
                         <button 
-                          onClick={() => navigate('workout', { id: workout.id })}
+                          onClick={() => {
+                            useWorkoutStore.getState().resetWorkout();
+                            navigate('workout', { id: workout.id });
+                          }}
                           className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
                         >
                           <Play size={14} /> Iniciar
