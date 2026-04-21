@@ -1,11 +1,36 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { Exercise } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const getAI = () => {
+  const apiKey = (import.meta.env?.VITE_GEMINI_API_KEY as string) || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '');
+  if (!apiKey) throw new Error("Gemini API Key not found");
+  return new GoogleGenerativeAI(apiKey);
+};
 
 export const geminiService = {
   async generateExerciseData(name: string, muscleGroup: string): Promise<Partial<Exercise>> {
+    const genAI = getAI();
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: SchemaType.OBJECT,
+          properties: {
+            description: { type: SchemaType.STRING },
+            instructions: { type: SchemaType.STRING },
+            technical_tips: { type: SchemaType.STRING },
+            secondary_muscles: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+            movement_pattern: { type: SchemaType.STRING, description: "push, pull, hinge, squat, lunge, carry or isolation" },
+            plane: { type: SchemaType.STRING, description: "horizontal, vertical, sagittal, frontal or transverse" },
+            training_goal: { type: SchemaType.STRING, description: "strength, hypertrophy, power or endurance" }
+          },
+          required: ["description", "instructions", "technical_tips", "secondary_muscles", "movement_pattern", "plane", "training_goal"]
+        }
+      }
+    });
+
     const prompt = `Como Rubi, Especialista em Biomecânica e Treinamento, gere dados técnicos para o exercício:
     NOME: ${name}
     GRUPO MUSCULAR: ${muscleGroup}
@@ -19,28 +44,10 @@ export const geminiService = {
 
     Retorne estritamente em JSON no formato especificado.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            description: { type: Type.STRING },
-            instructions: { type: Type.STRING },
-            technical_tips: { type: Type.STRING },
-            secondary_muscles: { type: Type.ARRAY, items: { type: Type.STRING } },
-            movement_pattern: { type: Type.STRING, enum: ['push', 'pull', 'hinge', 'squat', 'lunge', 'carry', 'isolation'] },
-            plane: { type: Type.STRING, enum: ['horizontal', 'vertical', 'sagittal', 'frontal', 'transverse'] },
-            training_goal: { type: Type.STRING, enum: ['strength', 'hypertrophy', 'power', 'endurance'] }
-          },
-          required: ["description", "instructions", "technical_tips", "secondary_muscles", "movement_pattern", "plane", "training_goal"]
-        }
-      }
-    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const data = JSON.parse(response.text() || "{}");
 
-    const data = JSON.parse(response.text || "{}");
     return {
       description: data.description,
       instructions: data.instructions + "\n\n⚠️ DICAS TÉCNICAS:\n" + data.technical_tips,
@@ -53,6 +60,24 @@ export const geminiService = {
   },
 
   async reviewExercise(exercise: Exercise): Promise<{ score: number, status: 'premium' | 'good' | 'improvable', notes: string[], biomechanic_check: boolean }> {
+    const genAI = getAI();
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: SchemaType.OBJECT,
+          properties: {
+            score: { type: SchemaType.NUMBER },
+            status: { type: SchemaType.STRING, description: "premium, good or improvable" },
+            notes: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+            biomechanic_check: { type: SchemaType.BOOLEAN }
+          },
+          required: ["score", "status", "notes", "biomechanic_check"]
+        }
+      }
+    });
+
     const prompt = `Como Auditor de Qualidade Rubi AI, revise este exercício:
     NOME: ${exercise.name}
     GRUPO: ${exercise.muscle_group}
@@ -69,99 +94,91 @@ export const geminiService = {
 
     Retorne JSON.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            score: { type: Type.NUMBER },
-            status: { type: Type.STRING, enum: ['premium', 'good', 'improvable'] },
-            notes: { type: Type.ARRAY, items: { type: Type.STRING } },
-            biomechanic_check: { type: Type.BOOLEAN }
-          },
-          required: ["score", "status", "notes", "biomechanic_check"]
-        }
-      }
-    });
-
-    return JSON.parse(response.text || "{}");
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return JSON.parse(response.text() || "{}");
   },
 
   async checkSemanticSimilarity(name: string, existingNames: string[]): Promise<{ isDuplicate: boolean, similarTo?: string }> {
-    const prompt = `Verifique se o exercício "${name}" é semanticamente idêntico a algum destes existentes: ${existingNames.join(", ")}.
-    Considere variações de nome como "Supino Reto" e "Supino Barra Reto" como duplicadas.
-    Retorne JSON.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
+    const genAI = getAI();
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.OBJECT,
+          type: SchemaType.OBJECT,
           properties: {
-            isDuplicate: { type: Type.BOOLEAN },
-            similarTo: { type: Type.STRING }
+            isDuplicate: { type: SchemaType.BOOLEAN },
+            similarTo: { type: SchemaType.STRING }
           },
           required: ["isDuplicate"]
         }
       }
     });
 
-    return JSON.parse(response.text || "{}");
+    const prompt = `Verifique se o exercício "${name}" é semanticamente idêntico a algum destes existentes: ${existingNames.join(", ")}.
+    Considere variações de nome como "Supino Reto" e "Supino Barra Reto" como duplicadas.
+    Retorne JSON.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return JSON.parse(response.text() || "{}");
   },
 
   async suggestVariations(name: string): Promise<string[]> {
+    const genAI = getAI();
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING }
+        }
+      }
+    });
+
     const prompt = `Sugira 4 variações inteligentes e comuns para o exercício: "${name}". 
     Exemplo: Supino Reto -> Supino Inclinado, Supino Halter, etc.
     Retorne apenas uma lista de strings em JSON.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING }
-        }
-      }
-    });
-
-    return JSON.parse(response.text || "[]");
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return JSON.parse(response.text() || "[]");
   },
 
   async suggestMissingExercises(muscleGroup: string, existingNames: string[]): Promise<string[]> {
-    const prompt = `Para o grupo muscular "${muscleGroup}", identifique 3 exercícios essenciais que NÃO estão nesta lista: ${existingNames.join(", ")}.
-    Retorne apenas uma lista de strings em JSON.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
+    const genAI = getAI();
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING }
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING }
         }
       }
     });
 
-    return JSON.parse(response.text || "[]");
+    const prompt = `Para o grupo muscular "${muscleGroup}", identifique 3 exercícios essenciais que NÃO estão nesta lista: ${existingNames.join(", ")}.
+    Retorne apenas uma lista de strings em JSON.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return JSON.parse(response.text() || "[]");
   },
 
   async standardizeText(text: string): Promise<string> {
+    const genAI = getAI();
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash"
+    });
+
     const prompt = `Reescreva o seguinte texto seguindo um padrão técnico, profissional e direto, mantendo a clareza e autoridade. Use tom de Coach especialista:
     TEXTO: "${text}"`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt
-    });
-
-    return response.text || text;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text() || text;
   }
 };

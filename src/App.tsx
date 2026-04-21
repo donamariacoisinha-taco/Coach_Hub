@@ -101,25 +101,8 @@ const App: React.FC = () => {
     initPrefetch();
   }, []);
 
-  // Inicializa o sistema de sincronização offline
+  // 1. Core Services & Theme
   useSync();
-
-  // Periodic cache cleanup
-  useEffect(() => {
-    ekeService.initialize();
-    const interval = setInterval(() => {
-      cacheStore.cleanup();
-    }, 600000); // Every 10 minutes
-    return () => clearInterval(interval);
-  }, []);
-
-  // Re-fetch profile once store is hydrated to ensure correct redirection for logged-in users
-  useEffect(() => {
-    if (isHydrated && session && !profile) {
-      fetchProfile(session.user.id);
-    }
-  }, [isHydrated, session, profile]);
-
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
@@ -173,25 +156,22 @@ const App: React.FC = () => {
     }
   };
 
+  // 2. Efeito de Inicialização Principal
   useEffect(() => {
-    if (isInitializing.current) {
-      if (isHydrated && session && !profile) {
-        fetchProfile(session.user.id);
-      }
-      return;
-    }
+    if (!isHydrated) return; // Aguarda hidratação do store antes de atuar
+    if (isInitializing.current) return;
     isInitializing.current = true;
 
-    // Timeout de segurança para evitar loading infinito caso o Supabase não responda
     const safetyTimeout = setTimeout(() => {
       setLoading(curr => {
-        if (curr) console.warn("[APP] Inicialização demorando demais. Forçando desbloqueio.");
+        if (curr) console.warn("[APP] Inicialização lenta. Desbloqueando.");
         return false;
       });
     }, 15000);
 
     const initApp = async () => {
       try {
+        await ekeService.initialize();
         const currentSession = await authApi.getSession();
         setSession(currentSession);
         if (currentSession) {
@@ -200,8 +180,10 @@ const App: React.FC = () => {
           setLoading(false);
         }
       } catch (err) {
-        console.error("[APP] Erro na inicialização do auth:", err);
+        console.error("[APP] Erro na inicialização:", err);
         setLoading(false);
+      } finally {
+        clearTimeout(safetyTimeout);
       }
     };
 
@@ -210,32 +192,35 @@ const App: React.FC = () => {
     const subscription = authApi.onAuthStateChange((event, s) => {
       console.log(`[AUTH] Evento detectado: ${event}`);
       setSession(s);
-      
       if (s) {
         fetchProfile(s.user.id);
       } else {
         setProfile(null);
         setLoading(false);
-        
         const protectedViews: View[] = ['dashboard', 'workout', 'editor', 'history', 'admin', 'profile', 'library'];
-        const currentView = getStateFromUrl().view;
-        if (protectedViews.includes(currentView)) {
+        if (protectedViews.includes(getStateFromUrl().view)) {
           navigate('landing');
         }
       }
     });
 
-    const handlePopState = (event: PopStateEvent) => {
-      setNavState(event.state || getStateFromUrl());
-    };
-
+    const handlePopState = (event: PopStateEvent) => setNavState(event.state || getStateFromUrl());
     window.addEventListener('popstate', handlePopState);
+    const cleanupInterval = setInterval(() => cacheStore.cleanup(), 600000);
+
     return () => {
-      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
       window.removeEventListener('popstate', handlePopState);
+      clearInterval(cleanupInterval);
     };
-  }, [isHydrated, session]);
+  }, [isHydrated]); // Executa uma vez após hidratação
+
+  // 3. Efeito Reativo de Perfil
+  useEffect(() => {
+    if (isHydrated && session && !profile && !loading) {
+      fetchProfile(session.user.id);
+    }
+  }, [isHydrated, session, profile, loading]);
 
   const navigate = (view: View, params: any = {}) => {
     if ('vibrate' in navigator) navigator.vibrate(5);
