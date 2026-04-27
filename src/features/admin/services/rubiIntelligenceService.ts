@@ -1,7 +1,8 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { Exercise } from "../../../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const apiKey = (process.env.GEMINI_API_KEY as string) || "";
+const genAI = new GoogleGenerativeAI(apiKey);
 
 const OPTIMIZATION_PROMPT = `
 Você é o Rubi Intelligence Engine, uma IA especialista em biomecânica e treinamento de força.
@@ -28,38 +29,39 @@ export const rubiIntelligenceService = {
       
       Operação Solicitada: ${operation}
       
-      Por favor, forneça a otimização completa deste exercício.
+      Por favor, forneca a otimização completa deste exercício.
     `;
 
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          systemInstruction: OPTIMIZATION_PROMPT,
+      if (!apiKey) throw new Error("API Key GEMINI_API_KEY non set");
+
+      const model = genAI.getGenerativeModel({
+        model: "gemini-1.5-flash-latest",
+        systemInstruction: OPTIMIZATION_PROMPT,
+        generationConfig: {
           responseMimeType: "application/json",
           responseSchema: {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-              name: { type: Type.STRING },
-              description: { type: Type.STRING },
+              name: { type: SchemaType.STRING },
+              description: { type: SchemaType.STRING },
               instructions: { 
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
+                type: SchemaType.ARRAY,
+                items: { type: SchemaType.STRING }
               },
               secondary_muscles: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
+                type: SchemaType.ARRAY,
+                items: { type: SchemaType.STRING }
               },
-              equipment: { type: Type.STRING },
+              equipment: { type: SchemaType.STRING },
               difficulty_level: { 
-                type: Type.STRING,
+                type: SchemaType.STRING,
                 enum: ['Iniciante', 'Intermediário', 'Avançado', 'Elite']
               },
-              quality_score_v3: { type: Type.NUMBER },
+              quality_score_v3: { type: SchemaType.NUMBER },
               technical_tips: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
+                type: SchemaType.ARRAY,
+                items: { type: SchemaType.STRING }
               }
             },
             required: ['name', 'description', 'instructions', 'quality_score_v3']
@@ -67,7 +69,10 @@ export const rubiIntelligenceService = {
         }
       });
 
-      const result = JSON.parse(response.text || '{}');
+      const resultText = await model.generateContent(prompt);
+      const jsonText = resultText.response.text();
+      const result = JSON.parse(jsonText || '{}');
+      
       return {
         ...exercise,
         ...result,

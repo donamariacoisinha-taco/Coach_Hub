@@ -158,29 +158,39 @@ const App: React.FC = () => {
 
   // 2. Efeito de Inicialização Principal
   useEffect(() => {
-    if (!isHydrated) return; // Aguarda hidratação do store antes de atuar
-    if (isInitializing.current) return;
-    isInitializing.current = true;
-
+    // Definimos o timeout de segurança IMEDIATAMENTE para evitar telas brancas infinitas
     const safetyTimeout = setTimeout(() => {
       setLoading(curr => {
-        if (curr) console.warn("[APP] Inicialização lenta. Desbloqueando.");
+        if (curr) console.warn("[APP] Inicialização lenta detectada. Forçando desbloqueio da UI.");
         return false;
       });
-    }, 15000);
+    }, 8000); 
+
+    if (!isHydrated) {
+      console.log("[APP] Aguardando hidratação do store para iniciar...");
+      return () => clearTimeout(safetyTimeout);
+    }
+    
+    if (isInitializing.current) return () => clearTimeout(safetyTimeout);
+    isInitializing.current = true;
 
     const initApp = async () => {
+      console.log("[APP] Iniciando inicialização...");
       try {
         await ekeService.initialize();
+        console.log("[APP] EKE Initialized");
         const currentSession = await authApi.getSession();
         setSession(currentSession);
+        
         if (currentSession) {
+          console.log("[APP] Sessão ativa encontrada:", currentSession.user.id);
           await fetchProfile(currentSession.user.id);
         } else {
+          console.log("[APP] Nenhuma sessão ativa.");
           setLoading(false);
         }
       } catch (err) {
-        console.error("[APP] Erro na inicialização:", err);
+        console.error("[APP] Erro crítico na inicialização:", err);
         setLoading(false);
       } finally {
         clearTimeout(safetyTimeout);

@@ -142,8 +142,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       const finalData = { ...formData, id: user.id, onboarding_completed: true };
       await profileApi.updateProfile(user.id, finalData);
 
-      // Inicia a geração do dossiê e notificação em background
-      await notifyAdminOfNewUser(finalData, user.email || 'atleta@email.com');
+      // Inicia a geração do dossiê e notificação em background (não bloqueia o progresso do usuário)
+      notifyAdminOfNewUser(finalData, user.email || 'atleta@email.com').catch(err => {
+        console.warn("[Onboarding] Falha silenciosa na notificação administrativa:", err);
+      });
 
       showSuccess('Bem-vindo!', 'Seu perfil foi configurado com sucesso.');
       onComplete(finalData);
