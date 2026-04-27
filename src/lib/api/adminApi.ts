@@ -4,41 +4,55 @@ import { Exercise, MuscleGroup } from '../../types';
 
 export const adminApi = {
   async updateExercise(id: string, payload: Partial<Exercise>) {
-    try {
-      const { error } = await supabase.from('exercises').update(payload).eq('id', id);
-      if (error) throw error;
-    } catch (err: any) {
-      if (err.message?.includes('column') && err.message?.includes('schema cache')) {
-        // Attempt to isolate the bad column from the error message
-        const match = err.message.match(/column '(.*)'/);
-        if (match && match[1]) {
-          const badColumn = match[1];
-          const { [badColumn as keyof typeof payload]: _, ...newPayload } = payload;
-          const { error: retryError } = await supabase.from('exercises').update(newPayload).eq('id', id);
-          if (retryError) throw retryError;
-          return;
+    let currentPayload = { ...payload };
+    
+    while (true) {
+      try {
+        const { error } = await supabase.from('exercises').update(currentPayload).eq('id', id);
+        if (error) throw error;
+        return; // Success
+      } catch (err: any) {
+        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+          const match = err.message.match(/column '(.*)'/);
+          if (match && match[1]) {
+            const badColumn = match[1];
+            console.warn(`[ADMIN] Removing missing column from update: ${badColumn}`);
+            const { [badColumn as keyof typeof currentPayload]: _, ...remaining } = currentPayload;
+            currentPayload = remaining;
+            
+            // If we've removed everything and still get errors, something is very wrong
+            if (Object.keys(currentPayload).length === 0) throw err;
+            continue; // Retry with smaller payload
+          }
         }
+        throw err;
       }
-      throw err;
     }
   },
 
   async createExercise(payload: Partial<Exercise>) {
-    try {
-      const { error } = await supabase.from('exercises').insert([payload]);
-      if (error) throw error;
-    } catch (err: any) {
-      if (err.message?.includes('column') && err.message?.includes('schema cache')) {
-        const match = err.message.match(/column '(.*)'/);
-        if (match && match[1]) {
-          const badColumn = match[1];
-          const { [badColumn as keyof typeof payload]: _, ...newPayload } = payload;
-          const { error: retryError } = await supabase.from('exercises').insert([newPayload]);
-          if (retryError) throw retryError;
-          return;
+    let currentPayload = { ...payload };
+    
+    while (true) {
+      try {
+        const { error } = await supabase.from('exercises').insert([currentPayload]);
+        if (error) throw error;
+        return; // Success
+      } catch (err: any) {
+        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+          const match = err.message.match(/column '(.*)'/);
+          if (match && match[1]) {
+            const badColumn = match[1];
+            console.warn(`[ADMIN] Removing missing column from insert: ${badColumn}`);
+            const { [badColumn as keyof typeof currentPayload]: _, ...remaining } = currentPayload;
+            currentPayload = remaining;
+            
+            if (Object.keys(currentPayload).length === 0) throw err;
+            continue; // Retry
+          }
         }
+        throw err;
       }
-      throw err;
     }
   },
 

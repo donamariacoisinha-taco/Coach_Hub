@@ -15,7 +15,7 @@ export const performanceApi = {
     const updated = { ...existing, ...metrics };
     const scoreResult = calculateQualityScoreV3(updated);
     
-    const finalUpdate = {
+    let finalPayload: any = {
       ...metrics,
       quality_score_v3: scoreResult.total,
       editorial_score: scoreResult.editorial,
@@ -28,15 +28,32 @@ export const performanceApi = {
       last_performance_update: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
-      .from('exercises')
-      .update(finalUpdate)
-      .eq('id', exerciseId)
-      .select()
-      .single();
+    while (true) {
+      try {
+        const { data, error } = await supabase
+          .from('exercises')
+          .update(finalPayload)
+          .eq('id', exerciseId)
+          .select()
+          .single();
 
-    if (error) throw error;
-    return data;
+        if (error) throw error;
+        return data;
+      } catch (err: any) {
+        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+          const match = err.message.match(/column '(.*)'/);
+          if (match && match[1]) {
+            const badColumn = match[1];
+            console.warn(`[PERFORMANCE] Removing missing column: ${badColumn}`);
+            const { [badColumn]: _, ...remaining } = finalPayload;
+            finalPayload = remaining;
+            if (Object.keys(finalPayload).length === 0) throw err;
+            continue;
+          }
+        }
+        throw err;
+      }
+    }
   },
 
   getTopMovers: async () => {
