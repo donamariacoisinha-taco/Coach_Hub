@@ -1,3 +1,10 @@
+import { 
+  Sparkles, 
+  ShieldCheck, 
+  CheckCircle, 
+  AlertCircle, 
+  Zap 
+} from 'lucide-react';
 import { Exercise } from '../../../types';
 
 export interface QualityBreakdown {

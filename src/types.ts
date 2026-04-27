@@ -145,16 +145,26 @@ export interface Exercise {
   ai_review_notes?: string[];
   version_history?: { date: string, author: string, changes: string }[];
 
-  // Coach Rubi Auto Fix Engine Fields
-  ai_issues?: { category: 'content' | 'structural' | 'governance', type: string, description: string }[];
-  ai_suggestions?: any;
-  ai_fixed_at?: string;
-  ai_review_status?: 'pending' | 'approved' | 'rejected' | 'auto_fixed';
-  ai_confidence?: number;
-  last_ai_audit?: string;
-  auto_fixed?: boolean;
-  needs_human_review?: boolean;
-  version?: number;
+  // Coach Rubi Quality Score V3 + Performance Brain Fields
+  quality_score_v3?: number;
+  performance_score?: number;
+  editorial_score?: number;
+  structural_score?: number;
+  governance_score?: number;
+  usage_score?: number;
+  results_score?: number;
+
+  usage_count?: number;
+  completion_rate?: number;
+  repeat_rate?: number;
+  drop_rate?: number;
+  skip_rate?: number;
+  avg_progression_rate?: number;
+  beginner_success?: number;
+  advanced_success?: number;
+
+  ranking_status?: 'rising' | 'elite' | 'decline' | 'forgotten' | 'testing';
+  last_performance_update?: string;
 }
 
 export interface EKEContext {

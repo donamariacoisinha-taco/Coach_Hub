@@ -11,7 +11,7 @@ interface AdminState {
   error: string | null;
   
   // UI State
-  activeTab: 'dashboard' | 'library' | 'review' | 'ai' | 'analytics' | 'settings' | 'autofix';
+  activeTab: 'dashboard' | 'library' | 'review' | 'ai' | 'analytics' | 'settings' | 'autofix' | 'performance';
   searchQuery: string;
   selectedExercise: Exercise | null;
   isEditorOpen: boolean;

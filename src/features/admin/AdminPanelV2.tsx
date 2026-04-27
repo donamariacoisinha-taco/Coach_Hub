@@ -28,6 +28,7 @@ import ExerciseEditorV2 from './components/ExerciseEditorV2';
 import CommandPalette from './components/CommandPalette';
 import AutoFixDashboard from './components/AutoFixDashboard';
 import AutoFixQueue from './components/AutoFixQueue';
+import PerformanceDashboard from './components/PerformanceDashboard';
 
 interface AdminPanelV2Props {
   onBack: () => void;
@@ -65,6 +66,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
   const tabs = [
     { id: 'dashboard', label: 'Executive', icon: LayoutDashboard, desc: 'Overview & KPIs' },
     { id: 'library', label: 'Library OS', icon: Library, desc: 'Asset Management' },
+    { id: 'performance', label: 'Performance', icon: BrainCircuit, desc: 'Adaptive Learning' },
     { id: 'autofix', label: 'Auto Fix', icon: Zap, desc: 'Self-Healing Engine' },
     { id: 'review', label: 'Review Hub', icon: ListTodo, desc: 'Quality Control' },
     { id: 'ai', label: 'AI Operator', icon: BrainCircuit, desc: 'Intelligence Engine' },
@@ -206,6 +208,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
               >
                   {activeTab === 'dashboard' && <ExecutiveDashboard />}
                   {activeTab === 'library' && <LibraryOS />}
+                  {activeTab === 'performance' && <PerformanceDashboard />}
                   {activeTab === 'autofix' && (
                     <div className="space-y-12">
                        <AutoFixDashboard />
