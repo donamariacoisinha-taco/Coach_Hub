@@ -43,14 +43,16 @@ const LibraryOSV25: React.FC = () => {
   const [isColumnsManagerOpen, setColumnsManagerOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
-  // Keyboard Shortcuts
-  useKeyboardShortcuts([
+  // Keyboard Shortcuts (Memoized to prevent listener thrashing)
+  const shortcuts = React.useMemo(() => [
     { key: '/', action: () => document.getElementById('universal-search')?.focus() },
     { key: 'n', action: () => openEditor() },
     { key: 'v', action: () => setViewMode(viewMode === 'table' ? 'grid' : 'table') },
     { key: 'k', meta: true, action: () => {} }, // Command palette handled elsewhere but good to reserve
     { key: 'escape', action: () => setSelectedIds([]) }
-  ]);
+  ], [openEditor, setViewMode, viewMode]);
+
+  useKeyboardShortcuts(shortcuts);
 
   const muscleGroups = [
     'Todos', 'Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps', 

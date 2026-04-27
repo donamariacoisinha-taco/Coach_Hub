@@ -362,7 +362,7 @@ const App: React.FC = () => {
             <DebugOverlay />
           </main>
 
-          {!isImmersive && session && (
+          {!isImmersive && session && navState.view !== 'admin' && (
             <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-2xl border-t border-slate-50 px-6 flex items-center justify-around z-50 pb-safe">
               {[
                 { id: 'dashboard', icon: Home, label: 'Início' },

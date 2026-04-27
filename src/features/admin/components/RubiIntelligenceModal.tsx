@@ -44,6 +44,8 @@ const RubiIntelligenceModal: React.FC = () => {
     
     startProcessing(ids, selectedOperation);
 
+    const completedResults: any[] = [];
+
     for (const id of ids) {
       const exercise = exercises.find(ex => ex.id === id);
       if (!exercise) continue;
@@ -53,8 +55,19 @@ const RubiIntelligenceModal: React.FC = () => {
       try {
         const optimized = await rubiIntelligenceService.optimizeExercise(exercise, selectedOperation);
         updateResult(id, { status: 'completed', optimizedData: optimized, originalData: exercise });
+        completedResults.push({ id, ...optimized, updated_at: new Date().toISOString() });
       } catch (err) {
         updateResult(id, { status: 'failed', error: 'Falha na conexão neural' });
+      }
+    }
+
+    // Persist results to DB
+    if (completedResults.length > 0) {
+      try {
+        await import('../api/intelligenceApi').then(m => m.intelligenceApi.batchUpdate(completedResults));
+        console.log(`[RUBI] Persistência completa para ${completedResults.length} assets.`);
+      } catch (err) {
+        console.error('[RUBI] Erro ao persistir otimizações:', err);
       }
     }
 
