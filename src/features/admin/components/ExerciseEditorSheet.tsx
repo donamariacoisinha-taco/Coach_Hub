@@ -21,6 +21,8 @@ import {
 import { useAdminStore } from '../../../store/adminStore';
 import { Exercise } from '../../../types';
 
+import { AssetMediaHub } from './media/AssetMediaHub';
+
 const ExerciseEditorSheet: React.FC = () => {
   const { 
     isEditorOpen, 
@@ -29,7 +31,8 @@ const ExerciseEditorSheet: React.FC = () => {
     updateExercise, 
     createExercise, 
     deleteExercise,
-    muscleGroups 
+    muscleGroups,
+    exercises // Make sure exercises is available if needed, or fetch fresh
   } = useAdminStore();
   
   const [formData, setFormData] = useState<Partial<Exercise>>({});
@@ -51,10 +54,15 @@ const ExerciseEditorSheet: React.FC = () => {
         is_active: true
       });
     }
-    setActiveTab('basic');
-  }, [selectedExercise, isEditorOpen]);
+  }, [selectedExercise]);
 
   if (!isEditorOpen) return null;
+
+  const handleMediaUpdate = (updated: Exercise) => {
+    setFormData(updated);
+    // Refresh admin store to show new images in library instantly
+    updateExercise(updated.id, updated);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -240,46 +248,20 @@ const ExerciseEditorSheet: React.FC = () => {
               )}
 
               {activeTab === 'media' && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-5 duration-300">
-                   <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-6">
-                         <Field label="Link da Imagem (URL)">
-                            <div className="flex gap-2">
-                               <input 
-                                  type="text" 
-                                  value={formData.image_url || ''} 
-                                  onChange={e => setFormData({ ...formData, image_url: e.target.value })}
-                                  className="flex-1 p-4 bg-slate-50 border-none rounded-2xl font-bold text-xs" 
-                               />
-                               <button className="p-4 bg-slate-900 text-white rounded-2xl flex items-center justify-center"><ImageIcon size={18} /></button>
-                            </div>
-                         </Field>
-                         <Field label="Link do Vídeo (YouTube/CDN)">
-                            <div className="flex gap-2">
-                               <input 
-                                  type="text" 
-                                  value={formData.video_url || ''} 
-                                  onChange={e => setFormData({ ...formData, video_url: e.target.value })}
-                                  className="flex-1 p-4 bg-slate-50 border-none rounded-2xl font-bold text-xs" 
-                               />
-                               <button className="p-4 bg-slate-900 text-white rounded-2xl flex items-center justify-center"><Play size={18} /></button>
-                            </div>
-                         </Field>
-                      </div>
-
-                      <div className="aspect-square bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-8 text-center">
-                         {formData.image_url ? (
-                           <img src={formData.image_url} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                         ) : (
-                           <div className="space-y-4">
-                              <div className="w-16 h-16 rounded-3xl bg-white border border-slate-100 mx-auto flex items-center justify-center text-slate-200">
-                                 <Plus size={32} />
-                              </div>
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Drop to Upload</p>
-                           </div>
-                         )}
-                      </div>
-                   </div>
+                <div className="h-full animate-in fade-in slide-in-from-right-5 duration-300">
+                   {selectedExercise ? (
+                     <AssetMediaHub 
+                        exercise={formData as Exercise} 
+                        onUpdate={handleMediaUpdate} 
+                     />
+                   ) : (
+                     <div className="p-12 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center space-y-4">
+                        <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-slate-200">
+                           <Play size={32} />
+                        </div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Salve as informações básicas antes de gerenciar mídias</p>
+                     </div>
+                   )}
                 </div>
               )}
             </div>

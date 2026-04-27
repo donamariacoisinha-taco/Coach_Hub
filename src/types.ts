@@ -137,6 +137,13 @@ export interface Exercise {
   technical_prompt?: string;
   anatomical_cut?: string;
   
+  // Media Assets V3
+  thumbnail_url?: string;
+  guide_images?: { id: string, url: string, caption?: string }[];
+  biomechanics_images?: { id: string, url: string, type: string }[];
+  media_assets?: any;
+  updated_at?: string;
+  
   // Governance & Quality
   movement_pattern?: 'push' | 'pull' | 'hinge' | 'squat' | 'lunge' | 'carry' | 'isolation';
   plane?: 'horizontal' | 'vertical' | 'sagittal' | 'frontal' | 'transverse';

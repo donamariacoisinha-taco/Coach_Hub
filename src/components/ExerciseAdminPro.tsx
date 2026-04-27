@@ -11,6 +11,7 @@ import { adminApi } from "../lib/api/adminApi";
 import { useErrorHandler } from "../hooks/useErrorHandler";
 import { geminiService } from "../services/geminiService";
 import { debounce } from "lodash";
+import { AssetMediaHub } from "../features/admin/components/media/AssetMediaHub";
 
 interface ExerciseAdminProProps {
   exercise: Exercise;
@@ -42,6 +43,7 @@ export default function ExerciseAdminPro({
   const [similarityChecking, setSimilarityChecking] = useState(false);
   const [sections, setSections] = useState({
     basic: true,
+    media: false,
     biomech: false,
     ai: false,
     history: false
@@ -248,24 +250,23 @@ export default function ExerciseAdminPro({
               </div>
             </section>
 
-            {/* Cover */}
-            <section className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
-              <div className="relative overflow-hidden rounded-2xl bg-slate-100 h-48 group">
-                <img
-                  src={exercise.image_url || "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1200&q=80"}
-                  alt={exercise.name}
-                  className="h-full w-full object-cover"
+            {/* Asset Media Hub */}
+            <Accordion
+              title="Asset Media Hub"
+              icon={<PlayCircle className="h-4 w-4" />}
+              open={sections.media}
+              onClick={() => toggleSection("media")}
+            >
+              <div className="pt-2">
+                <AssetMediaHub 
+                  exercise={exercise} 
+                  onUpdate={(updated) => {
+                    setExercise(updated);
+                    onSave(updated);
+                  }} 
                 />
-
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 shadow active:scale-95 transition-all hover:scale-110"
-                >
-                  {uploadingImage ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
-                </button>
-                <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
               </div>
-            </section>
+            </Accordion>
 
             {/* Basic Info */}
             <Accordion
