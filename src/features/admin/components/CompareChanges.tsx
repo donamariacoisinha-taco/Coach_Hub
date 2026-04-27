@@ -14,6 +14,7 @@ import { Exercise } from '../../../types';
 import { useAdminStore } from '../../../store/adminStore';
 import { autoFixApi } from '../api/autoFixApi';
 import { applyAiFix } from '../services/aiFixService';
+import { calculateQualityScoreV2 } from '../services/qualityScoreV2';
 
 interface CompareChangesProps {
   exercise: Exercise;
@@ -23,6 +24,10 @@ interface CompareChangesProps {
 const CompareChanges: React.FC<CompareChangesProps> = ({ exercise, onClose }) => {
   const { setExercises, exercises } = useAdminStore();
   const suggestions = exercise.ai_suggestions || {};
+
+  const currentScore = calculateQualityScoreV2(exercise);
+  const potentialExercise = applyAiFix(exercise, suggestions);
+  const potentialScore = calculateQualityScoreV2(potentialExercise);
 
   const handleApprove = async () => {
     const fixed = applyAiFix(exercise, suggestions);
@@ -87,6 +92,12 @@ const CompareChanges: React.FC<CompareChangesProps> = ({ exercise, onClose }) =>
 
         {/* Content Scrollable */}
         <div className="flex-1 overflow-y-auto p-12 space-y-12 no-scrollbar">
+           {/* Score Comparison Bar */}
+           <div className="grid grid-cols-2 gap-12 bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm">
+              <ScoreBreakdown label="Score Atual" breakdown={currentScore} color="red" />
+              <ScoreBreakdown label="Potencial Pós-Fix" breakdown={potentialScore} color="blue" isFuture />
+           </div>
+
            {/* Summary of Issues */}
            {exercise.ai_issues && exercise.ai_issues.length > 0 && (
              <div className="bg-red-50 border border-red-100 rounded-3xl p-8 flex items-start gap-6">
@@ -197,6 +208,42 @@ const CompareChanges: React.FC<CompareChangesProps> = ({ exercise, onClose }) =>
     </div>
   );
 };
+
+function ScoreBreakdown({ label, breakdown, color, isFuture }: { label: string, breakdown: any, color: string, isFuture?: boolean }) {
+  const colors: any = {
+    red: 'text-red-600 bg-red-50',
+    blue: 'text-blue-600 bg-blue-50',
+  };
+
+  return (
+    <div className="space-y-4">
+       <div className="flex items-center justify-between">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+          <span className={`px-4 py-1 rounded-full text-lg font-black ${colors[color]}`}>{breakdown.total}</span>
+       </div>
+       <div className="grid grid-cols-3 gap-2">
+          <MiniMetric label="CONTEÚDO" val={breakdown.content} max={40} />
+          <MiniMetric label="ESTRUTURAL" val={breakdown.structural} max={40} />
+          <MiniMetric label="GOVERNANÇA" val={breakdown.governance} max={20} />
+       </div>
+    </div>
+  );
+}
+
+function MiniMetric({ label, val, max }: { label: string, val: number, max: number }) {
+  const pct = (val / max) * 100;
+  return (
+    <div className="space-y-1">
+       <div className="flex items-center justify-between text-[8px] font-black text-slate-400">
+          <span>{label}</span>
+          <span>{val}/{max}</span>
+       </div>
+       <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-full bg-slate-400 rounded-full" style={{ width: `${pct}%` }} />
+       </div>
+    </div>
+  );
+}
 
 function FieldGroup({ label, value, changed, isList }: { label: string, value: string, changed?: boolean, isList?: boolean }) {
   return (

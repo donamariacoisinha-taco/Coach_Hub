@@ -76,12 +76,16 @@ const AutoFixQueue: React.FC = () => {
                       <div className="flex flex-wrap gap-2">
                          {ex.ai_issues && ex.ai_issues.length > 0 ? (
                            ex.ai_issues.map((issue, i) => (
-                             <span key={i} className="px-2 py-1 bg-red-50 text-red-600 rounded-lg text-[9px] font-black uppercase tracking-tight border border-red-100">
+                             <span key={i} className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-tight border ${
+                               issue.category === 'content' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                               issue.category === 'structural' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                               'bg-slate-50 text-slate-600 border-slate-100'
+                             }`}>
                                 {issue.description}
                              </span>
                            ))
                          ) : (
-                           <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Nenhum problema detectado</span>
+                           <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Saudável</span>
                          )}
                       </div>
                    </td>

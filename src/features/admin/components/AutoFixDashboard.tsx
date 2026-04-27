@@ -29,8 +29,12 @@ const AutoFixDashboard: React.FC = () => {
     updateStats, 
     isAuditing, 
     setAuditing,
+    isFixing,
+    setFixing,
     auditProgress,
     setAuditProgress,
+    fixingProgress,
+    setFixingProgress,
     addActivity
   } = useAutoFixStore();
   const { exercises, setExercises } = useAdminStore();
@@ -46,43 +50,53 @@ const AutoFixDashboard: React.FC = () => {
     
     if (total === 0) {
       setAuditing(false);
+      addActivity({
+        id: Date.now().toString(),
+        type: 'info',
+        title: 'Auditoria Desnecessária',
+        desc: 'Todos os exercícios já possuem auditoria recente.',
+        time: 'Agora'
+      });
       return;
     }
 
     addActivity({
       id: Date.now().toString(),
-      type: 'AUDIT_STARTED',
-      message: `Iniciando auditoria de ${total} exercícios.`,
-      timestamp: new Date().toISOString()
+      type: 'info',
+      title: 'Auditoria Iniciada',
+      desc: `Escaneando ${total} exercícios para detecção de problemas.`,
+      time: 'Agora'
     });
 
     let processed = 0;
-    for (const ex of unAudited) {
-      const result = await auditExercise(ex);
-      if (result) {
-        const updatedEx = {
-          ...ex,
-          last_ai_audit: new Date().toISOString(),
-          ai_issues: result.issues,
-          ai_suggestions: result.suggestions,
-          ai_confidence: result.confidence,
-          needs_human_review: result.confidence < 0.9,
-        };
+    const updatedExercises = [...exercises];
 
-        // If autopilot is on and confidence is high, auto fix it
-        if (isAutoPilotOn && result.confidence >= 0.92) {
-          const fixedEx = applyAiFix(updatedEx, result.suggestions);
-          await autoFixApi.updateExercise(fixedEx);
-          addActivity({
-            id: `fix-${ex.id}-${Date.now()}`,
-            type: 'AUTO_FIXED',
-            message: `IA corrigiu automaticamente: ${ex.name}`,
-            exerciseName: ex.name,
-            timestamp: new Date().toISOString()
-          });
-        } else {
-          await autoFixApi.updateExercise(updatedEx);
+    for (const ex of unAudited) {
+      try {
+        const result = await auditExercise(ex);
+        if (result) {
+          const updatedEx = {
+            ...ex,
+            last_ai_audit: new Date().toISOString(),
+            ai_issues: result.issues,
+            ai_suggestions: result.suggestions,
+            ai_confidence: result.confidence,
+            needs_human_review: result.confidence < 0.9,
+          };
+
+          if (isAutoPilotOn && result.confidence >= 0.92) {
+            const fixedEx = applyAiFix(updatedEx, result.suggestions);
+            await autoFixApi.updateExercise(fixedEx);
+            const idx = updatedExercises.findIndex(e => e.id === ex.id);
+            if (idx !== -1) updatedExercises[idx] = fixedEx;
+          } else {
+            await autoFixApi.updateExercise(updatedEx);
+            const idx = updatedExercises.findIndex(e => e.id === ex.id);
+            if (idx !== -1) updatedExercises[idx] = updatedEx;
+          }
         }
+      } catch (err) {
+        console.error("Audit error for:", ex.name, err);
       }
       
       processed++;
@@ -90,12 +104,61 @@ const AutoFixDashboard: React.FC = () => {
       if (!isAuditing) break;
     }
 
+    setExercises(updatedExercises);
     setAuditing(false);
     addActivity({
       id: Date.now().toString(),
-      type: 'AUDIT_COMPLETED',
-      message: `Auditoria completa. ${processed} itens processados.`,
-      timestamp: new Date().toISOString()
+      type: 'success',
+      title: 'Auditoria Finalizada',
+      desc: `${processed} exercícios auditados.`,
+      time: 'Agora'
+    });
+  };
+
+  const handleRepairAllCritical = async () => {
+    if (isFixing) return;
+    
+    const criticals = exercises.filter(ex => (ex.quality_score || 0) < 50 && ex.ai_suggestions);
+    if (criticals.length === 0) {
+      alert("Nenhum exercício crítico com sugestões de IA encontrado.");
+      return;
+    }
+
+    setFixing(true);
+    setFixingProgress(0);
+    
+    addActivity({
+      id: Date.now().toString(),
+      type: 'fix',
+      title: 'Reparo Massivo',
+      desc: `Corrigindo ${criticals.length} itens com score crítico.`,
+      time: 'Agora'
+    });
+
+    let fixedCount = 0;
+    const updatedExercises = [...exercises];
+
+    for (const ex of criticals) {
+      try {
+        const fixed = applyAiFix(ex, ex.ai_suggestions);
+        await autoFixApi.updateExercise(fixed);
+        const idx = updatedExercises.findIndex(e => e.id === ex.id);
+        if (idx !== -1) updatedExercises[idx] = fixed;
+        fixedCount++;
+        setFixingProgress(Math.round((fixedCount / criticals.length) * 100));
+      } catch (err) {
+        console.error("Repair error for:", ex.name, err);
+      }
+    }
+
+    setExercises(updatedExercises);
+    setFixing(false);
+    addActivity({
+      id: Date.now().toString(),
+      type: 'success',
+      title: 'Reparo Concluído',
+      desc: `${fixedCount} exercícios reparados.`,
+      time: 'Agora'
     });
   };
 
@@ -114,6 +177,17 @@ const AutoFixDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-6 bg-white p-2 rounded-3xl border border-slate-100 shadow-sm">
+          <button 
+            onClick={handleRepairAllCritical}
+            disabled={isFixing || isAuditing}
+            className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${isFixing ? 'bg-amber-100 text-amber-600' : 'bg-amber-500 text-white hover:scale-105 active:scale-95 shadow-xl shadow-amber-100'}`}
+          >
+            <Sparkles size={16} />
+            {isFixing ? `Reparando (${fixingProgress}%)` : 'Reparar Críticos'}
+          </button>
+
+          <div className="w-px h-8 bg-slate-100" />
+
           <div className="flex items-center gap-3 px-4">
             <div className={`w-3 h-3 rounded-full ${isAutoPilotOn ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`} />
             <span className="text-[10px] font-black uppercase tracking-tight text-slate-900">Auto-Pilot</span>
@@ -129,7 +203,7 @@ const AutoFixDashboard: React.FC = () => {
           </div>
           <button 
             onClick={handleStartAudit}
-            disabled={isAuditing}
+            disabled={isAuditing || isFixing}
             className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${isAuditing ? 'bg-slate-100 text-slate-400' : 'bg-slate-950 text-white hover:scale-105 active:scale-95 shadow-xl shadow-slate-200'}`}
           >
             {isAuditing ? <Pause size={16} /> : <Play size={16} />}

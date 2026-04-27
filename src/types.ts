@@ -127,6 +127,7 @@ export interface Exercise {
   technical_tips?: string;
   is_active: boolean;
   image_url?: string;
+  equipment?: string;
   difficulty_level: 'beginner' | 'intermediate' | 'advanced';
   technical_prompt?: string;
   anatomical_cut?: string;
@@ -145,7 +146,7 @@ export interface Exercise {
   version_history?: { date: string, author: string, changes: string }[];
 
   // Coach Rubi Auto Fix Engine Fields
-  ai_issues?: { type: string, description: string }[];
+  ai_issues?: { category: 'content' | 'structural' | 'governance', type: string, description: string }[];
   ai_suggestions?: any;
   ai_fixed_at?: string;
   ai_review_status?: 'pending' | 'approved' | 'rejected' | 'auto_fixed';
