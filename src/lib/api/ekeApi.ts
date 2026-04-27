@@ -46,13 +46,27 @@ export const ekeApi = {
    * Fetches all relevant exercises for EKE ranking.
    */
   async getExercisesForEke() {
-    const { data, error } = await supabase
-      .from('exercises')
-      .select('*')
-      .eq('is_active', true);
-    
-    if (error) throw error;
-    return data as Exercise[];
+    try {
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (error) throw error;
+      return data as Exercise[];
+    } catch (err: any) {
+      if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+        console.warn('[EKE] Fallback ativado em getExercisesForEke:', err.message);
+        // Fallback: exclude the new EKE columns if they are missing
+        const { data, error } = await supabase
+          .from('exercises')
+          .select('id, name, muscle_group, is_active')
+          .eq('is_active', true);
+        if (error) throw error;
+        return data as Exercise[];
+      }
+      throw err;
+    }
   },
 
   async logDecision(payload: any) {

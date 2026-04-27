@@ -4,13 +4,42 @@ import { Exercise, MuscleGroup } from '../../types';
 
 export const adminApi = {
   async updateExercise(id: string, payload: Partial<Exercise>) {
-    const { error } = await supabase.from('exercises').update(payload).eq('id', id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from('exercises').update(payload).eq('id', id);
+      if (error) throw error;
+    } catch (err: any) {
+      if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+        // Attempt to isolate the bad column from the error message
+        const match = err.message.match(/column '(.*)'/);
+        if (match && match[1]) {
+          const badColumn = match[1];
+          const { [badColumn as keyof typeof payload]: _, ...newPayload } = payload;
+          const { error: retryError } = await supabase.from('exercises').update(newPayload).eq('id', id);
+          if (retryError) throw retryError;
+          return;
+        }
+      }
+      throw err;
+    }
   },
 
   async createExercise(payload: Partial<Exercise>) {
-    const { error } = await supabase.from('exercises').insert([payload]);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from('exercises').insert([payload]);
+      if (error) throw error;
+    } catch (err: any) {
+      if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+        const match = err.message.match(/column '(.*)'/);
+        if (match && match[1]) {
+          const badColumn = match[1];
+          const { [badColumn as keyof typeof payload]: _, ...newPayload } = payload;
+          const { error: retryError } = await supabase.from('exercises').insert([newPayload]);
+          if (retryError) throw retryError;
+          return;
+        }
+      }
+      throw err;
+    }
   },
 
   async uploadExerciseImage(file: File, exerciseId: string) {
@@ -46,9 +75,20 @@ export const adminApi = {
   },
 
   async bulkCreateExercises(exercises: Partial<Exercise>[]) {
-    const { data, error } = await supabase.from('exercises').insert(exercises).select();
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase.from('exercises').insert(exercises).select();
+      if (error) throw error;
+      return data;
+    } catch (err: any) {
+      if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+        console.warn('[ADMIN] Fallback ativado em bulkCreateExercises');
+        // Tenta inserir sem o select() para evitar erro de leitura de colunas inexistentes
+        const { error } = await supabase.from('exercises').insert(exercises);
+        if (error) throw error;
+        return [];
+      }
+      throw err;
+    }
   },
 
   async checkExistingExercise(name: string) {
@@ -61,42 +101,87 @@ export const adminApi = {
   },
 
   async getAdminData() {
-    const [exRes, mgRes] = await Promise.all([
-      supabase.from('exercises').select('*').order('name'),
-      supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true })
-    ]);
-    
-    if (exRes.error) throw exRes.error;
-    if (mgRes.error) throw mgRes.error;
-    
-    return {
-      exercises: (exRes.data || []) as Exercise[],
-      muscleGroups: (mgRes.data || []) as MuscleGroup[]
-    };
+    try {
+      const [exRes, mgRes] = await Promise.all([
+        supabase.from('exercises').select('*').order('name'),
+        supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true })
+      ]);
+      
+      if (exRes.error) throw exRes.error;
+      if (mgRes.error) throw mgRes.error;
+      
+      return {
+        exercises: (exRes.data || []) as Exercise[],
+        muscleGroups: (mgRes.data || []) as MuscleGroup[]
+      };
+    } catch (err: any) {
+      if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+        console.warn('[ADMIN] Fallback ativado em getAdminData:', err.message);
+        const [exRes, mgRes] = await Promise.all([
+          supabase.from('exercises').select('id, name, muscle_group, is_active').order('name'),
+          supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true })
+        ]);
+        if (exRes.error) throw exRes.error;
+        if (mgRes.error) throw mgRes.error;
+        return {
+          exercises: (exRes.data || []) as Exercise[],
+          muscleGroups: (mgRes.data || []) as MuscleGroup[]
+        };
+      }
+      throw err;
+    }
   },
 
   async getQualityStats() {
-    const { data: exercises, error } = await supabase.from('exercises').select('quality_status, quality_score, name');
-    if (error) throw error;
-    
-    const stats = {
-      total: exercises.length,
-      premium: exercises.filter(e => e.quality_status === 'premium').length,
-      good: exercises.filter(e => e.quality_status === 'good').length,
-      improvable: exercises.filter(e => e.quality_status === 'improvable').length,
-      avgScore: exercises.reduce((acc, curr) => acc + (curr.quality_score || 0), 0) / exercises.length || 0
-    };
-    
-    return stats;
+    try {
+      const { data: exercises, error } = await supabase.from('exercises').select('*');
+      if (error) throw error;
+      
+      const stats = {
+        total: (exercises || []).length,
+        premium: (exercises || []).filter(e => e.quality_status === 'premium').length,
+        good: (exercises || []).filter(e => e.quality_status === 'good').length,
+        improvable: (exercises || []).filter(e => e.quality_status === 'improvable').length,
+        avgScore: (exercises || []).reduce((acc: number, curr: any) => acc + (curr.quality_score || 0), 0) / (exercises || []).length || 0
+      };
+      
+      return stats;
+    } catch (err: any) {
+      if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+         console.warn('[ADMIN] Fallback ativado em getQualityStats');
+         const { data: exercises, error } = await supabase.from('exercises').select('id, name');
+         if (error) throw error;
+         return {
+            total: (exercises || []).length,
+            premium: 0,
+            good: 0,
+            improvable: 0,
+            avgScore: 0
+          };
+      }
+      throw err;
+    }
   },
 
   async getLowQualityExercises() {
-    const { data, error } = await supabase.from('exercises')
-      .select('*')
-      .or('quality_status.eq.improvable,quality_score.lt.70')
-      .limit(20);
-    if (error) throw error;
-    return (data || []) as Exercise[];
+    try {
+      const { data, error } = await supabase.from('exercises')
+        .select('*')
+        .or('quality_status.eq.improvable,quality_score.lt.70')
+        .limit(20);
+      if (error) throw error;
+      return (data || []) as Exercise[];
+    } catch (err: any) {
+      if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+        console.warn('[ADMIN] Fallback ativado em getLowQualityExercises');
+        const { data, error } = await supabase.from('exercises')
+          .select('id, name, muscle_group')
+          .limit(20);
+        if (error) throw error;
+        return (data || []) as Exercise[];
+      }
+      throw err;
+    }
   },
 
   async reorderMuscleGroups(items: { id: string, sort_order: number }[]) {

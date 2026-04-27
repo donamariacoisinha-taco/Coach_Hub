@@ -4,9 +4,23 @@ import { Exercise, MuscleGroup } from '../../types';
 
 export const exerciseApi = {
   async getExercises() {
-    const { data, error } = await supabase.from('exercises').select('*').order('name');
-    if (error) throw error;
-    return (data || []) as Exercise[];
+    try {
+      const { data, error } = await supabase.from('exercises').select('*').order('name');
+      if (error) throw error;
+      return (data || []) as Exercise[];
+    } catch (err: any) {
+      const isSchemaError = err.message?.includes('column') && err.message?.includes('schema cache');
+      if (isSchemaError) {
+        console.warn('[DB] Fallback ativado devido a erro de schema cache:', err.message);
+        // Tenta buscar apenas colunas essenciais que sabemos que existem
+        const { data, error } = await supabase.from('exercises')
+          .select('id, name, muscle_group, image_url, is_active')
+          .order('name');
+        if (error) throw error;
+        return (data || []) as Exercise[];
+      }
+      throw err;
+    }
   },
 
   async getMuscleGroups() {

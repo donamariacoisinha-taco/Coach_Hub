@@ -6,7 +6,7 @@ import Onboarding from './components/Onboarding';
 import Dashboard from './features/dashboard/Dashboard';
 import WorkoutPlayer from './features/workout/WorkoutPlayer';
 import WorkoutEditor from './components/WorkoutEditor';
-import AdminPanel from './components/AdminPanel';
+import AdminPanelPro from './features/admin/AdminPanelPro';
 import HistoryView from './components/HistoryView';
 import ProfileView from './components/ProfileView';
 import ExerciseLibrary from './components/ExerciseLibrary';
@@ -355,7 +355,7 @@ const App: React.FC = () => {
                 {navState.view === 'library' && <ExerciseLibrary />}
                 {navState.view === 'profile' && profile && <ProfileView profile={profile} onUpdate={() => fetchProfile(session.user.id)} />}
                 {navState.view === 'admin' && (
-                  isAdmin(profile) ? <AdminPanel onBack={goBack} /> : <Dashboard />
+                  isAdmin(profile) ? <AdminPanelPro onBack={goBack} /> : <Dashboard />
                 )}
               </motion.div>
             </AnimatePresence>

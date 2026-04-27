@@ -31,9 +31,13 @@ export const workoutApi = {
   },
 
   async getWorkoutInitData(workoutId: string, userId: string) {
+    // We use a more explicit column list for exercises to avoid schema cache issues with newly added EKE columns
     const [catRes, exRes, partialRes] = await Promise.all([
       supabase.from('workout_categories').select('*').eq('id', workoutId).single(),
-      supabase.from('workout_exercises').select(`*, exercises (*)`).eq('category_id', workoutId).order('sort_order'),
+      supabase.from('workout_exercises')
+        .select(`*, exercises (id, name, muscle_group, image_url, is_active)`)
+        .eq('category_id', workoutId)
+        .order('sort_order'),
       supabase.from('partial_workout_sessions').select('*').eq('user_id', userId).eq('workout_id', workoutId).maybeSingle()
     ]);
 
@@ -176,7 +180,7 @@ export const workoutApi = {
     const queries: any[] = [
       supabase.from('workout_folders').select('*').eq('user_id', userId).order('name'),
       supabase.from('muscle_groups').select('*').order('sort_order'),
-      supabase.from('exercises').select('*').order('name')
+      supabase.from('exercises').select('id, name, muscle_group, image_url, is_active').order('name')
     ];
 
     if (workoutId) {
