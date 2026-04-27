@@ -81,48 +81,48 @@ const ExerciseEditorV2: React.FC = () => {
 
        {/* Editor Panel - Elite Drawer */}
        <motion.div 
-         initial={{ x: '100%' }}
-         animate={{ x: 0 }}
-         exit={{ x: '100%' }}
+         initial={{ x: '100%', y: 0 }}
+         animate={{ x: 0, y: 0 }}
+         exit={{ x: '100%', y: 0 }}
          transition={{ type: 'spring', damping: 30, stiffness: 300, mass: 0.8 }}
-         className="relative w-full max-w-5xl bg-[#F7F8FA] h-full shadow-[-30px_0_100px_rgba(0,0,0,0.4)] pointer-events-auto flex flex-col"
+         className="relative w-full lg:max-w-6xl bg-[#F7F8FA] h-full sm:h-full shadow-[-30px_0_100px_rgba(0,0,0,0.4)] pointer-events-auto flex flex-col md:rounded-l-[3rem] overflow-hidden"
        >
           {/* Header */}
-          <header className="bg-white border-b border-slate-200 px-10 py-8 flex items-center justify-between z-10">
-             <div className="flex items-center gap-6">
+          <header className="bg-white border-b border-slate-200 px-6 sm:px-10 py-6 sm:py-8 flex items-center justify-between z-10">
+             <div className="flex items-center gap-4 sm:gap-6">
                 <button onClick={closeEditor} className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-all active:scale-95 text-slate-400 hover:text-slate-950">
                    <X size={20} />
                 </button>
                 <div>
-                   <h2 className="text-xl font-black tracking-tight uppercase">
+                   <h2 className="text-lg sm:text-xl font-black tracking-tight uppercase leading-none">
                       {selectedExercise ? 'Edit Architecture' : 'Forge New Asset'}
                    </h2>
-                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
+                   <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 hidden sm:flex items-center gap-2">
                       <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
                       Auto-save enabled
                    </p>
                 </div>
              </div>
 
-             <div className="flex items-center gap-4">
+             <div className="flex items-center gap-3 sm:gap-4">
                 <button className="hidden sm:flex items-center gap-2 px-6 h-14 rounded-2xl bg-white border border-slate-200 text-slate-900 font-black text-[10px] uppercase tracking-widest hover:border-slate-400 transition-all">
                    <Eye size={18} className="text-slate-400" />
-                   Preview UI
+                   Preview
                 </button>
                 <button 
                   onClick={handleSave}
                   disabled={loading}
-                  className="px-8 h-14 bg-slate-950 text-white rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-950/30 flex items-center gap-3 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                  className="px-6 sm:px-8 h-12 sm:h-14 bg-slate-950 text-white rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-950/30 flex items-center gap-3 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                 >
                    {loading ? <Sparkles size={18} className="animate-pulse" /> : <Save size={18} />}
-                   Commit Changes
+                   {selectedExercise ? 'Commit' : 'Publish'}
                 </button>
              </div>
           </header>
 
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex flex-col sm:flex-row overflow-hidden">
              {/* Sidebar Navigation */}
-             <aside className="w-24 sm:w-80 bg-white border-r border-slate-200 flex flex-col p-4 sm:p-6 gap-2 overflow-y-auto no-scrollbar">
+             <aside className="w-full sm:w-72 bg-white border-r border-slate-200 flex flex-row sm:flex-col p-4 sm:p-6 gap-2 overflow-x-auto sm:overflow-y-auto no-scrollbar">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -130,22 +130,22 @@ const ExerciseEditorV2: React.FC = () => {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all duration-300 group ${
+                      className={`flex-shrink-0 flex items-center gap-4 px-4 py-3 sm:py-4 rounded-2xl transition-all duration-300 group ${
                         isActive 
                           ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/30' 
                           : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
                       }`}
                     >
                       <Icon size={18} className={isActive ? 'text-white' : 'text-slate-300 group-hover:text-blue-600'} />
-                      <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
-                      {isActive && <ChevronRight size={14} className="ml-auto text-white/50" />}
+                      <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest whitespace-nowrap">{tab.label}</span>
+                      {isActive && <ChevronRight size={14} className="ml-auto text-white/50 hidden sm:block" />}
                     </button>
                   );
                 })}
              </aside>
 
              {/* Content Area */}
-             <main className="flex-1 overflow-y-auto no-scrollbar p-10 lg:p-14">
+             <main className="flex-1 overflow-y-auto no-scrollbar p-6 sm:p-10 lg:p-14">
                 <div className="max-w-3xl mx-auto">
                    <AnimatePresence mode="wait">
                       {activeTab === 'basic' && (
@@ -154,10 +154,10 @@ const ExerciseEditorV2: React.FC = () => {
                            initial={{ opacity: 0, y: 10 }}
                            animate={{ opacity: 1, y: 0 }}
                            exit={{ opacity: 0, y: -10 }}
-                           className="space-y-12"
+                           className="space-y-10 sm:space-y-12"
                          >
                             <SectionHeader title="Identidade & Core" desc="Definições fundamentais e enquadramento estrutural." />
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                                <Input label="Asset Performance Name" value={form.name} onChange={(val) => setForm({...form, name: val})} placeholder="Ex: Supino Reto Barra" />
                                <Input label="Commercial Variant / Alias" value={form.alt_name} onChange={(val) => setForm({...form, alt_name: val})} placeholder="Ex: Bench Press Barbell" />
                                
@@ -169,10 +169,9 @@ const ExerciseEditorV2: React.FC = () => {
                                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all appearance-none"
                                   >
                                      <option value="">Select Cluster</option>
-                                     <option value="Peito">Peito</option>
-                                     <option value="Costas">Costas</option>
-                                     <option value="Pernas">Pernas</option>
-                                     <option value="Ombros">Ombros</option>
+                                     {['Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps', 'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilha', 'Abdômen', 'Full Body', 'Cardio', 'Mobilidade'].map(m => (
+                                       <option key={m} value={m}>{m}</option>
+                                     ))}
                                   </select>
                                </div>
 

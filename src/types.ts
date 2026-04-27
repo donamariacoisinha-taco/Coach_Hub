@@ -112,6 +112,11 @@ export interface MuscleGroup {
   created_at?: string;
 }
 
+export interface AIIssue {
+  category: 'content' | 'structural' | 'governance' | 'other';
+  description: string;
+}
+
 export interface Exercise {
   id: string;
   user_id?: string;
@@ -137,7 +142,7 @@ export interface Exercise {
   plane?: 'horizontal' | 'vertical' | 'sagittal' | 'frontal' | 'transverse';
   training_goal?: 'strength' | 'hypertrophy' | 'power' | 'endurance';
   quality_score?: number; // 0-100
-  quality_status?: 'premium' | 'good' | 'improvable';
+  quality_status?: 'premium' | 'good' | 'improvable' | 'critical';
   performance_score?: number; // 0-100 based on usage frequency and RPE
   usage_count?: number;
   last_used_at?: string;
@@ -147,14 +152,12 @@ export interface Exercise {
 
   // Coach Rubi Quality Score V3 + Performance Brain Fields
   quality_score_v3?: number;
-  performance_score?: number;
   editorial_score?: number;
   structural_score?: number;
   governance_score?: number;
   usage_score?: number;
   results_score?: number;
 
-  usage_count?: number;
   completion_rate?: number;
   repeat_rate?: number;
   drop_rate?: number;
@@ -165,6 +168,17 @@ export interface Exercise {
 
   ranking_status?: 'rising' | 'elite' | 'decline' | 'forgotten' | 'testing';
   last_performance_update?: string;
+
+  // AI-Assisted Content Fields
+  ai_issues?: AIIssue[];
+  ai_suggestions?: string[];
+  ai_fixed_at?: string;
+  ai_review_status?: 'pending' | 'auto_fixed' | 'human_verified' | 'approved' | 'rejected';
+  ai_confidence?: number;
+  last_ai_audit?: string;
+  auto_fixed?: boolean;
+  needs_human_review?: boolean;
+  version?: number;
 }
 
 export interface EKEContext {

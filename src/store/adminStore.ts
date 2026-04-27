@@ -13,6 +13,8 @@ interface AdminState {
   // UI State
   activeTab: 'dashboard' | 'library' | 'review' | 'ai' | 'analytics' | 'settings' | 'autofix' | 'performance';
   searchQuery: string;
+  selectedMuscleFilter: string;
+  viewMode: 'table' | 'grid' | 'compact';
   selectedExercise: Exercise | null;
   isEditorOpen: boolean;
   isCommandPaletteOpen: boolean;
@@ -21,6 +23,8 @@ interface AdminState {
   fetchData: () => Promise<void>;
   setActiveTab: (tab: AdminState['activeTab']) => void;
   setSearchQuery: (query: string) => void;
+  setMuscleFilter: (filter: string) => void;
+  setViewMode: (mode: AdminState['viewMode']) => void;
   openEditor: (exercise?: Exercise | null) => void;
   closeEditor: () => void;
   setCommandPaletteOpen: (open: boolean) => void;
@@ -39,6 +43,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   
   activeTab: 'dashboard',
   searchQuery: '',
+  selectedMuscleFilter: 'Todos',
+  viewMode: 'table',
   selectedExercise: null,
   isEditorOpen: false,
   isCommandPaletteOpen: false,
@@ -65,6 +71,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   
   setActiveTab: (tab) => set({ activeTab: tab }),
   setSearchQuery: (query) => set({ searchQuery: query }),
+  setMuscleFilter: (filter) => set({ selectedMuscleFilter: filter }),
+  setViewMode: (mode) => set({ viewMode: mode }),
   
   openEditor: (exercise = null) => set({ selectedExercise: exercise, isEditorOpen: true }),
   closeEditor: () => set({ selectedExercise: null, isEditorOpen: false }),
