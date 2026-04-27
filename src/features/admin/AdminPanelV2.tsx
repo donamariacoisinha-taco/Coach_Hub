@@ -29,6 +29,7 @@ import CommandPalette from './components/CommandPalette';
 import AutoFixDashboard from './components/AutoFixDashboard';
 import AutoFixQueue from './components/AutoFixQueue';
 import PerformanceDashboard from './components/PerformanceDashboard';
+import RubiIntelligenceModal from './components/RubiIntelligenceModal';
 
 interface AdminPanelV2Props {
   onBack: () => void;
@@ -259,6 +260,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
       {/* Global Overlays */}
       <ExerciseEditorV2 />
       <CommandPalette />
+      <RubiIntelligenceModal />
       
       {/* Scroll to Top button for mobile? Or FAB? */}
       <button 

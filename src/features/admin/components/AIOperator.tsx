@@ -17,10 +17,11 @@ import {
   Fingerprint
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
+import { useIntelligenceStore } from '../store/intelligenceStore';
 
 const AIOperator: React.FC = () => {
   const [activeModule, setActiveModule] = useState<'audit' | 'semantic' | 'generator' | 'auto-improve'>('audit');
-  const [running, setRunning] = useState(false);
+  const { openModal } = useIntelligenceStore();
 
   const modules = [
     { id: 'audit', title: 'Deep Audit', icon: ShieldCheck, color: 'text-blue-600', desc: 'Scan full library for inconsistencies' },
@@ -28,11 +29,6 @@ const AIOperator: React.FC = () => {
     { id: 'generator', title: 'Rubi Generator', icon: Wand2, color: 'text-emerald-600', desc: 'Generate premium technical metadata' },
     { id: 'auto-improve', title: 'Auto-Improve (Batch)', icon: Zap, color: 'text-orange-600', desc: 'AI-led refinement in bulk' }
   ] as const;
-
-  const handleRun = () => {
-    setRunning(true);
-    setTimeout(() => setRunning(false), 3000);
-  };
 
   return (
     <div className="space-y-16">
@@ -131,20 +127,19 @@ const AIOperator: React.FC = () => {
 
                        <div className="mt-auto pt-12">
                           <button 
-                             onClick={handleRun}
-                             disabled={running}
+                             onClick={() => openModal('audit')}
                              className="w-full h-20 rounded-[2rem] bg-slate-950 text-white font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-slate-950/20 active:scale-95 transition-all flex items-center justify-center gap-4"
                           >
-                             {running ? <RefreshCcw size={20} className="animate-spin" /> : <Sparkles size={20} className="text-blue-400" />}
+                             <Sparkles size={20} className="text-blue-400" />
                              Trigger Deep Library Audit
                           </button>
                        </div>
                     </div>
                   )}
 
-                  {activeModule === 'semantic' && <ModuleEmptyState title="Semantic Deduplicator" />}
-                  {activeModule === 'generator' && <ModuleEmptyState title="Rubi Generator" />}
-                  {activeModule === 'auto-improve' && <ModuleEmptyState title="Batch Auto-Improve" />}
+                  {activeModule === 'semantic' && <ModuleEmptyState title="Semantic Deduplicator" onRun={() => openModal('full')} />}
+                  {activeModule === 'generator' && <ModuleEmptyState title="Rubi Generator" onRun={() => openModal('content')} />}
+                  {activeModule === 'auto-improve' && <ModuleEmptyState title="Batch Auto-Improve" onRun={() => openModal('fix')} />}
                </motion.div>
             </AnimatePresence>
          </div>
@@ -186,7 +181,7 @@ function AuditLogItem({ text, type }: { text: string, type: 'error' | 'warning' 
   );
 }
 
-function ModuleEmptyState({ title }: { title: string }) {
+function ModuleEmptyState({ title, onRun }: { title: string, onRun: () => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
        <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-slate-200 mb-8 border border-slate-100">
@@ -194,7 +189,12 @@ function ModuleEmptyState({ title }: { title: string }) {
        </div>
        <h4 className="text-xl font-black uppercase tracking-tight mb-2">{title}</h4>
        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest max-w-[280px]">Module training in progress. This tool uses Rubi Elite weights for high accuracy.</p>
-       <button className="mt-8 px-10 h-14 rounded-full border border-slate-200 font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-slate-950 transition-all">Initialize Engine</button>
+       <button 
+         onClick={onRun}
+         className="mt-8 px-10 h-14 rounded-full border border-slate-200 font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-slate-950 transition-all"
+       >
+          Initialize Engine
+       </button>
     </div>
   );
 }

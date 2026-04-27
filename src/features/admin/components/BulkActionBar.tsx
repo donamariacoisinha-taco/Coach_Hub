@@ -11,6 +11,7 @@ import {
   X
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
+import { useIntelligenceStore } from '../store/intelligenceStore';
 
 interface BulkActionBarProps {
   selectedIds: string[];
@@ -19,9 +20,10 @@ interface BulkActionBarProps {
 
 const BulkActionBar: React.FC<BulkActionBarProps> = ({ selectedIds, onClear }) => {
   const { archiveExercises, deleteExercises } = useAdminStore();
+  const { openModal } = useIntelligenceStore();
 
   const handleBulkAI = () => {
-    alert(`Iniciando IA para ${selectedIds.length} itens. Gerando descrições premium e categorizando muscularmente.`);
+    openModal('full');
   };
 
   return (

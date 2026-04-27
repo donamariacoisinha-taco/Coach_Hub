@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
 import { useLibraryStore } from '../store/libraryStore';
+import { useIntelligenceStore } from '../store/intelligenceStore';
 import SmartGrid from './SmartGrid';
 import BulkActionBar from './BulkActionBar';
 import SavedViews from './SavedViews';
@@ -37,6 +38,7 @@ const LibraryOSV25: React.FC = () => {
     isKeyboardModeActive,
     toggleKeyboardMode
   } = useLibraryStore();
+  const { openModal } = useIntelligenceStore();
 
   const [isColumnsManagerOpen, setColumnsManagerOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -162,24 +164,28 @@ const LibraryOSV25: React.FC = () => {
                     label="Críticos Hoje" 
                     value={exercises.filter(ex => (ex.quality_score_v3 || 0) < 40).length} 
                     desc="Necessitam revisão imediata"
+                    onClick={() => openModal('fix')}
                  />
                  <InsightCard 
                     icon={<Skull className="text-slate-400" />} 
                     label="Prováveis Duplicados" 
                     value="4" 
                     desc="Nomes similares detectados"
+                    onClick={() => openModal('audit')}
                  />
                  <InsightCard 
                     icon={<TrendingUp className="text-emerald-500" />} 
                     label="Rising Stars" 
                     value={exercises.filter(ex => ex.ranking_status === 'rising').length} 
                     desc="Engajamento em alta"
+                    onClick={() => openModal('scores')}
                  />
                  <InsightCard 
                     icon={<Database className="text-blue-500" />} 
                     label="Sem Midia" 
                     value={exercises.filter(ex => !ex.image_url).length} 
                     desc="Impacto visual baixo"
+                    onClick={() => openModal('audit')}
                  />
               </div>
 
@@ -220,9 +226,12 @@ const LibraryOSV25: React.FC = () => {
 
 export default LibraryOSV25;
 
-function InsightCard({ icon, label, value, desc }: { icon: React.ReactNode, label: string, value: string | number, desc: string }) {
+function InsightCard({ icon, label, value, desc, onClick }: { icon: React.ReactNode, label: string, value: string | number, desc: string, onClick?: () => void }) {
   return (
-    <div className="flex items-start gap-4 p-4 rounded-2xl border border-slate-50 hover:bg-slate-50 transition-all group cursor-default">
+    <div 
+      onClick={onClick}
+      className={`flex items-start gap-4 p-4 rounded-2xl border border-slate-50 transition-all group ${onClick ? 'cursor-pointer hover:bg-slate-50 hover:border-slate-200' : 'cursor-default'}`}
+    >
        <div className="mt-1 translate-y-1">{icon}</div>
        <div className="flex-1">
           <div className="flex items-center justify-between mb-1">
