@@ -11,10 +11,11 @@ interface AdminState {
   error: string | null;
   
   // UI State
-  activeTab: 'dashboard' | 'library' | 'review' | 'governance' | 'settings';
+  activeTab: 'dashboard' | 'library' | 'review' | 'ai' | 'analytics' | 'settings';
   searchQuery: string;
   selectedExercise: Exercise | null;
   isEditorOpen: boolean;
+  isCommandPaletteOpen: boolean;
   
   // Actions
   fetchData: () => Promise<void>;
@@ -22,6 +23,7 @@ interface AdminState {
   setSearchQuery: (query: string) => void;
   openEditor: (exercise?: Exercise | null) => void;
   closeEditor: () => void;
+  setCommandPaletteOpen: (open: boolean) => void;
   updateExercise: (id: string, payload: Partial<Exercise>) => Promise<void>;
   deleteExercise: (id: string) => Promise<void>;
   createExercise: (payload: Partial<Exercise>) => Promise<void>;
@@ -38,6 +40,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   searchQuery: '',
   selectedExercise: null,
   isEditorOpen: false,
+  isCommandPaletteOpen: false,
   
   fetchData: async () => {
     set({ loading: true });
@@ -62,6 +65,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   
   openEditor: (exercise = null) => set({ selectedExercise: exercise, isEditorOpen: true }),
   closeEditor: () => set({ selectedExercise: null, isEditorOpen: false }),
+  setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   
   updateExercise: async (id, payload) => {
     try {
