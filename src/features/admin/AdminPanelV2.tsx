@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useAdminStore } from '../../store/adminStore';
 import ExecutiveDashboard from './components/ExecutiveDashboard';
-import LibraryOS from './components/LibraryOS';
+import LibraryOSV25 from './components/LibraryOSV25';
 import ReviewCenter from './components/ReviewCenter';
 import AIOperator from './components/AIOperator';
 import AnalyticsGrowth from './components/AnalyticsGrowth';
@@ -207,7 +207,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
                 className="w-full"
               >
                   {activeTab === 'dashboard' && <ExecutiveDashboard />}
-                  {activeTab === 'library' && <LibraryOS />}
+                  {activeTab === 'library' && <LibraryOSV25 />}
                   {activeTab === 'performance' && <PerformanceDashboard />}
                   {activeTab === 'autofix' && (
                     <div className="space-y-12">

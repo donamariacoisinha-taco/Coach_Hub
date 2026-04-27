@@ -31,6 +31,8 @@ interface AdminState {
   updateExercise: (id: string, payload: Partial<Exercise>) => Promise<void>;
   deleteExercise: (id: string) => Promise<void>;
   createExercise: (payload: Partial<Exercise>) => Promise<void>;
+  archiveExercises: (ids: string[]) => Promise<void>;
+  deleteExercises: (ids: string[]) => Promise<void>;
   setExercises: (exercises: Exercise[]) => void;
 }
 
@@ -102,6 +104,29 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     try {
       await adminApi.createExercise(payload as any);
       get().fetchData(); // Refresh to get the new id and data
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  archiveExercises: async (ids) => {
+    try {
+      // In a real app, this would be a bulk API call
+      await Promise.all(ids.map(id => adminApi.updateExercise(id, { ranking_status: 'decline' })));
+      set({ 
+        exercises: get().exercises.map(ex => 
+          ids.includes(ex.id) ? { ...ex, ranking_status: 'decline' } as Exercise : ex
+        )
+      });
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  deleteExercises: async (ids) => {
+    try {
+      await Promise.all(ids.map(id => adminApi.deleteExercise(id)));
+      set({ exercises: get().exercises.filter(ex => !ids.includes(ex.id)) });
     } catch (err: any) {
       throw err;
     }
