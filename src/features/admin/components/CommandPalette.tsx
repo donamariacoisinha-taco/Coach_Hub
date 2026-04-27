@@ -13,7 +13,8 @@ import {
   X,
   Sparkles,
   ArrowRight,
-  ChevronRight
+  ChevronRight,
+  Zap
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
 
@@ -33,6 +34,7 @@ const CommandPalette: React.FC = () => {
 
   const actions = [
     { id: 'create', label: 'Create New Exercise', icon: Plus, shortcuts: ['N'], category: 'Actions', action: () => openEditor() },
+    { id: 'autofix', label: 'Run Auto Fix Engine', icon: Zap, shortcuts: ['X'], category: 'Intelligence', action: () => setActiveTab('autofix') },
     { id: 'audit', label: 'Run AI Library Audit', icon: Sparkles, shortcuts: ['A'], category: 'Intelligence', action: () => setActiveTab('ai') },
     { id: 'view-lib', label: 'Go to Library OS', icon: Library, shortcuts: ['L'], category: 'Navigation', action: () => setActiveTab('library') },
     { id: 'view-review', label: 'Manage Review Center', icon: ListTodo, shortcuts: ['R'], category: 'Navigation', action: () => setActiveTab('review') },

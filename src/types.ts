@@ -143,6 +143,17 @@ export interface Exercise {
   last_review_at?: string;
   ai_review_notes?: string[];
   version_history?: { date: string, author: string, changes: string }[];
+
+  // Coach Rubi Auto Fix Engine Fields
+  ai_issues?: { type: string, description: string }[];
+  ai_suggestions?: any;
+  ai_fixed_at?: string;
+  ai_review_status?: 'pending' | 'approved' | 'rejected' | 'auto_fixed';
+  ai_confidence?: number;
+  last_ai_audit?: string;
+  auto_fixed?: boolean;
+  needs_human_review?: boolean;
+  version?: number;
 }
 
 export interface EKEContext {

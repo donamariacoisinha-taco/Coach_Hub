@@ -11,7 +11,7 @@ interface AdminState {
   error: string | null;
   
   // UI State
-  activeTab: 'dashboard' | 'library' | 'review' | 'ai' | 'analytics' | 'settings';
+  activeTab: 'dashboard' | 'library' | 'review' | 'ai' | 'analytics' | 'settings' | 'autofix';
   searchQuery: string;
   selectedExercise: Exercise | null;
   isEditorOpen: boolean;
@@ -27,6 +27,7 @@ interface AdminState {
   updateExercise: (id: string, payload: Partial<Exercise>) => Promise<void>;
   deleteExercise: (id: string) => Promise<void>;
   createExercise: (payload: Partial<Exercise>) => Promise<void>;
+  setExercises: (exercises: Exercise[]) => void;
 }
 
 export const useAdminStore = create<AdminState>((set, get) => ({
@@ -41,6 +42,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   selectedExercise: null,
   isEditorOpen: false,
   isCommandPaletteOpen: false,
+  
+  setExercises: (exercises) => set({ exercises }),
   
   fetchData: async () => {
     set({ loading: true });

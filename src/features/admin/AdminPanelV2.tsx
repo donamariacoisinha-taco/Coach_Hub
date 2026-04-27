@@ -14,7 +14,8 @@ import {
   ArrowLeft,
   ChevronRight,
   Command as CommandIcon,
-  Sparkles
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { useAdminStore } from '../../store/adminStore';
 import ExecutiveDashboard from './components/ExecutiveDashboard';
@@ -25,6 +26,8 @@ import AnalyticsGrowth from './components/AnalyticsGrowth';
 import SettingsLogs from './components/SettingsLogs';
 import ExerciseEditorV2 from './components/ExerciseEditorV2';
 import CommandPalette from './components/CommandPalette';
+import AutoFixDashboard from './components/AutoFixDashboard';
+import AutoFixQueue from './components/AutoFixQueue';
 
 interface AdminPanelV2Props {
   onBack: () => void;
@@ -62,6 +65,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
   const tabs = [
     { id: 'dashboard', label: 'Executive', icon: LayoutDashboard, desc: 'Overview & KPIs' },
     { id: 'library', label: 'Library OS', icon: Library, desc: 'Asset Management' },
+    { id: 'autofix', label: 'Auto Fix', icon: Zap, desc: 'Self-Healing Engine' },
     { id: 'review', label: 'Review Hub', icon: ListTodo, desc: 'Quality Control' },
     { id: 'ai', label: 'AI Operator', icon: BrainCircuit, desc: 'Intelligence Engine' },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, desc: 'Growth Data' },
@@ -202,6 +206,12 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
               >
                   {activeTab === 'dashboard' && <ExecutiveDashboard />}
                   {activeTab === 'library' && <LibraryOS />}
+                  {activeTab === 'autofix' && (
+                    <div className="space-y-12">
+                       <AutoFixDashboard />
+                       <AutoFixQueue />
+                    </div>
+                  )}
                   {activeTab === 'review' && <ReviewCenter />}
                   {activeTab === 'ai' && <AIOperator />}
                   {activeTab === 'analytics' && <AnalyticsGrowth />}
