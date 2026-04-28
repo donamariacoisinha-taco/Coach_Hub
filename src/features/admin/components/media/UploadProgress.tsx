@@ -9,7 +9,7 @@ interface Props {
 }
 
 export const UploadProgress: React.FC<Props> = ({ uploads }) => {
-  const activeUploads = Object.values(uploads).filter(u => u.status !== 'idle');
+  const activeUploads = (Object.values(uploads) as UploadProgressType[]).filter(u => u.status !== 'idle');
 
   if (activeUploads.length === 0) return null;
 

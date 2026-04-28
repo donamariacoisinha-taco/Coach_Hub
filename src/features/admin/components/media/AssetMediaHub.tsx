@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Sparkles,
   Info,
-  CheckCircle2
+  CheckCircle2,
+  Zap
 } from 'lucide-react';
 import { Exercise } from '../../../../types';
 import { ImageUploader } from './ImageUploader';
@@ -21,6 +22,8 @@ import { UploadProgress } from './UploadProgress';
 import { useMediaUpload } from '../../hooks/useMediaUpload';
 import { mediaApi } from '../../api/mediaApi';
 import { useErrorHandler } from '../../../../hooks/useErrorHandler';
+import { aiMediaFinder } from '../../services/aiMediaFinder';
+import { AIMediaFinderModal } from './AIMediaFinderModal';
 import { cn } from '../../../../lib/utils';
 // const { cn } = utils; // Removed incorrect destructuring
 
@@ -38,6 +41,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
   const [saving, setSaving] = useState(false);
   const [localData, setLocalData] = useState<Exercise>(exercise);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isFinderOpen, setIsFinderOpen] = useState(false);
 
   // Auto-save logic
   React.useEffect(() => {
@@ -54,6 +58,34 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
     const newData = { ...localData, ...updates };
     setLocalData(newData);
     setHasChanges(true);
+  };
+
+  const handleAIMediaApply = (updates: Partial<Exercise>) => {
+    setLocalData(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+    showSuccess('Inteligência Media Finder', 'Ativos aplicados com sucesso. Salvando automaticamente...');
+  };
+
+  const handleAutoComplete = async () => {
+    if (saving || isUploading) return;
+    setSaving(true);
+    try {
+      showSuccess('Cérebro Rubi Ativado', 'Iniciando modo 1-Tap Complete. Localizando mídias...');
+      const results = await aiMediaFinder.findMedia(exercise);
+      
+      const updates: Partial<Exercise> = {
+        image_url: results.main_images?.[0]?.url,
+        video_url: results.videos?.[0]?.url,
+        thumbnail_url: results.main_images?.[0]?.url // Reuse for thumb
+      };
+
+      handleUpdate(updates);
+      showSuccess('⚡ Exercício Completado', 'Mídias localizadas e aplicadas via IA.');
+    } catch (err: any) {
+      showError('Falha no Modo Completo: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSave = async () => {
@@ -83,26 +115,47 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
   return (
     <div className="flex flex-col h-full">
       {/* Tab Navigation */}
-      <div className="flex gap-2 p-1.5 bg-slate-100 rounded-[2rem] mb-10 overflow-x-auto no-scrollbar">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as Tab)}
-              className={cn(
-                "flex items-center gap-3 px-6 py-3.5 rounded-3xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                isActive 
-                  ? "bg-white text-slate-900 shadow-sm" 
-                  : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              <Icon size={16} className={cn(isActive ? "text-blue-500" : "text-slate-300")} />
-              {tab.label}
-            </button>
-          );
-        })}
+      <div className="flex items-center justify-between gap-4 mb-10">
+        <div className="flex flex-1 gap-2 p-1.5 bg-slate-100 rounded-[2rem] overflow-x-auto no-scrollbar">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as Tab)}
+                className={cn(
+                  "flex items-center gap-3 px-6 py-3.5 rounded-3xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                  isActive 
+                    ? "bg-white text-slate-900 shadow-sm" 
+                    : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                <Icon size={16} className={cn(isActive ? "text-blue-500" : "text-slate-300")} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex gap-3">
+          <button 
+             onClick={() => setIsFinderOpen(true)}
+             className="flex items-center gap-3 px-8 py-4 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-[2rem] font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all shadow-lg active:scale-95 group"
+          >
+            <Sparkles size={16} className="group-hover:rotate-12 transition-transform" />
+            <span>Buscar Mídia com IA</span>
+          </button>
+
+          <button 
+             onClick={handleAutoComplete}
+             disabled={saving || isUploading}
+             className="flex items-center gap-3 px-8 py-4 bg-amber-50 border border-amber-100 text-amber-600 rounded-[2rem] font-black text-[10px] uppercase tracking-widest hover:bg-amber-100 transition-all shadow-lg active:scale-95 group disabled:opacity-50"
+          >
+            <Zap size={16} className="group-hover:scale-125 transition-transform" />
+            <span>Completar Exercício</span>
+          </button>
+        </div>
       </div>
 
       {/* Content Area */}
@@ -271,6 +324,13 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
 
       {/* Global Upload Progress */}
       <UploadProgress uploads={uploads} />
+
+      <AIMediaFinderModal 
+        exercise={localData}
+        isOpen={isFinderOpen}
+        onClose={() => setIsFinderOpen(false)}
+        onApply={handleAIMediaApply}
+      />
     </div>
   );
 };

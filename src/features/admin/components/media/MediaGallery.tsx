@@ -134,11 +134,11 @@ export const MediaGallery: React.FC<Props> = ({ items, onChange, onUpload, label
   );
 };
 
-function SortableItem({ item, onRemove, onCaptionChange }: { 
-  item: MediaItem, 
-  onRemove: () => void,
-  onCaptionChange: (caption: string) => void
-}) {
+const SortableItem: React.FC<{ 
+  item: MediaItem; 
+  onRemove: () => void;
+  onCaptionChange: (caption: string) => void;
+}> = ({ item, onRemove, onCaptionChange }) => {
   const {
     attributes,
     listeners,

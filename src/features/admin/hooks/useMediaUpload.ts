@@ -92,6 +92,6 @@ export const useMediaUpload = () => {
   return {
     uploadFile,
     uploads,
-    isUploading: Object.values(uploads).some(u => u.status === 'uploading' || u.status === 'compressing')
+    isUploading: (Object.values(uploads) as UploadProgress[]).some(u => u.status === 'uploading' || u.status === 'compressing')
   };
 };

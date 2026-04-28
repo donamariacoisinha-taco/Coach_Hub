@@ -1,8 +1,7 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { Exercise } from "../../../types";
 
-const apiKey = (process.env.GEMINI_API_KEY as string) || "";
-const genAI = new GoogleGenerativeAI(apiKey);
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const OPTIMIZATION_PROMPT = `
 Você é o Rubi Intelligence Engine, uma IA especialista em biomecânica e treinamento de força.
@@ -33,35 +32,34 @@ export const rubiIntelligenceService = {
     `;
 
     try {
-      if (!apiKey) throw new Error("API Key GEMINI_API_KEY non set");
-
-      const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash-latest",
-        systemInstruction: OPTIMIZATION_PROMPT,
-        generationConfig: {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          systemInstruction: OPTIMIZATION_PROMPT,
           responseMimeType: "application/json",
           responseSchema: {
-            type: SchemaType.OBJECT,
+            type: Type.OBJECT,
             properties: {
-              name: { type: SchemaType.STRING },
-              description: { type: SchemaType.STRING },
+              name: { type: Type.STRING },
+              description: { type: Type.STRING },
               instructions: { 
-                type: SchemaType.ARRAY,
-                items: { type: SchemaType.STRING }
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
               },
               secondary_muscles: {
-                type: SchemaType.ARRAY,
-                items: { type: SchemaType.STRING }
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
               },
-              equipment: { type: SchemaType.STRING },
+              equipment: { type: Type.STRING },
               difficulty_level: { 
-                type: SchemaType.STRING,
+                type: Type.STRING,
                 enum: ['Iniciante', 'Intermediário', 'Avançado', 'Elite']
               },
-              quality_score_v3: { type: SchemaType.NUMBER },
+              quality_score_v3: { type: Type.NUMBER },
               technical_tips: {
-                type: SchemaType.ARRAY,
-                items: { type: SchemaType.STRING }
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
               }
             },
             required: ['name', 'description', 'instructions', 'quality_score_v3']
@@ -69,9 +67,7 @@ export const rubiIntelligenceService = {
         }
       });
 
-      const resultText = await model.generateContent(prompt);
-      const jsonText = resultText.response.text();
-      const result = JSON.parse(jsonText || '{}');
+      const result = JSON.parse(response.text || '{}');
       
       return {
         ...exercise,
