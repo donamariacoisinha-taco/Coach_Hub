@@ -278,10 +278,25 @@ interface RowProps {
   onEdit: (e: any) => void;
 }
 
-const Row: React.FC<RowProps> = ({ exercise, selected, onSelect, onEdit }) => {
-  const { updateExerciseStatus } = useAdminStore();
+  const Row: React.FC<RowProps> = ({ exercise, selected, onSelect, onEdit }) => {
+  const { updateExerciseStatus, duplicateExercise } = useAdminStore();
   const { showSuccess, showError } = useErrorHandler();
   const [isUpdating, setIsUpdating] = React.useState(false);
+  const [isDuplicating, setIsDuplicating] = React.useState(false);
+
+  const handleDuplicate = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isDuplicating) return;
+    setIsDuplicating(true);
+    try {
+      await duplicateExercise(exercise);
+      showSuccess('Exercício duplicado', `Copia de ${exercise.name} criada.`);
+    } catch (err: any) {
+      showError(err);
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
 
   const handleToggleVisibility = async (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
@@ -377,6 +392,14 @@ const Row: React.FC<RowProps> = ({ exercise, selected, onSelect, onEdit }) => {
                ✏️ Editar
             </button>
             <button 
+              onClick={handleDuplicate}
+              disabled={isDuplicating}
+              className="px-4 py-2 rounded-xl bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
+            >
+               {isDuplicating ? <Loader2 size={12} className="animate-spin" /> : <Copy size={12} />}
+               Duplicar
+            </button>
+            <button 
               onClick={(e) => e.stopPropagation()}
               className="p-2 rounded-xl text-slate-300 hover:text-slate-950 hover:bg-white border border-transparent hover:border-slate-200 transition-all"
             >
@@ -395,10 +418,25 @@ interface GridCardProps {
   onEdit: (e: any) => void;
 }
 
-const GridCard: React.FC<GridCardProps> = ({ exercise, selected, onSelect, onEdit }) => {
-  const { updateExerciseStatus } = useAdminStore();
+  const GridCard: React.FC<GridCardProps> = ({ exercise, selected, onSelect, onEdit }) => {
+  const { updateExerciseStatus, duplicateExercise } = useAdminStore();
   const { showSuccess, showError } = useErrorHandler();
   const [isUpdating, setIsUpdating] = React.useState(false);
+  const [isDuplicating, setIsDuplicating] = React.useState(false);
+
+  const handleDuplicate = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isDuplicating) return;
+    setIsDuplicating(true);
+    try {
+      await duplicateExercise(exercise);
+      showSuccess('Duplicado', 'Protocolo copiado com sucesso.');
+    } catch (err: any) {
+      showError(err);
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
 
   const handleToggleVisibility = async (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
@@ -480,12 +518,21 @@ const GridCard: React.FC<GridCardProps> = ({ exercise, selected, onSelect, onEdi
                 </div>
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{exercise.quality_score || 0}%</span>
              </div>
-             <button
-               onClick={onEdit}
-               className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center"
-             >
-                ✏️
-             </button>
+             <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={onEdit}
+                  className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center font-bold"
+                >
+                   ✏️
+                </button>
+                <button
+                  onClick={handleDuplicate}
+                  disabled={isDuplicating}
+                  className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center"
+                >
+                   {isDuplicating ? <Loader2 size={12} className="animate-spin" /> : <Copy size={12} />}
+                </button>
+             </div>
           </div>
        </div>
     </motion.div>

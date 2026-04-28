@@ -18,24 +18,55 @@ export default function BulkCreateModal({ muscleGroups, onClose, onSuccess }: Bu
   const [selectedMuscle, setSelectedMuscle] = useState(muscleGroups[0]?.name || '');
 
   const handleCreate = async () => {
-    const names = text.split('\n').map(n => n.trim()).filter(n => n.length > 0);
-    if (names.length === 0) return;
+    const rawNames = text.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+    if (rawNames.length === 0) return;
 
     setLoading(true);
     try {
       const selectedMg = muscleGroups.find(m => m.name === selectedMuscle);
-      const exercises = names.map(name => ({
-        name,
-        muscle_group: selectedMuscle,
-        muscle_group_id: selectedMg?.id || '',
-        type: 'free_weight',
-        difficulty_level: 'beginner' as const,
-        is_active: true
-      }));
+      
+      const results = {
+        created: 0,
+        skipped: 0,
+        errors: 0
+      };
 
-      await adminApi.bulkCreateExercises(exercises);
-      showSuccess('Criação em lote', `${names.length} exercícios criados com sucesso.`);
-      onSuccess();
+      // Processar em sequência para verificar duplicatas individualmente de forma segura
+      // Ou buscar todos os nomes de uma vez para otimizar
+      const { data: existingData } = await adminApi.getAdminData();
+      const existingNames = new Set(existingData.exercises.map(e => e.name.toLowerCase().trim()));
+
+      const toCreate = [];
+      for (const name of rawNames) {
+        const cleanName = name.replace(/\s+/g, ' ');
+        if (existingNames.has(cleanName.toLowerCase())) {
+          results.skipped++;
+          continue;
+        }
+        
+        toCreate.push({
+          name: cleanName,
+          muscle_group: selectedMuscle,
+          muscle_group_id: selectedMg?.id || '',
+          type: 'free_weight',
+          difficulty_level: 'beginner' as const,
+          is_active: true
+        });
+        existingNames.add(cleanName.toLowerCase()); // Evitar duplicatas dentro do próprio lote
+      }
+
+      if (toCreate.length > 0) {
+        await adminApi.bulkCreateExercises(toCreate);
+        results.created = toCreate.length;
+      }
+
+      showSuccess(
+        'Processamento Concluído', 
+        `${results.created} criados, ${results.skipped} duplicados ignorados.`
+      );
+      
+      if (results.created > 0) onSuccess();
+      else onClose();
     } catch (err: any) {
       showError(err);
     } finally {

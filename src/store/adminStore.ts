@@ -36,6 +36,7 @@ interface AdminState {
   updateExerciseStatus: (id: string, is_active: boolean) => Promise<void>;
   deleteExercises: (ids: string[]) => Promise<void>;
   setExercises: (exercises: Exercise[]) => void;
+  duplicateExercise: (exercise: Exercise) => Promise<void>;
 }
 
 export const useAdminStore = create<AdminState>((set, get) => ({
@@ -162,6 +163,21 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     try {
       await Promise.all(ids.map(id => adminApi.deleteExercise(id)));
       set({ exercises: get().exercises.filter(ex => !ids.includes(ex.id)) });
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  duplicateExercise: async (exercise) => {
+    try {
+      const { id, created_at, ...cleanExercise } = exercise as any;
+      const payload = {
+        ...cleanExercise,
+        name: `${exercise.name} (Cópia)`,
+        is_active: false // Duplicates start hidden
+      };
+      await adminApi.createExercise(payload);
+      get().fetchData();
     } catch (err: any) {
       throw err;
     }

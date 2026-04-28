@@ -48,6 +48,7 @@ export default function ExerciseAdminPro({
     ai: false,
     history: false
   });
+  const [conflict, setConflict] = useState<any>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -147,11 +148,27 @@ export default function ExerciseAdminPro({
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (force: boolean = false) => {
     setSaving(true);
     try {
+      const isNew = exercise.id.startsWith('temp-');
+      
+      // Sanitização básica recomendada no requisito
+      const cleanName = exercise.name.trim().replace(/\s+/g, ' ');
+      
+      // Se for novo exercício, verificar duplicidade por nome
+      if (isNew && !force) {
+        const existing = await adminApi.checkExistingExercise(cleanName);
+        if (existing) {
+          setConflict(existing);
+          setSaving(false);
+          return;
+        }
+      }
+
       const payload: Partial<Exercise> = {
         ...exercise,
+        name: cleanName,
         quality_score: quality.score,
         quality_status: quality.status,
         version_history: [
@@ -160,7 +177,7 @@ export default function ExerciseAdminPro({
         ].slice(-5)
       };
 
-      if (exercise.id.startsWith('temp-')) {
+      if (isNew) {
         const { id, ...createPayload } = exercise;
         await adminApi.createExercise({
           ...createPayload,
@@ -484,6 +501,55 @@ export default function ExerciseAdminPro({
           </main>
         </div>
       </div>
+
+      {/* Conflict Modal */}
+      <AnimatePresence>
+        {conflict && (
+          <div className="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-300">
+             <div className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl space-y-6 animate-in zoom-in-95 duration-500">
+                <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-500 mx-auto">
+                   <AlertCircle size={32} />
+                </div>
+                
+                <div className="text-center space-y-2">
+                   <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Nome Já Existe</h3>
+                   <p className="text-xs font-medium text-slate-500 leading-relaxed">
+                      O exercício "<span className="font-bold text-slate-900">{conflict.name}</span>" já está cadastrado na biblioteca. O que deseja fazer?
+                   </p>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                   <button 
+                     onClick={() => {
+                        setExercise({...exercise, name: `${exercise.name} (Variação)`});
+                        setConflict(null);
+                     }}
+                     className="w-full h-14 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
+                   >
+                      CRIAR COMO VARIAÇÃO
+                   </button>
+                   <button 
+                     onClick={() => {
+                       // Mudar para o exercício existente para editar
+                       const existing = { ...exercise, id: conflict.id, name: conflict.name };
+                       setExercise(existing as any);
+                       setConflict(null);
+                     }}
+                     className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
+                   >
+                      EDITAR EXISTENTE
+                   </button>
+                   <button 
+                     onClick={() => setConflict(null)}
+                     className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors"
+                   >
+                      CANCELAR
+                   </button>
+                </div>
+             </div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Sticky CTA */}
       <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur z-50">

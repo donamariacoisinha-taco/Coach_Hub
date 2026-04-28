@@ -3,13 +3,34 @@ import { supabase } from './supabase';
 import { Exercise, MuscleGroup } from '../../types';
 
 export const adminApi = {
+  // Helper para sanitizar nomes
+  sanitizeName(name: string) {
+    if (!name) return '';
+    return name
+      .trim()
+      .replace(/\s+/g, ' ') // Colapsar múltiplos espaços
+      .normalize('NFD') // De-compor caracteres acentuados
+      .replace(/[\u0300-\u036f]/g, ""); // Opcional: Aqui o requisito diz normalize, as vezes é só trim. 
+      // Mas para a comparação de duplicatas, vamos usar uma versão limpa.
+  },
+
   async updateExercise(id: string, payload: Partial<Exercise>) {
     let currentPayload = { ...payload };
+    
+    // Sanitização básica
+    if (currentPayload.name) {
+      currentPayload.name = currentPayload.name.trim().replace(/\s+/g, ' ');
+    }
     
     while (true) {
       try {
         const { error } = await supabase.from('exercises').update(currentPayload).eq('id', id);
-        if (error) throw error;
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('Já existe um exercício com este nome.');
+          }
+          throw error;
+        }
         return; // Success
       } catch (err: any) {
         if (err.message?.includes('column') && err.message?.includes('schema cache')) {
@@ -33,10 +54,20 @@ export const adminApi = {
   async createExercise(payload: Partial<Exercise>) {
     let currentPayload = { ...payload };
     
+    // Sanitização básica
+    if (currentPayload.name) {
+      currentPayload.name = currentPayload.name.trim().replace(/\s+/g, ' ');
+    }
+    
     while (true) {
       try {
         const { error } = await supabase.from('exercises').insert([currentPayload]);
-        if (error) throw error;
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('Já existe um exercício com este nome.');
+          }
+          throw error;
+        }
         return; // Success
       } catch (err: any) {
         if (err.message?.includes('column') && err.message?.includes('schema cache')) {
@@ -115,9 +146,12 @@ export const adminApi = {
   },
 
   async checkExistingExercise(name: string) {
+    if (!name) return null;
+    const sanitized = name.trim().replace(/\s+/g, ' ');
+
     const { data, error } = await supabase.from('exercises')
       .select('id, name')
-      .ilike('name', name)
+      .ilike('name', sanitized)
       .limit(1);
     if (error) throw error;
     return data && data.length > 0 ? data[0] : null;
