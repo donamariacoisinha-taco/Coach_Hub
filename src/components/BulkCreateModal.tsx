@@ -33,7 +33,7 @@ export default function BulkCreateModal({ muscleGroups, onClose, onSuccess }: Bu
 
       // Processar em sequência para verificar duplicatas individualmente de forma segura
       // Ou buscar todos os nomes de uma vez para otimizar
-      const { data: existingData } = await adminApi.getAdminData();
+      const existingData = await adminApi.getAdminData();
       const existingNames = new Set(existingData.exercises.map(e => e.name.toLowerCase().trim()));
 
       const toCreate = [];

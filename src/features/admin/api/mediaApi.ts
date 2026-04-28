@@ -6,8 +6,16 @@ export const mediaApi = {
   async uploadAsset(file: File, path: string, bucket: string = 'exercise-assets') {
     // Generate SEO friendly name
     const timestamp = Date.now();
-    const cleanName = file.name.toLowerCase().replace(/[^a-z0-9.]/g, '-');
-    const filePath = `${path}/${timestamp}-${cleanName}`;
+    const isStaticFrame = path.includes('static-frames');
+    
+    let filePath: string;
+    if (isStaticFrame) {
+      // Requirement: /static-frames/{exerciseId}/{timestamp}.webp
+      filePath = `${path}/${timestamp}.webp`;
+    } else {
+      const cleanName = file.name.toLowerCase().replace(/[^a-z0-9.]/g, '-');
+      filePath = `${path}/${timestamp}-${cleanName}`;
+    }
 
     const { error: uploadError } = await supabase.storage
       .from(bucket)

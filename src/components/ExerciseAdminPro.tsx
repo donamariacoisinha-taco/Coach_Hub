@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowLeft, Save, Trash, Copy, Image as ImageIcon, Camera, Loader2, 
   Wand2, CheckCircle2, AlertCircle, Sparkles, RefreshCcw, Zap, 

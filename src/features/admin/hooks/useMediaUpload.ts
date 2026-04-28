@@ -69,6 +69,7 @@ export const useMediaUpload = () => {
 
   const uploadFile = async (file: File, path: string, options: { compress?: boolean } = {}) => {
     const uploadId = `${path}-${Date.now()}`;
+    console.log('[UPLOAD_START]', { path, fileName: file.name });
     updateProgress(uploadId, { status: 'compressing', progress: 10 });
 
     try {
@@ -81,9 +82,11 @@ export const useMediaUpload = () => {
       
       const url = await mediaApi.uploadAsset(fileToUpload, path);
       
+      console.log('[UPLOAD_SUCCESS]', url);
       updateProgress(uploadId, { status: 'completed', progress: 100 });
       return url;
     } catch (err: any) {
+      console.error('[UPLOAD_ERROR]', err);
       updateProgress(uploadId, { status: 'failed', error: err.message });
       throw err;
     }

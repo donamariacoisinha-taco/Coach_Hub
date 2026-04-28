@@ -9,8 +9,10 @@ import {
   Camera, 
   Plus,
   Maximize2,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
+import { SquareCropModal } from './SquareCropModal';
 
 interface Props {
   value: string;
@@ -35,17 +37,48 @@ export const ImageUploader: React.FC<Props> = ({
   const [tempUrl, setTempUrl] = useState('');
   const [isHovered, setIsHovered] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [cropImage, setCropImage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      try {
-        const url = await onUpload(file);
-        onChange(url);
-      } catch (err) {
-        console.error('Upload failed:', err);
-      }
+    if (!file) return;
+
+    console.log('[FILE_SELECTED]', file.name, file.size, file.type);
+
+    if (aspect === 'square') {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCropImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      performUpload(file);
     }
+    
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  };
+
+  const performUpload = async (file: File | Blob) => {
+    console.log('[UPLOAD_START]', label);
+    setIsUploading(true);
+    try {
+      const uploadFile = file instanceof File ? file : new File([file], 'cropped-image.webp', { type: 'image/webp' });
+      const url = await onUpload(uploadFile);
+      console.log('[UPLOAD_SUCCESS]', url);
+      onChange(url);
+    } catch (err) {
+      console.error('[UPLOAD_ERROR]', err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleCropComplete = (blob: Blob) => {
+    console.log('[CROP_DONE]');
+    setCropImage(null);
+    performUpload(blob);
   };
 
   const handleUrlSubmit = () => {
@@ -187,19 +220,22 @@ export const ImageUploader: React.FC<Props> = ({
                 <div className="flex gap-2 justify-center">
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-colors"
+                    disabled={isUploading}
+                    className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-colors disabled:opacity-50"
                   >
-                    <Upload size={14} /> Upload
+                    {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Upload
                   </button>
                   <button 
                     onClick={() => setIsUrlMode(true)}
-                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-colors"
+                    disabled={isUploading}
+                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-colors disabled:opacity-50"
                   >
                     <LinkIcon size={14} /> Externo
                   </button>
                   <button 
                     onClick={() => cameraInputRef.current?.click()}
-                    className="md:hidden px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center gap-2"
+                    disabled={isUploading}
+                    className="md:hidden px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
                   >
                     <Camera size={14} /> Câmera
                   </button>
@@ -209,6 +245,13 @@ export const ImageUploader: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      <SquareCropModal 
+        image={cropImage || ''}
+        isOpen={!!cropImage}
+        onClose={() => setCropImage(null)}
+        onCropComplete={handleCropComplete}
+      />
 
       <input 
         type="file" 

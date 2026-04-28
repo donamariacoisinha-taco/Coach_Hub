@@ -18,6 +18,7 @@ import {
   Archive,
   Star,
   Copy,
+  Loader2,
   Brain,
   Download,
   Share2,

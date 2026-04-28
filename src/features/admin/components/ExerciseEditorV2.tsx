@@ -25,11 +25,20 @@ import {
 import { useAdminStore } from '../../../store/adminStore';
 import { Exercise } from '../../../types';
 import { VisibilityBadge, VisibilityToggle } from './VisibilityBadge';
+import { useMediaUpload } from '../hooks/useMediaUpload';
+import { AssetMediaHub } from './media/AssetMediaHub';
+import { ImageUploader } from './media/ImageUploader';
+import { useErrorHandler } from '../../../hooks/useErrorHandler';
+import { mediaApi } from '../api/mediaApi';
+import { UploadProgress } from './media/UploadProgress';
 
 const ExerciseEditorV2: React.FC = () => {
-  const { isEditorOpen, closeEditor, selectedExercise, updateExercise, createExercise, loading } = useAdminStore();
+  const { isEditorOpen, closeEditor, selectedExercise, updateExercise, createExercise, loading: storeLoading } = useAdminStore();
+  const { showSuccess, showError } = useErrorHandler();
+  const { uploadFile, isUploading, uploads } = useMediaUpload();
   const [activeTab, setActiveTab] = useState<'basic' | 'technique' | 'ai' | 'media' | 'seo' | 'history'>('basic');
   const [form, setForm] = useState<Partial<Exercise>>({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (selectedExercise) {
@@ -45,6 +54,34 @@ const ExerciseEditorV2: React.FC = () => {
     }
     setActiveTab('basic');
   }, [selectedExercise, isEditorOpen]);
+
+  const handleMediaUpdate = async (updates: Partial<Exercise>) => {
+    console.log('[DB_UPDATE_START]', updates);
+    const newForm = { ...form, ...updates };
+    setForm(newForm);
+    
+    // Auto-save media to database if exercise exists
+    if (newForm.id) {
+       try {
+         setSaving(true);
+         // Ensure static_frame syncs with image_url if it's the primary static frame
+         const finalUpdates = { ...updates };
+         if (updates.static_frame_url) {
+            finalUpdates.image_url = updates.static_frame_url;
+            console.log('[SYNC] Mapping static_frame_url to image_url for preview affinity');
+         }
+
+         await updateExercise(newForm.id, finalUpdates);
+         console.log('[DB_UPDATE_SUCCESS]', finalUpdates);
+         showSuccess('Assets Sincronizados', 'A mídia foi salva e sincronizada com o sistema.');
+       } catch (err: any) {
+         console.error('[DB_UPDATE_ERROR]', err);
+         showError('Erro ao auto-salvar mídia: ' + err.message);
+       } finally {
+         setSaving(false);
+       }
+    }
+  };
 
   if (!isEditorOpen) return null;
 
@@ -116,10 +153,10 @@ const ExerciseEditorV2: React.FC = () => {
                 </button>
                 <button 
                   onClick={handleSave}
-                  disabled={loading}
+                  disabled={storeLoading || saving}
                   className="px-6 sm:px-8 h-12 sm:h-14 bg-slate-950 text-white rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-950/30 flex items-center gap-3 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                 >
-                   {loading ? <Sparkles size={18} className="animate-pulse" /> : <Save size={18} />}
+                   {(storeLoading || saving) ? <Sparkles size={18} className="animate-pulse" /> : <Save size={18} />}
                    {selectedExercise ? 'Commit' : 'Publish'}
                 </button>
              </div>
@@ -289,49 +326,33 @@ const ExerciseEditorV2: React.FC = () => {
                       )}
 
                       {activeTab === 'media' && (
-                         <motion.div key="media" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12">
+                         <motion.div key="media" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 h-full flex flex-col">
                             <SectionHeader title="Asset Media Hub" desc="Management of visual performance guides and biomechanical cuts." />
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                               <div className="space-y-6">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Primary Performance Frame</p>
-                                  <div className="aspect-square bg-white rounded-[3rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 relative group overflow-hidden">
-                                     {form.image_url ? (
-                                        <>
-                                          <img src={form.image_url} alt="" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700" />
-                                          <button className="absolute top-6 right-6 p-3 bg-red-50 text-red-600 rounded-2xl opacity-0 group-hover:opacity-100 transition-all shadow-xl">
-                                             <Trash2 size={18} />
-                                          </button>
-                                        </>
-                                     ) : (
-                                        <>
-                                          <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mb-4">
-                                             <Plus size={32} />
-                                          </div>
-                                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Upload 1:1 Static Frame</p>
-                                        </>
-                                     )}
-                                  </div>
+                            {form.id ? (
+                               <div className="flex-1 min-h-0">
+                                  <AssetMediaHub 
+                                     exercise={form as Exercise} 
+                                     onUpdate={(updated) => setForm(updated)}
+                                  />
                                </div>
-
-                               <div className="space-y-6">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Execution Reference URL</p>
-                                  <Input label="Video CDN / External Ref" value={form.video_url} onChange={(val) => setForm({...form, video_url: val})} placeholder="https://..." />
-                                  <div className="aspect-video bg-slate-950 rounded-[2.5rem] flex items-center justify-center text-white shadow-xl shadow-slate-950/20 relative group overflow-hidden">
-                                     {form.video_url ? (
-                                        <div className="p-4 text-center">
-                                           <Play size={40} className="text-blue-400 mb-4 inline-block" fill="currentColor" />
-                                           <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Ready to play reference</p>
-                                        </div>
-                                     ) : (
-                                        <div className="text-center opacity-40">
-                                           <Play size={40} className="mb-4 inline-block" />
-                                           <p className="text-[10px] font-black uppercase tracking-widest">No Reference Loaded</p>
-                                        </div>
-                                     )}
+                            ) : (
+                               <div className="py-24 flex flex-col items-center justify-center text-center bg-white rounded-[3rem] border border-dashed border-slate-200">
+                                  <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-6">
+                                     <ImageIcon size={32} />
                                   </div>
+                                  <h4 className="text-lg font-black uppercase tracking-tight">Identity Required</h4>
+                                  <p className="max-w-xs mx-auto text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+                                     Salve o exercício pela primeira vez para habilitar o Asset Media Hub e gerenciar mídias avançadas.
+                                  </p>
+                                  <button 
+                                     onClick={handleSave}
+                                     className="mt-8 px-8 py-4 bg-slate-950 text-white rounded-full font-black text-[10px] uppercase tracking-widest"
+                                  >
+                                     Salvar & Habilitar Mídia
+                                  </button>
                                </div>
-                            </div>
+                            )}
                          </motion.div>
                       )}
                       
@@ -342,6 +363,7 @@ const ExerciseEditorV2: React.FC = () => {
              </main>
           </div>
        </motion.div>
+       <UploadProgress uploads={uploads} />
     </div>
   );
 };

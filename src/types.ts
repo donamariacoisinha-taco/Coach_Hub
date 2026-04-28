@@ -136,6 +136,7 @@ export interface Exercise {
   difficulty_level: 'beginner' | 'intermediate' | 'advanced';
   technical_prompt?: string;
   anatomical_cut?: string;
+  static_frame_url?: string;
   
   // Media Assets V3
   thumbnail_url?: string;

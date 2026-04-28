@@ -91,13 +91,15 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
   const handleSave = async () => {
     if (saving || isUploading) return;
     setSaving(true);
+    console.log('[DB_UPDATE_START]', localData);
     try {
       await mediaApi.updateExerciseMedia(exercise.id, localData);
+      console.log('[DB_UPDATE_SUCCESS]');
       onUpdate(localData);
       setHasChanges(false);
       showSuccess('Mídias Atualizadas', 'As alterações foram sincronizadas com o servidor.');
     } catch (err: any) {
-      console.error('Failed to save media assets:', err);
+      console.error('[DB_UPDATE_ERROR]', err);
       showError(err.message || 'Erro ao salvar mídias');
     } finally {
       setSaving(false);
@@ -171,16 +173,22 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
             >
               <div className="space-y-10">
                 <ImageUploader 
-                  label="Pôster do Exercício (V3 High Res)"
-                  value={localData.image_url || ''}
-                  onChange={(url) => handleUpdate({ image_url: url })}
-                  onUpload={(file) => uploadFile(file, 'images', { compress: true })}
+                  label="Upload 1:1 Static Frame"
+                  value={localData.static_frame_url || localData.image_url || ''}
+                  onChange={(url) => {
+                    console.log('[PUBLIC_URL_READY]', url);
+                    handleUpdate({ 
+                      static_frame_url: url,
+                      image_url: url // Sync for preview affinity
+                    });
+                  }}
+                  onUpload={(file) => uploadFile(file, `static-frames/${exercise.id}`, { compress: true })}
                 />
                 <ImageUploader 
                   label="Thumbnail do App (Premium Cache)"
                   value={localData.thumbnail_url || ''}
                   onChange={(url) => handleUpdate({ thumbnail_url: url })}
-                  onUpload={(file) => uploadFile(file, 'thumbnails', { compress: true })}
+                  onUpload={(file) => uploadFile(file, `thumbnails/${exercise.id}`, { compress: true })}
                   className="w-1/2"
                 />
               </div>
