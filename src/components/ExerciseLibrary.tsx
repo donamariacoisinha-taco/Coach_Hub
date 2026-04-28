@@ -109,9 +109,11 @@ const ExerciseLibrary: React.FC = () => {
 
   const filteredExercises = useMemo(() => {
     return exercises.filter(ex => {
-      const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const mg = muscleGroups.find(m => m.name === ex.muscle_group);
-      const isParentMatch = selectedMuscle === 'Todos' || ex.muscle_group === selectedMuscle || (mg?.parent_id && muscleGroups.find(p => p.id === mg.parent_id)?.name === selectedMuscle);
+      const name = ex.name || '';
+      const muscleGroup = ex.muscle_group || '';
+      const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
+      const mg = muscleGroups.find(m => m.name === muscleGroup);
+      const isParentMatch = selectedMuscle === 'Todos' || muscleGroup === selectedMuscle || (mg?.parent_id && muscleGroups.find(p => p.id === mg.parent_id)?.name === selectedMuscle);
       const matchesSide = selectedSide === 'all' || mg?.body_side === selectedSide;
       
       let matchesStatus = true;

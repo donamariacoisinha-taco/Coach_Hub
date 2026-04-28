@@ -12,12 +12,34 @@ async function startServer() {
 
   app.use(express.json());
 
+  const getGenAI = async () => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey.trim() === "") {
+      throw new Error("GEMINI_API_KEY is missing. Please set it in the platform Settings.");
+    }
+    const { GoogleGenAI } = await import("@google/genai");
+    return new GoogleGenAI({ apiKey });
+  };
+
+  const handleAIError = (error: any, res: any, prefix: string) => {
+    console.error(`[${prefix}] Error:`, error);
+    if (error.message?.includes("API key not valid")) {
+      return res.status(401).json({ 
+        error: "The provided GEMINI_API_KEY is invalid. Please check your API key in Settings." 
+      });
+    }
+    if (error.message?.includes("GEMINI_API_KEY is missing")) {
+      return res.status(401).json({ error: error.message });
+    }
+    res.status(500).json({ error: error.message });
+  };
+
   // AI Intelligence Routes
   app.post("/api/intelligence/optimize", async (req, res) => {
     try {
       const { prompt, systemInstruction } = req.body;
-      const { GoogleGenAI, Type } = await import("@google/genai");
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const { Type } = await import("@google/genai");
+      const genAI = await getGenAI();
       
       const response = await genAI.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -56,16 +78,15 @@ async function startServer() {
 
       res.json(JSON.parse(response.text || '{}'));
     } catch (error: any) {
-      console.error("[Optimize API] Error:", error);
-      res.status(500).json({ error: error.message });
+      handleAIError(error, res, "Optimize API");
     }
   });
 
   app.post("/api/intelligence/find-media", async (req, res) => {
     try {
       const { prompt, systemInstruction } = req.body;
-      const { GoogleGenAI, Type } = await import("@google/genai");
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const { Type } = await import("@google/genai");
+      const genAI = await getGenAI();
 
       const response = await genAI.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -119,16 +140,14 @@ async function startServer() {
 
       res.json(JSON.parse(response.text || '{}'));
     } catch (error: any) {
-      console.error("[MediaFinder API] Error:", error);
-      res.status(500).json({ error: error.message });
+      handleAIError(error, res, "MediaFinder API");
     }
   });
 
   app.post("/api/intelligence/proxy", async (req, res) => {
     try {
+      const genAI = await getGenAI();
       const { prompt, systemInstruction, responseSchema, model: modelName = "gemini-1.5-flash" } = req.body;
-      const { GoogleGenAI } = await import("@google/genai");
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
       const config: any = {
         responseMimeType: responseSchema ? "application/json" : "text/plain",
@@ -153,8 +172,7 @@ async function startServer() {
         res.json({ text: response.text });
       }
     } catch (error: any) {
-      console.error("[AI Proxy API] Error:", error);
-      res.status(500).json({ error: error.message });
+      handleAIError(error, res, "AI Proxy API");
     }
   });
 

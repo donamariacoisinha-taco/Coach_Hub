@@ -83,6 +83,11 @@ export const adminApi = {
     if (error) throw error;
   },
 
+  async bulkUpdateStatus(ids: string[], is_active: boolean) {
+    const { error } = await supabase.from('exercises').update({ is_active }).in('id', ids);
+    if (error) throw error;
+  },
+
   async deleteExercise(id: string) {
     const { error } = await supabase.from('exercises').delete().eq('id', id);
     if (error) throw error;

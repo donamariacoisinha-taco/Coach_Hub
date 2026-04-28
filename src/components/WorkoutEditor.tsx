@@ -279,13 +279,16 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   }, [exercises, stats.muscles]);
 
   const suggestions = useMemo(() => {
-    if (exercises.length === 0) return availableExercises.slice(0, 5);
+    // Only suggest active exercises
+    const activeAvailable = availableExercises.filter(ex => ex.is_active !== false);
+
+    if (exercises.length === 0) return activeAvailable.slice(0, 5);
     
     const lastEx = exercises[exercises.length - 1];
     const lastMuscle = lastEx.muscle_group;
     
     // Sugerir exercícios do mesmo grupo muscular que ainda não estão no treino
-    return availableExercises
+    return activeAvailable
       .filter(ex => ex.muscle_group === lastMuscle && !exercises.some(ee => ee.exercise_id === ex.id))
       .slice(0, 4);
   }, [exercises, availableExercises]);

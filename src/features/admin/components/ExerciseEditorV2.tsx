@@ -162,6 +162,27 @@ const ExerciseEditorV2: React.FC = () => {
                                <Input label="Commercial Variant / Alias" value={form.alt_name} onChange={(val) => setForm({...form, alt_name: val})} placeholder="Ex: Bench Press Barbell" />
                                
                                <div className="space-y-3">
+                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Disponibilidade / Visibilidade</label>
+                                  <div className="flex bg-white rounded-2xl border border-slate-200 p-2 items-center justify-between shadow-sm pr-6">
+                                     <div className="flex items-center gap-3">
+                                        <div className={`w-3 h-3 rounded-full ${form.is_active ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-300'}`} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">
+                                           {form.is_active ? 'Visível na Biblioteca' : 'Oculto da Biblioteca'}
+                                        </span>
+                                     </div>
+                                     <button 
+                                       onClick={() => setForm({...form, is_active: !form.is_active})}
+                                       className={`w-12 h-7 rounded-full p-1 transition-all flex items-center ${form.is_active ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'}`}
+                                     >
+                                        <motion.div layout className="w-5 h-5 bg-white rounded-full shadow-md" />
+                                     </button>
+                                  </div>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2 italic">
+                                     Quando desligado, o exercício some da biblioteca pública para alunos.
+                                  </p>
+                               </div>
+                               
+                               <div className="space-y-3">
                                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Primary Muscle Cluster</label>
                                   <select 
                                     value={form.muscle_group}

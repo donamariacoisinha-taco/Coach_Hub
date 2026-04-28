@@ -35,7 +35,8 @@ export function useExerciseFilters(availableExercises: Exercise[], currentExerci
         const matchesSearch = ex.name.toLowerCase().includes(query);
         const matchesMuscle = !selectedMuscle || ex.muscle_group === selectedMuscle;
         const matchesCut = !selectedCut || ex.anatomical_cut === selectedCut;
-        return matchesSearch && matchesMuscle && matchesCut;
+        // Apenas exercícios ativos devem ser visíveis na seleção pública
+        return matchesSearch && matchesMuscle && matchesCut && (ex.is_active !== false);
       })
       .sort((a, b) => {
         // 1. Mesmo grupo muscular do exercício atual (se houver)
@@ -64,7 +65,8 @@ export function useExerciseFilters(availableExercises: Exercise[], currentExerci
     return availableExercises
       .filter(ex => 
         ex.muscle_group === currentExercise.muscle_group && 
-        ex.id !== currentExercise.exercise_id
+        ex.id !== currentExercise.exercise_id &&
+        (ex.is_active !== false)
       )
       .slice(0, 6);
   }, [availableExercises, currentExercise]);

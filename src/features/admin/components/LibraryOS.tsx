@@ -38,7 +38,7 @@ const LibraryOS: React.FC = () => {
   } = useAdminStore();
   
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'premium' | 'rising' | 'draft' | 'critical'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive' | 'premium' | 'rising' | 'critical' | 'no-media'>('all');
 
   const muscleGroups = [
     'Todos', 'Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps', 
@@ -53,9 +53,9 @@ const LibraryOS: React.FC = () => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(ex => 
-        ex.name.toLowerCase().includes(q) || 
-        ex.muscle_group.toLowerCase().includes(q) ||
-        ex.alt_name?.toLowerCase().includes(q)
+        (ex.name || '').toLowerCase().includes(q) || 
+        (ex.muscle_group || '').toLowerCase().includes(q) ||
+        (ex.alt_name || '').toLowerCase().includes(q)
       );
     }
 
@@ -65,10 +65,12 @@ const LibraryOS: React.FC = () => {
     }
     
     // Status Filter
+    if (activeFilter === 'active') result = result.filter(ex => ex.is_active);
+    if (activeFilter === 'inactive') result = result.filter(ex => !ex.is_active);
     if (activeFilter === 'premium') result = result.filter(ex => ex.quality_score && ex.quality_score >= 80);
     if (activeFilter === 'rising') result = result.filter(ex => ex.ranking_status === 'rising');
     if (activeFilter === 'critical') result = result.filter(ex => !ex.quality_score || ex.quality_score < 40);
-    if (activeFilter === 'draft') result = result.filter(ex => !ex.is_active);
+    if (activeFilter === 'no-media') result = result.filter(ex => !ex.image_url);
     
     return result;
   }, [exercises, searchQuery, selectedMuscleFilter, activeFilter]);
@@ -142,10 +144,11 @@ const LibraryOS: React.FC = () => {
       {/* Quick Status Filters */}
       <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
          <QuickFilter active={activeFilter === 'all'} onClick={() => setActiveFilter('all')} label="Todos" count={exercises.length} />
-         <QuickFilter active={activeFilter === 'premium'} onClick={() => setActiveFilter('premium')} label="Premium Base" count={exercises.filter(e => e.quality_score && e.quality_score >= 80).length} />
-         <QuickFilter active={activeFilter === 'rising'} onClick={() => setActiveFilter('rising')} label="Rising Stars" count={exercises.filter(e => e.ranking_status === 'rising').length} />
-         <QuickFilter active={activeFilter === 'critical'} onClick={() => setActiveFilter('critical')} label="Críticos" count={exercises.filter(e => !e.quality_score || e.quality_score < 40).length} />
-         <QuickFilter active={activeFilter === 'draft'} onClick={() => setActiveFilter('draft')} label="Arquivados" count={exercises.filter(e => !e.is_active).length} />
+         <QuickFilter active={activeFilter === 'active'} onClick={() => setActiveFilter('active')} label="🟢 Ativos" count={exercises.filter(e => e.is_active).length} />
+         <QuickFilter active={activeFilter === 'inactive'} onClick={() => setActiveFilter('inactive')} label="⚫ Inativos" count={exercises.filter(e => !e.is_active).length} />
+         <QuickFilter active={activeFilter === 'premium'} onClick={() => setActiveFilter('premium')} label="💎 Premium" count={exercises.filter(e => (e.quality_score || 0) >= 80).length} />
+         <QuickFilter active={activeFilter === 'critical'} onClick={() => setActiveFilter('critical')} label="⚠️ Críticos" count={exercises.filter(e => (e.quality_score || 0) < 40).length} />
+         <QuickFilter active={activeFilter === 'no-media'} onClick={() => setActiveFilter('no-media')} label="🖼️ Sem Mídia" count={exercises.filter(e => !e.image_url).length} />
       </div>
 
       {/* View Content */}
@@ -272,10 +275,17 @@ interface RowProps {
 }
 
 const Row: React.FC<RowProps> = ({ exercise, selected, onSelect, onEdit }) => {
+  const { updateExercise } = useAdminStore();
+
+  const toggleStatus = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateExercise(exercise.id, { is_active: !exercise.is_active });
+  };
+
   return (
     <tr 
       onClick={onEdit}
-      className={`group cursor-pointer transition-all ${selected ? 'bg-blue-50/30' : 'hover:bg-slate-50/50'}`}
+      className={`group cursor-pointer transition-all ${selected ? 'bg-blue-50/30' : 'hover:bg-slate-50/50'} ${!exercise.is_active ? 'opacity-60 grayscale-[0.5]' : ''}`}
     >
        <td className="px-8 py-6" onClick={(e) => e.stopPropagation()}>
           <button 
@@ -322,7 +332,15 @@ const Row: React.FC<RowProps> = ({ exercise, selected, onSelect, onEdit }) => {
           </div>
        </td>
        <td className="px-6 py-6">
-          <StatusChip status={exercise.quality_status || 'critical'} active={exercise.is_active} rankingStatus={exercise.ranking_status} />
+          <div className="flex items-center gap-3">
+             <StatusChip status={exercise.quality_status || 'critical'} active={exercise.is_active} rankingStatus={exercise.ranking_status} />
+             <button 
+               onClick={toggleStatus}
+               className={`w-10 h-6 rounded-full p-1 transition-all flex items-center ${exercise.is_active ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'}`}
+             >
+                <motion.div layout className="w-4 h-4 bg-white rounded-full shadow-sm" />
+             </button>
+          </div>
        </td>
        <td className="px-6 py-6">
           <div className="flex items-center gap-2 text-slate-400">
@@ -358,13 +376,25 @@ interface GridCardProps {
 }
 
 const GridCard: React.FC<GridCardProps> = ({ exercise, selected, onSelect, onEdit }) => {
+  const { updateExercise } = useAdminStore();
+
+  const toggleStatus = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateExercise(exercise.id, { is_active: !exercise.is_active });
+  };
+
   return (
     <motion.div 
       onClick={onEdit}
       whileHover={{ y: -5 }}
       whileTap={{ scale: 0.98 }}
-      className={`group relative bg-white rounded-[2.5rem] border overflow-hidden p-6 cursor-pointer transition-all ${selected ? 'border-blue-400 shadow-2xl shadow-blue-200/50' : 'border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50'}`}
+      className={`group relative bg-white rounded-[2.5rem] border overflow-hidden p-6 cursor-pointer transition-all ${selected ? 'border-blue-400 shadow-2xl shadow-blue-200/50' : 'border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50'} ${!exercise.is_active ? 'opacity-60 grayscale-[0.5]' : ''}`}
     >
+       {!exercise.is_active && (
+         <div className="absolute top-4 right-4 z-10">
+            <span className="px-2 py-1 bg-slate-950 text-white rounded-lg text-[7px] font-black uppercase tracking-widest">Inativo</span>
+         </div>
+       )}
        <div className="absolute top-4 left-4 z-10" onClick={(e) => { e.stopPropagation(); onSelect(e); }}>
           <button 
             className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
@@ -392,6 +422,12 @@ const GridCard: React.FC<GridCardProps> = ({ exercise, selected, onSelect, onEdi
           <div className="flex items-center gap-2">
              <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 px-2 py-1 bg-blue-50 rounded-lg">{exercise.muscle_group}</span>
              <StatusChip status={exercise.quality_status || 'critical'} active={exercise.is_active} rankingStatus={exercise.ranking_status} compact />
+             <button 
+               onClick={toggleStatus}
+               className={`w-8 h-4 rounded-full p-0.5 transition-all flex items-center ${exercise.is_active ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'}`}
+             >
+                <motion.div layout className="w-3 h-3 bg-white rounded-full shadow-sm" />
+             </button>
           </div>
           <h3 className="text-lg font-black tracking-tight text-slate-950 uppercase leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors">{exercise.name}</h3>
           
@@ -415,7 +451,7 @@ const GridCard: React.FC<GridCardProps> = ({ exercise, selected, onSelect, onEdi
 }
 
 function StatusChip({ status, active, rankingStatus, compact }: { status: string, active: boolean, rankingStatus?: string, compact?: boolean }) {
-  if (!active) return <span className="px-2 py-1 bg-slate-100 text-slate-400 rounded-lg text-[8px] font-black uppercase tracking-widest border border-slate-200">Draft / Archived</span>;
+  if (!active) return <span className={`px-2 py-1 bg-slate-100 text-slate-400 rounded-lg font-black uppercase tracking-widest border border-slate-200 ${compact ? 'text-[7px]' : 'text-[8px]'}`}>Hidden</span>;
   
   if (rankingStatus === 'rising') {
     return (
@@ -450,13 +486,18 @@ function StatusChip({ status, active, rankingStatus, compact }: { status: string
 }
 
 function BulkOperationsBar({ selectedIds, onClear }: { selectedIds: string[], onClear: () => void }) {
-  const { archiveExercises, deleteExercises } = useAdminStore();
+  const { archiveExercises, deleteExercises, toggleExercisesStatus } = useAdminStore();
 
   const handleArchive = async () => {
     if (window.confirm(`Arquivar ${selectedIds.length} exercícios?`)) {
       await archiveExercises(selectedIds);
       onClear();
     }
+  };
+
+  const handleToggleStatus = async (is_active: boolean) => {
+    await toggleExercisesStatus(selectedIds, is_active);
+    onClear();
   };
 
   const handleDelete = async () => {
@@ -487,7 +528,8 @@ function BulkOperationsBar({ selectedIds, onClear }: { selectedIds: string[], on
                 </div>
 
                 <div className="flex items-center gap-2 pr-2">
-                   <BulkButton icon={<Archive size={16} />} label="Arquivar" onClick={handleArchive} />
+                   <BulkButton icon={<CheckCircle2 size={16} />} label="Ativar" color="emerald" onClick={() => handleToggleStatus(true)} />
+                   <BulkButton icon={<Archive size={16} />} label="Inativar" onClick={() => handleToggleStatus(false)} />
                    <BulkButton icon={<Brain size={16} />} label="Sinc AI" color="blue" onClick={() => alert('Sincronização AI agendada para o próximo ciclo.')} />
                    <BulkButton icon={<Trash2 size={16} />} label="Deletar" color="red" onClick={handleDelete} />
                    <button 

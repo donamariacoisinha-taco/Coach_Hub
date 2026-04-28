@@ -28,7 +28,7 @@ interface SmartGridProps {
 }
 
 const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) => {
-  const { exercises, searchQuery, selectedMuscleFilter, openEditor } = useAdminStore();
+  const { exercises, searchQuery, selectedMuscleFilter, openEditor, updateExercise } = useAdminStore();
   const { visibleColumns, viewMode } = useLibraryStore();
   const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
 
@@ -37,8 +37,8 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(ex => 
-        ex.name.toLowerCase().includes(q) || 
-        ex.muscle_group.toLowerCase().includes(q)
+        (ex.name || '').toLowerCase().includes(q) || 
+        (ex.muscle_group || '').toLowerCase().includes(q)
       );
     }
     if (selectedMuscleFilter !== 'Todos') {
@@ -55,8 +55,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
   const handleInlineSave = async (id: string, field: string, value: any) => {
     setEditingCell(null);
     try {
-      await adminApi.updateExercise(id, { [field]: value });
-      // Store updates locally
+      await updateExercise(id, { [field]: value });
     } catch (err) {
       console.error('Error saving inline:', err);
     }
@@ -115,6 +114,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                 {visibleColumns.includes('thumb') && <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">Media</th>}
                 <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400 sticky left-16 sm:left-24 z-30 bg-white min-w-[200px]">Nome</th>
                 {visibleColumns.includes('muscle_group') && <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Grupo</th>}
+                <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
                 {visibleColumns.includes('difficulty_level') && <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Dificuldade</th>}
                 {visibleColumns.includes('quality_score') && <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Score</th>}
                 {visibleColumns.includes('usage_count') && <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Uso</th>}
@@ -180,6 +180,21 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                       )}
                     </td>
                   )}
+
+                  {/* Status Toggle */}
+                  <td className="px-6 py-6">
+                    <div className="flex items-center gap-3">
+                       <button 
+                         onClick={(e) => { e.stopPropagation(); handleInlineSave(ex.id, 'is_active', !ex.is_active); }}
+                         className={`w-10 h-6 rounded-full p-1 transition-all flex items-center ${ex.is_active ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'}`}
+                       >
+                          <motion.div layout className="w-4 h-4 bg-white rounded-full shadow-sm" />
+                       </button>
+                       <span className={`text-[9px] font-black uppercase tracking-widest ${ex.is_active ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          {ex.is_active ? 'Ativo' : 'Inativo'}
+                       </span>
+                    </div>
+                  </td>
 
                   {visibleColumns.includes('difficulty_level') && (
                     <td className="px-6 py-6">

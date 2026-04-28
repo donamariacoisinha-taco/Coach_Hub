@@ -23,6 +23,28 @@ export const exerciseApi = {
     }
   },
 
+  async getPublicExercises() {
+    try {
+      const { data, error } = await supabase.from('exercises')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return (data || []) as Exercise[];
+    } catch (err: any) {
+      const isSchemaError = err.message?.includes('column') && err.message?.includes('schema cache');
+      if (isSchemaError) {
+        const { data, error } = await supabase.from('exercises')
+          .select('id, name, muscle_group, image_url, is_active')
+          .eq('is_active', true)
+          .order('name');
+        if (error) throw error;
+        return (data || []) as Exercise[];
+      }
+      throw err;
+    }
+  },
+
   async getMuscleGroups() {
     const { data, error } = await supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true });
     if (error) throw error;

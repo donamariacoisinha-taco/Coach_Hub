@@ -20,8 +20,8 @@ const ExerciseLibrary: React.FC = () => {
   const [view, setView] = useState<'table' | 'grid'>('table');
 
   const filtered = exercises.filter(ex => 
-    ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ex.muscle_group.toLowerCase().includes(searchQuery.toLowerCase())
+    (ex.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (ex.muscle_group || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (

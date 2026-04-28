@@ -32,6 +32,7 @@ interface AdminState {
   deleteExercise: (id: string) => Promise<void>;
   createExercise: (payload: Partial<Exercise>) => Promise<void>;
   archiveExercises: (ids: string[]) => Promise<void>;
+  toggleExercisesStatus: (ids: string[], is_active: boolean) => Promise<void>;
   deleteExercises: (ids: string[]) => Promise<void>;
   setExercises: (exercises: Exercise[]) => void;
 }
@@ -111,11 +112,23 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   archiveExercises: async (ids) => {
     try {
-      // In a real app, this would be a bulk API call
-      await Promise.all(ids.map(id => adminApi.updateExercise(id, { ranking_status: 'decline' })));
+      await adminApi.bulkUpdateStatus(ids, false);
       set({ 
         exercises: get().exercises.map(ex => 
-          ids.includes(ex.id) ? { ...ex, ranking_status: 'decline' } as Exercise : ex
+          ids.includes(ex.id) ? { ...ex, is_active: false } as Exercise : ex
+        )
+      });
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  toggleExercisesStatus: async (ids, is_active) => {
+    try {
+      await adminApi.bulkUpdateStatus(ids, is_active);
+      set({ 
+        exercises: get().exercises.map(ex => 
+          ids.includes(ex.id) ? { ...ex, is_active } as Exercise : ex
         )
       });
     } catch (err: any) {

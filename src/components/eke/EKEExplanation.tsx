@@ -13,13 +13,13 @@ interface EKEExplanationProps {
 }
 
 export const EKEExplanation: React.FC<EKEExplanationProps> = ({ exercise, context, isOpen, onClose }) => {
-  const reasons = ekeService.explainRecommendation(exercise, context);
-  const qScore = exercise.quality_score || 0;
-  const pScore = exercise.performance_score || 0;
+  const reasons = (isOpen && exercise) ? ekeService.explainRecommendation(exercise, context) : [];
+  const qScore = exercise?.quality_score || 0;
+  const pScore = exercise?.performance_score || 0;
 
   return (
     <AnimatePresence>
-      {isOpen && (
+      {isOpen && exercise && (
         <>
           <motion.div 
             initial={{ opacity: 0 }}
