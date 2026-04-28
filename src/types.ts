@@ -259,6 +259,7 @@ export interface WorkoutExercise {
   category_id: string;
   exercise_id: string;
   exercise_name: string;
+  exercise_name_snapshot?: string;
   exercise_image?: string;
   muscle_group?: string;
   type?: string;

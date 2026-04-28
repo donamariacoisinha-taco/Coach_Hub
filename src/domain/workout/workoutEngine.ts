@@ -60,6 +60,7 @@ export const workoutEngine = {
     return exercises.map((ex, i) => ({
       category_id: categoryId,
       exercise_id: ex.exercise_id,
+      exercise_name_snapshot: ex.exercise_name,
       sets: ex.sets_json?.length || 3,
       sets_json: ex.sets_json,
       sort_order: i + 1,

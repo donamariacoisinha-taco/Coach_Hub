@@ -44,11 +44,11 @@ export const workoutApi = {
     if (catRes.error) throw catRes.error;
     if (exRes.error) throw exRes.error;
 
-    const loadedExercises = (exRes.data || []).filter((item: any) => item.exercises).map((item: any) => ({
+    const loadedExercises = (exRes.data || []).map((item: any) => ({
       ...item,
-      exercise_name: item.exercises.name,
-      muscle_group: item.exercises.muscle_group,
-      exercise_image: item.exercises.image_url
+      exercise_name: item.exercises?.name || item.exercise_name_snapshot || item.exercise_name || 'Exercício Indisponível',
+      muscle_group: item.exercises?.muscle_group || item.muscle_group,
+      exercise_image: item.exercises?.image_url || item.exercise_image
     }));
 
     return {
@@ -218,8 +218,33 @@ export const workoutApi = {
   },
 
   async insertWorkoutExercises(exercises: any[]) {
-    const { error } = await supabase.from('workout_exercises').insert(exercises);
-    if (error) throw error;
+    let currentExercises = [...exercises];
+    
+    while (true) {
+      try {
+        const { error } = await supabase.from('workout_exercises').insert(currentExercises);
+        if (error) throw error;
+        return;
+      } catch (err: any) {
+        // Resilience pattern: handle missing columns from schema
+        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+          const match = err.message.match(/column '(.*)'/);
+          if (match && match[1]) {
+            const badColumn = match[1];
+            console.warn(`[WORKOUT] Removing missing column from insert: ${badColumn}`);
+            
+            currentExercises = currentExercises.map(ex => {
+              const { [badColumn]: _, ...remaining } = ex;
+              return remaining;
+            });
+
+            if (currentExercises.length > 0 && Object.keys(currentExercises[0]).length === 0) throw err;
+            continue;
+          }
+        }
+        throw err;
+      }
+    }
   },
 
   async upsertPartialWorkoutSession(payload: any) {

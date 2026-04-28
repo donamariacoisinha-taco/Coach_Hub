@@ -369,10 +369,10 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
           id: item.id,
           tempId: item.id,
           exercise_id: item.exercise_id,
-          exercise_name: item.exercises?.name || 'Exercício Removido',
-          exercise_image: item.exercises?.image_url,
-          muscle_group: item.exercises?.muscle_group,
-          type: item.exercises?.type,
+          exercise_name: item.exercises?.name || item.exercise_name_snapshot || item.exercise_name || 'Exercício Indisponível',
+          exercise_image: item.exercises?.image_url || item.exercise_image,
+          muscle_group: item.exercises?.muscle_group || item.muscle_group,
+          type: item.exercises?.type || item.type,
           sets_json: item.sets_json || [],
           superset_id: item.superset_id
         })));
@@ -489,19 +489,17 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
           currentId = data.id;
         } else {
           await workoutApi.updateCategory(currentId, payload);
+          // Invalidate cache for this workout
+          cacheStore.clear(`workout_init_${currentId}`);
         }
 
         await workoutApi.deleteExercisesByCategory(currentId!);
         if (exercises.length > 0) {
-          await workoutApi.insertWorkoutExercises(exercises.map((ex, i) => ({
-            category_id: currentId,
-            exercise_id: ex.exercise_id,
-            sets: ex.sets_json?.length || 3,
-            sets_json: ex.sets_json,
-            sort_order: i + 1,
-            superset_id: ex.superset_id
-          })));
+          const exercisesPayload = workoutEngine.prepareSavePayload(exercises, currentId!);
+          await workoutApi.insertWorkoutExercises(exercisesPayload);
         }
+
+        showSuccess('Treino salvo', 'Tudo pronto! Seu treino foi atualizado com sucesso.');
         
         // Revalidate dashboard to get real IDs and data
         // (The mutate in Dashboard will handle this when it mounts)
