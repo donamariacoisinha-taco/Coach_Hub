@@ -12,15 +12,18 @@ import {
   Maximize2,
   Trash2,
   Eye,
+  EyeOff,
   Edit3,
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
 import { useLibraryStore } from '../store/libraryStore';
+import { useErrorHandler } from '../../../hooks/useErrorHandler';
 import { Exercise } from '../../../types';
 import InlineCellEditor from './InlineCellEditor';
 import { adminApi } from '../../../lib/api/adminApi';
+import { VisibilityBadge, VisibilityToggle } from './VisibilityBadge';
 
 interface SmartGridProps {
   selectedIds: string[];
@@ -28,8 +31,9 @@ interface SmartGridProps {
 }
 
 const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) => {
-  const { exercises, searchQuery, selectedMuscleFilter, openEditor, updateExercise } = useAdminStore();
+  const { exercises, searchQuery, selectedMuscleFilter, openEditor, updateExercise, updateExerciseStatus } = useAdminStore();
   const { visibleColumns, viewMode } = useLibraryStore();
+  const { showSuccess, showError } = useErrorHandler();
   const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
 
   const filtered = useMemo(() => {
@@ -54,10 +58,23 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
 
   const handleInlineSave = async (id: string, field: string, value: any) => {
     setEditingCell(null);
+    const ex = exercises.find(e => e.id === id);
+    if (!ex) return;
+
     try {
-      await updateExercise(id, { [field]: value });
-    } catch (err) {
-      console.error('Error saving inline:', err);
+      if (field === 'is_active') {
+        const newStatus = !!value;
+        await updateExerciseStatus(id, newStatus);
+        showSuccess(
+          newStatus ? '🚀 Pubblicado' : '🚫 Ocultado', 
+          `${ex.name} agora está ${newStatus ? 'visível' : 'oculto'}.`
+        );
+      } else {
+        await updateExercise(id, { [field]: value });
+        showSuccess('Célula Atualizada', `O campo ${field} foi salvo com sucesso.`);
+      }
+    } catch (err: any) {
+      showError('Erro ao salvar alteração', err.message || 'Ocorreu um erro inesperado.');
     }
   };
 
@@ -84,10 +101,14 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                    className="w-5 h-5 rounded-lg border-2 border-slate-200 cursor-pointer"
                  />
               </div>
-              <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-sm">
+              <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-sm overflow-hidden relative">
                  {ex.image_url ? <img src={ex.image_url} className="w-full h-full object-cover rounded-3xl" /> : <Zap className="text-slate-200" />}
+                 {!ex.is_active && <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] flex items-center justify-center"><EyeOff size={16} className="text-white" /></div>}
               </div>
-              <h4 className="text-[13px] font-black text-slate-950 uppercase tracking-tight mb-2 line-clamp-1">{ex.name}</h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[13px] font-black text-slate-950 uppercase tracking-tight line-clamp-1">{ex.name}</h4>
+                <VisibilityBadge isPublished={!!ex.is_active} compact />
+              </div>
               <div className="flex items-center gap-3">
                  <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">{ex.muscle_group}</span>
                  <span className="text-[9px] font-bold text-slate-400">Score: {ex.quality_score_v3 || 0}</span>
@@ -114,7 +135,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                 {visibleColumns.includes('thumb') && <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">Media</th>}
                 <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400 sticky left-16 sm:left-24 z-30 bg-white min-w-[200px]">Nome</th>
                 {visibleColumns.includes('muscle_group') && <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Grupo</th>}
-                <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Visibilidade</th>
                 {visibleColumns.includes('difficulty_level') && <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Dificuldade</th>}
                 {visibleColumns.includes('quality_score') && <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Score</th>}
                 {visibleColumns.includes('usage_count') && <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Uso</th>}
@@ -181,18 +202,14 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                     </td>
                   )}
 
-                  {/* Status Toggle */}
+                  {/* Visibility Toggle */}
                   <td className="px-6 py-6">
-                    <div className="flex items-center gap-3">
-                       <button 
-                         onClick={(e) => { e.stopPropagation(); handleInlineSave(ex.id, 'is_active', !ex.is_active); }}
-                         className={`w-10 h-6 rounded-full p-1 transition-all flex items-center ${ex.is_active ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'}`}
-                       >
-                          <motion.div layout className="w-4 h-4 bg-white rounded-full shadow-sm" />
-                       </button>
-                       <span className={`text-[9px] font-black uppercase tracking-widest ${ex.is_active ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {ex.is_active ? 'Ativo' : 'Inativo'}
-                       </span>
+                    <div className="flex items-center gap-4">
+                       <VisibilityBadge isPublished={!!ex.is_active} compact />
+                       <VisibilityToggle 
+                         isPublished={!!ex.is_active} 
+                         onToggle={(e) => { e.stopPropagation(); handleInlineSave(ex.id, 'is_active', !ex.is_active); }} 
+                       />
                     </div>
                   </td>
 

@@ -15,6 +15,7 @@ import {
   Plus,
   ChevronRight,
   Eye,
+  EyeOff,
   Wand2,
   Brain,
   Hash,
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
 import { Exercise } from '../../../types';
+import { VisibilityBadge, VisibilityToggle } from './VisibilityBadge';
 
 const ExerciseEditorV2: React.FC = () => {
   const { isEditorOpen, closeEditor, selectedExercise, updateExercise, createExercise, loading } = useAdminStore();
@@ -94,12 +96,15 @@ const ExerciseEditorV2: React.FC = () => {
                    <X size={20} />
                 </button>
                 <div>
-                   <h2 className="text-lg sm:text-xl font-black tracking-tight uppercase leading-none">
-                      {selectedExercise ? 'Edit Architecture' : 'Forge New Asset'}
-                   </h2>
+                   <div className="flex items-center gap-3">
+                      <h2 className="text-lg sm:text-xl font-black tracking-tight uppercase leading-none">
+                         {selectedExercise ? 'Edit Architecture' : 'Forge New Asset'}
+                      </h2>
+                      {form.id && <VisibilityBadge isPublished={!!form.is_active} />}
+                   </div>
                    <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 hidden sm:flex items-center gap-2">
                       <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                      Auto-save enabled
+                      Auto-save enabled • {form.is_active ? 'Publicado' : 'Oculto'}
                    </p>
                 </div>
              </div>
@@ -157,30 +162,35 @@ const ExerciseEditorV2: React.FC = () => {
                            className="space-y-10 sm:space-y-12"
                          >
                             <SectionHeader title="Identidade & Core" desc="Definições fundamentais e enquadramento estrutural." />
+                             
+                             <div className="bg-slate-50 rounded-[2rem] border border-slate-100 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+                                <div className="flex items-center gap-4">
+                                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${form.is_active ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-200 text-slate-400'}`}>
+                                      {form.is_active ? <Eye size={20} /> : <EyeOff size={20} />}
+                                   </div>
+                                   <div>
+                                      <h4 className="text-[13px] font-black uppercase tracking-widest text-slate-900 leading-none mb-1.5 flex items-center gap-2">
+                                         Status de Publicação
+                                         <VisibilityBadge isPublished={!!form.is_active} compact />
+                                      </h4>
+                                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Controlar visibilidade para alunos da plataforma</p>
+                                   </div>
+                                </div>
+                                <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
+                                   <VisibilityToggle 
+                                     isPublished={!!form.is_active} 
+                                     onToggle={(e: any) => {
+                                       e?.stopPropagation();
+                                       setForm({...form, is_active: !form.is_active});
+                                     }} 
+                                     variant="button" 
+                                   />
+                                </div>
+                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                                <Input label="Asset Performance Name" value={form.name} onChange={(val) => setForm({...form, name: val})} placeholder="Ex: Supino Reto Barra" />
                                <Input label="Commercial Variant / Alias" value={form.alt_name} onChange={(val) => setForm({...form, alt_name: val})} placeholder="Ex: Bench Press Barbell" />
                                
-                               <div className="space-y-3">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Disponibilidade / Visibilidade</label>
-                                  <div className="flex bg-white rounded-2xl border border-slate-200 p-2 items-center justify-between shadow-sm pr-6">
-                                     <div className="flex items-center gap-3">
-                                        <div className={`w-3 h-3 rounded-full ${form.is_active ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-300'}`} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">
-                                           {form.is_active ? 'Visível na Biblioteca' : 'Oculto da Biblioteca'}
-                                        </span>
-                                     </div>
-                                     <button 
-                                       onClick={() => setForm({...form, is_active: !form.is_active})}
-                                       className={`w-12 h-7 rounded-full p-1 transition-all flex items-center ${form.is_active ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'}`}
-                                     >
-                                        <motion.div layout className="w-5 h-5 bg-white rounded-full shadow-md" />
-                                     </button>
-                                  </div>
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2 italic">
-                                     Quando desligado, o exercício some da biblioteca pública para alunos.
-                                  </p>
-                               </div>
                                
                                <div className="space-y-3">
                                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Primary Muscle Cluster</label>

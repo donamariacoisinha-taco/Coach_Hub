@@ -88,6 +88,10 @@ export const adminApi = {
     if (error) throw error;
   },
 
+  async updateExerciseStatus(id: string, is_active: boolean) {
+    return this.bulkUpdateStatus([id], is_active);
+  },
+
   async deleteExercise(id: string) {
     const { error } = await supabase.from('exercises').delete().eq('id', id);
     if (error) throw error;

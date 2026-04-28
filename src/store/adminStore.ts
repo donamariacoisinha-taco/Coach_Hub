@@ -33,6 +33,7 @@ interface AdminState {
   createExercise: (payload: Partial<Exercise>) => Promise<void>;
   archiveExercises: (ids: string[]) => Promise<void>;
   toggleExercisesStatus: (ids: string[], is_active: boolean) => Promise<void>;
+  updateExerciseStatus: (id: string, is_active: boolean) => Promise<void>;
   deleteExercises: (ids: string[]) => Promise<void>;
   setExercises: (exercises: Exercise[]) => void;
 }
@@ -82,12 +83,33 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   
   updateExercise: async (id, payload) => {
+    const previousExercises = get().exercises;
+    // Optimistic Update
+    const newExercises = previousExercises.map(ex => 
+      ex.id === id ? { ...ex, ...payload } as Exercise : ex
+    );
+    set({ exercises: newExercises });
+
     try {
       await adminApi.updateExercise(id, payload);
-      set({ fetchData: get().fetchData }); // Trigger refresh or update local state
-      const exercises = get().exercises.map(ex => ex.id === id ? { ...ex, ...payload } as Exercise : ex);
-      set({ exercises });
     } catch (err: any) {
+      // Rollback on error
+      set({ exercises: previousExercises });
+      throw err;
+    }
+  },
+
+  updateExerciseStatus: async (id, is_active) => {
+    const previousExercises = get().exercises;
+    const newExercises = previousExercises.map(ex => 
+      ex.id === id ? { ...ex, is_active } as Exercise : ex
+    );
+    set({ exercises: newExercises });
+
+    try {
+      await adminApi.updateExerciseStatus(id, is_active);
+    } catch (err: any) {
+      set({ exercises: previousExercises });
       throw err;
     }
   },

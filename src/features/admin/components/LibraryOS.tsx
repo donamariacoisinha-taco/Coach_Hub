@@ -20,10 +20,14 @@ import {
   Copy,
   Brain,
   Download,
-  Share2
+  Share2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
+import { useErrorHandler } from '../../../hooks/useErrorHandler';
 import { Exercise } from '../../../types';
+import { VisibilityBadge, VisibilityToggle } from './VisibilityBadge';
 
 const LibraryOS: React.FC = () => {
   const { 
@@ -38,7 +42,7 @@ const LibraryOS: React.FC = () => {
   } = useAdminStore();
   
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive' | 'premium' | 'rising' | 'critical' | 'no-media'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'published' | 'hidden' | 'premium' | 'rising' | 'critical' | 'no-media'>('all');
 
   const muscleGroups = [
     'Todos', 'Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps', 
@@ -65,8 +69,8 @@ const LibraryOS: React.FC = () => {
     }
     
     // Status Filter
-    if (activeFilter === 'active') result = result.filter(ex => ex.is_active);
-    if (activeFilter === 'inactive') result = result.filter(ex => !ex.is_active);
+    if (activeFilter === 'published') result = result.filter(ex => ex.is_active);
+    if (activeFilter === 'hidden') result = result.filter(ex => !ex.is_active);
     if (activeFilter === 'premium') result = result.filter(ex => ex.quality_score && ex.quality_score >= 80);
     if (activeFilter === 'rising') result = result.filter(ex => ex.ranking_status === 'rising');
     if (activeFilter === 'critical') result = result.filter(ex => !ex.quality_score || ex.quality_score < 40);
@@ -144,8 +148,8 @@ const LibraryOS: React.FC = () => {
       {/* Quick Status Filters */}
       <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
          <QuickFilter active={activeFilter === 'all'} onClick={() => setActiveFilter('all')} label="Todos" count={exercises.length} />
-         <QuickFilter active={activeFilter === 'active'} onClick={() => setActiveFilter('active')} label="🟢 Ativos" count={exercises.filter(e => e.is_active).length} />
-         <QuickFilter active={activeFilter === 'inactive'} onClick={() => setActiveFilter('inactive')} label="⚫ Inativos" count={exercises.filter(e => !e.is_active).length} />
+         <QuickFilter active={activeFilter === 'published'} onClick={() => setActiveFilter('published')} label="🟢 Publicados" count={exercises.filter(e => e.is_active).length} />
+         <QuickFilter active={activeFilter === 'hidden'} onClick={() => setActiveFilter('hidden')} label="⚫ Ocultos" count={exercises.filter(e => !e.is_active).length} />
          <QuickFilter active={activeFilter === 'premium'} onClick={() => setActiveFilter('premium')} label="💎 Premium" count={exercises.filter(e => (e.quality_score || 0) >= 80).length} />
          <QuickFilter active={activeFilter === 'critical'} onClick={() => setActiveFilter('critical')} label="⚠️ Críticos" count={exercises.filter(e => (e.quality_score || 0) < 40).length} />
          <QuickFilter active={activeFilter === 'no-media'} onClick={() => setActiveFilter('no-media')} label="🖼️ Sem Mídia" count={exercises.filter(e => !e.image_url).length} />
@@ -275,17 +279,33 @@ interface RowProps {
 }
 
 const Row: React.FC<RowProps> = ({ exercise, selected, onSelect, onEdit }) => {
-  const { updateExercise } = useAdminStore();
+  const { updateExerciseStatus } = useAdminStore();
+  const { showSuccess, showError } = useErrorHandler();
+  const [isUpdating, setIsUpdating] = React.useState(false);
 
-  const toggleStatus = (e: React.MouseEvent) => {
+  const handleToggleVisibility = async (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
-    updateExercise(exercise.id, { is_active: !exercise.is_active });
+    if (isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      const newStatus = !exercise.is_active;
+      await updateExerciseStatus(exercise.id, newStatus);
+      showSuccess(
+        newStatus ? '🚀 Pubblicado' : '🚫 Ocultado', 
+        `${exercise.name} agora está ${newStatus ? 'visível' : 'oculto'} para alunos.`
+      );
+    } catch (err: any) {
+      showError('Erro ao mudar visibilidade', err.message || 'Tente novamente em instantes.');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
     <tr 
       onClick={onEdit}
-      className={`group cursor-pointer transition-all ${selected ? 'bg-blue-50/30' : 'hover:bg-slate-50/50'} ${!exercise.is_active ? 'opacity-60 grayscale-[0.5]' : ''}`}
+      className={`group cursor-pointer transition-all ${selected ? 'bg-blue-50/30' : 'hover:bg-slate-50/50'} ${!exercise.is_active ? 'opacity-70 contrast-[0.9]' : ''}`}
     >
        <td className="px-8 py-6" onClick={(e) => e.stopPropagation()}>
           <button 
@@ -299,12 +319,13 @@ const Row: React.FC<RowProps> = ({ exercise, selected, onSelect, onEdit }) => {
        </td>
        <td className="px-6 py-6 font-black uppercase text-xs tracking-tight text-slate-900">
           <div className="flex items-center gap-4">
-             <div className="w-14 h-14 rounded-2xl bg-slate-100 p-2 overflow-hidden border border-slate-200/50 shadow-sm">
+             <div className="w-14 h-14 rounded-2xl bg-slate-100 p-2 overflow-hidden border border-slate-200/50 shadow-sm relative group-hover:scale-105 transition-transform">
                 {exercise.image_url ? (
                   <img src={exercise.image_url} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-200"><Dumbbell size={20} /></div>
                 )}
+                {!exercise.is_active && <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center"><EyeOff size={16} className="text-white" /></div>}
              </div>
              <div>
                 <p className="leading-tight">{exercise.name}</p>
@@ -332,14 +353,13 @@ const Row: React.FC<RowProps> = ({ exercise, selected, onSelect, onEdit }) => {
           </div>
        </td>
        <td className="px-6 py-6">
-          <div className="flex items-center gap-3">
-             <StatusChip status={exercise.quality_status || 'critical'} active={exercise.is_active} rankingStatus={exercise.ranking_status} />
-             <button 
-               onClick={toggleStatus}
-               className={`w-10 h-6 rounded-full p-1 transition-all flex items-center ${exercise.is_active ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'}`}
-             >
-                <motion.div layout className="w-4 h-4 bg-white rounded-full shadow-sm" />
-             </button>
+          <div className="flex items-center gap-4">
+             <VisibilityBadge isPublished={!!exercise.is_active} compact />
+             <VisibilityToggle 
+               isPublished={!!exercise.is_active} 
+               onToggle={handleToggleVisibility} 
+               isLoading={isUpdating}
+             />
           </div>
        </td>
        <td className="px-6 py-6">
@@ -376,11 +396,27 @@ interface GridCardProps {
 }
 
 const GridCard: React.FC<GridCardProps> = ({ exercise, selected, onSelect, onEdit }) => {
-  const { updateExercise } = useAdminStore();
+  const { updateExerciseStatus } = useAdminStore();
+  const { showSuccess, showError } = useErrorHandler();
+  const [isUpdating, setIsUpdating] = React.useState(false);
 
-  const toggleStatus = (e: React.MouseEvent) => {
+  const handleToggleVisibility = async (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
-    updateExercise(exercise.id, { is_active: !exercise.is_active });
+    if (isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      const newStatus = !exercise.is_active;
+      await updateExerciseStatus(exercise.id, newStatus);
+      showSuccess(
+        newStatus ? '🚀 Pubblicado' : '🚫 Ocultado', 
+        `${exercise.name} agora está ${newStatus ? 'visível' : 'oculto'} para alunos.`
+      );
+    } catch (err: any) {
+      showError('Erro ao mudar visibilidade', err.message || 'Tente novamente em instantes.');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -388,14 +424,12 @@ const GridCard: React.FC<GridCardProps> = ({ exercise, selected, onSelect, onEdi
       onClick={onEdit}
       whileHover={{ y: -5 }}
       whileTap={{ scale: 0.98 }}
-      className={`group relative bg-white rounded-[2.5rem] border overflow-hidden p-6 cursor-pointer transition-all ${selected ? 'border-blue-400 shadow-2xl shadow-blue-200/50' : 'border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50'} ${!exercise.is_active ? 'opacity-60 grayscale-[0.5]' : ''}`}
+      className={`group relative bg-white rounded-[2.5rem] border overflow-hidden p-6 cursor-pointer transition-all ${selected ? 'border-blue-400 shadow-2xl shadow-blue-200/50' : 'border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50'} ${!exercise.is_active ? 'opacity-70 contrast-[0.9]' : ''}`}
     >
-       {!exercise.is_active && (
-         <div className="absolute top-4 right-4 z-10">
-            <span className="px-2 py-1 bg-slate-950 text-white rounded-lg text-[7px] font-black uppercase tracking-widest">Inativo</span>
-         </div>
-       )}
-       <div className="absolute top-4 left-4 z-10" onClick={(e) => { e.stopPropagation(); onSelect(e); }}>
+       <div className="absolute top-4 right-4 z-10">
+          <VisibilityBadge isPublished={!!exercise.is_active} compact={false} />
+       </div>
+       <div className="absolute top-4 left-4 z-20" onClick={(e) => { e.stopPropagation(); onSelect(e); }}>
           <button 
             className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
               selected ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white/80 backdrop-blur border-slate-200 group-hover:border-blue-400 opacity-0 group-hover:opacity-100'
@@ -411,6 +445,7 @@ const GridCard: React.FC<GridCardProps> = ({ exercise, selected, onSelect, onEdi
           ) : (
             <Dumbbell size={32} className="text-slate-200" />
           )}
+          {!exercise.is_active && <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"><EyeOff size={32} className="text-white" /></div>}
           <div className="absolute inset-0 bg-slate-950/0 group-hover/thumb:bg-slate-950/20 transition-colors flex items-center justify-center opacity-0 group-hover/thumb:opacity-100">
              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-2xl translate-y-4 group-hover/thumb:translate-y-0 transition-transform duration-500">
                 <Play size={16} fill="currentColor" />
@@ -419,24 +454,31 @@ const GridCard: React.FC<GridCardProps> = ({ exercise, selected, onSelect, onEdi
        </div>
 
        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-             <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 px-2 py-1 bg-blue-50 rounded-lg">{exercise.muscle_group}</span>
-             <StatusChip status={exercise.quality_status || 'critical'} active={exercise.is_active} rankingStatus={exercise.ranking_status} compact />
-             <button 
-               onClick={toggleStatus}
-               className={`w-8 h-4 rounded-full p-0.5 transition-all flex items-center ${exercise.is_active ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'}`}
-             >
-                <motion.div layout className="w-3 h-3 bg-white rounded-full shadow-sm" />
-             </button>
+          <div className="flex items-center justify-between">
+             <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 px-2 py-1 bg-blue-50 rounded-lg">{exercise.muscle_group}</span>
+                <StatusChip status={exercise.quality_status || 'critical'} active={!!exercise.is_active} rankingStatus={exercise.ranking_status} compact />
+             </div>
+             <VisibilityToggle 
+               isPublished={!!exercise.is_active} 
+               onToggle={handleToggleVisibility} 
+               isLoading={isUpdating}
+             />
           </div>
           <h3 className="text-lg font-black tracking-tight text-slate-950 uppercase leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors">{exercise.name}</h3>
           
           <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-             <div className="flex items-center gap-2">
-               <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
-                 <div className={`h-full ${exercise.quality_score || 0 > 70 ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${exercise.quality_score || 0}%` }} />
-               </div>
-               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{exercise.quality_score || 0}%</span>
+             <div className="flex items-center gap-3">
+                <VisibilityToggle 
+                  isPublished={!!exercise.is_active} 
+                  onToggle={handleToggleVisibility} 
+                  variant="button" 
+                  isLoading={isUpdating}
+                />
+                <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
+                   <div className={`h-full ${exercise.quality_score || 0 > 70 ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${exercise.quality_score || 0}%` }} />
+                </div>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{exercise.quality_score || 0}%</span>
              </div>
              <button
                onClick={onEdit}
@@ -450,8 +492,9 @@ const GridCard: React.FC<GridCardProps> = ({ exercise, selected, onSelect, onEdi
   );
 }
 
+
 function StatusChip({ status, active, rankingStatus, compact }: { status: string, active: boolean, rankingStatus?: string, compact?: boolean }) {
-  if (!active) return <span className={`px-2 py-1 bg-slate-100 text-slate-400 rounded-lg font-black uppercase tracking-widest border border-slate-200 ${compact ? 'text-[7px]' : 'text-[8px]'}`}>Hidden</span>;
+  if (!active) return <span className={`px-2 py-1 bg-slate-100 text-slate-400 rounded-lg font-black uppercase tracking-widest border border-slate-200 ${compact ? 'text-[7px]' : 'text-[8px]'}`}>Oculto</span>;
   
   if (rankingStatus === 'rising') {
     return (
@@ -521,15 +564,15 @@ function BulkOperationsBar({ selectedIds, onClear }: { selectedIds: string[], on
                    <div className="flex items-center gap-3">
                       <span className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-[14px] font-black">{selectedIds.length}</span>
                       <div className="hidden sm:block">
-                         <p className="text-[10px] font-black uppercase tracking-widest">Ativos Selecionados</p>
+                         <p className="text-[10px] font-black uppercase tracking-widest">Itens Selecionados</p>
                          <p className="text-[9px] font-bold text-blue-400 uppercase tracking-tight">Operação em Massa</p>
                       </div>
                    </div>
                 </div>
 
                 <div className="flex items-center gap-2 pr-2">
-                   <BulkButton icon={<CheckCircle2 size={16} />} label="Ativar" color="emerald" onClick={() => handleToggleStatus(true)} />
-                   <BulkButton icon={<Archive size={16} />} label="Inativar" onClick={() => handleToggleStatus(false)} />
+                   <BulkButton icon={<Eye size={16} />} label="Publicar Todos" color="emerald" onClick={() => handleToggleStatus(true)} />
+                   <BulkButton icon={<EyeOff size={16} />} label="Ocultar Todos" color="slate" onClick={() => handleToggleStatus(false)} />
                    <BulkButton icon={<Brain size={16} />} label="Sinc AI" color="blue" onClick={() => alert('Sincronização AI agendada para o próximo ciclo.')} />
                    <BulkButton icon={<Trash2 size={16} />} label="Deletar" color="red" onClick={handleDelete} />
                    <button 
@@ -551,6 +594,7 @@ function BulkButton({ icon, label, color = 'default', onClick }: { icon: React.R
     default: 'bg-white/5 hover:bg-white/10 text-white',
     blue: 'bg-blue-600/20 hover:bg-blue-600/30 text-blue-400',
     emerald: 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400',
+    slate: 'bg-slate-600/20 hover:bg-slate-600/30 text-slate-400',
     red: 'bg-red-600/20 hover:bg-red-600/30 text-red-400'
   } as any;
 

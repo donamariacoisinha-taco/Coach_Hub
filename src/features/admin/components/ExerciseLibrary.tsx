@@ -29,7 +29,7 @@ const ExerciseLibrary: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-black tracking-tighter">Biblioteca Profissional</h2>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Gerencie {exercises.length} movimentos ativos</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Gerencie {exercises.length} movimentos catalogados</p>
         </div>
 
         <div className="flex items-center gap-4">
@@ -169,7 +169,7 @@ function StatusBadge({ status, active, compact = false }: { status: string, acti
     return (
       <span className={`inline-flex items-center gap-1.5 font-black uppercase tracking-widest leading-none rounded-lg bg-slate-100 text-slate-400 ${compact ? 'px-2 py-1 text-[8px]' : 'px-3 py-1.5 text-[9px]'}`}>
         <Clock size={compact ? 10 : 12} />
-        {!compact && 'Arquivado'}
+        {!compact && 'Oculto'}
       </span>
     );
   }
