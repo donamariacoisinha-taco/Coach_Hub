@@ -73,7 +73,7 @@ const HistoryView: React.FC = () => {
       const data = await workoutApi.getWorkoutDetails(historyId);
       if (data) {
         const grouped = data.reduce((acc: any, curr: any) => {
-          const exName = curr.exercises?.name || 'Exercício Indisponível';
+          const exName = curr.exercises?.name || curr.exercise_name_snapshot || 'Exercício Indisponível';
           if (!acc[exName]) acc[exName] = [];
           acc[exName].push(curr);
           return acc;

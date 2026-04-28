@@ -347,40 +347,72 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   }, [workoutId]);
 
   const fetchData = async () => {
+    // 1. Try Cache First
+    const cacheKey = workoutId ? `editor_init_${workoutId}` : 'editor_init_new';
+    const cached = cacheStore.get(cacheKey);
+    
+    if (cached) {
+      console.log(`[EDITOR] Using cached data for ${cacheKey}`, cached);
+      hydrateEditorState(cached);
+      editorState.setData(true);
+      return;
+    }
+
     editorState.setLoading(true);
     try {
       const user = await authApi.getUser();
       if (!user) return;
 
+      console.log(`[EDITOR] Fetching full data for workout: ${workoutId}`);
       const data = await workoutApi.getWorkoutEditorData(user.id, workoutId);
       
-      setAvailableExercises(data.exercises);
-      setFolders(data.folders);
-      setMuscleGroups(data.muscleGroups);
-
-      if (data.category) {
-        setName(data.category.name);
-        setDescription(data.category.description || '');
-        setFolderId(data.category.folder_id || '');
-      }
+      // Save to cache for future transitions
+      cacheStore.set(cacheKey, data);
       
-      if (data.workoutExercises) {
-        setExercises(data.workoutExercises.map((item: any) => ({
+      hydrateEditorState(data);
+      editorState.setData(true);
+    } catch (err) { 
+      editorState.setError(err);
+      showError(err);
+    }
+  };
+
+  const hydrateEditorState = (data: any) => {
+    setAvailableExercises(data.exercises || []);
+    setFolders(data.folders || []);
+    setMuscleGroups(data.muscleGroups || []);
+
+    if (data.category) {
+      setName(data.category.name);
+      setDescription(data.category.description || '');
+      setFolderId(data.category.folder_id || '');
+    }
+    
+    if (data.workoutExercises) {
+      const mapped = data.workoutExercises.map((item: any) => {
+        const finalName = item.exercises?.name || item.exercise_name_snapshot || item.exercise_name || 'Exercício Indisponível';
+        
+        console.log(`[EDITOR][MAP] Mapping exercise: ${item.exercise_id}`, {
+          hasJoin: !!item.exercises,
+          joinName: item.exercises?.name,
+          snapshot: item.exercise_name_snapshot,
+          rowName: item.exercise_name,
+          finalName
+        });
+
+        return {
           id: item.id,
           tempId: item.id,
           exercise_id: item.exercise_id,
-          exercise_name: item.exercises?.name || item.exercise_name_snapshot || item.exercise_name || 'Exercício Indisponível',
+          exercise_name: finalName,
           exercise_image: item.exercises?.image_url || item.exercise_image,
           muscle_group: item.exercises?.muscle_group || item.muscle_group,
           type: item.exercises?.type || item.type,
           sets_json: item.sets_json || [],
           superset_id: item.superset_id
-        })));
-      }
-      editorState.setData(true);
-    } catch (err) { 
-      editorState.setError(err);
-      showError(err);
+        };
+      });
+      setExercises(mapped);
     }
   };
 

@@ -7,6 +7,7 @@ interface SaveSetData {
   history_id: string;
   user_id?: string;
   exercise_id: string;
+  exercise_name_snapshot?: string;
   set_number: number;
   weight_achieved: number;
   reps_achieved: number;

@@ -422,7 +422,9 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         <button 
                           onClick={() => navigate('editor', { id: workout.id })}
                           onMouseEnter={() => prefetch(`editor_init_${workout.id}`, async () => {
-                            return workoutApi.getWorkoutEditorData(workout.id);
+                            const user = await authApi.getUser();
+                            if (!user) return null;
+                            return workoutApi.getWorkoutEditorData(user.id, workout.id);
                           })}
                           className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
                         >

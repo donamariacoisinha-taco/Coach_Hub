@@ -187,6 +187,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       await saveSet({ 
         history_id: historyId,
         exercise_id: currentEx.exercise_id,
+        exercise_name_snapshot: currentEx.exercise_name,
         set_number: currentSet,
         weight_achieved: weight,
         reps_achieved: reps,

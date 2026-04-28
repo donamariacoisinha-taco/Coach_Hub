@@ -185,7 +185,7 @@ export const workoutApi = {
 
     if (workoutId) {
       queries.push(supabase.from('workout_categories').select('*').eq('id', workoutId).single());
-      queries.push(supabase.from('workout_exercises').select('*').eq('category_id', workoutId).order('sort_order'));
+      queries.push(supabase.from('workout_exercises').select('*, exercises(*)').eq('category_id', workoutId).order('sort_order'));
     }
 
     const results = await Promise.all(queries);
@@ -269,7 +269,25 @@ export const workoutApi = {
   },
 
   async saveSetLog(payload: any) {
-    const { error } = await supabase.from('workout_sets_log').insert([payload]);
-    return { error };
+    let currentPayload = { ...payload };
+    
+    while (true) {
+      try {
+        const { error } = await supabase.from('workout_sets_log').insert([currentPayload]);
+        return { error };
+      } catch (err: any) {
+        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+          const match = err.message.match(/column '(.*)'/);
+          if (match && match[1]) {
+            const badColumn = match[1];
+            console.warn(`[LOG] Removing missing column: ${badColumn}`);
+            const { [badColumn]: _, ...remaining } = currentPayload;
+            currentPayload = remaining;
+            continue;
+          }
+        }
+        return { error: err };
+      }
+    }
   }
 };
