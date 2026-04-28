@@ -60,7 +60,7 @@ export default function ExerciseAdminPro({
     if (exercise.muscle_group) score += 15;
     if (exercise.movement_pattern) score += 10;
     if (exercise.plane) score += 5;
-    if (exercise.image_url) score += 15;
+    if (exercise.image_url || exercise.static_frame_url) score += 15;
     if (exercise.video_url) score += 10;
     if (exercise.description && exercise.description.length > 10) score += 10;
     if (exercise.instructions && exercise.instructions.length > 30) score += 15;
@@ -484,7 +484,7 @@ export default function ExerciseAdminPro({
 
               <div className="mt-3 flex items-center gap-3">
                 <img
-                  src={exercise.image_url || "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=112&q=80"}
+                  src={exercise.static_frame_url || exercise.image_url || "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=112&q=80"}
                   alt=""
                   className="h-14 w-14 rounded-2xl object-cover bg-slate-100"
                 />

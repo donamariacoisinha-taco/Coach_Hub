@@ -75,7 +75,7 @@ const LibraryOS: React.FC = () => {
     if (activeFilter === 'premium') result = result.filter(ex => ex.quality_score && ex.quality_score >= 80);
     if (activeFilter === 'rising') result = result.filter(ex => ex.ranking_status === 'rising');
     if (activeFilter === 'critical') result = result.filter(ex => !ex.quality_score || ex.quality_score < 40);
-    if (activeFilter === 'no-media') result = result.filter(ex => !ex.image_url);
+    if (activeFilter === 'no-media') result = result.filter(ex => !ex.image_url && !ex.static_frame_url);
     
     return result;
   }, [exercises, searchQuery, selectedMuscleFilter, activeFilter]);
@@ -336,8 +336,8 @@ interface RowProps {
        <td className="px-6 py-6 font-black uppercase text-xs tracking-tight text-slate-900">
           <div className="flex items-center gap-4">
              <div className="w-14 h-14 rounded-2xl bg-slate-100 p-2 overflow-hidden border border-slate-200/50 shadow-sm relative group-hover:scale-105 transition-transform">
-                {exercise.image_url ? (
-                  <img src={exercise.image_url} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                {(exercise.static_frame_url || exercise.image_url) ? (
+                  <img src={exercise.static_frame_url || exercise.image_url} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-200"><Dumbbell size={20} /></div>
                 )}
@@ -479,8 +479,8 @@ interface GridCardProps {
        </div>
 
        <div className="h-40 bg-slate-50/50 rounded-[2rem] border border-slate-100 mb-6 p-4 flex items-center justify-center relative overflow-hidden group/thumb">
-          {exercise.image_url ? (
-            <img src={exercise.image_url} alt="" className="w-full h-full object-contain group-hover/thumb:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
+          {(exercise.static_frame_url || exercise.image_url) ? (
+            <img src={exercise.static_frame_url || exercise.image_url} alt="" className="w-full h-full object-contain group-hover/thumb:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
           ) : (
             <Dumbbell size={32} className="text-slate-200" />
           )}

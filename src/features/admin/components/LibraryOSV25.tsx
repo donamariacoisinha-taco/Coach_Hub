@@ -185,7 +185,7 @@ const LibraryOSV25: React.FC = () => {
                  <InsightCard 
                     icon={<Database className="text-blue-500" />} 
                     label="Sem Midia" 
-                    value={exercises.filter(ex => !ex.image_url).length} 
+                    value={exercises.filter(ex => !ex.image_url && !ex.static_frame_url).length} 
                     desc="Impacto visual baixo"
                     onClick={() => openModal('audit')}
                  />

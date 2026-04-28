@@ -207,7 +207,7 @@ const ExerciseLibrary: React.FC = () => {
                 >
                   <div className="flex items-center gap-6 flex-1 min-w-0">
                     <div className="w-16 h-16 bg-white border border-slate-50 rounded-2xl overflow-hidden flex items-center justify-center p-3 shrink-0 shadow-sm">
-                      <img src={ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                      <img src={ex.static_frame_url || ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -281,7 +281,7 @@ const ExerciseLibrary: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-12 no-scrollbar pb-32">
               <div className="w-full aspect-square bg-[#F7F8FA] rounded-[3rem] overflow-hidden flex items-center justify-center p-12">
-                <img src={selectedExercise.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                <img src={selectedExercise.static_frame_url || selectedExercise.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
               </div>
 
               <div className="space-y-12">

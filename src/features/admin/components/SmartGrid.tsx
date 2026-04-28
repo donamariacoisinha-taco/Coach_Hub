@@ -102,7 +102,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                  />
               </div>
               <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-sm overflow-hidden relative">
-                 {ex.image_url ? <img src={ex.image_url} className="w-full h-full object-cover rounded-3xl" /> : <Zap className="text-slate-200" />}
+                 {(ex.static_frame_url || ex.image_url) ? <img src={ex.static_frame_url || ex.image_url} className="w-full h-full object-cover rounded-3xl" /> : <Zap className="text-slate-200" />}
                  {!ex.is_active && <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] flex items-center justify-center"><EyeOff size={16} className="text-white" /></div>}
               </div>
               <div className="flex items-center justify-between mb-2">
@@ -164,7 +164,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                   {visibleColumns.includes('thumb') && (
                     <td className="px-6 py-6">
                        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 shadow-inner overflow-hidden border border-slate-100">
-                          {ex.image_url ? <img src={ex.image_url} className="w-full h-full object-cover" /> : <Zap size={18} />}
+                          {(ex.static_frame_url || ex.image_url) ? <img src={ex.static_frame_url || ex.image_url} className="w-full h-full object-cover" /> : <Zap size={18} />}
                        </div>
                     </td>
                   )}
