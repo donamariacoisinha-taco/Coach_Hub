@@ -3,13 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { BodyMeasurement, Goal } from '../types';
 import { authApi } from '../lib/api/authApi';
 import { profileApi } from '../lib/api/profileApi';
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
-
-const getAI = () => {
-  const apiKey = (import.meta.env?.VITE_GEMINI_API_KEY as string) || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '');
-  if (!apiKey) throw new Error("Gemini API Key not found");
-  return new GoogleGenerativeAI(apiKey);
-};
+import { geminiService } from '../services/geminiService';
 
 type BioMetric = 'weight' | 'body_fat_pct' | 'muscle_mass_kg' | 'visceral_fat_index' | 'skeletal_muscle_pct' | 'protein_pct' | 'body_water_pct' | 'metabolic_age';
 type TimePeriod = '7d' | '30d' | '90d' | 'all';
@@ -54,13 +48,11 @@ const BioReport: React.FC = () => {
     if (analyzing) return;
     setAnalyzing(true);
     try {
-      const genAI = getAI();
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      const prompt = `Analise os dados de bioimpedância deste atleta e forneça um insight curto e técnico (máx 120 caracteres). 
-      Período: ${selectedPeriod}. Dados recentes: ${data.slice(-3).map(m => `${m.weight}kg, ${m.body_fat_pct}%, ${m.muscle_mass_kg}kg`).join(' | ')}`;
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      setInsight(response.text() || "Consistência gera resultados duradouros.");
+      const result = await geminiService.callAI({
+        prompt: `Analise os dados de bioimpedância deste atleta e forneça um insight curto e técnico (máx 120 caracteres). 
+        Período: ${selectedPeriod}. Dados recentes: ${data.slice(-3).map(m => `${m.weight}kg, ${m.body_fat_pct}%, ${m.muscle_mass_kg}kg`).join(' | ')}`
+      });
+      setInsight(result.text || "Consistência gera resultados duradouros.");
     } catch (err) { console.error(err); }
     finally { setAnalyzing(false); }
   };
@@ -74,42 +66,34 @@ const BioReport: React.FC = () => {
       const profile = await profileApi.getProfile(user.id);
       
       const last = measurements[measurements.length - 1];
-      const genAI = getAI();
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: SchemaType.OBJECT,
-            properties: {
-              calories: { type: SchemaType.NUMBER },
-              macros: {
-                type: SchemaType.OBJECT,
-                properties: {
-                  p: { type: SchemaType.NUMBER, description: "Proteína em g" },
-                  c: { type: SchemaType.NUMBER, description: "Carbo em g" },
-                  g: { type: SchemaType.NUMBER, description: "Gordura em g" }
-                },
-                required: ["p", "c", "g"]
+      
+      const dietData = await geminiService.callAI({
+        prompt: `Como Rubi, Especialista em Nutrição Esportiva, analise:
+        Dados: Peso ${last.weight}kg, Gordura ${last.body_fat_pct}%, Massa Muscular ${last.muscle_mass_kg}kg.
+        Objetivo: ${profile?.goal || 'Hipertrofia'}.
+        
+        Crie uma estratégia nutricional precisa. Retorne um JSON.`,
+        responseSchema: {
+          type: "object",
+          properties: {
+            calories: { type: "number" },
+            macros: {
+              type: "object",
+              properties: {
+                p: { type: "number" },
+                c: { type: "number" },
+                g: { type: "number" }
               },
-              foods: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-              hydration: { type: SchemaType.STRING },
-              insight: { type: SchemaType.STRING }
+              required: ["p", "c", "g"]
             },
-            required: ["calories", "macros", "foods", "hydration", "insight"]
-          }
+            foods: { type: "array", items: { type: "string" } },
+            hydration: { type: "string" },
+            insight: { type: "string" }
+          },
+          required: ["calories", "macros", "foods", "hydration", "insight"]
         }
       });
       
-      const prompt = `Como Rubi, Especialista em Nutrição Esportiva, analise:
-      Dados: Peso ${last.weight}kg, Gordura ${last.body_fat_pct}%, Massa Muscular ${last.muscle_mass_kg}kg.
-      Objetivo: ${profile?.goal || 'Hipertrofia'}.
-      
-      Crie uma estratégia nutricional precisa. Retorne um JSON.`;
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const dietData = JSON.parse(response.text() || "{}");
       setNutritionPlan(dietData);
     } catch (err) {
       console.error(err);

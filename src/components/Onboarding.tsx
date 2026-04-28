@@ -5,7 +5,7 @@ import { authApi } from '../lib/api/authApi';
 import { profileApi } from '../lib/api/profileApi';
 import { systemApi } from '../lib/api/systemApi';
 import BodyMap from './BodyMap';
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { geminiService } from '../services/geminiService';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 
 interface OnboardingProps {
@@ -77,42 +77,29 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   const notifyAdminOfNewUser = async (userProfile: Partial<UserProfile>, userEmail: string) => {
     const ADMIN_EMAIL = 'marivaldotorres@gmail.com';
     try {
-      const apiKey = (import.meta.env?.VITE_GEMINI_API_KEY as string) || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '');
-      if (!apiKey) throw new Error("API Key not found");
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: SchemaType.OBJECT,
-            properties: {
-              technical_summary: { type: SchemaType.STRING },
-              suggested_strategy: { type: SchemaType.STRING },
-              email_html: { type: SchemaType.STRING }
-            },
-            required: ["technical_summary", "suggested_strategy", "email_html"]
-          }
+      const dossier = await geminiService.callAI({
+        prompt: `Você é a Rubi, assistente de IA do Coach. Gere um "Dossiê de Ingresso" para o administrador.
+        Destinatário: ${ADMIN_EMAIL}
+        Atleta: ${userProfile.full_name} (${userEmail})
+        Meta: ${userProfile.goal}
+        Nível: ${userProfile.experience_level}
+        Dados Físicos: ${userProfile.weight}kg, ${userProfile.height}cm.
+        Foco Muscular: ${userProfile.focus_muscles?.join(', ')}.
+        
+        Retorne um JSON com os campos:
+        - "technical_summary": (Breve análise técnica do perfil)
+        - "suggested_strategy": (Fase de treino inicial recomendada)
+        - "email_html": (Corpo de email HTML luxuoso e profissional com os dados acima para o administrador)`,
+        responseSchema: {
+          type: "object",
+          properties: {
+            technical_summary: { type: "string" },
+            suggested_strategy: { type: "string" },
+            email_html: { type: "string" }
+          },
+          required: ["technical_summary", "suggested_strategy", "email_html"]
         }
       });
-
-      const prompt = `Você é a Rubi, assistente de IA do Coach. Gere um "Dossiê de Ingresso" para o administrador.
-      Destinatário: ${ADMIN_EMAIL}
-      Atleta: ${userProfile.full_name} (${userEmail})
-      Meta: ${userProfile.goal}
-      Nível: ${userProfile.experience_level}
-      Dados Físicos: ${userProfile.weight}kg, ${userProfile.height}cm.
-      Foco Muscular: ${userProfile.focus_muscles?.join(', ')}.
-      
-      Retorne um JSON com os campos:
-      - "technical_summary": (Breve análise técnica do perfil)
-      - "suggested_strategy": (Fase de treino inicial recomendada)
-      - "email_html": (Corpo de email HTML luxuoso e profissional com os dados acima para o administrador)`;
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const dossier = JSON.parse(response.text() || '{}');
 
       // Salvar na fila de notificações para processamento via Webhook
       await systemApi.notifyAdmin({

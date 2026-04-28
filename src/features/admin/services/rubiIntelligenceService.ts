@@ -1,11 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { Exercise } from "../../../types";
-
-const getAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY environment variable is required");
-  return new GoogleGenAI({ apiKey });
-};
 
 const OPTIMIZATION_PROMPT = `
 Você é o Rubi Intelligence Engine, uma IA especialista em biomecânica e treinamento de força.
@@ -36,43 +29,14 @@ export const rubiIntelligenceService = {
     `;
 
     try {
-      const ai = getAI();
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          systemInstruction: OPTIMIZATION_PROMPT,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              description: { type: Type.STRING },
-              instructions: { 
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              },
-              secondary_muscles: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              },
-              equipment: { type: Type.STRING },
-              difficulty_level: { 
-                type: Type.STRING,
-                enum: ['Iniciante', 'Intermediário', 'Avançado', 'Elite']
-              },
-              quality_score_v3: { type: Type.NUMBER },
-              technical_tips: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              }
-            },
-            required: ['name', 'description', 'instructions', 'quality_score_v3']
-          }
-        }
+      const response = await fetch("/api/intelligence/optimize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, systemInstruction: OPTIMIZATION_PROMPT })
       });
 
-      const result = JSON.parse(response.text || '{}');
+      if (!response.ok) throw new Error("API request failed");
+      const result = await response.json();
       
       return {
         ...exercise,

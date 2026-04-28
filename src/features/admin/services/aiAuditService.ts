@@ -1,11 +1,7 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Exercise } from "../../../types";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+import { geminiService } from "../../../services/geminiService";
 
 export const auditExercise = async (exercise: Exercise) => {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-
   const prompt = `
     Audit the following exercise for quality and completeness according to "Coach Rubi Premium" standards.
     Exercise Data: ${JSON.stringify(exercise)}
@@ -34,15 +30,44 @@ export const auditExercise = async (exercise: Exercise) => {
   `;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    // Extract JSON from markdown
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-    throw new Error("Invalid AI response");
+    const result = await geminiService.callAI({
+      prompt,
+      responseSchema: {
+        type: "object",
+        properties: {
+          issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                category: { type: "string" },
+                type: { type: "string" },
+                description: { type: "string" }
+              },
+              required: ["category", "type", "description"]
+            }
+          },
+          confidence: { type: "number" },
+          suggestions: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              description: { type: "string" },
+              instructions: { type: "string" },
+              technical_tips: { type: "string" },
+              secondary_muscles: { type: "array", items: { type: "string" } },
+              equipment: { type: "string" },
+              difficulty_level: { type: "string" },
+              movement_pattern: { type: "string" },
+              training_goal: { type: "string" }
+            }
+          }
+        },
+        required: ["issues", "confidence", "suggestions"]
+      }
+    });
+
+    return result;
   } catch (error) {
     console.error("Audit AI Error:", error);
     return null;

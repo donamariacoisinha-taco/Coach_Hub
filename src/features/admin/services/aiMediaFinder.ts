@@ -1,12 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { Exercise } from "../../../types";
-import { MediaSuggestion } from "../store/mediaFinderStore";
-
-const getAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY environment variable is required");
-  return new GoogleGenAI({ apiKey });
-};
 
 const MEDIA_FINDER_PROMPT = `
 Você é o Coach Rubi AI Media Finder. Sua missão é localizar e sugerir as melhores mídias (imagens e vídeos) para exercícios físicos.
@@ -41,58 +33,14 @@ export const aiMediaFinder = {
     `;
 
     try {
-      const ai = getAI();
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        tools: [{ googleSearch: {} }],
-        config: {
-          systemInstruction: MEDIA_FINDER_PROMPT,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              main_images: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    url: { type: Type.STRING },
-                    title: { type: Type.STRING },
-                    quality_score: { type: Type.NUMBER },
-                    source: { type: Type.STRING }
-                  }
-                }
-              },
-              videos: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    url: { type: Type.STRING },
-                    title: { type: Type.STRING },
-                    quality_score: { type: Type.NUMBER },
-                    source: { type: Type.STRING }
-                  }
-                }
-              },
-              guides: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    url: { type: Type.STRING },
-                    title: { type: Type.STRING },
-                    quality_score: { type: Type.NUMBER }
-                  }
-                }
-              }
-            }
-          }
-        }
-      } as any);
+      const response = await fetch("/api/intelligence/find-media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, systemInstruction: MEDIA_FINDER_PROMPT })
+      });
 
-      return JSON.parse(response.text || '{}');
+      if (!response.ok) throw new Error("API request failed");
+      return await response.json();
     } catch (error) {
       console.error("[MediaFinder] AI Error:", error);
       // Fallback suggestions if AI fails or search is restricted
