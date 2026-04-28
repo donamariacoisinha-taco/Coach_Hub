@@ -2,7 +2,11 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Exercise } from "../../../types";
 import { MediaSuggestion } from "../store/mediaFinderStore";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const getAI = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY environment variable is required");
+  return new GoogleGenAI({ apiKey });
+};
 
 const MEDIA_FINDER_PROMPT = `
 Você é o Coach Rubi AI Media Finder. Sua missão é localizar e sugerir as melhores mídias (imagens e vídeos) para exercícios físicos.
@@ -37,6 +41,7 @@ export const aiMediaFinder = {
     `;
 
     try {
+      const ai = getAI();
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt,

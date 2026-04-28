@@ -1,7 +1,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Exercise } from "../../../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const getAI = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY environment variable is required");
+  return new GoogleGenAI({ apiKey });
+};
 
 const OPTIMIZATION_PROMPT = `
 Você é o Rubi Intelligence Engine, uma IA especialista em biomecânica e treinamento de força.
@@ -32,6 +36,7 @@ export const rubiIntelligenceService = {
     `;
 
     try {
+      const ai = getAI();
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt,
