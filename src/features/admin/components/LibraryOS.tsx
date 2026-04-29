@@ -337,7 +337,7 @@ interface RowProps {
           <div className="flex items-center gap-4">
              <div className="w-14 h-14 rounded-2xl bg-slate-100 p-2 overflow-hidden border border-slate-200/50 shadow-sm relative group-hover:scale-105 transition-transform">
                 {(exercise.static_frame_url || exercise.image_url) ? (
-                  <img src={exercise.static_frame_url || exercise.image_url} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                  <img src={exercise.static_frame_url || exercise.image_url} alt="" className="w-full h-full object-contain" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-200"><Dumbbell size={20} /></div>
                 )}
@@ -480,7 +480,7 @@ interface GridCardProps {
 
        <div className="h-40 bg-slate-50/50 rounded-[2rem] border border-slate-100 mb-6 p-4 flex items-center justify-center relative overflow-hidden group/thumb">
           {(exercise.static_frame_url || exercise.image_url) ? (
-            <img src={exercise.static_frame_url || exercise.image_url} alt="" className="w-full h-full object-contain group-hover/thumb:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
+            <img src={exercise.static_frame_url || exercise.image_url} alt="" className="w-full h-full object-contain group-hover/thumb:scale-110 transition-transform duration-700" />
           ) : (
             <Dumbbell size={32} className="text-slate-200" />
           )}

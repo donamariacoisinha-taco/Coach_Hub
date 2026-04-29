@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/api/supabase';
 import { Exercise } from '../../../types';
 
 export const mediaApi = {
-  async uploadAsset(file: File, path: string, bucket: string = 'exercise-assets') {
+  async uploadAsset(file: File, path: string, bucket: string = 'exercise-images') {
     // Generate SEO friendly name
     const timestamp = Date.now();
     const isStaticFrame = path.includes('static-frames');
@@ -21,20 +21,21 @@ export const mediaApi = {
       .from(bucket)
       .upload(filePath, file, { 
         cacheControl: '3600',
-        upsert: false 
+        upsert: true 
       });
 
     if (uploadError) throw uploadError;
 
-    const { data: { publicUrl } } = supabase.storage
+    const result = supabase.storage
       .from(bucket)
       .getPublicUrl(filePath);
 
-    return publicUrl;
+    return result.data?.publicUrl || '';
   },
 
-  async deleteAsset(url: string, bucket: string = 'exercise-assets') {
+  async deleteAsset(url: string, bucket: string = 'exercise-images') {
     try {
+      if (!url.includes(bucket)) return;
       const path = url.split(`${bucket}/`)[1];
       if (!path) return;
       await supabase.storage.from(bucket).remove([path]);

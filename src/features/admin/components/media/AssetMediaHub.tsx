@@ -208,7 +208,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
                     <div className="space-y-4">
                        <InfoItem label="Performance" value="Load time < 100ms" />
                        <InfoItem label="Seo" value="Alt-tags automáticas" />
-                       <InfoItem label="Storage" value="Bucket: exercise-assets" />
+                       <InfoItem label="Storage" value="Bucket: exercise-images" />
                     </div>
                  </div>
 
