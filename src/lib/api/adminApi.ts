@@ -1,6 +1,7 @@
 
 import { supabase } from './supabase';
 import { Exercise, MuscleGroup } from '../../types';
+import { cloudinaryService } from '../../services/cloudinaryService';
 
 export const adminApi = {
   // Helper para sanitizar nomes
@@ -110,16 +111,9 @@ export const adminApi = {
     }
   },
 
-  async uploadExerciseImage(file: File, exerciseId: string) {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${exerciseId}-${Math.random()}.${fileExt}`;
-    const filePath = `exercises/${fileName}`;
-    
-    const { error: uploadError } = await supabase.storage.from('exercise-images').upload(filePath, file, { upsert: true });
-    if (uploadError) throw uploadError;
-    
-    const { data: { publicUrl } } = supabase.storage.from('exercise-images').getPublicUrl(filePath);
-    return publicUrl;
+  async uploadExerciseImage(file: File, _exerciseId: string) {
+    const url = await cloudinaryService.uploadImage(file);
+    return url;
   },
 
   async updateMuscleGroup(id: string, payload: Partial<MuscleGroup>) {

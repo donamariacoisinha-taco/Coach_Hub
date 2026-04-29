@@ -18,7 +18,7 @@ import { useErrorHandler } from '../../../../hooks/useErrorHandler';
 interface Props {
   value: string;
   onChange: (url: string) => void;
-  onUpload: (file: File) => Promise<string>;
+  onUpload: (file: File, onProgress?: (p: number) => void) => Promise<string>;
   label: string;
   className?: string;
   aspect?: 'square' | 'video' | 'portrait';
@@ -40,13 +40,12 @@ export const ImageUploader: React.FC<Props> = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [cropImage, setCropImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const { showError } = useErrorHandler();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    console.log('[FILE_SELECTED]', file.name, file.size, file.type);
 
     if (aspect === 'square') {
       const reader = new FileReader();
@@ -58,17 +57,15 @@ export const ImageUploader: React.FC<Props> = ({
       performUpload(file);
     }
     
-    // Reset input so same file can be selected again
     e.target.value = '';
   };
 
   const performUpload = async (file: File | Blob) => {
-    console.log('[UPLOAD_START]', label);
     setIsUploading(true);
+    setUploadProgress(0);
     try {
-      const uploadFile = file instanceof File ? file : new File([file], 'cropped-image.webp', { type: 'image/webp' });
-      const url = await onUpload(uploadFile);
-      console.log('[UPLOAD_SUCCESS]', url);
+      const uploadFile = file instanceof File ? file : new File([file], 'image.webp', { type: 'image/webp' });
+      const url = await onUpload(uploadFile, (p) => setUploadProgress(p));
       onChange(url);
     } catch (err: any) {
       console.error('[UPLOAD_ERROR]', err);
@@ -111,6 +108,36 @@ export const ImageUploader: React.FC<Props> = ({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
+        {isUploading && (
+          <div className="absolute inset-0 z-20 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center space-y-4">
+            <div className="relative w-20 h-20">
+              <svg className="w-full h-full transform -rotate-90">
+                <circle 
+                  cx="40" cy="40" r="36" 
+                  stroke="currentColor" strokeWidth="4" fill="transparent" 
+                  className="text-slate-100" 
+                />
+                <circle 
+                  cx="40" cy="40" r="36" 
+                  stroke="currentColor" strokeWidth="4" fill="transparent" 
+                  strokeDasharray={226}
+                  strokeDashoffset={226 - (226 * uploadProgress) / 100}
+                  className="text-blue-600 transition-all duration-300" 
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center flex-col">
+                <span className="text-xs font-black text-slate-900">{uploadProgress}%</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-900 animate-pulse">
+                {uploadProgress < 100 ? 'Enviando para Cloudinary...' : 'Otimizando Imagem...'}
+              </p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Otimização Profissional Ativa</p>
+            </div>
+          </div>
+        )}
+
         {value ? (
           <>
             <img 

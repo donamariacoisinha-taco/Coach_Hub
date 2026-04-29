@@ -80,7 +80,12 @@ export const useMediaUpload = () => {
 
       updateProgress(uploadId, { status: 'uploading', progress: 40 });
       
-      const url = await mediaApi.uploadAsset(fileToUpload, path);
+      const url = await mediaApi.uploadAsset(
+        fileToUpload, 
+        path, 
+        'exercise-images', 
+        (p) => updateProgress(uploadId, { progress: Math.max(40, p) })
+      );
       
       console.log('[UPLOAD_SUCCESS]', url);
       updateProgress(uploadId, { status: 'completed', progress: 100 });

@@ -1,46 +1,24 @@
 
 import { supabase } from '../../../lib/api/supabase';
 import { Exercise } from '../../../types';
+import { cloudinaryService } from '../../../services/cloudinaryService';
 
 export const mediaApi = {
-  async uploadAsset(file: File, path: string, bucket: string = 'exercise-images') {
-    // Generate SEO friendly name
-    const timestamp = Date.now();
+  async uploadAsset(file: File, path: string, _bucket: string = 'exercise-images', onProgress?: (p: number) => void) {
+    // Determine subfolder based on path hint
     const isStaticFrame = path.includes('static-frames');
+    const folder = isStaticFrame ? 'static-frames' : 'images';
     
-    let filePath: string;
-    if (isStaticFrame) {
-      // Requirement: /static-frames/{exerciseId}/{timestamp}.webp
-      filePath = `${path}/${timestamp}.webp`;
-    } else {
-      const cleanName = file.name.toLowerCase().replace(/[^a-z0-9.]/g, '-');
-      filePath = `${path}/${timestamp}-${cleanName}`;
-    }
-
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file, { 
-        cacheControl: '3600',
-        upsert: true 
-      });
-
-    if (uploadError) throw uploadError;
-
-    const result = supabase.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
-
-    return result.data?.publicUrl || '';
+    // Use Cloudinary service
+    const url = await cloudinaryService.uploadImage(file, folder, onProgress);
+    return url;
   },
 
-  async deleteAsset(url: string, bucket: string = 'exercise-images') {
+  async deleteAsset(url: string, _bucket: string = 'exercise-images') {
     try {
-      if (!url.includes(bucket)) return;
-      const path = url.split(`${bucket}/`)[1];
-      if (!path) return;
-      await supabase.storage.from(bucket).remove([path]);
+      await cloudinaryService.deleteAsset(url);
     } catch (err) {
-      console.warn('[MEDIA] Failed to delete asset file, but proceeding:', err);
+      console.warn('[MEDIA] Failed to delete Cloudinary asset, but proceeding:', err);
     }
   },
 

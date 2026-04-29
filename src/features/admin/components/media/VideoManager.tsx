@@ -33,14 +33,14 @@ export const VideoManager: React.FC<Props> = ({ value, onChange, onUpload }) => 
     const vimeoMatch = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/);
     if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
 
-    // Direct MP4
-    if (url.endsWith('.mp4') || url.includes('supabase.co')) return url;
+    // Direct MP4 or Cloudinary/Supabase
+    if (url.endsWith('.mp4') || url.includes('supabase.co') || url.includes('cloudinary.com')) return url;
 
     return null;
   };
 
   const embedUrl = getEmbedUrl(value);
-  const isDirect = value.endsWith('.mp4') || value.includes('supabase.co');
+  const isDirect = value.endsWith('.mp4') || value.includes('supabase.co') || value.includes('cloudinary.com');
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
