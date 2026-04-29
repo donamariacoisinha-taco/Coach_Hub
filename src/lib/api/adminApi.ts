@@ -16,8 +16,17 @@ export const adminApi = {
   },
 
   async updateExercise(id: string, payload: Partial<Exercise>) {
-    // Sanitize payload
-    const { id: _, created_at, ...updateData } = payload as any;
+    // Sanitize payload: remove id and other non-updatable fields
+    const { 
+      id: _, 
+      created_at, 
+      muscle_groups, 
+      ai_issues, 
+      ai_suggestions, 
+      version_history, 
+      ...updateData 
+    } = payload as any;
+    
     let currentPayload = { ...updateData };
     
     // Sanitização básica
@@ -26,86 +35,114 @@ export const adminApi = {
     }
 
     // Mapeamento de compatibilidade agressivo: static_frame_url sempre espelha image_url
-    // Isso garante que se a coluna no DB faltar, a imagem principal continue salva.
     if (currentPayload.static_frame_url) {
       currentPayload.image_url = currentPayload.static_frame_url;
     }
     
+    console.log('[ADMIN_DB_UPDATE_START]', { id, fields: Object.keys(currentPayload) });
+
     while (true) {
       try {
         const { error } = await supabase.from('exercises').update(currentPayload).eq('id', id);
         if (error) {
+          console.error('[ADMIN_DB_UPDATE_ERROR_RAW]', error);
           if (error.code === '23505') {
             throw new Error('Já existe um exercício com este nome.');
           }
           throw error;
         }
+        console.log('[ADMIN_DB_UPDATE_SUCCESS]');
         return; // Success
       } catch (err: any) {
         const msg = err.message || '';
-        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist');
+        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist') || msg.includes('PGRST204');
 
         if (isColumnError) {
           const match = msg.match(/column "([^"]+)"/) || 
                         msg.match(/named "([^"]+)"/) || 
                         msg.match(/column '([^']+)'/) ||
-                        msg.match(/named '([^']+)'/);
+                        msg.match(/named '([^']+)'/) ||
+                        msg.match(/field "([^"]+)"/);
           
           const badColumn = match ? match[1] : null;
 
           if (badColumn) {
-            console.warn(`[ADMIN] Removing missing column from update: ${badColumn}`);
-            const { [badColumn as keyof typeof currentPayload]: _, ...remaining } = currentPayload;
+            console.warn(`[ADMIN] Auto-removing missing column from update: ${badColumn}`);
+            const { [badColumn]: _, ...remaining } = currentPayload;
             currentPayload = remaining;
             
-            if (Object.keys(currentPayload).length === 0) return;
+            if (Object.keys(currentPayload).length === 0) {
+              console.warn('[ADMIN] All columns removed, nothing left to update');
+              return;
+            }
             continue; // Retry
           }
         }
+        console.error('[ADMIN_DB_UPDATE_FINAL_FAILURE]', err);
         throw err;
       }
     }
   },
 
   async createExercise(payload: Partial<Exercise>) {
-    let currentPayload = { ...payload };
+    const { 
+      id, 
+      created_at, 
+      muscle_groups, 
+      ai_issues, 
+      ai_suggestions, 
+      version_history,
+      ...cleanData 
+    } = payload as any;
+
+    let currentPayload = {
+      ...cleanData,
+      id: id || crypto.randomUUID(),
+      created_at: new Date().toISOString()
+    };
     
     // Sanitização básica
     if (currentPayload.name) {
       currentPayload.name = currentPayload.name.trim().replace(/\s+/g, ' ');
     }
     
+    console.log('[ADMIN_DB_INSERT_START]', { fields: Object.keys(currentPayload) });
+
     while (true) {
       try {
         const { error } = await supabase.from('exercises').insert([currentPayload]);
         if (error) {
+          console.error('[ADMIN_DB_INSERT_ERROR_RAW]', error);
           if (error.code === '23505') {
             throw new Error('Já existe um exercício com este nome.');
           }
           throw error;
         }
+        console.log('[ADMIN_DB_INSERT_SUCCESS]');
         return; // Success
       } catch (err: any) {
         const msg = err.message || '';
-        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist');
+        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist') || msg.includes('PGRST204');
 
         if (isColumnError) {
           const match = msg.match(/column "([^"]+)"/) || 
                         msg.match(/named "([^"]+)"/) || 
                         msg.match(/column '([^']+)'/) ||
-                        msg.match(/named '([^']+)'/);
+                        msg.match(/named '([^']+)'/) ||
+                        msg.match(/field "([^"]+)"/);
           
           const badColumn = match ? match[1] : null;
 
           if (badColumn) {
-            console.warn(`[ADMIN] Removing missing column from insert: ${badColumn}`);
-            const { [badColumn as keyof typeof currentPayload]: _, ...remaining } = currentPayload;
+            console.warn(`[ADMIN] Auto-removing missing column from insert: ${badColumn}`);
+            const { [badColumn]: _, ...remaining } = currentPayload;
             currentPayload = remaining;
             
             if (Object.keys(currentPayload).length === 0) throw err;
             continue; // Retry
           }
         }
+        console.error('[ADMIN_DB_INSERT_FINAL_FAILURE]', err);
         throw err;
       }
     }

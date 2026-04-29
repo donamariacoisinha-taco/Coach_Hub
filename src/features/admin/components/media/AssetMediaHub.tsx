@@ -92,7 +92,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
   const handleSave = async () => {
     if (saving || isUploading) return;
     setSaving(true);
-    console.log('[DB_UPDATE_START]', localData);
+    console.log('[ASSET_HUB_SAVE_START]', { exerciseId: exercise.id, hasChanges });
     try {
       // Sync static_frame_url to image_url for maximum compatibility
       const dataToSave = { ...localData };
@@ -101,17 +101,18 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
       }
 
       await mediaApi.updateExerciseMedia(exercise.id, dataToSave);
-      console.log('[DB_UPDATE_SUCCESS]');
+      console.log('[ASSET_HUB_SAVE_SUCCESS]');
       
       // Update local state and parent with synchronized data
       setLocalData(dataToSave);
-      onUpdate(dataToSave);
+      if (onUpdate) onUpdate(dataToSave);
       
       setHasChanges(false);
-      showSuccess('Mídias Atualizadas', 'As alterações foram sincronizadas com o servidor.');
+      showSuccess('Mídias Sincronizadas', 'Alterações salvas com sucesso via Cloudinary Service.');
     } catch (err: any) {
-      console.error('[DB_UPDATE_ERROR]', err);
-      showError(err.message || 'Erro ao salvar mídias');
+      console.error('[ASSET_HUB_SAVE_ERROR]', err);
+      const errorMessage = err.message || (typeof err === 'string' ? err : 'Ocorreu um erro ao salvar as mídias.');
+      showError(`Falha Crítica: ${errorMessage}`);
     } finally {
       setSaving(false);
     }

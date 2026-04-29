@@ -24,7 +24,16 @@ export const mediaApi = {
 
   async updateExerciseMedia(exerciseId: string, payload: Partial<Exercise>) {
     // Sanitize payload: remove id and other non-updatable fields
-    const { id, created_at, ...updateData } = payload as any;
+    // We also remove objects/arrays that might be relations and not columns
+    const { 
+      id, 
+      created_at, 
+      muscle_groups, 
+      ai_issues, 
+      ai_suggestions, 
+      version_history,
+      ...updateData 
+    } = payload as any;
     
     let currentPayload = { 
       ...updateData,
@@ -36,32 +45,44 @@ export const mediaApi = {
       currentPayload.image_url = currentPayload.static_frame_url;
     }
     
+    console.log('[MEDIA_DB_SYNC_START]', { exerciseId, fields: Object.keys(currentPayload) });
+
     while (true) {
       try {
         const { error } = await supabase.from('exercises').update(currentPayload).eq('id', exerciseId);
-        if (error) throw error;
+        if (error) {
+          console.error('[MEDIA_DB_SYNC_ERROR_RAW]', error);
+          throw error;
+        }
+        console.log('[MEDIA_DB_SYNC_SUCCESS]');
         return;
       } catch (err: any) {
         const msg = err.message || '';
-        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist');
+        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist') || msg.includes('PGRST204');
 
         if (isColumnError) {
           // Robust regex to find column name in quotes or single quotes
           const match = msg.match(/column "([^"]+)"/) || 
                         msg.match(/named "([^"]+)"/) || 
                         msg.match(/column '([^']+)'/) ||
-                        msg.match(/named '([^']+)'/);
+                        msg.match(/named '([^']+)'/) ||
+                        msg.match(/field "([^"]+)"/);
           
           const badColumn = match ? match[1] : null;
 
           if (badColumn) {
-            console.warn(`[MEDIA] Removing missing column from update: ${badColumn}`);
-            const { [badColumn as keyof typeof currentPayload]: _, ...remaining } = currentPayload;
-            currentPayload = remaining as any;
-            if (Object.keys(currentPayload).length === 0) return; // Nothing left to update
-            continue; // Retry
+            console.warn(`[MEDIA] Auto-removing missing column from update: ${badColumn}`);
+            const { [badColumn]: _, ...remaining } = currentPayload;
+            currentPayload = remaining;
+            if (Object.keys(currentPayload).length === 0) {
+              console.warn('[MEDIA] All columns removed, nothing to update');
+              return;
+            }
+            continue; // Retry with sanitized payload
           }
         }
+        
+        console.error('[MEDIA_DB_SYNC_FINAL_FAILURE]', err);
         throw err;
       }
     }
