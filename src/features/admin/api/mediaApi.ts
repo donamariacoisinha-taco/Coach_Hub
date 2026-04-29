@@ -49,6 +49,11 @@ export const mediaApi = {
       ...payload,
       updated_at: new Date().toISOString()
     };
+
+    // Mapeamento de compatibilidade agressivo
+    if (currentPayload.static_frame_url) {
+      currentPayload.image_url = currentPayload.static_frame_url;
+    }
     
     while (true) {
       try {
@@ -56,10 +61,12 @@ export const mediaApi = {
         if (error) throw error;
         return;
       } catch (err: any) {
-        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
-          const match = err.message.match(/column '(.*)'/);
-          if (match && match[1]) {
-            const badColumn = match[1];
+        if (err.message?.includes('column') && (err.message?.includes('schema cache') || err.message?.includes('does not exist'))) {
+          const match = err.message.match(/column "(.*)"/);
+          const matchSingle = err.message.match(/column '(.*)'/);
+          const badColumn = (match && match[1]) || (matchSingle && matchSingle[1]);
+
+          if (badColumn) {
             console.warn(`[MEDIA] Removing missing column from update: ${badColumn}`);
             const { [badColumn as keyof typeof currentPayload]: _, ...remaining } = currentPayload;
             currentPayload = remaining as any;

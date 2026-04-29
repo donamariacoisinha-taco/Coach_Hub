@@ -43,16 +43,16 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
   const [hasChanges, setHasChanges] = useState(false);
   const [isFinderOpen, setIsFinderOpen] = useState(false);
 
-  // Auto-save logic
+  // Auto-save logic - Increased delay to 5s to avoid race conditions
   React.useEffect(() => {
-    if (!hasChanges) return;
+    if (!hasChanges || saving) return;
     
     const timeout = setTimeout(() => {
       handleSave();
-    }, 3000); // Auto-save after 3 seconds of inactivity
+    }, 5000); 
     
     return () => clearTimeout(timeout);
-  }, [localData, hasChanges]);
+  }, [localData, hasChanges, saving]);
 
   const handleUpdate = (updates: Partial<Exercise>) => {
     const newData = { ...localData, ...updates };
@@ -88,14 +88,25 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
     }
   };
 
+  // Manual save for better control
   const handleSave = async () => {
     if (saving || isUploading) return;
     setSaving(true);
     console.log('[DB_UPDATE_START]', localData);
     try {
-      await mediaApi.updateExerciseMedia(exercise.id, localData);
+      // Sync static_frame_url to image_url for maximum compatibility
+      const dataToSave = { ...localData };
+      if (dataToSave.static_frame_url) {
+        dataToSave.image_url = dataToSave.static_frame_url;
+      }
+
+      await mediaApi.updateExerciseMedia(exercise.id, dataToSave);
       console.log('[DB_UPDATE_SUCCESS]');
-      onUpdate(localData);
+      
+      // Update local state and parent with synchronized data
+      setLocalData(dataToSave);
+      onUpdate(dataToSave);
+      
       setHasChanges(false);
       showSuccess('Mídias Atualizadas', 'As alterações foram sincronizadas com o servidor.');
     } catch (err: any) {

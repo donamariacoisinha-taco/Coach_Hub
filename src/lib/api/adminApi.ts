@@ -21,6 +21,12 @@ export const adminApi = {
     if (currentPayload.name) {
       currentPayload.name = currentPayload.name.trim().replace(/\s+/g, ' ');
     }
+
+    // Mapeamento de compatibilidade agressivo: static_frame_url sempre espelha image_url
+    // Isso garante que se a coluna no DB faltar, a imagem principal continue salva.
+    if (currentPayload.static_frame_url) {
+      currentPayload.image_url = currentPayload.static_frame_url;
+    }
     
     while (true) {
       try {
@@ -33,17 +39,19 @@ export const adminApi = {
         }
         return; // Success
       } catch (err: any) {
-        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
-          const match = err.message.match(/column '(.*)'/);
-          if (match && match[1]) {
-            const badColumn = match[1];
+        // Se o erro for de coluna inexistente, removemos e tentamos de novo
+        if (err.message?.includes('column') && (err.message?.includes('schema cache') || err.message?.includes('does not exist'))) {
+          const match = err.message.match(/column "(.*)"/); // Note o uso de aspas duplas em mgs de erro do Postgres as vezes
+          const matchSingle = err.message.match(/column '(.*)'/);
+          const badColumn = (match && match[1]) || (matchSingle && matchSingle[1]);
+
+          if (badColumn) {
             console.warn(`[ADMIN] Removing missing column from update: ${badColumn}`);
             const { [badColumn as keyof typeof currentPayload]: _, ...remaining } = currentPayload;
             currentPayload = remaining;
             
-            // If we've removed everything and still get errors, something is very wrong
             if (Object.keys(currentPayload).length === 0) throw err;
-            continue; // Retry with smaller payload
+            continue; // Retry
           }
         }
         throw err;

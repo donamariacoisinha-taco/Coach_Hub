@@ -13,6 +13,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { SquareCropModal } from './SquareCropModal';
+import { useErrorHandler } from '../../../../hooks/useErrorHandler';
 
 interface Props {
   value: string;
@@ -39,6 +40,7 @@ export const ImageUploader: React.FC<Props> = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [cropImage, setCropImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const { showError } = useErrorHandler();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,8 +70,9 @@ export const ImageUploader: React.FC<Props> = ({
       const url = await onUpload(uploadFile);
       console.log('[UPLOAD_SUCCESS]', url);
       onChange(url);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[UPLOAD_ERROR]', err);
+      showError(err);
     } finally {
       setIsUploading(false);
     }

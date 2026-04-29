@@ -87,14 +87,19 @@ const ExerciseEditorV2: React.FC = () => {
 
   const handleSave = async () => {
     try {
+      setSaving(true);
       if (form.id) {
         await updateExercise(form.id, form);
+        showSuccess('Arquitetura Atualizada', 'As alterações foram sincronizadas e gravadas com sucesso.');
       } else {
         await createExercise(form);
+        showSuccess('Nova Entidade Criada', 'O novo exercício foi publicado na biblioteca.');
       }
       closeEditor();
     } catch (err: any) {
-      alert('Error saving: ' + err.message);
+      showError(err);
+    } finally {
+      setSaving(false);
     }
   };
 
