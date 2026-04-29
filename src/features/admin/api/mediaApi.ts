@@ -45,8 +45,11 @@ export const mediaApi = {
   },
 
   async updateExerciseMedia(exerciseId: string, payload: Partial<Exercise>) {
+    // Sanitize payload: remove id and other non-updatable fields
+    const { id, created_at, ...updateData } = payload as any;
+    
     let currentPayload = { 
-      ...payload,
+      ...updateData,
       updated_at: new Date().toISOString()
     };
 
@@ -61,17 +64,24 @@ export const mediaApi = {
         if (error) throw error;
         return;
       } catch (err: any) {
-        if (err.message?.includes('column') && (err.message?.includes('schema cache') || err.message?.includes('does not exist'))) {
-          const match = err.message.match(/column "(.*)"/);
-          const matchSingle = err.message.match(/column '(.*)'/);
-          const badColumn = (match && match[1]) || (matchSingle && matchSingle[1]);
+        const msg = err.message || '';
+        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist');
+
+        if (isColumnError) {
+          // Robust regex to find column name in quotes or single quotes
+          const match = msg.match(/column "([^"]+)"/) || 
+                        msg.match(/named "([^"]+)"/) || 
+                        msg.match(/column '([^']+)'/) ||
+                        msg.match(/named '([^']+)'/);
+          
+          const badColumn = match ? match[1] : null;
 
           if (badColumn) {
             console.warn(`[MEDIA] Removing missing column from update: ${badColumn}`);
             const { [badColumn as keyof typeof currentPayload]: _, ...remaining } = currentPayload;
             currentPayload = remaining as any;
-            if (Object.keys(currentPayload).length === 0) throw err;
-            continue;
+            if (Object.keys(currentPayload).length === 0) return; // Nothing left to update
+            continue; // Retry
           }
         }
         throw err;

@@ -15,7 +15,9 @@ export const adminApi = {
   },
 
   async updateExercise(id: string, payload: Partial<Exercise>) {
-    let currentPayload = { ...payload };
+    // Sanitize payload
+    const { id: _, created_at, ...updateData } = payload as any;
+    let currentPayload = { ...updateData };
     
     // Sanitização básica
     if (currentPayload.name) {
@@ -39,18 +41,23 @@ export const adminApi = {
         }
         return; // Success
       } catch (err: any) {
-        // Se o erro for de coluna inexistente, removemos e tentamos de novo
-        if (err.message?.includes('column') && (err.message?.includes('schema cache') || err.message?.includes('does not exist'))) {
-          const match = err.message.match(/column "(.*)"/); // Note o uso de aspas duplas em mgs de erro do Postgres as vezes
-          const matchSingle = err.message.match(/column '(.*)'/);
-          const badColumn = (match && match[1]) || (matchSingle && matchSingle[1]);
+        const msg = err.message || '';
+        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist');
+
+        if (isColumnError) {
+          const match = msg.match(/column "([^"]+)"/) || 
+                        msg.match(/named "([^"]+)"/) || 
+                        msg.match(/column '([^']+)'/) ||
+                        msg.match(/named '([^']+)'/);
+          
+          const badColumn = match ? match[1] : null;
 
           if (badColumn) {
             console.warn(`[ADMIN] Removing missing column from update: ${badColumn}`);
             const { [badColumn as keyof typeof currentPayload]: _, ...remaining } = currentPayload;
             currentPayload = remaining;
             
-            if (Object.keys(currentPayload).length === 0) throw err;
+            if (Object.keys(currentPayload).length === 0) return;
             continue; // Retry
           }
         }
@@ -78,10 +85,18 @@ export const adminApi = {
         }
         return; // Success
       } catch (err: any) {
-        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
-          const match = err.message.match(/column '(.*)'/);
-          if (match && match[1]) {
-            const badColumn = match[1];
+        const msg = err.message || '';
+        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist');
+
+        if (isColumnError) {
+          const match = msg.match(/column "([^"]+)"/) || 
+                        msg.match(/named "([^"]+)"/) || 
+                        msg.match(/column '([^']+)'/) ||
+                        msg.match(/named '([^']+)'/);
+          
+          const badColumn = match ? match[1] : null;
+
+          if (badColumn) {
             console.warn(`[ADMIN] Removing missing column from insert: ${badColumn}`);
             const { [badColumn as keyof typeof currentPayload]: _, ...remaining } = currentPayload;
             currentPayload = remaining;
