@@ -72,6 +72,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const vibratedAlert5s = useRef(false);
+  const footerRef = useRef<HTMLElement>(null);
+  const [footerHeight, setFooterHeight] = useState(180);
+
+  useEffect(() => {
+    if (footerRef.current) {
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          setFooterHeight(entry.target.clientHeight);
+        }
+      });
+      observer.observe(footerRef.current);
+      return () => observer.disconnect();
+    }
+  }, []);
 
   useEffect(() => {
     // Initialize audio for timer
@@ -388,7 +402,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             </header>
 
             {/* 2. CONTEÚDO SCROLLABLE */}
-            <div className="flex-1 overflow-y-auto pb-80 bg-[#F8FAFC]">
+            <div 
+              className="flex-1 overflow-y-auto bg-[#F8FAFC]"
+              style={{ paddingBottom: `calc(${footerHeight + 32}px + env(safe-area-inset-bottom))` }}
+            >
               
               {/* COMPACT EXERCISE HEADER (DYNAMIC COMPRESSION) */}
               <AnimatePresence>
@@ -597,10 +614,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </button>
               </div>
 
+              {/* FAILSAFE SPACER */}
+              <div style={{ height: footerHeight }} />
+
             </div>
 
             {/* 3. FOOTER FIXO */}
-            <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl">
+            <footer 
+              ref={footerRef}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl"
+            >
               
               {/* COMPACT TIMER BAR (CENTERED) */}
               <div className="flex items-center justify-center gap-8 mb-6">
