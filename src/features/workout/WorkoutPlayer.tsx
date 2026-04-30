@@ -50,9 +50,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [isResting, setIsResting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(90);
   const [restOvertime, setRestOvertime] = useState(0);
-  const [weight, setWeight] = useState(0);
-  const [reps, setReps] = useState(0);
-  const [rpe, setRpe] = useState(8);
+  
+  // Track all sets for the current exercise
+  const [activeSetsData, setActiveSetsData] = useState<{weight: number, reps: number, rpe: number}[]>([]);
+  
   const [lastSet, setLastSet] = useState<LastSetData | null>(null);
   const [previousSet, setPreviousSet] = useState<LastSetData | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -166,18 +167,34 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     };
     fetchLast();
 
-    const plan = currentEx.sets_json?.[currentSet - 1];
-    if (plan) {
-      setWeight(plan.weight || 0);
-      setReps(parseInt(plan.reps as string) || 10);
+    // Initialize active sets data
+    if (currentEx.sets_json) {
+      setActiveSetsData(currentEx.sets_json.map(s => ({
+        weight: s.weight || 0,
+        reps: parseInt(s.reps as string) || 10,
+        rpe: 8
+      })));
     }
-  }, [currentEx, currentSet]);
+  }, [currentEx]);
+
+  // Update a single set's data
+  const updateSetData = (idx: number, field: 'weight' | 'reps' | 'rpe', value: number) => {
+    setActiveSetsData(prev => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [field]: value };
+      return next;
+    });
+  };
 
   const handleCompleteSet = async () => {
     if (saving || !currentEx || !historyId) return;
     
-    const currentSetData = { weight, reps, rpe };
-    const repsTarget = parseInt(currentEx.sets_json?.[currentSet - 1]?.reps as string) || 10;
+    const setIdx = currentSet - 1;
+    const currentSetData = activeSetsData[setIdx];
+    if (!currentSetData) return;
+
+    const { weight, reps, rpe } = currentSetData;
+    const repsTarget = parseInt(currentEx.sets_json?.[setIdx]?.reps as string) || 10;
     
     const emotional = getEmotionalFeedback({
       current: currentSetData,
@@ -190,8 +207,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       lastSet || undefined
     );
 
-    // Optimistic UI
-    setWeight(decision.nextWeight);
+    // Optimistic UI for NEXT set
+    if (setIdx + 1 < activeSetsData.length) {
+       setActiveSetsData(prev => {
+         const next = [...prev];
+         next[setIdx + 1] = { ...next[setIdx + 1], weight: decision.nextWeight };
+         return next;
+       });
+    }
+    
     setFeedback(emotional);
     setPreviousSet(currentSetData);
     setTimeout(() => setFeedback(null), 2500);
@@ -214,6 +238,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         rpe: rpe,
         set_type: SetType.NORMAL
       });
+      
+      // Advance to next set or next exercise
+      if (currentSet < (currentEx.sets_json?.length || 0)) {
+        setCurrentSet(currentSet + 1);
+      } else if (currentIndex < exercises.length - 1) {
+        // Automatically move to next exercise after last set? 
+        // User asked: "Move to next set automatically. Scroll into view."
+        // We handle set advancement above.
+      }
+      
       workoutApi.updatePartialSession(historyId, currentIndex, currentSet).catch(console.error);
     } catch (err) {
       showError(err);
@@ -323,9 +357,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             {/* 2. CONTEÚDO SCROLLABLE */}
             <div className="flex-1 overflow-y-auto pb-48 bg-[#F8FAFC]">
               
-              {/* COMPACT VIDEO/IMAGE PREVIEW */}
-              <div className="px-4 py-4">
-                <div className="w-full aspect-video bg-slate-200 rounded-3xl overflow-hidden border border-white shadow-sm flex-shrink-0 relative group">
+              {/* COMPACT EXERCISE HEADER */}
+              <div className="p-4 flex gap-4 items-center bg-white mb-2">
+                <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden shadow-sm flex-shrink-0 border border-slate-50">
                   {currentEx?.image_url ? (
                     <img 
                       src={currentEx.image_url} 
@@ -335,103 +369,112 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                       <Play className="text-slate-300 fill-slate-300" size={32} />
+                       <Play className="text-slate-300 fill-slate-300" size={24} />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent flex items-end p-4">
-                     <p className="text-white text-[10px] font-black uppercase tracking-widest opacity-80">Tutorial de Execução</p>
-                  </div>
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-base font-bold text-slate-900 leading-tight">
+                    {currentEx?.exercise_name}
+                  </h1>
+                  <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5 line-clamp-1">
+                    {currentEx?.muscle_group} • {currentEx?.equipment || 'Sem equipamento'}
+                  </p>
+                  <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                    Foco na amplitude e contração lenta.
+                  </p>
                 </div>
               </div>
 
-              {/* AÇÕES FIXAS NO BOLSO */}
-              <div className="flex gap-3 px-4 mb-4 sticky top-0 z-10 py-1">
-                <button className="flex-1 bg-white border border-slate-100 rounded-2xl py-3.5 shadow-sm text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-[0.98] transition-all">
-                  <RefreshCw size={14} /> Substituir
+              {/* AÇÕES QUICK */}
+              <div className="flex gap-2 px-4 mb-4">
+                <button 
+                  onClick={() => setShowExercisesList(true)}
+                  className="flex-1 bg-white border border-slate-100 rounded-xl py-2.5 shadow-sm text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-all"
+                >
+                  <RefreshCw size={12} /> Substituir
                 </button>
-                <button className="flex-1 bg-white border border-slate-100 rounded-2xl py-3.5 shadow-sm text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-[0.98] transition-all">
-                  <Plus size={14} /> Nota
+                <button 
+                  onClick={() => showSuccess("Nota adicionada ao exercício!")}
+                  className="flex-1 bg-white border border-slate-100 rounded-xl py-2.5 shadow-sm text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-all"
+                >
+                  <Plus size={12} /> Nota
                 </button>
               </div>
 
-              {/* SERIES LIST (CORE) - High Precision Scroll */}
+              {/* SERIES LIST (CORE) */}
               <div className="px-4 space-y-3 pb-8">
-                {currentEx?.sets_json?.map((setPlan, idx) => {
+                {activeSetsData.map((setData, idx) => {
                   const isCurrent = idx === currentSet - 1;
                   const isPast = idx < currentSet - 1;
+                  const plan = currentEx?.sets_json?.[idx];
                   
                   return (
                     <div 
                       key={idx}
                       ref={(el) => (setRefs.current[idx] = el)}
-                      className={`flex items-center justify-between px-5 py-6 rounded-[2.5rem] transition-all duration-300 border-2 ${
+                      className={`flex items-center justify-between p-4 rounded-2xl transition-all duration-300 border-2 ${
                         isCurrent 
-                          ? "bg-white border-orange-500 shadow-xl shadow-orange-500/10 ring-8 ring-orange-500/5 scale-[1.02] translate-x-1" 
+                          ? "bg-white border-orange-500 shadow-lg shadow-orange-500/5 scale-[1.02]" 
                           : isPast 
                             ? "bg-slate-100/50 border-transparent opacity-60" 
                             : "bg-white border-slate-100/50"
                       }`}
                     >
-                      <div className="flex items-center gap-5">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
-                          isCurrent ? "bg-orange-500 text-white shadow-lg" : isPast ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400"
+                      <div className="flex items-center gap-4">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
+                          isCurrent ? "bg-orange-500 text-white shadow-md" : isPast ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400"
                         }`}>
-                          {isPast ? <Check size={18} strokeWidth={4} /> : idx + 1}
+                          {isPast ? <Check size={16} strokeWidth={4} /> : idx + 1}
                         </div>
                         
-                        <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-4">
                            <div className="text-center">
                               <input 
                                 type="number"
-                                value={isCurrent ? weight : setPlan.weight}
-                                onChange={(e) => isCurrent && setWeight(parseFloat(e.target.value) || 0)}
-                                className={`text-3xl font-[1000] w-16 bg-transparent border-none p-0 focus:ring-0 text-center transition-colors ${
+                                value={setData.weight}
+                                onChange={(e) => updateSetData(idx, 'weight', parseFloat(e.target.value) || 0)}
+                                className={`text-xl font-black w-14 bg-transparent border-none p-0 focus:ring-0 text-center transition-colors ${
                                   isCurrent ? "text-slate-900" : "text-slate-400"
                                 }`}
                                 onFocus={(e) => e.target.select()}
-                                disabled={!isCurrent}
-                                autoFocus={isCurrent}
                               />
-                              <p className="text-[9px] font-black text-slate-300 tracking-widest mt-1 opacity-60 uppercase">Carga (kg)</p>
+                              <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">Kg</p>
                            </div>
                            <div className="text-center">
                               <input 
                                 type="number"
-                                value={isCurrent ? reps : setPlan.reps}
-                                onChange={(e) => isCurrent && setReps(parseInt(e.target.value) || 0)}
-                                className={`text-3xl font-[1000] w-14 bg-transparent border-none p-0 focus:ring-0 text-center transition-colors ${
+                                value={setData.reps}
+                                onChange={(e) => updateSetData(idx, 'reps', parseInt(e.target.value) || 0)}
+                                className={`text-xl font-black w-10 bg-transparent border-none p-0 focus:ring-0 text-center transition-colors ${
                                   isCurrent ? "text-slate-900" : "text-slate-400"
                                 }`}
                                 onFocus={(e) => e.target.select()}
-                                disabled={!isCurrent}
                               />
-                              <p className="text-[9px] font-black text-slate-300 tracking-widest mt-1 opacity-60 uppercase">Reps</p>
+                              <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">Reps</p>
                            </div>
                         </div>
                       </div>
 
-                      {isCurrent ? (
-                        <div className="flex flex-col items-center">
-                           <div className="flex gap-1.5">
-                              {[8, 9, 10].map(v => (
-                                <button 
-                                  key={v}
-                                  onClick={() => setRpe(v)}
-                                  className={`w-9 h-9 rounded-xl text-[10px] font-black transition-all ${
-                                    rpe === v ? "bg-slate-900 text-white shadow-lg scale-110" : "bg-slate-50 text-slate-300 hover:text-slate-400"
-                                  }`}
-                                >
-                                  {v}
-                                </button>
-                              ))}
-                           </div>
-                           <p className="text-[8px] font-black text-slate-300 mt-2 tracking-widest uppercase">Esforço (RPE)</p>
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 flex items-center justify-center text-slate-200">
-                          {!isPast && <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />}
-                        </div>
-                      )}
+                      <div className="flex flex-col items-center">
+                         <div className="flex gap-1">
+                            {[8, 9, 10].map(v => (
+                              <button 
+                                key={v}
+                                onClick={() => updateSetData(idx, 'rpe', v)}
+                                className={`w-7 h-7 rounded-lg text-[9px] font-black transition-all ${
+                                  setData.rpe === v 
+                                    ? (isCurrent ? "bg-slate-900 text-white shadow-md scale-110" : "bg-slate-400 text-white")
+                                    : "bg-slate-50 text-slate-300 hover:text-slate-400"
+                                }`}
+                              >
+                                {v}
+                              </button>
+                            ))}
+                         </div>
+                         <p className="text-[8px] font-black text-slate-300 mt-1 tracking-widest uppercase">RPE</p>
+                      </div>
                     </div>
                   );
                 })}
@@ -472,62 +515,51 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </button>
               </div>
 
-            </div>
-
-            {/* 3. FOOTER FIXO (CENTRALIZED TIMER) */}
-            <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t p-4 pb-8 max-w-md mx-auto shadow-[0_-20px_60px_rgba(0,0,0,0.12)] rounded-t-[3rem]">
+            {/* 3. FOOTER FIXO */}
+            <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-[2.5rem]">
               
-              <div className="flex flex-col items-center mb-6">
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-4">
-                  {isResting ? "Intervalo de Descanso" : "Descanso Recomendado"}
-                </p>
-                
-                <div className="flex items-center gap-10">
-                  <button 
-                    onClick={() => { setTimeLeft(prev => Math.max(0, prev - 10)); }}
-                    className="w-14 h-14 bg-slate-50 text-slate-500 rounded-2xl flex items-center justify-center active:bg-slate-100 active:scale-90 transition-all font-[1000] text-sm shadow-sm"
-                  >
-                    -10
-                  </button>
+              {/* COMPACT TIMER BAR (CENTERED) */}
+              <div className="flex items-center justify-center gap-8 mb-6">
+                <button 
+                  onClick={() => setTimeLeft(prev => Math.max(0, prev - 10))}
+                  className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:scale-90 transition-all font-black text-sm"
+                >
+                  -10
+                </button>
 
-                  <div className="flex flex-col items-center min-w-[120px]">
-                    <span className={`text-6xl font-[1000] tabular-nums tracking-tighter leading-none transition-colors ${
-                      isResting 
-                        ? (timeLeft <= 5 ? "text-red-500 animate-pulse" : "text-blue-600") 
-                        : "text-slate-100"
-                    }`}>
-                      {isResting ? formatTime(timeLeft) : "0:00"}
-                    </span>
-                    {isResting && restOvertime > 0 && (
-                      <span className="text-[10px] font-black text-red-500 mt-2 uppercase tracking-widest">
-                        Limite +{restOvertime}s
-                      </span>
-                    )}
-                  </div>
-
-                  <button 
-                    onClick={() => { setTimeLeft(prev => prev + 10); }}
-                    className="w-14 h-14 bg-slate-50 text-slate-500 rounded-2xl flex items-center justify-center active:bg-slate-100 active:scale-90 transition-all font-[1000] text-sm shadow-sm"
-                  >
-                    +10
-                  </button>
+                <div className="flex flex-col items-center min-w-[100px]">
+                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Descanso</p>
+                  <span className={`text-4xl font-black tabular-nums transition-all ${
+                    isResting 
+                      ? (timeLeft <= 5 ? "text-red-500 animate-pulse" : "text-blue-600") 
+                      : "text-slate-100"
+                  }`}>
+                    {formatTime(isResting ? timeLeft : 0)}
+                  </span>
                 </div>
+
+                <button 
+                  onClick={() => setTimeLeft(prev => prev + 10)}
+                  className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:scale-90 transition-all font-black text-sm"
+                >
+                  +10
+                </button>
               </div>
 
               <button
                 onClick={isResting ? () => { setIsResting(false); setRestOvertime(0); } : handleCompleteSet}
                 disabled={saving}
-                className={`w-full py-6 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all active:scale-[0.96] flex items-center justify-center gap-3 shadow-2xl ${
+                className={`w-full py-5 rounded-2xl text-sm font-black uppercase tracking-widest transition-all active:scale-[0.97] flex items-center justify-center gap-3 shadow-xl ${
                   isResting 
-                    ? "bg-slate-900 text-white shadow-slate-900/30" 
-                    : "bg-orange-500 text-white shadow-orange-500/40"
+                    ? "bg-slate-900 text-white" 
+                    : "bg-orange-500 text-white shadow-orange-500/20"
                 }`}
               >
                 {saving ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
                   <>
-                    {isResting ? "Voltar ao Treino" : "Confirmar Série"}
+                    {isResting ? "Concluir Descanso" : "Concluir Série"}
                     {!isResting && <ArrowRight size={18} strokeWidth={4} />}
                   </>
                 )}
@@ -536,7 +568,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
           </div>
         </div>
-      </ScreenState>
+      </div>
+    </ScreenState>
 
       {/* OVERLAY DE LISTA DE EXERCÍCIOS */}
       <AnimatePresence>
