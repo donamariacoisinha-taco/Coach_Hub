@@ -67,6 +67,36 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [showExercisesList, setShowExercisesList] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
+  // Smart Footer Logic
+  const [isFooterVisible, setIsFooterVisible] = useState(true);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const lastScrollY = useRef(0);
+  const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const currentScrollY = e.currentTarget.scrollTop;
+    const maxScroll = e.currentTarget.scrollHeight - e.currentTarget.clientHeight;
+    
+    // Always show if at top or bottom
+    if (currentScrollY < 20 || currentScrollY >= maxScroll - 20) {
+      setIsFooterVisible(true);
+    } else if (Math.abs(currentScrollY - lastScrollY.current) > 10) {
+      if (currentScrollY > lastScrollY.current) {
+        setIsFooterVisible(false);
+      } else {
+        setIsFooterVisible(true);
+      }
+    }
+    
+    lastScrollY.current = currentScrollY;
+
+    // Show after stopping
+    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+    scrollTimeout.current = setTimeout(() => {
+      setIsFooterVisible(true);
+    }, 600);
+  };
+
   // Auto-scroll refs
   const setRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -404,6 +434,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             {/* 2. CONTEÚDO SCROLLABLE */}
             <div 
               className="flex-1 overflow-y-auto bg-[#F8FAFC]"
+              onScroll={handleScroll}
+              onClick={() => setIsFooterVisible(true)}
               style={{ paddingBottom: `calc(${footerHeight + 32}px + env(safe-area-inset-bottom))` }}
             >
               
@@ -517,7 +549,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                 className={`text-xl font-black w-20 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
                                   isCurrent ? "text-slate-900" : "text-slate-400"
                                 }`}
-                                onFocus={(e) => e.target.select()}
+                                onFocus={(e) => {
+                                  e.target.select();
+                                  setIsInputFocused(true);
+                                  setIsFooterVisible(true);
+                                }}
+                                onBlur={() => setIsInputFocused(false)}
                               />
                               <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">Kg</p>
                               
@@ -537,7 +574,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                 className={`text-xl font-black w-14 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
                                   isCurrent ? "text-slate-900" : "text-slate-400"
                                 }`}
-                                onFocus={(e) => e.target.select()}
+                                onFocus={(e) => {
+                                  e.target.select();
+                                  setIsInputFocused(true);
+                                  setIsFooterVisible(true);
+                                }}
+                                onBlur={() => setIsInputFocused(false)}
                               />
                               <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">Reps</p>
                            </div>
@@ -620,9 +662,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             </div>
 
             {/* 3. FOOTER FIXO */}
-            <footer 
+            <motion.footer 
               ref={footerRef}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl"
+              initial={{ y: 0, opacity: 1 }}
+              animate={{ 
+                y: (isFooterVisible || isResting || isInputFocused) ? 0 : '100%',
+                opacity: (isFooterVisible || isResting || isInputFocused) ? 1 : 0
+              }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl"
             >
               
               {/* COMPACT TIMER BAR (CENTERED) */}
@@ -686,7 +734,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </>
                 )}
               </motion.button>
-            </footer>
+            </motion.footer>
           </div>
         </motion.div>
       </ScreenState>
