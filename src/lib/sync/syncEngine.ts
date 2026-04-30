@@ -33,7 +33,7 @@ class SyncEngine {
 
     for (const item of queue) {
       try {
-        const success = await this.processItem(item);
+        const { success, error } = await this.processItem(item);
         if (success) {
           await offlineQueue.removeFromQueue(item.id);
           successCount++;
@@ -41,10 +41,10 @@ class SyncEngine {
         } else {
           failCount++;
           item.retryCount++;
-          console.warn(`[SyncEngine] RETRY: Item ${item.id} failed (${item.retryCount}/3)`);
+          console.warn(`[SyncEngine] RETRY: Item ${item.id} failed (${item.retryCount}/3). Error: ${error?.message || 'Unknown'}`);
           
           if (item.retryCount >= 3) {
-            console.error(`[SyncEngine] DISCARD: Item ${item.id} failed after 3 retries.`);
+            console.error(`[SyncEngine] DISCARD: Item ${item.id} failed after 3 retries. Last error: ${error?.message || 'Unknown'}`);
             await offlineQueue.removeFromQueue(item.id);
           } else {
             await offlineQueue.updateItem(item);
@@ -64,17 +64,24 @@ class SyncEngine {
     console.log(`[SyncEngine] END: ${successCount} succeeded, ${failCount} failed. ${remaining.length} remaining.`);
   }
 
-  private async processItem(item: QueueItem): Promise<boolean> {
+  private async processItem(item: QueueItem): Promise<{ success: boolean; error?: any }> {
     try {
       if (item.type === 'SAVE_SET') {
         const { error } = await workoutApi.saveSetLog(item.payload);
         // If error is uniqueness constraint (idempotency), it's a success
-        if (error && (error as any).code === '23505') return true; 
-        return !error;
+        if (error && (error as any).code === '23505') return { success: true }; 
+        
+        // If error is foreign key violation, it's orphan, discard it
+        if (error && (error as any).code === '23503') {
+          console.warn(`[SyncEngine] DISCARD: Item ${item.id} is orphaned (FK violation).`);
+          return { success: true }; // Return true to trigger removal from queue
+        }
+
+        return { success: !error, error };
       }
-      return true;
+      return { success: true };
     } catch (err) {
-      return false;
+      return { success: false, error: err };
     }
   }
 }

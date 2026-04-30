@@ -2,6 +2,7 @@
 import { workoutApi } from './api/workoutApi';
 import { offlineQueue } from './offline/offlineQueue';
 import { SetType } from '../types';
+import { authApi } from './api/authApi';
 
 interface SaveSetData {
   history_id: string;
@@ -19,8 +20,16 @@ export const saveSet = async (data: SaveSetData): Promise<{ success: boolean, cl
   // 1. Generate unique client_id for idempotency
   const client_id = crypto.randomUUID();
 
+  // Ensure user_id is present for RLS
+  let user_id = data.user_id;
+  if (!user_id) {
+    const user = await authApi.getUser();
+    user_id = user?.id;
+  }
+
   const payload = {
     ...data,
+    user_id,
     client_id,
     created_at: new Date().toISOString()
   };

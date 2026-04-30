@@ -122,7 +122,9 @@ export const workoutApi = {
 
   async abandonWorkout(historyId: string) {
     // Primeiro limpamos todas as dependências que podem ter chaves estrangeiras
+    const { offlineQueue } = await import('../offline/offlineQueue');
     await Promise.all([
+      offlineQueue.clearByHistoryId(historyId),
       supabase.from('workout_sets_log').delete().eq('history_id', historyId),
       supabase.from('partial_workout_sessions').delete().eq('history_id', historyId)
     ]);

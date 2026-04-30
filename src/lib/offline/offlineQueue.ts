@@ -48,6 +48,15 @@ class OfflineQueue {
     await db.delete(STORE_NAME, id);
   }
 
+  async clearByHistoryId(historyId: string): Promise<void> {
+    const db = await this.db;
+    const items = await db.getAll(STORE_NAME);
+    const toRemove = items.filter(item => item.payload?.history_id === historyId);
+    for (const item of toRemove) {
+      await db.delete(STORE_NAME, item.id);
+    }
+  }
+
   async updateItem(item: QueueItem): Promise<void> {
     const db = await this.db;
     await db.put(STORE_NAME, item);

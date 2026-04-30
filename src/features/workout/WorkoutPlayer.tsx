@@ -359,8 +359,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
       setSaving(true);
       try {
+        const user = await authApi.getUser();
         await saveSet({ 
           history_id: historyId,
+          user_id: user?.id,
           exercise_id: currentEx.exercise_id,
           exercise_name_snapshot: currentEx.exercise_name,
           set_number: currentSet,
