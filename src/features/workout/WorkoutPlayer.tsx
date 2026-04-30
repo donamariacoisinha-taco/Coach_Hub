@@ -388,7 +388,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             </header>
 
             {/* 2. CONTEÚDO SCROLLABLE */}
-            <div className="flex-1 overflow-y-auto pb-48 bg-[#F8FAFC]">
+            <div className="flex-1 overflow-y-auto pb-64 bg-[#F8FAFC]">
               
               {/* COMPACT EXERCISE HEADER (DYNAMIC COMPRESSION) */}
               <AnimatePresence>
@@ -433,13 +433,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               <div className={`flex gap-2 px-4 transition-all duration-500 ${momentum ? "mb-2 mt-2" : "mb-4"}`}>
                 <button 
                   onClick={() => setShowExercisesList(true)}
-                  className="flex-1 bg-white border border-slate-100 rounded-xl py-2.5 shadow-sm text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-all"
+                  className="flex-1 bg-white border border-slate-100 rounded-xl py-2.5 shadow-sm text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-all h-[44px]"
                 >
                   <RefreshCw size={12} /> Substituir
                 </button>
                 <button 
                   onClick={() => showSuccess("Nota adicionada ao exercício!")}
-                  className="flex-1 bg-white border border-slate-100 rounded-xl py-2.5 shadow-sm text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-all"
+                  className="flex-1 bg-white border border-slate-100 rounded-xl py-2.5 shadow-sm text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-all h-[44px]"
                 >
                   <Plus size={12} /> Nota
                 </button>
@@ -548,6 +548,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     </motion.div>
                   );
                 })}
+
+                {/* BOTÃO ADICIONAR SÉRIE (ERGO) */}
+                <button 
+                  onClick={() => {
+                    const lastData = activeSetsData[activeSetsData.length - 1] || { weight: 0, reps: 10, rpe: 8 };
+                    setActiveSetsData(prev => [...prev, { ...lastData }]);
+                    // O auto-scroll lidará com o foco se for a próxima série
+                  }}
+                  className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-orange-200 hover:text-orange-500 transition-all flex items-center justify-center gap-2 mt-4 hover:bg-orange-50/30 h-[56px]"
+                >
+                  <Plus size={14} /> Adicionar Série
+                </button>
               </div>
 
               {/* FEEDBACK INTELIGENTE (IA) */}
@@ -588,18 +600,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             </div>
 
             {/* 3. FOOTER FIXO */}
-            <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-[2.5rem]">
+            <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-3xl">
               
               {/* COMPACT TIMER BAR (CENTERED) */}
               <div className="flex items-center justify-center gap-8 mb-6">
                 <button 
                   onClick={() => setTimeLeft(prev => Math.max(0, prev - 10))}
-                  className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:scale-90 transition-all font-black text-sm"
+                  className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:scale-90 transition-all font-black text-sm"
                 >
                   -10
                 </button>
 
-                <div className="flex flex-col items-center min-w-[100px]">
+                <div className="flex flex-col items-center min-w-[120px]">
                   <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Descanso</p>
                   <motion.span 
                     key={isResting ? 'active' : 'idle'}
@@ -619,13 +631,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     } : { duration: 0.3 }}
                     className="text-4xl font-black tabular-nums transition-all"
                   >
-                    {formatTime(isResting ? timeLeft : 0)}
+                    {isResting ? (timeLeft <= 0 ? "PRONTO!" : formatTime(timeLeft)) : "0:00"}
                   </motion.span>
                 </div>
 
                 <button 
                   onClick={() => setTimeLeft(prev => prev + 10)}
-                  className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:scale-90 transition-all font-black text-sm"
+                  className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:scale-90 transition-all font-black text-sm"
                 >
                   +10
                 </button>
@@ -636,7 +648,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 disabled={saving}
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.02 }}
-                className={`w-full py-5 rounded-2xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl ${
+                className={`w-full h-16 rounded-2xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl ${
                   isResting 
                     ? "bg-slate-900 text-white" 
                     : "bg-orange-500 text-white shadow-orange-500/30"
@@ -646,7 +658,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
                   <>
-                    {isResting ? "Concluir Descanso" : "Concluir Série"}
+                    {isResting ? (timeLeft <= 0 ? "Próximo exercício" : "Pular Descanso") : "Concluir Série"}
                     {!isResting && <ArrowRight size={18} strokeWidth={4} />}
                   </>
                 )}
