@@ -70,8 +70,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   // Smart Footer Logic
   const [isFooterVisible, setIsFooterVisible] = useState(true);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const lastScrollY = useRef(0);
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Intensity Levels
+  const getIntensity = () => {
+    const currentRPE = activeSetsData[currentSet - 1]?.rpe || 0;
+    if (currentRPE >= 8 || currentSet > 2) return 'HIGH';
+    if (currentSet === 1 && currentRPE < 6) return 'LOW';
+    return 'MEDIUM';
+  };
+  const intensity = getIntensity();
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const currentScrollY = e.currentTarget.scrollTop;
@@ -80,11 +90,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     // Always show if at top or bottom
     if (currentScrollY < 20 || currentScrollY >= maxScroll - 20) {
       setIsFooterVisible(true);
+      setIsHeaderVisible(true);
     } else if (Math.abs(currentScrollY - lastScrollY.current) > 10) {
       if (currentScrollY > lastScrollY.current) {
         setIsFooterVisible(false);
+        setIsHeaderVisible(false);
       } else {
         setIsFooterVisible(true);
+        setIsHeaderVisible(true);
       }
     }
     
@@ -202,10 +215,27 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       return;
     }
     
-    // Audio alert at 5s (triggered once)
+    // Audio & Haptic alert at 5s (triggered once)
     if (timeLeft === 5 && !vibratedAlert5s.current) {
       vibratedAlert5s.current = true;
-      if (audioRef.current) audioRef.current.play().catch(() => {});
+      if (audioRef.current) {
+        audioRef.current.volume = 0.5;
+        audioRef.current.play().catch(() => {});
+      }
+      if ('vibrate' in navigator) navigator.vibrate([30, 30, 30]);
+    }
+
+    // Light repeating pulse when timer < 5s
+    if (timeLeft < 5 && timeLeft > 0 && timeLeft % 1 === 0) {
+      if ('vibrate' in navigator) navigator.vibrate(20);
+    }
+
+    // Strong alert at 0s
+    if (timeLeft === 0 && vibratedAlert5s.current) {
+      if (audioRef.current) {
+        audioRef.current.volume = 1.0;
+        audioRef.current.play().catch(() => {});
+      }
       if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
     }
 
@@ -404,7 +434,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           <div className="w-full max-w-md flex flex-col h-full bg-white relative">
             
             {/* 1. HEADER & PROGRESS */}
-            <header className={`sticky top-0 z-50 bg-white transition-all duration-500 overflow-hidden ${
+            <motion.header 
+              initial={false}
+              animate={{ 
+                y: (isHeaderVisible || isResting) ? 0 : -100,
+                opacity: (isHeaderVisible || isResting) ? 1 : 0
+              }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className={`sticky top-0 z-50 bg-white transition-all duration-500 overflow-hidden ${
               momentum ? "h-12 border-b-0 shadow-sm" : "h-16 border-b"
             } px-4 flex items-center justify-between`}>
               <div className="flex items-center gap-3">
@@ -429,7 +466,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                    <p className="text-xs font-bold tabular-nums text-slate-900">{formatTime(workoutDuration)}</p>
                 </div>
               </div>
-            </header>
+            </motion.header>
 
             {/* 2. CONTEÚDO SCROLLABLE */}
             <div 
@@ -508,12 +545,19 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       initial={false}
                       animate={{
                         opacity: isCurrent ? 1 : isPast ? 0.45 : 0.7,
-                        scale: isCurrent ? 1 : 0.98,
+                        scale: isCurrent 
+                          ? (intensity === 'LOW' ? [1, 1.01, 1] : 1) 
+                          : 0.98,
                         borderColor: isCurrent ? '#f97316' : 'rgba(241, 245, 249, 0.5)',
-                        boxShadow: isCurrent ? '0 10px 25px -5px rgba(249, 115, 22, 0.1)' : '0 0px 0px 0px rgba(0,0,0,0)',
+                        boxShadow: isCurrent 
+                          ? (intensity === 'HIGH' ? '0 15px 35px -5px rgba(249, 115, 22, 0.25)' : '0 10px 25px -5px rgba(249, 115, 22, 0.1)') 
+                          : '0 0px 0px 0px rgba(0,0,0,0)',
                       }}
-                      transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                      className={`flex items-center justify-between p-4 rounded-2xl transition-colors duration-300 border-2 bg-white`}
+                      transition={isCurrent && intensity === 'LOW' ? {
+                        scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
+                        default: { type: "spring", stiffness: 300, damping: 25 }
+                      } : { type: "spring", stiffness: 300, damping: 25 }}
+                      className={`flex items-center justify-between p-4 rounded-2xl transition-colors duration-300 border-2 bg-white ${isCurrent && intensity === 'HIGH' ? 'border-orange-400 ring-4 ring-orange-500/10' : ''}`}
                     >
                       <div className="flex items-center gap-4">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
@@ -667,10 +711,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               initial={{ y: 0, opacity: 1 }}
               animate={{ 
                 y: (isFooterVisible || isResting || isInputFocused) ? 0 : '100%',
-                opacity: (isFooterVisible || isResting || isInputFocused) ? 1 : 0
+                opacity: (isFooterVisible || isResting || isInputFocused) ? 1 : 0,
+                scale: (isResting && timeLeft <= 0) ? 1.03 : 1
               }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl"
+              className={`fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl ${isResting && timeLeft <= 5 && timeLeft > 0 ? 'ring-2 ring-orange-500/20' : ''}`}
             >
               
               {/* COMPACT TIMER BAR (CENTERED) */}
@@ -687,20 +732,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <motion.span 
                     key={isResting ? 'active' : 'idle'}
                     animate={isResting && timeLeft <= 5 ? {
-                      scale: [1, 1.2, 1],
-                      opacity: [1, 0.6, 1],
-                      color: ['#ef4444', '#ef4444', '#ef4444']
+                      scale: [1, 1.15, 1],
+                      opacity: [1, 0.7, 1],
+                      color: timeLeft <= 0 ? '#10b981' : (timeLeft <= 2 ? '#ef4444' : '#f97316')
                     } : {
                       scale: 1,
                       opacity: isResting ? 1 : 0.3,
-                      color: isResting ? '#2563eb' : '#f1f5f9'
+                      color: isResting ? '#2563eb' : '#f8fafc'
                     }}
                     transition={isResting && timeLeft <= 5 ? {
-                      duration: 1,
+                      duration: 0.8,
                       repeat: Infinity,
                       ease: "easeInOut"
                     } : { duration: 0.3 }}
-                    className="text-4xl font-black tabular-nums transition-all"
+                    className="text-4xl font-black tabular-nums transition-all drop-shadow-sm"
                   >
                     {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
                   </motion.span>
@@ -719,9 +764,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 disabled={saving}
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.02 }}
+                animate={isResting && timeLeft <= 0 ? {
+                  backgroundColor: '#f97316',
+                  boxShadow: '0 20px 25px -5px rgba(249, 115, 22, 0.4)'
+                } : {}}
                 className={`w-full h-16 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl ${
                   isResting 
-                    ? "bg-slate-900 text-white" 
+                    ? (timeLeft <= 0 ? "bg-orange-500 text-white" : "bg-slate-900 text-white") 
                     : "bg-orange-500 text-white shadow-orange-500/30"
                 }`}
               >
