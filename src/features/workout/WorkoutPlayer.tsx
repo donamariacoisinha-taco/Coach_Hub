@@ -269,41 +269,41 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         <div className="flex flex-col h-full items-center">
           <div className="w-full max-w-md flex flex-col h-full bg-white relative">
             
-            {/* 1. HEADER FIXO */}
-            <header className="sticky top-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between">
-              <button 
-                onClick={() => setShowExitModal(true)}
-                className="p-2 -ml-2 text-slate-900 active:scale-90 transition-all"
-              >
-                <ChevronLeft size={24} strokeWidth={2.5} />
-              </button>
+            {/* 1. HEADER & PROGRESS */}
+            <header className="sticky top-0 z-50 bg-[#F7F8FA] px-4 pt-4 pb-2">
+              <div className="flex items-center justify-between mb-4">
+                <button 
+                  onClick={() => setShowExitModal(true)}
+                  className="p-1 px-2 -ml-2 text-slate-900 active:scale-90 transition-all font-bold"
+                >
+                  ←
+                </button>
+                <span className="text-sm font-semibold text-slate-500">
+                  Exercício {currentIndex + 1}/{exercises.length}
+                </span>
+                <button 
+                  onClick={() => setShowExercisesList(true)}
+                  className="p-1 text-slate-900 active:scale-90 transition-all"
+                >
+                  <MoreHorizontal size={24} />
+                </button>
+              </div>
               
-              <span className="font-semibold text-sm text-slate-900">
-                Exercício {currentIndex + 1} de {exercises.length}
-              </span>
-
-              <div className="flex gap-3">
-                <button 
-                  className="p-2 text-slate-400 hover:text-slate-900 active:scale-90 transition-all"
-                  onClick={() => {/* Stats logic if needed */}}
-                >
-                  <motion.div whileTap={{ scale: 0.9 }}><Target size={20} /></motion.div>
-                </button>
-                <button 
-                  className="p-2 text-slate-400 hover:text-slate-900 active:scale-90 transition-all"
-                  onClick={() => setShowExercisesList(!showExercisesList)}
-                >
-                  <motion.div whileTap={{ scale: 0.9 }}><MoreHorizontal size={20} /></motion.div>
-                </button>
+              <div className="h-1.5 bg-white rounded-full overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${((currentIndex + 1) / exercises.length) * 100}%` }}
+                  className="h-full bg-orange-500 rounded-full transition-all duration-500"
+                />
               </div>
             </header>
 
             {/* 2. CONTEÚDO SCROLLABLE */}
             <div className="flex-1 overflow-y-auto pb-40">
               
-              {/* BLOCO DO EXERCÍCIO */}
+              {/* EXERCÍCIO */}
               <div className="p-4 flex gap-4 items-center">
-                <div className="w-20 h-20 bg-slate-100 rounded-2xl overflow-hidden shadow-sm flex-shrink-0">
+                <div className="w-20 h-20 bg-slate-200 rounded-2xl overflow-hidden border border-white shadow-sm flex-shrink-0">
                   {currentEx?.image_url ? (
                     <img 
                       src={currentEx.image_url} 
@@ -313,159 +313,151 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                       <Play className="text-slate-200 fill-slate-200" size={32} />
+                       <Play className="text-slate-300 fill-slate-300" size={32} />
                     </div>
                   )}
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-lg font-bold leading-tight text-slate-900">
+                  <h1 className="text-xl font-bold leading-tight text-slate-900">
                     {currentEx?.exercise_name || 'Carregando...'}
                   </h1>
-                  <p className="text-sm text-slate-400 font-medium">
+                  <p className="text-sm text-slate-500 font-medium">
                     {currentEx?.muscle_group || 'Geral'}
                   </p>
                 </div>
               </div>
 
-              {/* AÇÕES RÁPIDAS */}
+              {/* AÇÕES */}
               <div className="flex gap-3 px-4 mb-4">
-                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-sm font-semibold text-slate-600 flex items-center justify-center gap-2">
+                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-sm font-semibold text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
                   <RefreshCw size={14} /> Substituir
                 </button>
-                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-sm font-semibold text-slate-600 flex items-center justify-center gap-2">
+                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-sm font-semibold text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
                   <Plus size={14} /> Nota
                 </button>
               </div>
 
-              {/* DICA / FEEDBACK */}
+              {/* SÉRIE FOCUS CARD */}
+              <div className="p-4">
+                <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-50 text-center relative overflow-hidden">
+                  {isResting && (
+                    <div className="absolute inset-0 bg-blue-600/90 backdrop-blur-sm flex flex-col items-center justify-center text-white z-10">
+                      <p className="text-xs font-black uppercase tracking-widest mb-2 opacity-80">Descanso</p>
+                      <span className="text-6xl font-black tabular-nums">{formatTime(timeLeft)}</span>
+                      {restOvertime > 0 && <span className="text-sm font-bold text-red-200 mt-2">+{restOvertime}s</span>}
+                    </div>
+                  )}
+
+                  <div className="text-sm font-bold text-slate-400 mb-6 uppercase tracking-widest">
+                    Série {currentSet}
+                  </div>
+
+                  <div className="flex justify-center gap-10 items-end">
+                    <div className="flex flex-col items-center">
+                      <input
+                        type="number"
+                        value={weight}
+                        onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                        className="text-6xl font-black w-32 text-center bg-transparent outline-none text-slate-900 leading-none"
+                        onFocus={(e) => e.target.select()}
+                      />
+                      <span className="text-xs font-black text-slate-300 tracking-widest mt-2 uppercase">KG</span>
+                    </div>
+
+                    <div className="flex flex-col items-center">
+                      <input
+                        type="number"
+                        value={reps}
+                        onChange={(e) => setReps(parseInt(e.target.value) || 0)}
+                        className="text-6xl font-black w-24 text-center bg-transparent outline-none text-slate-900 leading-none"
+                        onFocus={(e) => e.target.select()}
+                      />
+                      <span className="text-xs font-black text-slate-300 tracking-widest mt-2 uppercase">REPS</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* FEEDBACK INTELIGENTE (IA) */}
               <AnimatePresence mode="wait">
                 {(feedback || preHint) && (
                   <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="mx-4 mb-6 bg-blue-50 text-blue-700 p-4 rounded-2xl text-sm flex items-start gap-3"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="px-4 mt-2"
                   >
-                    <Zap size={16} className="mt-0.5 flex-shrink-0 fill-current" />
-                    <p className="font-medium leading-relaxed">{feedback || preHint}</p>
+                    <div className="bg-blue-50 p-5 rounded-2xl flex items-start gap-3 border border-blue-100">
+                      <Zap size={18} className="text-blue-600 fill-blue-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm font-semibold text-blue-900 leading-relaxed">
+                        {feedback || preHint}
+                      </p>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* SERIES TITLE */}
-              <div className="px-4 mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
-                SÉRIE ATUAL
-              </div>
+              {/* RPE & METAS ADICIONAIS */}
+              {!isResting && (
+                <div className="px-4 mt-8 pb-12">
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-3 ml-2">Esforço (RPE)</p>
+                  <div className="flex gap-2">
+                    {[7, 8, 9, 10].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setRpe(n)}
+                        className={`flex-1 py-3 rounded-xl font-bold transition-all border-2 ${
+                          rpe === n
+                            ? "bg-slate-900 text-white border-slate-900 shadow-lg scale-105"
+                            : "bg-white text-slate-400 border-slate-100 hover:border-slate-300"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
 
-              {/* SERIES CARD FOCUS */}
-              <div className="mx-4 bg-white rounded-[2rem] p-8 shadow-sm border border-slate-50 flex items-center justify-between">
-                {/* SET NUMBER */}
-                <div className="w-12 h-12 bg-slate-900 text-white rounded-full flex items-center justify-center font-black text-lg shadow-lg">
-                  {currentSet}
+                  <div className="mt-8 flex justify-between items-center bg-white p-5 rounded-2xl border border-slate-50">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Duração Total</p>
+                      <p className="text-lg font-bold text-slate-900">{formatTime(workoutDuration)}</p>
+                    </div>
+                    {lastSet && (
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Recorde</p>
+                        <p className="text-lg font-bold text-slate-900">{lastSet.weight}kg × {lastSet.reps}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                {/* KG */}
-                <div className="text-center">
-                  <input
-                    type="number"
-                    value={weight}
-                    onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
-                    className="text-4xl font-black w-24 text-center bg-transparent outline-none text-slate-900"
-                    onFocus={(e) => e.target.select()}
-                  />
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">PESO (KG)</p>
-                </div>
-
-                {/* REPS */}
-                <div className="text-center">
-                  <input
-                    type="number"
-                    value={reps}
-                    onChange={(e) => setReps(parseInt(e.target.value) || 0)}
-                    className="text-4xl font-black w-20 text-center bg-transparent outline-none text-slate-900"
-                    onFocus={(e) => e.target.select()}
-                  />
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">REPS</p>
-                </div>
-              </div>
-
-              {/* RPE */}
-              <div className="px-6 mt-6">
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-3">ESFORÇO (RPE)</p>
-                <div className="flex gap-2">
-                  {[6, 7, 8, 9, 10].map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setRpe(n)}
-                      className={`flex-1 py-3 rounded-xl font-bold transition-all ${
-                        rpe === n
-                          ? "bg-slate-900 text-white shadow-lg scale-105"
-                          : "bg-slate-50 text-slate-400 hover:bg-slate-100"
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* NEXT GOALINDICATOR */}
-              <div className="px-6 mt-8">
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">PRÓXIMA META</p>
-                <div className="flex items-center gap-2 mt-1">
-                   <p className="font-bold text-slate-900">
-                    {currentSet === (currentEx?.sets_json?.length || 3) 
-                      ? "Próximo Exercício" 
-                      : `Série ${currentSet + 1} • ${weight}kg`}
-                  </p>
-                  {lastSet && (
-                    <span className="text-xs text-emerald-500 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">
-                       Recorde: {lastSet.weight}kg
-                    </span>
-                  )}
-                </div>
-              </div>
+              )}
 
             </div>
 
-            {/* 5. FOOTER FIXO */}
-            <footer className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t p-4 pb-8 space-y-4 max-w-md mx-auto shadow-[0_-10px_40px_rgba(0,0,0,0.04)]">
-              {/* TIMER */}
-              <div className="text-center">
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
-                  {isResting ? "Descansando" : "Cronômetro"}
-                </p>
-                <p className={`text-2xl font-black tabular-nums transition-colors ${isResting ? "text-blue-600" : "text-slate-900"}`}>
-                  {formatTime(isResting ? timeLeft : workoutDuration)}
-                  {isResting && restOvertime > 0 && (
-                    <span className="text-xs text-red-500 ml-2 animate-pulse">+{restOvertime}s</span>
-                  )}
-                </p>
-              </div>
-
-              {/* MAIN BUTTON */}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
+            {/* 3. FOOTER FIXO */}
+            <footer className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t p-4 pb-8 max-w-md mx-auto shadow-[0_-10px_40px_rgba(0,0,0,0.04)]">
+              <button
                 onClick={isResting ? () => { setIsResting(false); setRestOvertime(0); } : handleCompleteSet}
                 disabled={saving}
-                className={`w-full py-5 rounded-2xl text-lg font-bold shadow-lg transition-all flex items-center justify-center gap-3 ${
+                className={`w-full py-5 rounded-2xl text-lg font-bold shadow-xl transition-all active:scale-[0.97] flex items-center justify-center gap-3 ${
                   isResting 
                     ? "bg-slate-100 text-slate-900" 
-                    : "bg-orange-500 text-white hover:bg-orange-600"
+                    : "bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/20"
                 }`}
               >
                 {saving ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : isResting ? (
-                  <>Pronto para a Próxima</>
+                  <>Pular cronômetro →</>
                 ) : (
                   <>
-                    <Check size={20} strokeWidth={3} />
-                    Concluir Série
+                    {currentSet === (currentEx?.sets_json?.length || 3) && currentIndex === exercises.length - 1 
+                      ? "Finalizar Treino" 
+                      : "Concluir Série →"}
                   </>
                 )}
-              </motion.button>
+              </button>
             </footer>
 
           </div>
