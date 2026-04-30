@@ -39,6 +39,7 @@ export interface UserBadge {
 export interface UserProfile {
   id: string;
   full_name?: string;
+  name?: string;
   avatar_url?: string;
   age?: number;
   gender?: string;
@@ -48,14 +49,20 @@ export interface UserProfile {
   birth_date?: string;
   experience_level?: ExperienceLevel;
   time_available?: number;
-  goal?: Goal;
+  goal?: Goal | string;
   preference?: EquipmentPreference;
   focus_muscles?: string[];
   days_per_week?: number;
+  frequency?: string;
   onboarding_completed: boolean;
   role?: 'admin' | 'user';
   is_admin?: boolean; // Keep for backward compatibility if needed, but role is preferred
   last_deload_at?: string;
+  
+  // Tracking Stats
+  workouts_completed?: number;
+  workout_streak?: number;
+  total_minutes?: number;
 }
 
 export interface PersonalBest {

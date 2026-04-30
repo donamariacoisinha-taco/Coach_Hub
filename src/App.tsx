@@ -8,10 +8,12 @@ import WorkoutPlayer from './features/workout/WorkoutPlayer';
 import WorkoutEditor from './components/WorkoutEditor';
 import AdminPanelV2 from './features/admin/AdminPanelV2';
 import HistoryView from './components/HistoryView';
-import ProfileView from './components/ProfileView';
+import ProfileViewV2 from './features/user/ProfileViewV2';
 import ExerciseLibrary from './components/ExerciseLibrary';
 import LandingPage from './components/LandingPage';
 import { useSync } from './hooks/useSync';
+import { useUserStore } from './store/userStore';
+import { useAuthStore } from './store/authStore';
 import { ErrorProvider } from './hooks/useErrorHandler';
 import { authApi } from './lib/api/authApi';
 import { workoutApi } from './lib/api/workoutApi';
@@ -126,6 +128,7 @@ const App: React.FC = () => {
       }
 
       setProfile(profileData);
+      useUserStore.getState().setProfile(profileData);
       
       const urlState = getStateFromUrl();
       // Se estiver logado e na tela de entrada, decide para onde ir
@@ -181,6 +184,7 @@ const App: React.FC = () => {
         console.log("[APP] EKE Initialized");
         const currentSession = await authApi.getSession();
         setSession(currentSession);
+        useAuthStore.getState().setSession(currentSession);
         
         if (currentSession) {
           console.log("[APP] Sessão ativa encontrada:", currentSession.user.id);
@@ -202,6 +206,7 @@ const App: React.FC = () => {
     const subscription = authApi.onAuthStateChange((event, s) => {
       console.log(`[AUTH] Evento detectado: ${event}`);
       setSession(s);
+      useAuthStore.getState().setSession(s);
       if (s) {
         fetchProfile(s.user.id);
       } else {
@@ -363,7 +368,7 @@ const App: React.FC = () => {
                 {navState.view === 'editor' && <WorkoutEditor workoutId={navState.params.id} />}
                 {navState.view === 'history' && <HistoryView />}
                 {navState.view === 'library' && <ExerciseLibrary />}
-                {navState.view === 'profile' && profile && <ProfileView profile={profile} onUpdate={() => fetchProfile(session.user.id)} />}
+                {navState.view === 'profile' && <ProfileViewV2 />}
                 {navState.view === 'admin' && (
                   isAdmin(profile) ? <AdminPanelV2 onBack={goBack} /> : <Dashboard />
                 )}
