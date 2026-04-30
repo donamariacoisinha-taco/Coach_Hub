@@ -20,8 +20,27 @@ export const profileApi = {
   },
 
   async updateProfile(userId: string, payload: Partial<UserProfile>) {
-    const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
+    // We use upsert to ensure it works even if the profile was not yet created
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ ...payload, id: userId })
+      .eq('id', userId);
     if (error) throw error;
+  },
+
+  async ensureProfile(userId: string) {
+    const profile = await this.getProfile(userId);
+    if (!profile) {
+      console.log(`[PROFILE_API] Creating initial profile for ${userId}`);
+      const { error } = await supabase.from('profiles').insert({
+        id: userId,
+        onboarding_completed: false,
+        created_at: new Date().toISOString()
+      });
+      if (error) throw error;
+      return this.getProfile(userId);
+    }
+    return profile;
   },
 
   async getBodyMeasurements() {

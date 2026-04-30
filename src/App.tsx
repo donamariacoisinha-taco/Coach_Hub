@@ -2,7 +2,7 @@
 import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
 import { UserProfile } from './types';
 import Auth from './components/Auth';
-import Onboarding from './components/Onboarding';
+import SmartOnboarding from './features/onboarding/SmartOnboarding';
 import Dashboard from './features/dashboard/Dashboard';
 import WorkoutPlayer from './features/workout/WorkoutPlayer';
 import WorkoutEditor from './components/WorkoutEditor';
@@ -79,7 +79,7 @@ const getStateFromUrl = (): NavigationState => {
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { profile, setProfile } = useUserStore();
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('coach_theme') as Theme) || 'light');
   const [navState, setNavState] = useState<NavigationState>(getStateFromUrl);
@@ -110,45 +110,43 @@ const App: React.FC = () => {
   }, [theme]);
 
   const fetchProfile = async (userId: string) => {
-    console.log(`[APP][DEBUG] Buscando perfil do usuário: ${userId}`);
+    console.log(`[APP][DEBUG] Buscando/Garantindo perfil do usuário: ${userId}`);
     try {
-      // Garantir hidratação antes de decidir navegação baseada no store
       if (!isHydrated) {
         console.log("[APP] Aguardando hidratação do store...");
         return; 
       }
 
-      const profileData = await profileApi.getProfile(userId);
+      // Garantir que o perfil existe
+      const profileData = await profileApi.ensureProfile(userId);
 
       if (!profileData) {
-        console.log(`[APP] Perfil inexistente, iniciando onboarding.`);
+        console.error(`[APP] Falha crítica: Perfil não pôde ser garantido para ${userId}`);
         setProfile(null);
-        navigate('onboarding');
+        navigate('auth');
         return;
       }
 
+      console.log(`[APP] Perfil carregado:`, { 
+        id: profileData.id, 
+        completed: profileData.onboarding_completed 
+      });
+
       setProfile(profileData);
-      useUserStore.getState().setProfile(profileData);
       
       const urlState = getStateFromUrl();
-      // Se estiver logado e na tela de entrada, decide para onde ir
-      if (urlState.view === 'landing' || urlState.view === 'auth') {
+      // Se estiver logado e na tela de entrada/auth, decide para onde ir
+      if (urlState.view === 'landing' || urlState.view === 'auth' || urlState.view === 'onboarding') {
         const partial = await workoutApi.getPartialSession(userId);
 
-        if (partial) {
-          const currentStoreHistoryId = useWorkoutStore.getState().historyId;
-          const currentStoreWorkoutId = useWorkoutStore.getState().currentWorkoutId;
-          
-          if (currentStoreHistoryId !== partial.history_id || currentStoreWorkoutId !== partial.workout_id) {
-            console.log("[App] New partial session detected or store mismatch, resetting workout state");
-            useWorkoutStore.getState().resetWorkout();
-          } else {
-            console.log("[App] Resuming existing session matched in store");
-          }
+        if (partial && profileData.onboarding_completed) {
+          console.log("[APP] Resuming partial session");
           navigate('workout', { id: partial.workout_id });
         } else if (!profileData.onboarding_completed) {
+          console.log("[APP] Onboarding incompleto, redirecionando...");
           navigate('onboarding');
         } else {
+          console.log("[APP] Tudo ok, indo para Dashboard");
           navigate('dashboard');
         }
       }
@@ -362,7 +360,7 @@ const App: React.FC = () => {
               >
                 {navState.view === 'landing' && <LandingPage onStart={() => navigate('auth')} onLogin={() => navigate('auth')} />}
                 {navState.view === 'auth' && <Auth onBack={() => navigate('landing')} />}
-                {navState.view === 'onboarding' && <Onboarding onComplete={() => navigate('dashboard')} />}
+                {navState.view === 'onboarding' && <SmartOnboarding />}
                 {navState.view === 'dashboard' && <Dashboard />}
                 {navState.view === 'workout' && <WorkoutPlayer workoutId={navState.params.id} />}
                 {navState.view === 'editor' && <WorkoutEditor workoutId={navState.params.id} />}
