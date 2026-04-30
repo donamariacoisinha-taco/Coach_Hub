@@ -11,7 +11,10 @@ import {
   Play,
   Loader2,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  Zap,
+  ArrowRight,
+  Target
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { authApi } from "../../lib/api/authApi";
@@ -32,8 +35,8 @@ import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 import { cacheStore } from "../../lib/cache/cacheStore";
 
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
-  const { navigate } = useNavigation();
-  const { showError } = useErrorHandler();
+  const { navigate, goBack } = useNavigation();
+  const { showError, showSuccess } = useErrorHandler();
   
   // Global State
   const { isOnline, pendingSyncCount, isSyncing } = useAppStore();
@@ -56,6 +59,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [showExitModal, setShowExitModal] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [workoutDuration, setWorkoutDuration] = useState(0);
+  const [showExercisesList, setShowExercisesList] = useState(false);
+  const [finishing, setFinishing] = useState(false);
 
   // Data Loading
   const playerQuery = useSmartQuery(`workout_init_${workoutId}`, async () => {
@@ -68,11 +73,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     if (partialSession && partialSession.history_id) {
       sessionData = workoutEngine.initializeSession(partialSession, null);
     } else {
-      // Se partialSession existe mas está corrompida (sem history_id), 
-      // ou se não existe, criamos uma nova.
       const newHistory = await workoutApi.startWorkoutHistory(user.id, workoutId, category?.name || 'Treino');
       sessionData = workoutEngine.initializeSession(null, newHistory);
-      
       await workoutApi.upsertPartialSession(user.id, workoutId, sessionData.historyId, new Date(sessionData.startTime).toISOString());
     }
 
@@ -96,19 +98,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         currentSet: playerQuery.data.currentSet
       });
     } else if (playerQuery.data && !playerQuery.data.historyId) {
-      console.warn("[WorkoutPlayer] Query data received without historyId - forcing refresh");
       playerQuery.refresh();
     }
   }, [playerQuery.data, workoutId, setWorkout]);
 
   const currentEx = useMemo(() => (exercises && exercises[currentIndex]) || null, [exercises, currentIndex]);
 
-  // Prefetch next exercise image
+  // Prefetch next
   useEffect(() => {
     const nextEx = exercises[currentIndex + 1];
-    if (nextEx?.exercise_image) {
-      imagePrefetcher.prefetch(nextEx.exercise_image);
-    }
+    if (nextEx?.exercise_image) imagePrefetcher.prefetch(nextEx.exercise_image);
   }, [currentIndex, exercises]);
 
   // Timers
@@ -154,7 +153,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const handleCompleteSet = async () => {
     if (saving || !currentEx || !historyId) return;
     
-    // 1. Calculate everything needed for UI update
     const currentSetData = { weight, reps, rpe };
     const repsTarget = parseInt(currentEx.sets_json?.[currentSet - 1]?.reps as string) || 10;
     
@@ -169,11 +167,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       lastSet || undefined
     );
 
-    // 2. Update UI Immediately (Optimistic)
+    // Optimistic UI
     setWeight(decision.nextWeight);
     setFeedback(emotional);
     setPreviousSet(currentSetData);
-    setTimeout(() => setFeedback(null), 1800);
+    setTimeout(() => setFeedback(null), 2500);
 
     setTimeLeft(currentEx.rest_time || 90);
     setRestOvertime(0);
@@ -181,7 +179,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     
     if ('vibrate' in navigator) navigator.vibrate(emotional.includes("recorde") ? [50, 50, 100] : 40);
 
-    // 3. Background Save
     setSaving(true);
     try {
       await saveSet({ 
@@ -194,34 +191,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         rpe: rpe,
         set_type: SetType.NORMAL
       });
-
-      // Update partial session (fire and forget)
       workoutApi.updatePartialSession(historyId, currentIndex, currentSet).catch(console.error);
     } catch (err) {
-      // For critical errors in workout, we might want to notify but not necessarily rollback 
-      // since the user is already in the rest state. 
-      // The sync queue (if implemented in saveSet) should handle retries.
       showError(err);
     } finally {
       setSaving(false);
     }
   };
 
-  const [finishing, setFinishing] = useState(false);
-
   const finishWorkout = async (isSuccess: boolean) => {
-    // Pegamos do store diretamente para evitar closure stale se houver re-renders
     const currentStore = useWorkoutStore.getState();
     const currentHistoryId = currentStore.historyId;
     const currentStartTime = currentStore.startTime;
 
     if (!currentHistoryId) {
-      console.error("[finishWorkout] CRITICAL: historyId is missing from store state", {
-        store: currentStore,
-        idFromProp: workoutId,
-        isFinished
-      });
-      showError(new Error("ID da sessão não encontrado. A sessão pode ter sido expirada ou concluída em outro dispositivo. Verifique sua conexão."));
+      showError(new Error("Sessão não encontrada."));
       return;
     }
     
@@ -234,27 +218,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         const finalExCount = exercises.length;
         await workoutApi.finishWorkout(currentHistoryId, finalDuration, finalExCount);
         if (user) await workoutApi.clearPartialSession(user.id);
-        
-        // Invalida o cache da sessão para garantir que um novo treino não use dados antigos
         cacheStore.clear(`workout_init_${workoutId}`);
-        
-        // Mantemos os dados locais para a VictoryScreen antes de resetar a store
         setWorkoutDuration(finalDuration);
         setIsFinished(true);
       } else {
         await workoutApi.abandonWorkout(currentHistoryId);
         if (user) await workoutApi.clearPartialSession(user.id);
-        
-        // Invalida o cache da sessão
         cacheStore.clear(`workout_init_${workoutId}`);
-        
-        // Resetamos a store e navegamos para o dashboard
         resetWorkout();
         navigate('dashboard');
       }
     } catch (err) {
       showError(err);
-      console.error("Error finishing workout:", err);
     } finally {
       setFinishing(false);
       setShowExitModal(false);
@@ -276,263 +251,302 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   }, [currentEx, currentSet, lastSet]);
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] text-slate-900 flex flex-col font-sans selection:bg-blue-100">
+    <div className="h-screen bg-[#F7F8FA] text-slate-900 flex flex-col font-sans overflow-hidden">
       {isFinished && (
         <VictoryScreen 
           historyId={historyId!} 
-          duration={Math.round((Date.now() - (startTime || Date.now())) / 60000)}
+          duration={workoutDuration}
           exercisesCount={exercises.length}
-          onDone={resetWorkout}
+          onDone={() => { resetWorkout(); navigate('dashboard'); }}
         />
       )}
+
       <ScreenState
         status={queryStatus}
         isFetching={isFetching}
         onRetry={() => refresh()}
       >
-        <div className="max-w-md mx-auto w-full px-5 pt-6 flex-1 flex flex-col relative">
-          
-          {/* HEADER COMPACTO */}
-          <header className="flex items-center justify-between py-3 mb-8">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-white rounded-xl overflow-hidden flex items-center justify-center p-2 border border-slate-50 shadow-sm">
-                {currentEx?.image_url ? (
-                  <img src={currentEx.image_url} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-3 h-3 bg-slate-100 rounded-full" />
-                )}
-              </div>
-              <div>
-                <h1 className="text-xs font-black tracking-tight uppercase text-slate-900 truncate max-w-[150px]">{currentEx?.exercise_name || 'Exercício'}</h1>
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-0.5">
-                  {currentEx?.muscle_group || 'Geral'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <span className="text-[10px] font-black tabular-nums text-slate-300 tracking-widest">
-                {formatTime(workoutDuration)}
-              </span>
+        <div className="flex flex-col h-full items-center">
+          <div className="w-full max-w-md flex flex-col h-full bg-white relative">
+            
+            {/* 1. HEADER FIXO */}
+            <header className="sticky top-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between">
               <button 
                 onClick={() => setShowExitModal(true)}
-                className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-slate-900 active:scale-90 transition-all"
+                className="p-2 -ml-2 text-slate-900 active:scale-90 transition-all"
               >
-                <MoreHorizontal size={18} />
+                <ChevronLeft size={24} strokeWidth={2.5} />
               </button>
-            </div>
-          </header>
+              
+              <span className="font-semibold text-sm text-slate-900">
+                Exercício {currentIndex + 1} de {exercises.length}
+              </span>
 
-          {/* MAIN DISPLAY */}
-          <div className="flex flex-col items-center justify-center text-center py-4">
-            {!isResting ? (
-              <div className="animate-in fade-in zoom-in duration-500 w-full">
-                <div className="flex items-end justify-center gap-6">
-                  <div className="flex flex-col items-center">
-                    <input 
-                      type="number"
-                      value={weight}
-                      onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
-                      className="text-7xl font-black tracking-tighter tabular-nums text-slate-900 leading-none bg-transparent border-none outline-none text-center w-32"
+              <div className="flex gap-3">
+                <button 
+                  className="p-2 text-slate-400 hover:text-slate-900 active:scale-90 transition-all"
+                  onClick={() => {/* Stats logic if needed */}}
+                >
+                  <motion.div whileTap={{ scale: 0.9 }}><Target size={20} /></motion.div>
+                </button>
+                <button 
+                  className="p-2 text-slate-400 hover:text-slate-900 active:scale-90 transition-all"
+                  onClick={() => setShowExercisesList(!showExercisesList)}
+                >
+                  <motion.div whileTap={{ scale: 0.9 }}><MoreHorizontal size={20} /></motion.div>
+                </button>
+              </div>
+            </header>
+
+            {/* 2. CONTEÚDO SCROLLABLE */}
+            <div className="flex-1 overflow-y-auto pb-40">
+              
+              {/* BLOCO DO EXERCÍCIO */}
+              <div className="p-4 flex gap-4 items-center">
+                <div className="w-20 h-20 bg-slate-100 rounded-2xl overflow-hidden shadow-sm flex-shrink-0">
+                  {currentEx?.image_url ? (
+                    <img 
+                      src={currentEx.image_url} 
+                      alt="" 
+                      className="w-full h-full object-contain" 
+                      referrerPolicy="no-referrer"
                     />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-300 mt-2">Peso (kg)</span>
-                  </div>
-                  <span className="text-xl text-slate-300 font-black mb-6">×</span>
-                  <div className="flex flex-col items-center">
-                    <input 
-                      type="number"
-                      value={reps}
-                      onChange={(e) => setReps(parseInt(e.target.value) || 0)}
-                      className="text-7xl font-black tracking-tighter tabular-nums text-slate-900 leading-none bg-transparent border-none outline-none text-center w-24"
-                    />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-300 mt-2">Reps</span>
-                  </div>
-                </div>
-
-                {/* FEEDBACK INTELIGENTE IMEDIATO */}
-                <AnimatePresence mode="wait">
-                  {feedback && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="mt-4 px-6"
-                    >
-                      <p className="text-sm text-slate-500 font-medium flex items-center justify-center gap-2">
-                        <Check size={14} className="text-green-500" />
-                        {feedback}
-                      </p>
-                    </motion.div>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                       <Play className="text-slate-200 fill-slate-200" size={32} />
+                    </div>
                   )}
-                </AnimatePresence>
-
-                {preHint && !feedback && (
-                  <p className="mt-4 text-sm text-slate-400 font-medium animate-in fade-in duration-500 px-6">
-                    {preHint}
-                  </p>
-                )}
-
-                {/* CONTEXTO UNIFICADO */}
-                <div className="mt-8 flex justify-center items-center gap-4 text-[10px] font-black uppercase tracking-widest">
-                  {lastSet && (
-                    <span className="text-slate-300">
-                      Último: {lastSet.weight}kg × {lastSet.reps}
-                    </span>
-                  )}
-                  {lastSet && <div className="w-1 h-1 rounded-full bg-slate-200" />}
-                  <span className="text-blue-600">
-                    Meta: {weight}kg × {reps}
-                  </span>
                 </div>
                 
-                {/* SYNC STATUS COMPACTO */}
-                <div className="mt-6 flex items-center justify-center gap-4">
-                  {!isOnline && (
-                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      <WifiOff size={10} /> Offline
-                    </div>
-                  )}
-                  {pendingSyncCount > 0 && (
-                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-blue-500">
-                      <RefreshCw size={10} className={isSyncing ? "animate-spin" : ""} />
-                      {pendingSyncCount} pendentes
-                    </div>
-                  )}
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-lg font-bold leading-tight text-slate-900">
+                    {currentEx?.exercise_name || 'Carregando...'}
+                  </h1>
+                  <p className="text-sm text-slate-400 font-medium">
+                    {currentEx?.muscle_group || 'Geral'}
+                  </p>
                 </div>
               </div>
-            ) : (
-              <div className="animate-in fade-in zoom-in duration-500">
-                <div className="text-8xl font-black tracking-tighter tabular-nums text-slate-900 leading-none">
-                  {formatTime(timeLeft)}
+
+              {/* AÇÕES RÁPIDAS */}
+              <div className="flex gap-3 px-4 mb-4">
+                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-sm font-semibold text-slate-600 flex items-center justify-center gap-2">
+                  <RefreshCw size={14} /> Substituir
+                </button>
+                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-sm font-semibold text-slate-600 flex items-center justify-center gap-2">
+                  <Plus size={14} /> Nota
+                </button>
+              </div>
+
+              {/* DICA / FEEDBACK */}
+              <AnimatePresence mode="wait">
+                {(feedback || preHint) && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="mx-4 mb-6 bg-blue-50 text-blue-700 p-4 rounded-2xl text-sm flex items-start gap-3"
+                  >
+                    <Zap size={16} className="mt-0.5 flex-shrink-0 fill-current" />
+                    <p className="font-medium leading-relaxed">{feedback || preHint}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* SERIES TITLE */}
+              <div className="px-4 mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
+                SÉRIE ATUAL
+              </div>
+
+              {/* SERIES CARD FOCUS */}
+              <div className="mx-4 bg-white rounded-[2rem] p-8 shadow-sm border border-slate-50 flex items-center justify-between">
+                {/* SET NUMBER */}
+                <div className="w-12 h-12 bg-slate-900 text-white rounded-full flex items-center justify-center font-black text-lg shadow-lg">
+                  {currentSet}
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300 mt-6">Descanso</p>
 
-                <AnimatePresence>
-                  {restOvertime > 60 && (
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="mt-6 p-5 bg-blue-50 rounded-2xl border border-blue-100 mx-4"
-                    >
-                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Equipamento ocupado?</p>
-                      <p className="text-[11px] text-blue-900 font-medium mb-3">Pule este exercício e volte nele depois.</p>
-                      <button 
-                        onClick={() => {
-                          if (currentIndex < exercises.length - 1) {
-                            setCurrentIndex(currentIndex + 1);
-                            setIsResting(false);
-                            setRestOvertime(0);
-                          }
-                        }}
-                        className="text-[9px] font-black text-blue-600 uppercase tracking-widest border-b border-blue-600 pb-0.5"
-                      >
-                        Pular Exercício
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* KG */}
+                <div className="text-center">
+                  <input
+                    type="number"
+                    value={weight}
+                    onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                    className="text-4xl font-black w-24 text-center bg-transparent outline-none text-slate-900"
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">PESO (KG)</p>
+                </div>
 
-                <div className="flex items-center gap-8 mt-12">
-                  <button onClick={() => setTimeLeft((t) => Math.max(0, t - 15))} className="w-14 h-14 rounded-full bg-white text-slate-300 active:scale-90 active:text-slate-900 border border-slate-50 shadow-sm flex items-center justify-center transition-all"><Minus size={18} /></button>
-                  <button onClick={() => setTimeLeft((t) => t + 15)} className="w-14 h-14 rounded-full bg-white text-slate-300 active:scale-90 active:text-slate-900 border border-slate-50 shadow-sm flex items-center justify-center transition-all"><Plus size={18} /></button>
+                {/* REPS */}
+                <div className="text-center">
+                  <input
+                    type="number"
+                    value={reps}
+                    onChange={(e) => setReps(parseInt(e.target.value) || 0)}
+                    className="text-4xl font-black w-20 text-center bg-transparent outline-none text-slate-900"
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">REPS</p>
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* CONTROLES */}
-          {!isResting && (
-            <div className="mt-4 space-y-8 animate-in slide-in-from-bottom-4 duration-700">
-              <div className="flex flex-col items-center gap-4">
-                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-300">Esforço (RPE)</p>
-                <div className="flex gap-2.5">
-                  {[7, 8, 9, 10].map((val) => (
+              {/* RPE */}
+              <div className="px-6 mt-6">
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-3">ESFORÇO (RPE)</p>
+                <div className="flex gap-2">
+                  {[6, 7, 8, 9, 10].map(n => (
                     <button
-                      key={val}
-                      onClick={() => setRpe(val)}
-                      className={`w-11 h-11 rounded-xl text-[10px] font-black transition-all ${
-                        rpe === val 
-                          ? "bg-slate-900 text-white shadow-xl shadow-slate-900/10 scale-105" 
-                          : "bg-white text-slate-300 border border-slate-50 shadow-sm active:bg-slate-50"
+                      key={n}
+                      onClick={() => setRpe(n)}
+                      className={`flex-1 py-3 rounded-xl font-bold transition-all ${
+                        rpe === n
+                          ? "bg-slate-900 text-white shadow-lg scale-105"
+                          : "bg-slate-50 text-slate-400 hover:bg-slate-100"
                       }`}
                     >
-                      {val}
+                      {n}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between px-2">
-                <div className="flex items-center gap-3">
-                  <button onClick={prevStep} className="p-2 text-slate-200 hover:text-slate-900 transition-colors"><ChevronLeft size={18} /></button>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">
-                    {currentSet} / {currentEx?.sets_json?.length || 3}
-                  </span>
-                  <button onClick={nextStep} className="p-2 text-slate-200 hover:text-slate-900 transition-colors"><ChevronRight size={18} /></button>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => setWeight(w => Math.max(0, w - 2.5))} className="w-9 h-9 flex items-center justify-center bg-white rounded-lg border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={14} /></button>
-                    <button onClick={() => setWeight(w => w + 2.5)} className="w-9 h-9 flex items-center justify-center bg-white rounded-lg border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={14} /></button>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => setReps(r => Math.max(0, r - 1))} className="w-9 h-9 flex items-center justify-center bg-white rounded-lg border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Minus size={14} /></button>
-                    <button onClick={() => setReps(r => r + 1)} className="w-9 h-9 flex items-center justify-center bg-white rounded-lg border border-slate-50 text-slate-300 active:text-slate-900 active:scale-90 transition-all shadow-sm"><Plus size={14} /></button>
-                  </div>
+              {/* NEXT GOALINDICATOR */}
+              <div className="px-6 mt-8">
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">PRÓXIMA META</p>
+                <div className="flex items-center gap-2 mt-1">
+                   <p className="font-bold text-slate-900">
+                    {currentSet === (currentEx?.sets_json?.length || 3) 
+                      ? "Próximo Exercício" 
+                      : `Série ${currentSet + 1} • ${weight}kg`}
+                  </p>
+                  {lastSet && (
+                    <span className="text-xs text-emerald-500 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">
+                       Recorde: {lastSet.weight}kg
+                    </span>
+                  )}
                 </div>
               </div>
+
             </div>
-          )}
 
-          {/* ESPAÇO FLEXÍVEL */}
-          <div className="flex-1 min-h-[20px]" />
+            {/* 5. FOOTER FIXO */}
+            <footer className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t p-4 pb-8 space-y-4 max-w-md mx-auto shadow-[0_-10px_40px_rgba(0,0,0,0.04)]">
+              {/* TIMER */}
+              <div className="text-center">
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                  {isResting ? "Descansando" : "Cronômetro"}
+                </p>
+                <p className={`text-2xl font-black tabular-nums transition-colors ${isResting ? "text-blue-600" : "text-slate-900"}`}>
+                  {formatTime(isResting ? timeLeft : workoutDuration)}
+                  {isResting && restOvertime > 0 && (
+                    <span className="text-xs text-red-500 ml-2 animate-pulse">+{restOvertime}s</span>
+                  )}
+                </p>
+              </div>
 
-          {/* CTA STICKY */}
-          <div className="sticky bottom-0 left-0 right-0 pt-2 pb-safe bg-[#F7F8FA] z-[100]">
-            <button
-              onClick={isResting ? () => { setIsResting(false); setRestOvertime(0); } : handleCompleteSet}
-              disabled={saving}
-              className={`w-full h-16 rounded-full font-black uppercase text-[10px] tracking-[0.4em] transition-all active:scale-[0.98] shadow-xl flex items-center justify-center ${
-                isResting ? "bg-white text-slate-900 border border-slate-50 shadow-sm" : "bg-slate-900 text-white shadow-slate-900/20"
-              }`}
-            >
-              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : isResting ? "Pular descanso" : "Concluir série"}
-            </button>
+              {/* MAIN BUTTON */}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={isResting ? () => { setIsResting(false); setRestOvertime(0); } : handleCompleteSet}
+                disabled={saving}
+                className={`w-full py-5 rounded-2xl text-lg font-bold shadow-lg transition-all flex items-center justify-center gap-3 ${
+                  isResting 
+                    ? "bg-slate-100 text-slate-900" 
+                    : "bg-orange-500 text-white hover:bg-orange-600"
+                }`}
+              >
+                {saving ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : isResting ? (
+                  <>Pronto para a Próxima</>
+                ) : (
+                  <>
+                    <Check size={20} strokeWidth={3} />
+                    Concluir Série
+                  </>
+                )}
+              </motion.button>
+            </footer>
+
           </div>
         </div>
       </ScreenState>
 
+      {/* OVERLAY DE LISTA DE EXERCÍCIOS */}
+      <AnimatePresence>
+        {showExercisesList && (
+           <div className="fixed inset-0 z-[200] flex flex-col">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowExercisesList(false)}
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="mt-auto bg-white rounded-t-[3rem] p-8 shadow-2xl relative z-10 max-w-md mx-auto w-full pb-12"
+              >
+                 <div className="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-8" />
+                 <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Ordem do Treino</h3>
+                 <div className="space-y-4">
+                    {exercises.map((ex, i) => (
+                      <button 
+                        key={ex.exercise_id}
+                        onClick={() => { setCurrentIndex(i); setCurrentSet(1); setShowExercisesList(false); }}
+                        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${
+                          i === currentIndex ? "bg-slate-900 text-white shadow-xl translate-x-2" : "hover:bg-slate-50 text-slate-600"
+                        }`}
+                      >
+                         <span className={`text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center ${
+                           i === currentIndex ? "bg-white/20" : "bg-slate-100"
+                         }`}>
+                           {i + 1}
+                         </span>
+                         <span className="flex-1 text-left font-bold text-sm truncate">{ex.exercise_name}</span>
+                         {i < currentIndex && <Check size={14} className="text-emerald-500" />}
+                      </button>
+                    ))}
+                 </div>
+              </motion.div>
+           </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE SAÍDA */}
       <AnimatePresence>
         {showExitModal && (
           <div className="fixed inset-0 z-[1300] flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowExitModal(false)} className="absolute inset-0 bg-slate-900/20 backdrop-blur-xl" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowExitModal(false)} className="absolute inset-0 bg-slate-900/30 backdrop-blur-xl" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="w-full max-w-xs bg-white rounded-[3rem] p-10 shadow-2xl space-y-10 border border-slate-50 relative z-10">
               <div className="text-center">
-                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Encerrar?</h3>
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-6 leading-relaxed">Deseja salvar esta sessão ou descartar o progresso?</p>
+                <h3 className="text-2xl font-[1000] text-slate-900 uppercase tracking-tighter">Interromper?</h3>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-6 leading-relaxed">Você pode salvar o progresso atual ou descartar totalmente.</p>
               </div>
               <div className="space-y-4">
                 <button 
                   onClick={() => finishWorkout(true)} 
                   disabled={finishing}
-                  className="w-full py-6 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform shadow-xl shadow-slate-900/10 flex items-center justify-center disabled:opacity-50"
+                  className="w-full py-6 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform shadow-xl flex items-center justify-center disabled:opacity-50"
                 >
-                  {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar e Sair"}
+                  {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Encerrar e Salvar"}
                 </button>
                 <button 
                   onClick={() => finishWorkout(false)} 
                   disabled={finishing}
                   className="w-full py-6 bg-red-50 text-red-500 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform flex items-center justify-center disabled:opacity-50"
                 >
-                  {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Descartar"}
+                  {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Descartar Treino"}
                 </button>
                 <button 
                   onClick={() => setShowExitModal(false)} 
                   disabled={finishing}
                   className="w-full py-4 text-slate-300 font-black uppercase text-[10px] tracking-widest active:text-slate-900 transition-colors disabled:opacity-50"
                 >
-                  Continuar
+                  Voltar ao Treino
                 </button>
               </div>
             </motion.div>
