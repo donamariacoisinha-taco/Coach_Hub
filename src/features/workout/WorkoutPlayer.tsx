@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -62,6 +62,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [showExercisesList, setShowExercisesList] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
+  // Auto-scroll refs
+  const setRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Initialize audio for timer
+    audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3");
+  }, []);
+
   // Data Loading
   const playerQuery = useSmartQuery(`workout_init_${workoutId}`, async () => {
     const user = await authApi.getUser();
@@ -104,6 +113,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const currentEx = useMemo(() => (exercises && exercises[currentIndex]) || null, [exercises, currentIndex]);
 
+  // Auto-scroll to current set
+  useEffect(() => {
+    if (setRefs.current[currentSet - 1]) {
+      setRefs.current[currentSet - 1]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [currentSet, currentIndex]);
+
   // Prefetch next
   useEffect(() => {
     const nextEx = exercises[currentIndex + 1];
@@ -125,6 +141,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setRestOvertime(prev => prev + 1);
       return;
     }
+    
+    // Audio alert at 5s
+    if (timeLeft === 5 && audioRef.current) {
+      audioRef.current.play().catch(() => {});
+      if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+    }
+
     const timer = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearTimeout(timer);
   }, [isResting, timeLeft]);
@@ -278,60 +301,62 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 >
                   <ChevronLeft size={22} strokeWidth={3} />
                 </button>
-                <span className="text-sm font-bold text-slate-900 truncate max-w-[200px]">
-                  {currentEx?.exercise_name || 'Treino'}
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-slate-900 truncate max-w-[180px]">
+                    {currentEx?.exercise_name || 'Carregando...'}
+                  </span>
+                   <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                    {currentIndex + 1} de {exercises.length} • {exercises[currentIndex]?.muscle_group || 'Geral'}
+                  </span>
+                </div>
               </div>
-              <span className="text-xs font-medium text-slate-400 tabular-nums">
-                {currentIndex + 1}/{exercises.length}
-              </span>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setShowExercisesList(true)}
+                  className="text-slate-400 hover:text-slate-900 transition-colors"
+                >
+                  <MoreHorizontal size={20} strokeWidth={2.5} />
+                </button>
+              </div>
             </header>
 
             {/* 2. CONTEÚDO SCROLLABLE */}
-            <div className="flex-1 overflow-y-auto pb-44 bg-[#F7F8FA]">
+            <div className="flex-1 overflow-y-auto pb-44 bg-[#F8FAFC]">
               
-              {/* COMPACT EXERCISE VIEW */}
-              <div className="p-4 flex gap-4 items-center mb-2">
-                <div className="w-16 h-16 bg-slate-200 rounded-2xl overflow-hidden border border-white shadow-sm flex-shrink-0">
+              {/* COMPACT VIDEO/IMAGE PREVIEW */}
+              <div className="px-4 py-4">
+                <div className="w-full aspect-video bg-slate-200 rounded-3xl overflow-hidden border border-white shadow-sm flex-shrink-0 relative group">
                   {currentEx?.image_url ? (
                     <img 
                       src={currentEx.image_url} 
                       alt="" 
-                      className="w-full h-full object-contain" 
+                      className="w-full h-full object-cover" 
                       referrerPolicy="no-referrer"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                       <Play className="text-slate-300 fill-slate-300" size={24} />
+                       <Play className="text-slate-300 fill-slate-300" size={32} />
                     </div>
                   )}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                     <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">
-                       {currentEx?.muscle_group || 'Geral'}
-                     </p>
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent flex items-end p-4">
+                     <p className="text-white text-xs font-bold uppercase tracking-widest">Aprenda a execução</p>
                   </div>
-                  <h1 className="text-lg font-bold leading-tight text-slate-900 line-clamp-1">
-                    Como executar: {currentEx?.exercise_name}
-                  </h1>
                 </div>
               </div>
 
-              {/* AÇÕES */}
-              <div className="flex gap-3 px-4 mb-6">
-                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-xs font-bold text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
+              {/* AÇÕES FIXAS NO BOLSO */}
+              <div className="flex gap-3 px-4 mb-6 sticky top-0 z-10 py-1">
+                <button className="flex-1 bg-white border border-slate-100 rounded-2xl py-3.5 shadow-sm text-xs font-bold text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
                   <RefreshCw size={14} /> Substituir
                 </button>
-                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-xs font-bold text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
+                <button className="flex-1 bg-white border border-slate-100 rounded-2xl py-3.5 shadow-sm text-xs font-bold text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
                   <Plus size={14} /> Nota
                 </button>
               </div>
 
-              {/* SERIES LIST */}
-              <div className="px-4 space-y-3">
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-3 ml-1">SEQUÊNCIA DE SÉRIES</p>
+              {/* SERIES LIST (CORE) */}
+              <div className="px-4 space-y-3 pb-8">
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-3 ml-1">Séries de hoje</p>
                 
                 {currentEx?.sets_json?.map((setPlan, idx) => {
                   const isCurrent = idx === currentSet - 1;
@@ -340,82 +365,80 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   return (
                     <div 
                       key={idx}
-                      className={`flex items-center justify-between p-4 rounded-2xl transition-all border-2 ${
+                      ref={(el) => (setRefs.current[idx] = el)}
+                      className={`flex items-center justify-between p-5 rounded-[2rem] transition-all duration-300 border-2 ${
                         isCurrent 
-                          ? "bg-white border-orange-200 shadow-lg shadow-orange-500/5 ring-4 ring-orange-500/5 translate-x-1" 
+                          ? "bg-white border-orange-500 shadow-xl shadow-orange-500/10 ring-8 ring-orange-500/5 scale-[1.02]" 
                           : isPast 
                             ? "bg-slate-100/50 border-transparent opacity-60" 
                             : "bg-white border-slate-50"
                       }`}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
-                          isCurrent ? "bg-orange-500 text-white" : "bg-slate-200 text-slate-400"
+                      <div className="flex items-center gap-5">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
+                          isCurrent ? "bg-orange-500 text-white shadow-lg" : isPast ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400"
                         }`}>
-                          {idx + 1}
+                          {isPast ? <Check size={16} strokeWidth={4} /> : idx + 1}
                         </div>
                         
                         {isCurrent ? (
-                           <div className="flex items-center gap-4">
+                           <div className="flex items-center gap-6">
                               <div className="text-center">
                                  <input 
                                    type="number"
                                    value={weight}
                                    onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
-                                   className="text-2xl font-black w-14 bg-transparent border-none p-0 focus:ring-0 text-slate-900 text-center"
+                                   className="text-3xl font-[1000] w-16 bg-transparent border-none p-0 focus:ring-0 text-slate-900 text-center"
                                    onFocus={(e) => e.target.select()}
+                                   autoFocus
                                  />
-                                 <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5">KG</p>
+                                 <p className="text-[9px] font-black text-slate-300 tracking-widest mt-1 opacity-60">CARGA (KG)</p>
                               </div>
                               <div className="text-center">
                                  <input 
                                    type="number"
                                    value={reps}
                                    onChange={(e) => setReps(parseInt(e.target.value) || 0)}
-                                   className="text-2xl font-black w-12 bg-transparent border-none p-0 focus:ring-0 text-slate-900 text-center"
+                                   className="text-3xl font-[1000] w-12 bg-transparent border-none p-0 focus:ring-0 text-slate-900 text-center"
                                    onFocus={(e) => e.target.select()}
                                  />
-                                 <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5">REPS</p>
+                                 <p className="text-[9px] font-black text-slate-300 tracking-widest mt-1 opacity-60">REPS</p>
                               </div>
                            </div>
                         ) : (
-                          <div className="flex items-center gap-6">
+                          <div className="flex items-center gap-8">
                             <div className="text-center">
-                               <p className="text-lg font-black text-slate-900">{setPlan.weight}</p>
-                               <p className="text-[8px] font-black text-slate-300 tracking-widest">KG</p>
+                               <p className="text-xl font-black text-slate-900">{setPlan.weight}</p>
+                               <p className="text-[9px] font-black text-slate-300 tracking-widest">KG</p>
                             </div>
                             <div className="text-center">
-                               <p className="text-lg font-black text-slate-900">{setPlan.reps}</p>
-                               <p className="text-[8px] font-black text-slate-300 tracking-widest">REPS</p>
+                               <p className="text-xl font-black text-slate-900">{setPlan.reps}</p>
+                               <p className="text-[9px] font-black text-slate-300 tracking-widest">REPS</p>
                             </div>
                           </div>
                         )}
                       </div>
 
-                      {isPast ? (
-                        <div className="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center">
-                          <Check size={16} strokeWidth={4} />
-                        </div>
-                      ) : isCurrent ? (
+                      {isCurrent ? (
                         <div className="flex flex-col items-center">
-                           <div className="flex gap-1">
+                           <div className="flex gap-1.5">
                               {[8, 9, 10].map(v => (
                                 <button 
                                   key={v}
                                   onClick={() => setRpe(v)}
-                                  className={`w-7 h-7 rounded-lg text-[9px] font-black transition-all ${
-                                    rpe === v ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-300"
+                                  className={`w-9 h-9 rounded-xl text-[10px] font-black transition-all ${
+                                    rpe === v ? "bg-slate-900 text-white shadow-lg scale-110" : "bg-slate-50 text-slate-300 hover:text-slate-400"
                                   }`}
                                 >
                                   {v}
                                 </button>
                               ))}
                            </div>
-                           <p className="text-[8px] font-black text-slate-300 mt-1">SINTONIA</p>
+                           <p className="text-[9px] font-black text-slate-300 mt-2 tracking-widest uppercase">Intensidade (RPE)</p>
                         </div>
                       ) : (
-                        <div className="w-8 h-8 flex items-center justify-center text-slate-100">
-                          <Check size={16} strokeWidth={4} />
+                        <div className="w-10 h-10 flex items-center justify-center text-slate-100">
+                          {isPast && <Check size={20} strokeWidth={4} />}
                         </div>
                       )}
                     </div>
@@ -423,50 +446,88 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 })}
               </div>
 
+              {/* FEEDBACK INTELIGENTE (IA) */}
+              <AnimatePresence mode="wait">
+                {(feedback || preHint) && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="px-4 mb-4"
+                  >
+                    <div className="bg-blue-50/80 backdrop-blur-sm p-6 rounded-[2rem] flex items-start gap-4 border border-blue-100 shadow-sm">
+                      <div className="bg-blue-600 text-white p-2 rounded-xl shadow-lg">
+                        <Zap size={18} className="fill-current" />
+                      </div>
+                      <p className="text-sm font-bold text-blue-900 leading-relaxed">
+                        {feedback || preHint}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* NAVIGATION BETWEEN EXERCISES */}
-              <div className="flex justify-between px-4 mt-6">
+              <div className="flex justify-between px-6 mt-12 pb-24">
                 <button 
                   onClick={() => currentIndex > 0 && setCurrentIndex(currentIndex - 1)}
-                  className="text-sm text-slate-400 hover:text-slate-600 font-medium transition-colors"
+                  className="text-xs text-slate-400 hover:text-slate-600 font-black uppercase tracking-widest flex items-center gap-2"
                 >
-                  ← Anterior
+                  <ChevronLeft size={14} strokeWidth={3} /> Anterior
                 </button>
                 <button 
                   onClick={() => currentIndex < exercises.length - 1 && setCurrentIndex(currentIndex + 1)}
-                  className="text-sm text-slate-400 hover:text-slate-600 font-medium transition-colors"
+                  className="text-xs text-slate-400 hover:text-slate-600 font-black uppercase tracking-widest flex items-center gap-2"
                 >
-                  Próxima →
+                  Próxima <ChevronRight size={14} strokeWidth={3} />
                 </button>
               </div>
 
             </div>
 
-            {/* 3. FOOTER FIXO (CORE DO APP) */}
-            <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 pb-8 max-w-md mx-auto shadow-[0_-10px_40px_rgba(0,0,0,0.04)]">
+            {/* 3. FOOTER FIXO (DESIGN APPLE FITNESS+) */}
+            <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-lg border-t p-4 pb-8 max-w-md mx-auto shadow-[0_-15px_60px_rgba(0,0,0,0.1)] rounded-t-[2.5rem]">
               
-              <div className="flex justify-between items-center mb-3">
-                <div>
-                  <p className="text-xs text-slate-400">Descanso</p>
-                  <p className="text-lg font-bold text-slate-900 tabular-nums">
-                    {formatTime(isResting ? timeLeft : 0)}
+              <div className="flex justify-between items-center mb-5 px-3">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">
+                    {isResting ? "Próximo round em" : "Timer de Descanso"}
                   </p>
+                  <div className="flex items-end gap-3">
+                    <p className={`text-4xl font-[1000] tabular-nums tracking-tighter leading-none ${isResting ? 'text-blue-600' : 'text-slate-400 opacity-50'}`}>
+                      {formatTime(isResting ? timeLeft : 0)}
+                    </p>
+                    {isResting && restOvertime > 0 && (
+                      <span className="text-xs font-bold text-red-500 animate-pulse mb-1">
+                        +{restOvertime}s
+                      </span>
+                    )}
+                  </div>
                 </div>
                 
-                <button 
-                  onClick={() => { setTimeLeft(60); setIsResting(true); }}
-                  className="text-sm text-orange-500 font-semibold active:scale-95 transition-transform"
-                >
-                  Resetar
-                </button>
+                <div className="flex gap-2">
+                   <button 
+                    onClick={() => { setTimeLeft(prev => Math.max(0, prev - 10)); }}
+                    className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:bg-slate-100 active:scale-90 transition-all font-black text-xs"
+                   >
+                     -10s
+                   </button>
+                   <button 
+                    onClick={() => { setTimeLeft(prev => prev + 10); }}
+                    className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:bg-slate-100 active:scale-90 transition-all font-black text-xs"
+                   >
+                     +10s
+                   </button>
+                </div>
               </div>
 
               <button
                 onClick={isResting ? () => { setIsResting(false); setRestOvertime(0); } : handleCompleteSet}
                 disabled={saving}
-                className={`w-full py-4 rounded-2xl text-lg font-bold transition-all active:scale-[0.95] flex items-center justify-center gap-3 ${
+                className={`w-full py-5 rounded-2xl text-lg font-black uppercase tracking-[0.1em] transition-all active:scale-[0.96] flex items-center justify-center gap-3 shadow-2xl ${
                   isResting 
-                    ? "bg-slate-100 text-slate-900" 
-                    : "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                    ? "bg-slate-900 text-white shadow-slate-900/20" 
+                    : "bg-orange-500 text-white shadow-orange-500/25"
                 }`}
               >
                 {saving ? (
@@ -474,6 +535,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 ) : (
                   <>
                     {isResting ? "Pular Descanso" : "Concluir Série"}
+                    <ChevronRight size={20} strokeWidth={4} />
                   </>
                 )}
               </button>
