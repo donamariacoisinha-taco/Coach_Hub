@@ -270,40 +270,29 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           <div className="w-full max-w-md flex flex-col h-full bg-white relative">
             
             {/* 1. HEADER & PROGRESS */}
-            <header className="sticky top-0 z-50 bg-[#F7F8FA] px-4 pt-4 pb-2">
-              <div className="flex items-center justify-between mb-4">
+            <header className="sticky top-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setShowExitModal(true)}
-                  className="p-1 px-2 -ml-2 text-slate-900 active:scale-90 transition-all font-bold"
+                  className="p-1 -ml-1 text-slate-900 active:scale-90 transition-all font-bold"
                 >
-                  ←
+                  <ChevronLeft size={22} strokeWidth={3} />
                 </button>
-                <span className="text-sm font-semibold text-slate-500">
-                  Exercício {currentIndex + 1}/{exercises.length}
+                <span className="text-sm font-bold text-slate-900 truncate max-w-[200px]">
+                  {currentEx?.exercise_name || 'Treino'}
                 </span>
-                <button 
-                  onClick={() => setShowExercisesList(true)}
-                  className="p-1 text-slate-900 active:scale-90 transition-all"
-                >
-                  <MoreHorizontal size={24} />
-                </button>
               </div>
-              
-              <div className="h-1.5 bg-white rounded-full overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${((currentIndex + 1) / exercises.length) * 100}%` }}
-                  className="h-full bg-orange-500 rounded-full transition-all duration-500"
-                />
-              </div>
+              <span className="text-xs font-medium text-slate-400 tabular-nums">
+                {currentIndex + 1}/{exercises.length}
+              </span>
             </header>
 
             {/* 2. CONTEÚDO SCROLLABLE */}
-            <div className="flex-1 overflow-y-auto pb-40">
+            <div className="flex-1 overflow-y-auto pb-44 bg-[#F7F8FA]">
               
-              {/* EXERCÍCIO */}
-              <div className="p-4 flex gap-4 items-center">
-                <div className="w-20 h-20 bg-slate-200 rounded-2xl overflow-hidden border border-white shadow-sm flex-shrink-0">
+              {/* COMPACT EXERCISE VIEW */}
+              <div className="p-4 flex gap-4 items-center mb-2">
+                <div className="w-16 h-16 bg-slate-200 rounded-2xl overflow-hidden border border-white shadow-sm flex-shrink-0">
                   {currentEx?.image_url ? (
                     <img 
                       src={currentEx.image_url} 
@@ -313,148 +302,178 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                       <Play className="text-slate-300 fill-slate-300" size={32} />
+                       <Play className="text-slate-300 fill-slate-300" size={24} />
                     </div>
                   )}
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-bold leading-tight text-slate-900">
-                    {currentEx?.exercise_name || 'Carregando...'}
+                  <div className="flex items-center gap-2">
+                     <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">
+                       {currentEx?.muscle_group || 'Geral'}
+                     </p>
+                  </div>
+                  <h1 className="text-lg font-bold leading-tight text-slate-900 line-clamp-1">
+                    Como executar: {currentEx?.exercise_name}
                   </h1>
-                  <p className="text-sm text-slate-500 font-medium">
-                    {currentEx?.muscle_group || 'Geral'}
-                  </p>
                 </div>
               </div>
 
               {/* AÇÕES */}
-              <div className="flex gap-3 px-4 mb-4">
-                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-sm font-semibold text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
+              <div className="flex gap-3 px-4 mb-6">
+                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-xs font-bold text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
                   <RefreshCw size={14} /> Substituir
                 </button>
-                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-sm font-semibold text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
+                <button className="flex-1 bg-white border border-slate-100 rounded-xl py-3 shadow-sm text-xs font-bold text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
                   <Plus size={14} /> Nota
                 </button>
               </div>
 
-              {/* SÉRIE FOCUS CARD */}
-              <div className="p-4">
-                <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-50 text-center relative overflow-hidden">
-                  {isResting && (
-                    <div className="absolute inset-0 bg-blue-600/90 backdrop-blur-sm flex flex-col items-center justify-center text-white z-10">
-                      <p className="text-xs font-black uppercase tracking-widest mb-2 opacity-80">Descanso</p>
-                      <span className="text-6xl font-black tabular-nums">{formatTime(timeLeft)}</span>
-                      {restOvertime > 0 && <span className="text-sm font-bold text-red-200 mt-2">+{restOvertime}s</span>}
-                    </div>
-                  )}
+              {/* SERIES LIST */}
+              <div className="px-4 space-y-3">
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-3 ml-1">SEQUÊNCIA DE SÉRIES</p>
+                
+                {currentEx?.sets_json?.map((setPlan, idx) => {
+                  const isCurrent = idx === currentSet - 1;
+                  const isPast = idx < currentSet - 1;
+                  
+                  return (
+                    <div 
+                      key={idx}
+                      className={`flex items-center justify-between p-4 rounded-2xl transition-all border-2 ${
+                        isCurrent 
+                          ? "bg-white border-orange-200 shadow-lg shadow-orange-500/5 ring-4 ring-orange-500/5 translate-x-1" 
+                          : isPast 
+                            ? "bg-slate-100/50 border-transparent opacity-60" 
+                            : "bg-white border-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
+                          isCurrent ? "bg-orange-500 text-white" : "bg-slate-200 text-slate-400"
+                        }`}>
+                          {idx + 1}
+                        </div>
+                        
+                        {isCurrent ? (
+                           <div className="flex items-center gap-4">
+                              <div className="text-center">
+                                 <input 
+                                   type="number"
+                                   value={weight}
+                                   onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                                   className="text-2xl font-black w-14 bg-transparent border-none p-0 focus:ring-0 text-slate-900 text-center"
+                                   onFocus={(e) => e.target.select()}
+                                 />
+                                 <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5">KG</p>
+                              </div>
+                              <div className="text-center">
+                                 <input 
+                                   type="number"
+                                   value={reps}
+                                   onChange={(e) => setReps(parseInt(e.target.value) || 0)}
+                                   className="text-2xl font-black w-12 bg-transparent border-none p-0 focus:ring-0 text-slate-900 text-center"
+                                   onFocus={(e) => e.target.select()}
+                                 />
+                                 <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5">REPS</p>
+                              </div>
+                           </div>
+                        ) : (
+                          <div className="flex items-center gap-6">
+                            <div className="text-center">
+                               <p className="text-lg font-black text-slate-900">{setPlan.weight}</p>
+                               <p className="text-[8px] font-black text-slate-300 tracking-widest">KG</p>
+                            </div>
+                            <div className="text-center">
+                               <p className="text-lg font-black text-slate-900">{setPlan.reps}</p>
+                               <p className="text-[8px] font-black text-slate-300 tracking-widest">REPS</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
-                  <div className="text-sm font-bold text-slate-400 mb-6 uppercase tracking-widest">
-                    Série {currentSet}
-                  </div>
-
-                  <div className="flex justify-center gap-10 items-end">
-                    <div className="flex flex-col items-center">
-                      <input
-                        type="number"
-                        value={weight}
-                        onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
-                        className="text-6xl font-black w-32 text-center bg-transparent outline-none text-slate-900 leading-none"
-                        onFocus={(e) => e.target.select()}
-                      />
-                      <span className="text-xs font-black text-slate-300 tracking-widest mt-2 uppercase">KG</span>
+                      {isPast ? (
+                        <div className="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center">
+                          <Check size={16} strokeWidth={4} />
+                        </div>
+                      ) : isCurrent ? (
+                        <div className="flex flex-col items-center">
+                           <div className="flex gap-1">
+                              {[8, 9, 10].map(v => (
+                                <button 
+                                  key={v}
+                                  onClick={() => setRpe(v)}
+                                  className={`w-7 h-7 rounded-lg text-[9px] font-black transition-all ${
+                                    rpe === v ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-300"
+                                  }`}
+                                >
+                                  {v}
+                                </button>
+                              ))}
+                           </div>
+                           <p className="text-[8px] font-black text-slate-300 mt-1">SINTONIA</p>
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 flex items-center justify-center text-slate-100">
+                          <Check size={16} strokeWidth={4} />
+                        </div>
+                      )}
                     </div>
-
-                    <div className="flex flex-col items-center">
-                      <input
-                        type="number"
-                        value={reps}
-                        onChange={(e) => setReps(parseInt(e.target.value) || 0)}
-                        className="text-6xl font-black w-24 text-center bg-transparent outline-none text-slate-900 leading-none"
-                        onFocus={(e) => e.target.select()}
-                      />
-                      <span className="text-xs font-black text-slate-300 tracking-widest mt-2 uppercase">REPS</span>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
 
-              {/* FEEDBACK INTELIGENTE (IA) */}
-              <AnimatePresence mode="wait">
-                {(feedback || preHint) && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="px-4 mt-2"
-                  >
-                    <div className="bg-blue-50 p-5 rounded-2xl flex items-start gap-3 border border-blue-100">
-                      <Zap size={18} className="text-blue-600 fill-blue-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm font-semibold text-blue-900 leading-relaxed">
-                        {feedback || preHint}
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* RPE & METAS ADICIONAIS */}
-              {!isResting && (
-                <div className="px-4 mt-8 pb-12">
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-3 ml-2">Esforço (RPE)</p>
-                  <div className="flex gap-2">
-                    {[7, 8, 9, 10].map(n => (
-                      <button
-                        key={n}
-                        onClick={() => setRpe(n)}
-                        className={`flex-1 py-3 rounded-xl font-bold transition-all border-2 ${
-                          rpe === n
-                            ? "bg-slate-900 text-white border-slate-900 shadow-lg scale-105"
-                            : "bg-white text-slate-400 border-slate-100 hover:border-slate-300"
-                        }`}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="mt-8 flex justify-between items-center bg-white p-5 rounded-2xl border border-slate-50">
-                    <div>
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Duração Total</p>
-                      <p className="text-lg font-bold text-slate-900">{formatTime(workoutDuration)}</p>
-                    </div>
-                    {lastSet && (
-                      <div className="text-right">
-                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Recorde</p>
-                        <p className="text-lg font-bold text-slate-900">{lastSet.weight}kg × {lastSet.reps}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* NAVIGATION BETWEEN EXERCISES */}
+              <div className="flex justify-between px-4 mt-6">
+                <button 
+                  onClick={() => currentIndex > 0 && setCurrentIndex(currentIndex - 1)}
+                  className="text-sm text-slate-400 hover:text-slate-600 font-medium transition-colors"
+                >
+                  ← Anterior
+                </button>
+                <button 
+                  onClick={() => currentIndex < exercises.length - 1 && setCurrentIndex(currentIndex + 1)}
+                  className="text-sm text-slate-400 hover:text-slate-600 font-medium transition-colors"
+                >
+                  Próxima →
+                </button>
+              </div>
 
             </div>
 
-            {/* 3. FOOTER FIXO */}
-            <footer className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t p-4 pb-8 max-w-md mx-auto shadow-[0_-10px_40px_rgba(0,0,0,0.04)]">
+            {/* 3. FOOTER FIXO (CORE DO APP) */}
+            <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 pb-8 max-w-md mx-auto shadow-[0_-10px_40px_rgba(0,0,0,0.04)]">
+              
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <p className="text-xs text-slate-400">Descanso</p>
+                  <p className="text-lg font-bold text-slate-900 tabular-nums">
+                    {formatTime(isResting ? timeLeft : 0)}
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={() => { setTimeLeft(60); setIsResting(true); }}
+                  className="text-sm text-orange-500 font-semibold active:scale-95 transition-transform"
+                >
+                  Resetar
+                </button>
+              </div>
+
               <button
                 onClick={isResting ? () => { setIsResting(false); setRestOvertime(0); } : handleCompleteSet}
                 disabled={saving}
-                className={`w-full py-5 rounded-2xl text-lg font-bold shadow-xl transition-all active:scale-[0.97] flex items-center justify-center gap-3 ${
+                className={`w-full py-4 rounded-2xl text-lg font-bold transition-all active:scale-[0.95] flex items-center justify-center gap-3 ${
                   isResting 
                     ? "bg-slate-100 text-slate-900" 
-                    : "bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/20"
+                    : "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
                 }`}
               >
                 {saving ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
-                ) : isResting ? (
-                  <>Pular cronômetro →</>
                 ) : (
                   <>
-                    {currentSet === (currentEx?.sets_json?.length || 3) && currentIndex === exercises.length - 1 
-                      ? "Finalizar Treino" 
-                      : "Concluir Série →"}
+                    {isResting ? "Pular Descanso" : "Concluir Série"}
                   </>
                 )}
               </button>
