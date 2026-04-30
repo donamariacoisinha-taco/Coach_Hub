@@ -388,7 +388,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             </header>
 
             {/* 2. CONTEÚDO SCROLLABLE */}
-            <div className="flex-1 overflow-y-auto pb-64 bg-[#F8FAFC]">
+            <div className="flex-1 overflow-y-auto pb-80 bg-[#F8FAFC]">
               
               {/* COMPACT EXERCISE HEADER (DYNAMIC COMPRESSION) */}
               <AnimatePresence>
@@ -600,7 +600,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             </div>
 
             {/* 3. FOOTER FIXO */}
-            <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-3xl">
+            <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl">
               
               {/* COMPACT TIMER BAR (CENTERED) */}
               <div className="flex items-center justify-center gap-8 mb-6">
@@ -631,7 +631,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     } : { duration: 0.3 }}
                     className="text-4xl font-black tabular-nums transition-all"
                   >
-                    {isResting ? (timeLeft <= 0 ? "PRONTO!" : formatTime(timeLeft)) : "0:00"}
+                    {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
                   </motion.span>
                 </div>
 
@@ -648,7 +648,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 disabled={saving}
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.02 }}
-                className={`w-full h-16 rounded-2xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl ${
+                className={`w-full h-16 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl ${
                   isResting 
                     ? "bg-slate-900 text-white" 
                     : "bg-orange-500 text-white shadow-orange-500/30"
@@ -658,7 +658,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
                   <>
-                    {isResting ? (timeLeft <= 0 ? "Próximo exercício" : "Pular Descanso") : "Concluir Série"}
+                    {isResting ? (timeLeft <= 0 ? "Próxima série" : "Pular Descanso") : "Concluir Série"}
                     {!isResting && <ArrowRight size={18} strokeWidth={4} />}
                   </>
                 )}
