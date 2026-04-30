@@ -50,6 +50,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [isResting, setIsResting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(90);
   const [restOvertime, setRestOvertime] = useState(0);
+  const [showPR, setShowPR] = useState(false);
+  
+  // Momentum & Compression
+  const momentum = currentSet >= 3;
   
   // Track all sets for the current exercise
   const [activeSetsData, setActiveSetsData] = useState<{weight: number, reps: number, rpe: number}[]>([]);
@@ -219,53 +223,65 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       lastSet || undefined
     );
 
-    // Optimistic UI for NEXT set
-    if (setIdx + 1 < activeSetsData.length) {
-       setActiveSetsData(prev => {
-         const next = [...prev];
-         next[setIdx + 1] = { ...next[setIdx + 1], weight: decision.nextWeight };
-         return next;
-       });
+    // ADAPTIVE REST TIMER
+    let adaptiveRest = currentEx.rest_time || 90;
+    if (rpe >= 9) adaptiveRest += 15;
+    if (previousSet && reps < previousSet.reps) adaptiveRest += 10;
+
+    // PR MOMENT DETECTION
+    const isPR = lastSet ? (weight > lastSet.weight || (weight === lastSet.weight && reps > lastSet.reps)) : false;
+    if (isPR) {
+      setShowPR(true);
+      if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+      setTimeout(() => setShowPR(false), 2000);
     }
-    
-    setFeedback(emotional);
-    setPreviousSet(currentSetData);
-    setTimeout(() => setFeedback(null), 3000);
 
-    setTimeLeft(currentEx.rest_time || 90);
-    setRestOvertime(0);
-    setIsResting(true);
-    
-    if ('vibrate' in navigator) navigator.vibrate(30);
-
-    setSaving(true);
-    try {
-      await saveSet({ 
-        history_id: historyId,
-        exercise_id: currentEx.exercise_id,
-        exercise_name_snapshot: currentEx.exercise_name,
-        set_number: currentSet,
-        weight_achieved: weight,
-        reps_achieved: reps,
-        rpe: rpe,
-        set_type: SetType.NORMAL
-      });
-      
-      // Advance to next set or next exercise
-      if (currentSet < (currentEx.sets_json?.length || 0)) {
-        setCurrentSet(currentSet + 1);
-      } else if (currentIndex < exercises.length - 1) {
-        // Automatically move to next exercise after last set? 
-        // User asked: "Move to next set automatically. Scroll into view."
-        // We handle set advancement above.
+    // MICRO DELAY FOR PERCEIVED PRECISION
+    setTimeout(async () => {
+      // Optimistic UI for NEXT set
+      if (setIdx + 1 < activeSetsData.length) {
+         setActiveSetsData(prev => {
+           const next = [...prev];
+           next[setIdx + 1] = { ...next[setIdx + 1], weight: decision.nextWeight };
+           return next;
+         });
       }
       
-      workoutApi.updatePartialSession(historyId, currentIndex, currentSet).catch(console.error);
-    } catch (err) {
-      showError(err);
-    } finally {
-      setSaving(false);
-    }
+      setFeedback(emotional);
+      setPreviousSet(currentSetData);
+      setTimeout(() => setFeedback(null), 3000);
+
+      setTimeLeft(adaptiveRest);
+      setRestOvertime(0);
+      setIsResting(true);
+      
+      if ('vibrate' in navigator) navigator.vibrate(30);
+
+      setSaving(true);
+      try {
+        await saveSet({ 
+          history_id: historyId,
+          exercise_id: currentEx.exercise_id,
+          exercise_name_snapshot: currentEx.exercise_name,
+          set_number: currentSet,
+          weight_achieved: weight,
+          reps_achieved: reps,
+          rpe: rpe,
+          set_type: SetType.NORMAL
+        });
+        
+        // Advance to next set or next exercise
+        if (currentSet < (currentEx.sets_json?.length || 0)) {
+          setCurrentSet(currentSet + 1);
+        }
+        
+        workoutApi.updatePartialSession(historyId, currentIndex, currentSet).catch(console.error);
+      } catch (err) {
+        showError(err);
+      } finally {
+        setSaving(false);
+      }
+    }, 200); // 200ms momentum delay
   };
 
   const finishWorkout = async (isSuccess: boolean) => {
@@ -344,7 +360,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           <div className="w-full max-w-md flex flex-col h-full bg-white relative">
             
             {/* 1. HEADER & PROGRESS */}
-            <header className="sticky top-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between">
+            <header className={`sticky top-0 z-50 bg-white transition-all duration-500 overflow-hidden ${
+              momentum ? "h-12 border-b-0 shadow-sm" : "h-16 border-b"
+            } px-4 flex items-center justify-between`}>
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setShowExitModal(true)}
@@ -352,60 +370,67 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 >
                   <ChevronLeft size={22} strokeWidth={3} />
                 </button>
-                <div className="flex flex-col">
+                <div className={`flex flex-col transition-all duration-500 ${momentum ? "scale-90 origin-left" : ""}`}>
                   <span className="text-sm font-[1000] text-slate-900 truncate max-w-[180px] uppercase tracking-tighter">
                     {currentEx?.exercise_name || 'Carregando...'}
                   </span>
-                   <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-0.5">
+                   <span className={`text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-0.5 ${momentum ? "hidden" : ""}`}>
                     {currentIndex + 1} de {exercises.length} • {exercises[currentIndex]?.muscle_group || 'Geral'}
                   </span>
                 </div>
               </div>
               <div className="flex gap-4">
-                <button 
-                  onClick={() => setShowExercisesList(true)}
-                  className="text-slate-400 hover:text-slate-900 transition-colors"
-                >
-                  <MoreHorizontal size={20} strokeWidth={2.5} />
-                </button>
+                <div className="flex flex-col items-end">
+                   <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Tempo</p>
+                   <p className="text-xs font-bold tabular-nums text-slate-900">{formatTime(workoutDuration)}</p>
+                </div>
               </div>
             </header>
 
             {/* 2. CONTEÚDO SCROLLABLE */}
             <div className="flex-1 overflow-y-auto pb-48 bg-[#F8FAFC]">
               
-              {/* COMPACT EXERCISE HEADER */}
-              <div className="p-4 flex gap-4 items-center bg-white mb-2">
-                <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden shadow-sm flex-shrink-0 border border-slate-50">
-                  {currentEx?.image_url ? (
-                    <img 
-                      src={currentEx.image_url} 
-                      alt="" 
-                      className="w-full h-full object-cover" 
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                       <Play className="text-slate-300 fill-slate-300" size={24} />
+              {/* COMPACT EXERCISE HEADER (DYNAMIC COMPRESSION) */}
+              <AnimatePresence>
+                {!momentum && (
+                  <motion.div 
+                    initial={{ height: "auto", opacity: 1 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0, padding: 0 }}
+                    className="p-4 flex gap-4 items-center bg-white mb-2 overflow-hidden"
+                  >
+                    <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden shadow-sm flex-shrink-0 border border-slate-50">
+                      {currentEx?.image_url ? (
+                        <img 
+                          src={currentEx.image_url} 
+                          alt="" 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                           <Play className="text-slate-300 fill-slate-300" size={24} />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-base font-bold text-slate-900 leading-tight">
-                    {currentEx?.exercise_name}
-                  </h1>
-                  <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5 line-clamp-1">
-                    {currentEx?.muscle_group} • {currentEx?.equipment || 'Sem equipamento'}
-                  </p>
-                  <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
-                    Foco na amplitude e contração lenta.
-                  </p>
-                </div>
-              </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <h1 className="text-base font-bold text-slate-900 leading-tight">
+                        {currentEx?.exercise_name}
+                      </h1>
+                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5 line-clamp-1">
+                        {currentEx?.muscle_group} • {currentEx?.equipment || 'Sem equipamento'}
+                      </p>
+                      <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                        Foco na amplitude e contração lenta.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* AÇÕES QUICK */}
-              <div className="flex gap-2 px-4 mb-4">
+              <div className={`flex gap-2 px-4 transition-all duration-500 ${momentum ? "mb-2 mt-2" : "mb-4"}`}>
                 <button 
                   onClick={() => setShowExercisesList(true)}
                   className="flex-1 bg-white border border-slate-100 rounded-xl py-2.5 shadow-sm text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-all"
@@ -448,28 +473,51 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                           {isPast ? <Check size={16} strokeWidth={4} /> : idx + 1}
                         </div>
                         
-                        <div className="flex items-center gap-4">
-                           <div className="text-center">
+                        <div className="flex items-center gap-6 relative">
+                           {/* PR TAG */}
+                           <AnimatePresence>
+                             {isCurrent && showPR && (
+                               <motion.div 
+                                 initial={{ opacity: 0, y: 10, scale: 0.5 }}
+                                 animate={{ opacity: 1, y: -25, scale: 1 }}
+                                 exit={{ opacity: 0, scale: 0.5 }}
+                                 className="absolute top-0 left-0 right-0 flex justify-center z-10"
+                               >
+                                 <span className="bg-yellow-400 text-yellow-900 text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg border border-yellow-200 uppercase tracking-tighter flex items-center gap-1">
+                                    🏆 NOVO RECORDE
+                                 </span>
+                               </motion.div>
+                             )}
+                           </AnimatePresence>
+
+                           <div className="text-center group">
                               <motion.input 
                                 ref={(el) => (inputRefs.current[idx] = el)}
                                 type="number"
                                 value={setData.weight}
                                 onChange={(e) => updateSetData(idx, 'weight', parseFloat(e.target.value) || 0)}
-                                whileFocus={{ scale: 1.1, color: "#f97316" }}
-                                className={`text-xl font-black w-14 bg-transparent border-none p-0 focus:ring-0 text-center transition-colors ${
+                                whileFocus={{ scale: 1.15, color: "#f97316" }}
+                                className={`text-xl font-black w-20 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
                                   isCurrent ? "text-slate-900" : "text-slate-400"
                                 }`}
                                 onFocus={(e) => e.target.select()}
                               />
                               <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">Kg</p>
+                              
+                              {/* PREDICTIVE SUGGESTION */}
+                              {isCurrent && lastSet && !isPast && (
+                                <p className="text-[7px] font-bold text-orange-400 mt-1 animate-pulse">
+                                   Recomendado: {lastSet.weight + 1}kg
+                                </p>
+                              )}
                            </div>
                            <div className="text-center">
                               <motion.input 
                                 type="number"
                                 value={setData.reps}
                                 onChange={(e) => updateSetData(idx, 'reps', parseInt(e.target.value) || 0)}
-                                whileFocus={{ scale: 1.1, color: "#f97316" }}
-                                className={`text-xl font-black w-10 bg-transparent border-none p-0 focus:ring-0 text-center transition-colors ${
+                                whileFocus={{ scale: 1.15, color: "#f97316" }}
+                                className={`text-xl font-black w-14 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
                                   isCurrent ? "text-slate-900" : "text-slate-400"
                                 }`}
                                 onFocus={(e) => e.target.select()}
