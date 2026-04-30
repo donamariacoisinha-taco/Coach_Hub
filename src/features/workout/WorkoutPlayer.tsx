@@ -210,8 +210,34 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       vibratedAlert5s.current = false;
       return;
     }
+    
+    // Auto-advance logic at 0
     if (timeLeft <= 0) {
       setRestOvertime(prev => prev + 1);
+      
+      // Auto-advance after 1.5s of showing "VAI LÁ!" / Beep
+      if (restOvertime === 1) { // 1 second after hitting 0
+        const isLastSet = currentSet >= (currentEx?.sets_json?.length || 0);
+        
+        setTimeout(() => {
+          setIsResting(false);
+          setRestOvertime(0);
+          
+          if (isLastSet) {
+            if (currentIndex < exercises.length - 1) {
+              setCurrentIndex(currentIndex + 1);
+              setCurrentSet(1);
+            } else {
+              // Workout finished? handleCompleteSet already handles finishing 
+              // but if they just waited for the timer of the last set...
+              // We'll let the user click "Finish" or we can auto-finish.
+              // User said: "load first set of next exercise".
+            }
+          } else {
+            setCurrentSet(currentSet + 1);
+          }
+        }, 1500); 
+      }
       return;
     }
     
@@ -447,16 +473,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setShowExitModal(true)}
-                  className="p-1 -ml-1 text-slate-900 active:scale-90 transition-all font-bold"
+                  className="p-1 -ml-1 text-slate-400 hover:text-slate-900 active:scale-90 transition-all font-bold"
                 >
-                  <ChevronLeft size={22} strokeWidth={3} />
+                  <X size={24} strokeWidth={3} />
                 </button>
                 <div className={`flex flex-col transition-all duration-500 ${momentum ? "scale-90 origin-left" : ""}`}>
                   <span className="text-sm font-[1000] text-slate-900 truncate max-w-[180px] uppercase tracking-tighter">
                     {currentEx?.exercise_name || 'Carregando...'}
                   </span>
                    <span className={`text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-0.5 ${momentum ? "hidden" : ""}`}>
-                    {currentIndex + 1} de {exercises.length} • {exercises[currentIndex]?.muscle_group || 'Geral'}
+                    {currentIndex + 1} de {exercises.length} • {currentEx?.muscle_group || 'Geral'}
                   </span>
                 </div>
               </div>
@@ -836,34 +862,50 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       <AnimatePresence>
         {showExitModal && (
           <div className="fixed inset-0 z-[1300] flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowExitModal(false)} className="absolute inset-0 bg-slate-900/30 backdrop-blur-xl" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="w-full max-w-xs bg-white rounded-[3rem] p-10 shadow-2xl space-y-10 border border-slate-50 relative z-10">
-              <div className="text-center">
-                <h3 className="text-2xl font-[1000] text-slate-900 uppercase tracking-tighter">Interromper?</h3>
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-6 leading-relaxed">Você pode salvar o progresso atual ou descartar totalmente.</p>
-              </div>
-              <div className="space-y-4">
-                <button 
-                  onClick={() => finishWorkout(true)} 
-                  disabled={finishing}
-                  className="w-full py-6 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform shadow-xl flex items-center justify-center disabled:opacity-50"
-                >
-                  {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Encerrar e Salvar"}
-                </button>
-                <button 
-                  onClick={() => finishWorkout(false)} 
-                  disabled={finishing}
-                  className="w-full py-6 bg-red-50 text-red-500 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform flex items-center justify-center disabled:opacity-50"
-                >
-                  {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Descartar Treino"}
-                </button>
-                <button 
-                  onClick={() => setShowExitModal(false)} 
-                  disabled={finishing}
-                  className="w-full py-4 text-slate-300 font-black uppercase text-[10px] tracking-widest active:text-slate-900 transition-colors disabled:opacity-50"
-                >
-                  Voltar ao Treino
-                </button>
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setShowExitModal(false)} 
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.9, opacity: 0, y: 20 }} 
+              className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl relative z-10 border border-slate-50 overflow-hidden"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-6">
+                  <Target size={32} className="text-orange-500" />
+                </div>
+                <h3 className="text-xl font-[1000] text-slate-900 uppercase tracking-tighter mb-2">Interromper Treino?</h3>
+                <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
+                  Deseja salvar seu progresso atual ou descartar totalmente esta sessão?
+                </p>
+                
+                <div className="w-full space-y-3">
+                  <button 
+                    onClick={() => finishWorkout(true)} 
+                    disabled={finishing}
+                    className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar e Sair"}
+                  </button>
+                  <button 
+                    onClick={() => finishWorkout(false)} 
+                    disabled={finishing}
+                    className="w-full py-4 bg-white border border-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center"
+                  >
+                    Descartar
+                  </button>
+                  <button 
+                    onClick={() => setShowExitModal(false)}
+                    className="w-full py-2 text-slate-300 font-black text-[10px] uppercase tracking-widest hover:text-slate-500 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
