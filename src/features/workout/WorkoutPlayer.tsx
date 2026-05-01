@@ -15,7 +15,9 @@ import {
   RefreshCw,
   Zap,
   ArrowRight,
-  Target
+  Target,
+  Flame,
+  Award
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { authApi } from "../../lib/api/authApi";
@@ -34,6 +36,7 @@ import { VictoryScreen } from "../../components/VictoryScreen";
 import { workoutEngine } from "../../domain/workout/workoutEngine";
 import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 import { cacheStore } from "../../lib/cache/cacheStore";
+import { calculateStreak } from "../../domain/streak/streakEngine";
 
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { navigate, goBack } = useNavigation();
@@ -78,6 +81,25 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const isAdvancingRef = useRef(false);
   const hasTriggeredRef = useRef(false);
   const [isWorkoutComplete, setIsWorkoutComplete] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [fatigueDetected, setFatigueDetected] = useState(false);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadStreak() {
+      try {
+        const user = await authApi.getUser();
+        if (user) {
+          const history = await workoutApi.getWorkoutHistory(user.id);
+          const currentStreak = calculateStreak(history.map((h: any) => h.completed_at));
+          setStreak(currentStreak);
+        }
+      } catch (e) {
+        console.error("Error loading streak", e);
+      }
+    }
+    loadStreak();
+  }, []);
 
   const log = (msg: string, data?: any) => {
     if (process.env.NODE_ENV === "development") {
@@ -359,6 +381,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     if (isLastSet) {
       if (currentIndex < exercises.length - 1) {
         log("[ADVANCE_WORKOUT] Next Exercise");
+        showSuccess(`Excelente! ${currentEx.exercise_name} concluído.`);
         setCurrentIndex(currentIndex + 1);
         setCurrentSet(1);
         setCompletedSetIndices(new Set()); 
@@ -452,16 +475,28 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
     // Initialize active sets data
     if (currentEx.sets_json && currentEx.sets_json.length > 0) {
-      setActiveSetsData(currentEx.sets_json.map(s => ({
-        weight: s.weight || 0,
-        reps: parseInt(s.reps as string) || 10,
-        rpe: 8
-      })));
+      setActiveSetsData(currentEx.sets_json.map((s, idx) => {
+        // Auto-progression Memory: use lastSet for the first set if session is new
+        if (idx === 0 && lastSet) {
+          return {
+            weight: lastSet.weight,
+            reps: lastSet.reps,
+            rpe: lastSet.rpe || 8
+          };
+        }
+        return {
+          weight: s.weight || 0,
+          reps: parseInt(s.reps as string) || 10,
+          rpe: 8
+        };
+      }));
     } else {
       // Empty state safety: ensure at least one set exists
-      setActiveSetsData([{ weight: 0, reps: 10, rpe: 8 }]);
+      const initialWeight = lastSet?.weight || 0;
+      const initialReps = lastSet?.reps || 10;
+      setActiveSetsData([{ weight: initialWeight, reps: initialReps, rpe: 8 }]);
     }
-  }, [currentEx]);
+  }, [currentEx, lastSet]);
 
   // Update a single set's data
   const updateSetData = (idx: number, field: 'weight' | 'reps' | 'rpe', value: number | string) => {
@@ -511,6 +546,24 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setShowPR(true);
       if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
       setTimeout(() => setShowPR(false), 2000);
+    }
+
+    // FATIGUE DETECTION
+    if (previousSet) {
+       if (reps < previousSet.reps || rpe >= 9) {
+          setFatigueDetected(true);
+       } else {
+          setFatigueDetected(false);
+       }
+    }
+
+    // PREDICTIVE LOAD SUGGESTION
+    if (decision.action === 'increase') {
+       setSuggestion(`Próxima: ${decision.nextWeight}kg ↑`);
+    } else if (decision.action.startsWith('decrease')) {
+       setSuggestion(`Próxima: ${decision.nextWeight}kg ↓`);
+    } else {
+       setSuggestion(null);
     }
 
     // SET PENDING FOR PROGRESSION
@@ -656,7 +709,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <X size={24} strokeWidth={3} />
                 </button>
                 <div className={`flex flex-col transition-all duration-500 ${momentum ? "scale-90 origin-left" : ""}`}>
-                  <span className="text-sm font-[1000] text-slate-900 truncate max-w-[180px] uppercase tracking-tighter">
+                  <span className="text-sm font-[1000] text-slate-900 truncate max-w-[150px] uppercase tracking-tighter">
                     {currentEx?.exercise_name || 'Carregando...'}
                   </span>
                    <span className={`text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-0.5 ${momentum ? "hidden" : ""}`}>
@@ -664,7 +717,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </span>
                 </div>
               </div>
-              <div className="flex gap-4">
+              <div className="flex gap-4 items-center">
+                {streak > 0 && !momentum && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 rounded-full border border-orange-100 hidden sm:flex">
+                    <Flame size={12} className="text-orange-500 fill-orange-500" />
+                    <span className="text-[10px] font-black text-orange-600 tabular-nums">{streak}</span>
+                  </div>
+                )}
                 <div className="flex flex-col items-end">
                    <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Tempo</p>
                    <p className="text-xs font-bold tabular-nums text-slate-900">{formatTime(workoutDuration)}</p>
@@ -936,6 +995,44 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               className={`fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl ${isResting && timeLeft <= 5 && timeLeft > 0 ? 'ring-2 ring-orange-500/20' : ''}`}
             >
               
+              {/* PR / FEEDBACK / SUGGESTION OVERLAY */}
+              <AnimatePresence>
+                {(feedback || suggestion || (isResting && restOvertime > 15)) && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-[90%] max-w-[320px] pointer-events-none z-50"
+                  >
+                    <div className="bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex flex-col gap-2 border border-slate-800 backdrop-blur-md bg-opacity-95 items-center text-center">
+                      {suggestion && (
+                         <div className="flex items-center gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest">
+                           <Target size={12} /> {suggestion}
+                         </div>
+                      )}
+                      
+                      {feedback && (
+                        <p className="text-xs font-black uppercase tracking-tight leading-snug">
+                          {feedback}
+                        </p>
+                      )}
+
+                      {isResting && restOvertime > 15 && (
+                        <div className="flex items-center gap-2 text-orange-400 animate-pulse font-black text-[10px] uppercase tracking-widest">
+                          <Zap size={12} /> Vamos para a próxima?
+                        </div>
+                      )}
+
+                      {fatigueDetected && (
+                         <div className="flex items-center gap-2 text-slate-400 font-black text-[9px] uppercase tracking-widest">
+                           <Loader2 size={10} className="animate-spin" /> Fadiga detectada — mantenha a carga
+                         </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* COMPACT TIMER BAR (CENTERED CONTROL BAR) */}
               <div className="flex items-center justify-between bg-slate-50/50 rounded-2xl p-2 mb-4 border border-slate-100">
                 <button 
