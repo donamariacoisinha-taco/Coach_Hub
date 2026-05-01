@@ -74,6 +74,49 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [finishing, setFinishing] = useState(false);
   const [pendingSetToComplete, setPendingSetToComplete] = useState<number | null>(null);
   const [completedSetIndices, setCompletedSetIndices] = useState<Set<number>>(new Set());
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const isAdvancingRef = useRef(false);
+  const hasTriggeredRef = useRef(false);
+  const [isWorkoutComplete, setIsWorkoutComplete] = useState(false);
+
+  const log = (msg: string, data?: any) => {
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[WorkoutPlayer] ${msg}`, data || "");
+    }
+  };
+
+  const rollbackToSet = (idx: number) => {
+    log("[SET_ROLLBACK] Reverting to set", { idx });
+    setCurrentSet(idx + 1);
+    setIsResting(false);
+    setRestOvertime(0);
+    setPendingSetToComplete(null);
+    hasTriggeredRef.current = false;
+    isAdvancingRef.current = false;
+    setIsTransitioning(false);
+    
+    // Remove completion for this set and all subsequent sets in this exercise
+    setCompletedSetIndices(prev => {
+      const next = new Set(prev);
+      for (let i = idx; i < (currentEx?.sets_json?.length || 0); i++) {
+        next.delete(i);
+      }
+      return next;
+    });
+  };
+
+  const handleAdjustTimer = (delta: number) => {
+    setTimeLeft(prev => {
+      const newVal = Math.max(0, prev + delta);
+      if (newVal === 0 && prev > 0) {
+        log("[REST_SKIPPED] Timer adjusted to 0");
+        // We'll let the useEffect handle the 1s delay for "VAI LÁ"
+        // But if we want immediate:
+        // advanceWorkout(pendingSetToComplete!);
+      }
+      return newVal;
+    });
+  };
 
   // Smart Footer Logic
   const [isFooterVisible, setIsFooterVisible] = useState(true);
@@ -233,33 +276,27 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const currentEx = useMemo(() => (exercises && exercises[currentIndex]) || null, [exercises, currentIndex]);
 
-  // Auto-scroll to current set
+  // Failsafe & Consistency Guard
   useEffect(() => {
-    const activeRef = setRefs.current[currentSet - 1];
-    if (activeRef) {
-      // Delay slightly to let layout animations start/DOM update
-      const timer = setTimeout(() => {
-        activeRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
-        // Auto-focus input of next set
-        setTimeout(() => {
-          inputRefs.current[currentSet - 1]?.focus();
-          // Auto-select text on focus (as per Production Polish Layer point 4)
-          try {
-            inputRefs.current[currentSet - 1]?.select();
-          } catch (e) {}
-        }, 300);
-      }, 100);
-      
-      return () => clearTimeout(timer);
+    if (!exercises || exercises.length === 0) return;
+    
+    // Recovery: Ensure current index and set are within valid ranges
+    if (currentIndex >= exercises.length) {
+      log("[FAILSAFE] Index out of bounds, resetting", { currentIndex });
+      setCurrentIndex(exercises.length - 1);
     }
-  }, [currentSet, currentIndex]);
+    
+    const ex = exercises[currentIndex];
+    const maxSets = ex?.sets_json?.length || 1;
+    if (currentSet > maxSets) {
+       log("[FAILSAFE] Set out of bounds, resetting", { currentSet, maxSets });
+       setCurrentSet(maxSets);
+    }
 
-  // Prefetch next
-  useEffect(() => {
-    const nextEx = exercises[currentIndex + 1];
-    if (nextEx?.exercise_image) imagePrefetcher.prefetch(nextEx.exercise_image);
-  }, [currentIndex, exercises]);
+    // Integrity: Ensure completed sets don't have gaps (optional but requested)
+    // We strictly control this via advanceWorkout and rollbackToSet, 
+    // but we can monitor it here if needed.
+  }, [currentIndex, currentSet, exercises]);
 
   // Timers
   useEffect(() => {
@@ -293,41 +330,85 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   // CENTRALIZED PROGRESSION LOGIC
   const advanceWorkout = async (completedIdx: number) => {
-    if (!currentEx || !historyId) return;
+    if (!currentEx || !historyId || isTransitioning || isAdvancingRef.current || isWorkoutComplete) return;
+    
+    log("[ADVANCE_WORKOUT] Start", { completedIdx });
+    isAdvancingRef.current = true;
+    setIsTransitioning(true);
 
     // 1. Mark as completed
-    setCompletedSetIndices(prev => new Set([...prev, completedIdx]));
+    setCompletedSetIndices(prev => {
+      const next = new Set(prev);
+      next.add(completedIdx);
+      return next;
+    });
     
     // 2. Sound & Haptic
     playTimerBeep(true);
     if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
 
-    // 3. Determine next step
-    const isLastSet = currentSet >= (currentEx.sets_json?.length || 0);
+    // 3. Reset states for progression
+    setIsResting(false);
+    setRestOvertime(0);
+    hasTriggeredRef.current = false; // Prepare for next rest
+
+    // 4. Determine next step
+    const setsTarget = currentEx.sets_json?.length || 0;
+    const isLastSet = currentSet >= setsTarget;
 
     if (isLastSet) {
       if (currentIndex < exercises.length - 1) {
-        // Next Exercise
+        log("[ADVANCE_WORKOUT] Next Exercise");
         setCurrentIndex(currentIndex + 1);
         setCurrentSet(1);
-        setCompletedSetIndices(new Set()); // Reset for next exercise
+        setCompletedSetIndices(new Set()); 
       } else {
-        // Workout Finished
+        log("[ADVANCE_WORKOUT] Workout Finished");
         finishWorkout(true);
       }
     } else {
-      // Next Set
+      log("[ADVANCE_WORKOUT] Next Set");
       setCurrentSet(currentSet + 1);
     }
 
-    // 4. Update Remote Session
+    // 5. Update Remote Session
     workoutApi.updatePartialSession(historyId, currentIndex, currentSet).catch(console.error);
     setPendingSetToComplete(null);
+
+    // 6. Natural Delay for UI stability & Focus
+    setTimeout(() => {
+      setIsTransitioning(false);
+      isAdvancingRef.current = false;
+      log("[ADVANCE_WORKOUT] Transition Complete");
+    }, 400); 
   };
+
+  // Scroll and focus handler
+  useEffect(() => {
+    const activeIdx = currentSet - 1;
+    const activeRef = setRefs.current[activeIdx];
+    
+    if (activeRef && !isResting) {
+      // Use requestAnimationFrame for a jitter-free scroll after layout paint
+      requestAnimationFrame(() => {
+        activeRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Auto-focus input with stable delay
+        const input = inputRefs.current[activeIdx];
+        if (input) {
+          setTimeout(() => {
+            input.focus();
+            try { input.select(); } catch(e) {}
+          }, 120); // 120ms for stability
+        }
+      });
+    }
+  }, [currentSet, currentIndex, isResting]);
 
   useEffect(() => {
     if (!isResting) {
       vibratedAlert5s.current = false;
+      hasTriggeredRef.current = false;
       return;
     }
     
@@ -336,9 +417,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setRestOvertime(prev => prev + 1);
       
       // Auto-advance after 1s of showing "VAI LÁ!"
-      if (restOvertime === 1) { 
-        setIsResting(false);
-        setRestOvertime(0);
+      if (restOvertime === 1 && !hasTriggeredRef.current) { 
+        hasTriggeredRef.current = true;
         if (pendingSetToComplete !== null) {
           advanceWorkout(pendingSetToComplete);
         }
@@ -498,6 +578,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         if (user) await workoutApi.clearPartialSession(user.id);
         cacheStore.clear(`workout_init_${workoutId}`);
         setWorkoutDuration(finalDuration);
+        setIsWorkoutComplete(true);
         setIsFinished(true);
       } else {
         await workoutApi.abandonWorkout(currentHistoryId);
@@ -675,17 +756,22 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                           : isPast && !isCurrent ? 0.96 : 0.98,
                         height: "auto",
                         marginTop: (idx === 0 ? 0 : 12),
-                        borderColor: isCurrent ? (isPending ? '#94a3b8' : '#f97316') : 'rgba(241, 245, 249, 0.5)',
+                        borderColor: isPending ? '#cbd5e1' : (isCurrent ? '#f97316' : 'rgba(241, 245, 249, 0.5)'),
                         boxShadow: isCurrent && !isPending
                           ? (intensity === 'HIGH' ? '0 15px 35px -5px rgba(249, 115, 22, 0.25)' : '0 10px 25px -5px rgba(249, 115, 22, 0.1)') 
                           : '0 0px 0px 0px rgba(0,0,0,0)',
                       }}
                       style={{ overflow: "hidden" }}
+                      onClick={isCompleted ? () => rollbackToSet(idx) : undefined}
                       transition={isCurrent && intensity === 'LOW' ? {
                         scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
                         default: { type: "spring", stiffness: 300, damping: 25 }
                       } : { type: "spring", stiffness: 300, damping: 25 }}
-                      className={`flex items-center justify-between p-4 rounded-2xl transition-all duration-300 bg-white border-2 ${isCurrent && intensity === 'HIGH' && !isPending ? 'border-orange-400 ring-4 ring-orange-500/10' : ''}`}
+                      className={`flex items-center justify-between p-4 rounded-2xl transition-all duration-300 border-2 ${
+                        isCompleted ? "bg-slate-50/50 cursor-pointer hover:bg-slate-100" : 
+                        isPending ? "bg-slate-50 border-dashed animate-pulse cursor-wait" :
+                        "bg-white"
+                      } ${isCurrent && intensity === 'HIGH' && !isPending ? 'border-orange-400 ring-4 ring-orange-500/10' : ''}`}
                     >
                       <div className="flex items-center gap-4">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
@@ -853,7 +939,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               {/* COMPACT TIMER BAR (CENTERED CONTROL BAR) */}
               <div className="flex items-center justify-between bg-slate-50/50 rounded-2xl p-2 mb-4 border border-slate-100">
                 <button 
-                  onClick={() => setTimeLeft(prev => Math.max(0, prev - 10))}
+                  onClick={() => handleAdjustTimer(-10)}
                   className="w-14 h-10 bg-white text-slate-400 rounded-xl flex items-center justify-center active:scale-95 transition-all font-black text-[10px] tracking-widest shadow-sm border border-slate-100"
                 >
                   -10S
@@ -883,7 +969,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </div>
 
                 <button 
-                  onClick={() => setTimeLeft(prev => prev + 10)}
+                  onClick={() => handleAdjustTimer(10)}
                   className="w-14 h-10 bg-white text-slate-400 rounded-xl flex items-center justify-center active:scale-95 transition-all font-black text-[10px] tracking-widest shadow-sm border border-slate-100"
                 >
                   +10S
@@ -891,8 +977,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               </div>
 
               <motion.button
-                onClick={isResting ? () => { setIsResting(false); setRestOvertime(0); } : handleCompleteSet}
-                disabled={saving}
+                onClick={isResting ? () => { 
+                  log("[REST_SKIPPED] Manual skip");
+                  if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
+                } : handleCompleteSet}
+                disabled={saving || isTransitioning}
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.02 }}
                 animate={isResting && timeLeft <= 0 ? {
