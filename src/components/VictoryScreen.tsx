@@ -102,9 +102,9 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", damping: 15 }}
-        className="w-24 h-24 bg-blue-50 rounded-[2.5rem] flex items-center justify-center text-blue-600 mb-10"
+        className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-slate-900 mb-10"
       >
-        <Trophy size={40} strokeWidth={2.5} />
+        <CheckCircle2 size={40} strokeWidth={2.5} />
       </motion.div>
 
       <motion.div
@@ -114,7 +114,7 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
         className="space-y-4"
       >
         <h1 className="text-4xl font-black tracking-tighter uppercase">Treino Concluído</h1>
-        <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.3em]">{feedback || "Você está mais perto do seu objetivo"}</p>
+        <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">{feedback || "Sessão registrada com sucesso"}</p>
       </motion.div>
 
       {streak > 0 && (

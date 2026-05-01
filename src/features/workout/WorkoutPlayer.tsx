@@ -109,13 +109,13 @@ const SetCard = ({
       animate={{
         opacity: isCompleted ? (focusedIdx === idx ? 0.85 : 0.45) : 1,
         scale: isCurrent 
-          ? (intensity === 'LOW' ? [1, 1.01, 1] : (focusedIdx === idx ? 1.02 : 1)) 
+          ? (showPR ? 1.02 : (intensity === 'LOW' ? [1, 1.01, 1] : (focusedIdx === idx ? 1.02 : 1))) 
           : isPast && !isCurrent ? 0.96 : 0.98,
         height: "auto",
         marginTop: (idx === 0 ? 0 : 12),
-        borderColor: isPending ? '#cbd5e1' : (isCurrent ? '#f97316' : (focusedIdx === idx && isCompleted ? '#94a3b8' : 'rgba(241, 245, 249, 0.5)')),
+        borderColor: isPending ? '#cbd5e1' : (isCurrent ? (showPR ? '#fb923c' : '#f97316') : (focusedIdx === idx && isCompleted ? '#94a3b8' : 'rgba(241, 245, 249, 0.5)')),
         boxShadow: isCurrent && !isPending
-          ? (intensity === 'HIGH' ? '0 15px 35px -5px rgba(249, 115, 22, 0.25)' : '0 10px 25px -5px rgba(249, 115, 22, 0.1)') 
+          ? (showPR ? '0 20px 40px -5px rgba(249, 115, 22, 0.35)' : (intensity === 'HIGH' ? '0 15px 35px -5px rgba(249, 115, 22, 0.25)' : '0 10px 25px -5px rgba(249, 115, 22, 0.1)')) 
           : (focusedIdx === idx && isCompleted ? '0 4px 12px rgba(0,0,0,0.05)' : '0 0px 0px 0px rgba(0,0,0,0)'),
       }}
       style={{ overflow: "visible" }}
@@ -145,22 +145,6 @@ const SetCard = ({
           </div>
           
           <div className="flex items-center gap-6 relative">
-             {/* PR TAG */}
-             <AnimatePresence>
-               {(showPR && isCurrent) || (lastSet && parseFloat(localWeight) > lastSet.weight) ? (
-                 <motion.div 
-                   initial={{ opacity: 0, y: 10, scale: 0.5 }}
-                   animate={{ opacity: 1, y: -20, scale: 1 }}
-                   exit={{ opacity: 0, scale: 0.5 }}
-                   className="absolute top-0 left-0 right-0 flex justify-center z-50 pointer-events-none"
-                 >
-                   <span className="bg-yellow-400 text-yellow-900 text-[10px] font-black px-3 py-1 rounded-full shadow-xl border border-yellow-200 uppercase tracking-tighter flex items-center gap-1 whitespace-nowrap">
-                      🏆 NOVO RECORDE
-                   </span>
-                 </motion.div>
-               ) : null}
-             </AnimatePresence>
-
              <div className="text-center group">
                 <motion.input 
                   ref={setInputRef}
@@ -192,7 +176,9 @@ const SetCard = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 0.8 }}
                     className={`text-[9px] font-black mt-1 ${
-                      delta.dWeight > 0 ? 'text-emerald-500' : delta.dWeight < 0 ? 'text-rose-500' : 'text-slate-400'
+                      delta.dWeight > 0 
+                        ? (showPR ? 'text-emerald-400' : 'text-emerald-500') 
+                        : delta.dWeight < 0 ? 'text-rose-500' : 'text-slate-400'
                     }`}
                   >
                     {delta.dWeight > 0 ? `↑ +${delta.dWeight}` : delta.dWeight < 0 ? `↓ ${delta.dWeight}` : '= igual'}
@@ -229,7 +215,9 @@ const SetCard = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 0.8 }}
                     className={`text-[9px] font-black mt-1 ${
-                      delta.dReps > 0 ? 'text-emerald-500' : delta.dReps < 0 ? 'text-rose-500' : 'text-slate-400'
+                      delta.dReps > 0 
+                        ? (showPR ? 'text-emerald-400' : 'text-emerald-500') 
+                        : delta.dReps < 0 ? 'text-rose-500' : 'text-slate-400'
                     }`}
                   >
                     {delta.dReps > 0 ? `+${delta.dReps}` : delta.dReps < 0 ? `${delta.dReps}` : '='}
@@ -1540,20 +1528,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       )}
 
                       {anomalyDetected && (
-                         <div className="flex items-center gap-2 text-yellow-400 font-black text-[10px] uppercase tracking-widest">
-                           <Award size={12} /> Progressão incomum detectada — verifique a carga
+                         <div className="flex items-center gap-2 text-yellow-400 font-bold text-[10px] uppercase tracking-widest">
+                           Progressão incomum detectada — verifique a carga
                          </div>
                       )}
 
                       {isResting && restOvertime > 15 && (
-                        <div className="flex items-center gap-2 text-orange-400 animate-pulse font-black text-[10px] uppercase tracking-widest">
-                          <Zap size={12} /> Vamos para a próxima?
+                        <div className="flex items-center gap-2 text-orange-400 animate-pulse font-bold text-[10px] uppercase tracking-widest">
+                          Vamos para a próxima?
                         </div>
                       )}
 
                       {fatigueDetected && (
-                         <div className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-widest">
-                           <Loader2 size={12} className="animate-spin" /> Fadiga detectada — mantenha a carga
+                         <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest">
+                           Fadiga detectada — mantenha a carga
                          </div>
                       )}
                     </div>

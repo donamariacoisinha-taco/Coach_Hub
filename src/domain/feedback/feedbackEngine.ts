@@ -10,23 +10,22 @@ export const getEmotionalFeedback = ({
   lastSet?: LastSetData;
   previousSet?: LastSetData;
 }): string => {
-  // ... existing logic ...
   if (lastSet && current.weight > lastSet.weight) {
-    return "Novo recorde de carga! 🔥";
+    return "Progressão de carga registrada.";
   }
   if (lastSet && current.weight === lastSet.weight && current.reps > lastSet.reps) {
-    return "Mais reps que a última vez! Evolução pura.";
+    return "Aumento de volume detectado.";
   }
   if (previousSet && current.weight > previousSet.weight) {
-    return "Subindo o sarrafo! Boa.";
+    return "Carga superior à série anterior.";
   }
   if (current.rpe >= 9) {
-    return "Esforço máximo. É assim que se cresce.";
+    return "Intensidade alta. Mantenha o foco.";
   }
   if (current.rpe === 8) {
-    return "No ponto ideal. Sólido.";
+    return "Estímulo ideal para hipertrofia.";
   }
-  return "Série concluída. Vamos para a próxima!";
+  return "Série concluída.";
 };
 
 export const getAdvancedEmotionalFeedback = ({
@@ -38,12 +37,12 @@ export const getAdvancedEmotionalFeedback = ({
   pr: boolean;
   volumeTrend: number;
 }): string => {
-  if (pr && streak >= 7) return "Incrível! Recorde batido e 1 semana de consistência! 🏆";
-  if (pr) return "Novo Recorde Pessoal! Você está ficando mais forte! 💪";
-  if (streak >= 30) return "30 dias! Você é uma máquina de consistência! 🤖";
-  if (streak >= 7) return "Uma semana completa! O hábito está formado. 🔥";
-  if (volumeTrend > 0) return "Volume total subindo! Evolução constante. 📈";
-  if (streak >= 3) return "3 dias seguidos! Mantendo o ritmo. ⚡";
+  if (pr && streak >= 7) return "Meta de consistência e força atingida.";
+  if (pr) return "Novo marco de força registrado.";
+  if (streak >= 30) return "Consistência excepcional: 30 dias.";
+  if (streak >= 7) return "Sequência de 7 dias concluída.";
+  if (volumeTrend > 0) return "Tendência de volume positiva.";
+  if (streak >= 3) return "Ritmo de treino constante.";
   
-  return "Treino concluído com sucesso! Orgulhe-se do esforço.";
+  return "Sessão finalizada com sucesso.";
 };
