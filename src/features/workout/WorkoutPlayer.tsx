@@ -38,6 +38,258 @@ import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 
+// Sub-component for individual set cards to manage local input state
+// This prevents re-renders from clearing input focus or jumping values during typing
+const SetCard = React.memo(({ 
+  idx, 
+  setData, 
+  isCurrent, 
+  isCompleted, 
+  isPending, 
+  isPast, 
+  intensity, 
+  showPR, 
+  lastSet, 
+  delta, 
+  updateSetData, 
+  rollbackToSet, 
+  setFocusedIdx, 
+  setIsInputFocused, 
+  setIsFooterVisible, 
+  setRowRef, 
+  setInputRef, 
+  focusedIdx 
+}: any) => {
+  const [localWeight, setLocalWeight] = useState(setData.weight.toString());
+  const [localReps, setLocalReps] = useState(setData.reps.toString());
+
+  // Use refs to track if user is currently typing to avoid overwriting from global state
+  const isEditing = useRef(false);
+
+  // Sync local state with global state when global state changes from outside (e.g. auto-progression)
+  useEffect(() => {
+    if (!isEditing.current) {
+      setLocalWeight(setData.weight.toString());
+    }
+  }, [setData.weight]);
+
+  useEffect(() => {
+    if (!isEditing.current) {
+      setLocalReps(setData.reps.toString());
+    }
+  }, [setData.reps]);
+
+  const commitWeight = () => {
+    isEditing.current = false;
+    updateSetData(idx, 'weight', localWeight);
+    setFocusedIdx(null);
+    setIsInputFocused(false);
+  };
+
+  const commitReps = () => {
+    isEditing.current = false;
+    updateSetData(idx, 'reps', localReps);
+    setFocusedIdx(null);
+    setIsInputFocused(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, commitFn: () => void) => {
+    if (e.key === 'Enter') {
+      commitFn();
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <motion.div 
+      layout
+      ref={setRowRef}
+      initial={false}
+      animate={{
+        opacity: isCompleted ? (focusedIdx === idx ? 0.85 : 0.45) : 1,
+        scale: isCurrent 
+          ? (intensity === 'LOW' ? [1, 1.01, 1] : (focusedIdx === idx ? 1.02 : 1)) 
+          : isPast && !isCurrent ? 0.96 : 0.98,
+        height: "auto",
+        marginTop: (idx === 0 ? 0 : 12),
+        borderColor: isPending ? '#cbd5e1' : (isCurrent ? '#f97316' : (focusedIdx === idx && isCompleted ? '#94a3b8' : 'rgba(241, 245, 249, 0.5)')),
+        boxShadow: isCurrent && !isPending
+          ? (intensity === 'HIGH' ? '0 15px 35px -5px rgba(249, 115, 22, 0.25)' : '0 10px 25px -5px rgba(249, 115, 22, 0.1)') 
+          : (focusedIdx === idx && isCompleted ? '0 4px 12px rgba(0,0,0,0.05)' : '0 0px 0px 0px rgba(0,0,0,0)'),
+      }}
+      style={{ overflow: "hidden" }}
+      onClick={isCompleted ? () => {
+        // Focus the input of the completed set for editing
+        const input = (inputRef as any).current; // This is a bit tricky since inputRef is a function
+        // However, in the parent we pass a function that populates inputRefs.current[idx]
+        // So we can't easily access it here. I'll pass the ref object directly instead.
+      } : undefined}
+      transition={isCurrent && intensity === 'LOW' ? {
+        scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
+        default: { type: "spring", stiffness: 300, damping: 25 }
+      } : { type: "spring", stiffness: 300, damping: 25 }}
+      className={`flex flex-col items-stretch p-4 rounded-2xl transition-all duration-300 border-2 ${
+        isCompleted ? "bg-slate-50/50 cursor-pointer hover:bg-slate-100" : 
+        isPending ? "bg-slate-50 border-dashed animate-pulse cursor-wait" :
+        "bg-white"
+      } ${isCurrent && intensity === 'HIGH' && !isPending ? 'border-orange-400 ring-4 ring-orange-500/10' : ''}`}
+    >
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-4">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
+            isCompleted ? "bg-emerald-500 text-white" : 
+            isCurrent ? "bg-orange-500 text-white shadow-md" : 
+            "bg-slate-200 text-slate-400"
+          }`}>
+            {isCompleted ? <Check size={16} strokeWidth={4} /> : idx + 1}
+          </div>
+          
+          <div className="flex items-center gap-6 relative">
+             {/* PR TAG */}
+             <AnimatePresence>
+               {(showPR && isCurrent) || (lastSet && parseFloat(localWeight) > lastSet.weight) ? (
+                 <motion.div 
+                   initial={{ opacity: 0, y: 10, scale: 0.5 }}
+                   animate={{ opacity: 1, y: -25, scale: 1 }}
+                   exit={{ opacity: 0, scale: 0.5 }}
+                   className="absolute top-0 left-0 right-0 flex justify-center z-10 pointer-events-none"
+                 >
+                   <span className="bg-yellow-400 text-yellow-900 text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg border border-yellow-200 uppercase tracking-tighter flex items-center gap-1">
+                      🏆 NOVO RECORDE
+                   </span>
+                 </motion.div>
+               ) : null}
+             </AnimatePresence>
+
+             <div className="text-center group">
+                <motion.input 
+                  ref={setInputRef}
+                  type="text"
+                  inputMode="decimal"
+                  value={localWeight}
+                  onChange={(e) => {
+                    isEditing.current = true;
+                    setLocalWeight(e.target.value);
+                  }}
+                  onBlur={commitWeight}
+                  onKeyDown={(e) => handleKeyDown(e, commitWeight)}
+                  whileFocus={{ scale: 1.15, color: "#f97316" }}
+                  className={`text-xl font-black w-20 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
+                    isCurrent ? "text-slate-900" : "text-slate-400"
+                  }`}
+                  onFocus={(e) => {
+                    e.target.select();
+                    setFocusedIdx(idx);
+                    setIsInputFocused(true);
+                    setIsFooterVisible(true);
+                  }}
+                />
+                <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">Kg</p>
+                
+                {/* DELTA WEIGHT */}
+                {delta && (
+                  <motion.p 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.8 }}
+                    className={`text-[9px] font-black mt-1 ${
+                      delta.dWeight > 0 ? 'text-emerald-500' : delta.dWeight < 0 ? 'text-rose-500' : 'text-slate-400'
+                    }`}
+                  >
+                    {delta.dWeight > 0 ? `↑ +${delta.dWeight}` : delta.dWeight < 0 ? `↓ ${delta.dWeight}` : '= igual'}
+                  </motion.p>
+                )}
+             </div>
+             <div className="text-center">
+                <motion.input 
+                  type="text"
+                  inputMode="numeric"
+                  value={localReps}
+                  onChange={(e) => {
+                    isEditing.current = true;
+                    setLocalReps(e.target.value);
+                  }}
+                  onBlur={commitReps}
+                  onKeyDown={(e) => handleKeyDown(e, commitReps)}
+                  whileFocus={{ scale: 1.15, color: "#f97316" }}
+                  className={`text-xl font-black w-14 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
+                    isCurrent ? "text-slate-900" : "text-slate-400"
+                  }`}
+                  onFocus={(e) => {
+                    e.target.select();
+                    setFocusedIdx(idx);
+                    setIsInputFocused(true);
+                    setIsFooterVisible(true);
+                  }}
+                />
+                <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">Reps</p>
+                
+                {/* DELTA REPS */}
+                {delta && (
+                  <motion.p 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.8 }}
+                    className={`text-[9px] font-black mt-1 ${
+                      delta.dReps > 0 ? 'text-emerald-500' : delta.dReps < 0 ? 'text-rose-500' : 'text-slate-400'
+                    }`}
+                  >
+                    {delta.dReps > 0 ? `+${delta.dReps}` : delta.dReps < 0 ? `${delta.dReps}` : '='}
+                  </motion.p>
+                )}
+             </div>
+          </div>
+
+          {/* EXPLICIT ROLLBACK BUTTON */}
+          {isCompleted && !isCurrent && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                rollbackToSet(idx);
+              }}
+              className="absolute right-3 top-3 p-1.5 bg-white border border-slate-100 rounded-lg text-slate-300 hover:text-orange-500 hover:border-orange-200 transition-all active:scale-90 group"
+              title="Voltar para esta série"
+            >
+              <RefreshCw size={12} className="group-hover:rotate-[-45deg] transition-transform" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col items-center">
+           <div className="flex gap-1">
+              {[8, 9, 10].map(v => (
+                <button 
+                  key={v}
+                  onClick={() => updateSetData(idx, 'rpe', v)}
+                  className={`w-7 h-7 rounded-lg text-[9px] font-black transition-all ${
+                    setData.rpe === v 
+                      ? (isCurrent ? "bg-slate-900 text-white shadow-md scale-110" : "bg-slate-400 text-white")
+                      : "bg-slate-50 text-slate-300 hover:text-slate-400 font-bold"
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+           </div>
+           <p className="text-[8px] font-black text-slate-300 mt-1 tracking-widest uppercase">RPE</p>
+        </div>
+      </div>
+
+      {/* MINI PROGRESS BAR COMPARISON */}
+      {delta && (
+        <div className="w-full mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
+           <motion.div 
+             initial={{ width: 0 }}
+             animate={{ 
+               width: delta.dWeight > 0 || (delta.dWeight === 0 && delta.dReps >= 0) ? '100%' : '50%',
+               backgroundColor: delta.dWeight > 0 || (delta.dWeight === 0 && delta.dReps > 0) ? '#10b981' : (delta.dWeight === 0 && delta.dReps === 0 ? '#94a3b8' : '#ef4444')
+             }}
+             className="h-full"
+           />
+        </div>
+      )}
+    </motion.div>
+  );
+});
+
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { navigate, goBack } = useNavigation();
   const { showError, showSuccess } = useErrorHandler();
@@ -78,12 +330,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [pendingSetToComplete, setPendingSetToComplete] = useState<number | null>(null);
   const [completedSetIndices, setCompletedSetIndices] = useState<Set<number>>(new Set());
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [focusedIdx, setFocusedIdx] = useState<number | null>(null);
   const isAdvancingRef = useRef(false);
   const hasTriggeredRef = useRef(false);
   const [isWorkoutComplete, setIsWorkoutComplete] = useState(false);
   const [streak, setStreak] = useState(0);
   const [fatigueDetected, setFatigueDetected] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [historicalSets, setHistoricalSets] = useState<{weight_achieved: number, reps_achieved: number, set_number: number}[]>([]);
 
   useEffect(() => {
     async function loadStreak() {
@@ -203,6 +457,28 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     return 'MEDIUM';
   };
   const intensity = getIntensity();
+  
+  const getSetDelta = (idx: number, currentWeight: number, currentReps: number) => {
+    if (!historicalSets || historicalSets.length === 0) return null;
+    
+    let historicalSet = historicalSets.find(s => s.set_number === idx + 1);
+    
+    // Fallback: closest match (last set of previous session)
+    if (!historicalSet) {
+       historicalSet = historicalSets[historicalSets.length - 1];
+    }
+    
+    if (!historicalSet) return null;
+
+    const dWeight = currentWeight - historicalSet.weight_achieved;
+    const dReps = currentReps - historicalSet.reps_achieved;
+    
+    return {
+      dWeight,
+      dReps,
+      historicalSet
+    };
+  };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const currentScrollY = e.currentTarget.scrollTop;
@@ -459,19 +735,25 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     return () => clearTimeout(timer);
   }, [isResting, timeLeft, restOvertime, pendingSetToComplete]);
 
-  // Fetch Last Set
+  // Fetch Last Set and Historical Sets
   useEffect(() => {
     if (!currentEx) return;
-    const fetchLast = async () => {
+    const fetchHistory = async () => {
       try {
-        const data = await workoutApi.getLastSet(currentEx.exercise_id);
-        if (data) setLastSet({ weight: data.weight_achieved, reps: data.reps_achieved, rpe: data.rpe });
+        const [last, historical] = await Promise.all([
+          workoutApi.getLastSet(currentEx.exercise_id),
+          workoutApi.getHistoricalSets(currentEx.exercise_id, historyId || undefined)
+        ]);
+
+        if (last) setLastSet({ weight: last.weight_achieved, reps: last.reps_achieved, rpe: last.rpe });
         else setLastSet(null);
+        
+        setHistoricalSets(historical);
       } catch (err) {
-        console.error("Error fetching last set:", err);
+        console.error("Error fetching exercise history:", err);
       }
     };
-    fetchLast();
+    fetchHistory();
 
     // Initialize active sets data
     if (currentEx.sets_json && currentEx.sets_json.length > 0) {
@@ -713,7 +995,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     {currentEx?.exercise_name || 'Carregando...'}
                   </span>
                    <span className={`text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-0.5 ${momentum ? "hidden" : ""}`}>
-                    {currentIndex + 1} de {exercises.length} • {currentEx?.muscle_group || 'Geral'}
+                    EX {currentIndex + 1}/{exercises.length} • SÉRIE {currentSet}/{activeSetsData.length}
                   </span>
                 </div>
               </div>
@@ -764,9 +1046,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <h1 className="text-base font-bold text-slate-900 leading-tight">
-                        {currentEx?.exercise_name}
-                      </h1>
+                      <div className="flex justify-between items-start">
+                        <h1 className="text-base font-bold text-slate-900 leading-tight">
+                          {currentEx?.exercise_name}
+                        </h1>
+                        <span className="text-[10px] font-black text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg tabular-nums">
+                          {currentSet}/{activeSetsData.length}
+                        </span>
+                      </div>
                       <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5 line-clamp-1">
                         {currentEx?.muscle_group} • {currentEx?.equipment || 'Sem equipamento'}
                       </p>
@@ -801,131 +1088,30 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   const isCompleted = completedSetIndices.has(idx);
                   const isPending = pendingSetToComplete === idx;
                   const isPast = idx < currentSet - 1; // Used for animation
+                  const delta = getSetDelta(idx, setData.weight, setData.reps);
                   
                   return (
-                    <motion.div 
-                      key={idx}
-                      layout
-                      ref={(el) => (setRefs.current[idx] = el)}
-                      initial={false}
-                      animate={{
-                        opacity: isCompleted ? 0.45 : 1,
-                        scale: isCurrent 
-                          ? (intensity === 'LOW' ? [1, 1.01, 1] : 1) 
-                          : isPast && !isCurrent ? 0.96 : 0.98,
-                        height: "auto",
-                        marginTop: (idx === 0 ? 0 : 12),
-                        borderColor: isPending ? '#cbd5e1' : (isCurrent ? '#f97316' : 'rgba(241, 245, 249, 0.5)'),
-                        boxShadow: isCurrent && !isPending
-                          ? (intensity === 'HIGH' ? '0 15px 35px -5px rgba(249, 115, 22, 0.25)' : '0 10px 25px -5px rgba(249, 115, 22, 0.1)') 
-                          : '0 0px 0px 0px rgba(0,0,0,0)',
-                      }}
-                      style={{ overflow: "hidden" }}
-                      onClick={isCompleted ? () => rollbackToSet(idx) : undefined}
-                      transition={isCurrent && intensity === 'LOW' ? {
-                        scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
-                        default: { type: "spring", stiffness: 300, damping: 25 }
-                      } : { type: "spring", stiffness: 300, damping: 25 }}
-                      className={`flex items-center justify-between p-4 rounded-2xl transition-all duration-300 border-2 ${
-                        isCompleted ? "bg-slate-50/50 cursor-pointer hover:bg-slate-100" : 
-                        isPending ? "bg-slate-50 border-dashed animate-pulse cursor-wait" :
-                        "bg-white"
-                      } ${isCurrent && intensity === 'HIGH' && !isPending ? 'border-orange-400 ring-4 ring-orange-500/10' : ''}`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
-                          isCompleted ? "bg-emerald-500 text-white" : 
-                          isCurrent ? "bg-orange-500 text-white shadow-md" : 
-                          "bg-slate-200 text-slate-400"
-                        }`}>
-                          {isCompleted ? <Check size={16} strokeWidth={4} /> : idx + 1}
-                        </div>
-                        
-                        <div className="flex items-center gap-6 relative">
-                           {/* PR TAG */}
-                           <AnimatePresence>
-                             {isCurrent && showPR && (
-                               <motion.div 
-                                 initial={{ opacity: 0, y: 10, scale: 0.5 }}
-                                 animate={{ opacity: 1, y: -25, scale: 1 }}
-                                 exit={{ opacity: 0, scale: 0.5 }}
-                                 className="absolute top-0 left-0 right-0 flex justify-center z-10"
-                               >
-                                 <span className="bg-yellow-400 text-yellow-900 text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg border border-yellow-200 uppercase tracking-tighter flex items-center gap-1">
-                                    🏆 NOVO RECORDE
-                                 </span>
-                               </motion.div>
-                             )}
-                           </AnimatePresence>
-
-                           <div className="text-center group">
-                              <motion.input 
-                                ref={(el) => (inputRefs.current[idx] = el)}
-                                type="text"
-                                inputMode="decimal"
-                                value={setData.weight}
-                                onChange={(e) => updateSetData(idx, 'weight', e.target.value)}
-                                whileFocus={{ scale: 1.15, color: "#f97316" }}
-                                className={`text-xl font-black w-20 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
-                                  isCurrent ? "text-slate-900" : "text-slate-400"
-                                }`}
-                                onFocus={(e) => {
-                                  e.target.select();
-                                  setIsInputFocused(true);
-                                  setIsFooterVisible(true);
-                                }}
-                                onBlur={() => setIsInputFocused(false)}
-                              />
-                              <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">Kg</p>
-                              
-                              {/* PREDICTIVE SUGGESTION */}
-                              {isCurrent && lastSet && !isPast && (
-                                <p className="text-[7px] font-bold text-orange-400 mt-1 animate-pulse">
-                                   Recomendado: {lastSet.weight + 1}kg
-                                </p>
-                              )}
-                           </div>
-                           <div className="text-center">
-                              <motion.input 
-                                type="text"
-                                inputMode="numeric"
-                                value={setData.reps}
-                                onChange={(e) => updateSetData(idx, 'reps', e.target.value)}
-                                whileFocus={{ scale: 1.15, color: "#f97316" }}
-                                className={`text-xl font-black w-14 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
-                                  isCurrent ? "text-slate-900" : "text-slate-400"
-                                }`}
-                                onFocus={(e) => {
-                                  e.target.select();
-                                  setIsInputFocused(true);
-                                  setIsFooterVisible(true);
-                                }}
-                                onBlur={() => setIsInputFocused(false)}
-                              />
-                              <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">Reps</p>
-                           </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-center">
-                         <div className="flex gap-1">
-                            {[8, 9, 10].map(v => (
-                              <button 
-                                key={v}
-                                onClick={() => updateSetData(idx, 'rpe', v)}
-                                className={`w-7 h-7 rounded-lg text-[9px] font-black transition-all ${
-                                  setData.rpe === v 
-                                    ? (isCurrent ? "bg-slate-900 text-white shadow-md scale-110" : "bg-slate-400 text-white")
-                                    : "bg-slate-50 text-slate-300 hover:text-slate-400 font-bold"
-                                }`}
-                              >
-                                {v}
-                              </button>
-                            ))}
-                         </div>
-                         <p className="text-[8px] font-black text-slate-300 mt-1 tracking-widest uppercase">RPE</p>
-                      </div>
-                    </motion.div>
+                    <SetCard 
+                      key={`${currentIndex}_${idx}`}
+                      idx={idx}
+                      setData={setData}
+                      isCurrent={isCurrent}
+                      isCompleted={isCompleted}
+                      isPending={isPending}
+                      isPast={isPast}
+                      intensity={intensity}
+                      showPR={showPR}
+                      lastSet={lastSet}
+                      delta={delta}
+                      updateSetData={updateSetData}
+                      rollbackToSet={rollbackToSet}
+                      setFocusedIdx={setFocusedIdx}
+                      setIsInputFocused={setIsInputFocused}
+                      setIsFooterVisible={setIsFooterVisible}
+                      setRowRef={(el: any) => (setRefs.current[idx] = el)}
+                      setInputRef={(el: any) => (inputRefs.current[idx] = el)}
+                      focusedIdx={focusedIdx}
+                    />
                   );
                 })}
 

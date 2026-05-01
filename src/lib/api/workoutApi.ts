@@ -102,6 +102,36 @@ export const workoutApi = {
     return data;
   },
 
+  async getHistoricalSets(exerciseId: string, currentHistoryId?: string) {
+    // 1. Get the most recent session (history_id) for this exercise, excluding current if provided
+    let query = supabase
+      .from("workout_sets_log")
+      .select("history_id")
+      .eq("exercise_id", exerciseId);
+    
+    if (currentHistoryId) {
+      query = query.neq("history_id", currentHistoryId);
+    }
+
+    const { data: lastSession } = await query
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+      
+    if (!lastSession) return [];
+
+    // 2. Get all sets from that specific session
+    const { data, error } = await supabase
+      .from("workout_sets_log")
+      .select("weight_achieved, reps_achieved, rpe, set_number")
+      .eq("history_id", lastSession.history_id)
+      .eq("exercise_id", exerciseId)
+      .order("set_number", { ascending: true });
+      
+    if (error) throw error;
+    return data || [];
+  },
+
   async finishWorkout(historyId: string, durationMinutes: number, exercisesCount: number) {
     const { error: histError } = await supabase.from('workout_history').update({ 
       duration_minutes: durationMinutes, 
