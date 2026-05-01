@@ -351,7 +351,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               onRetry={refresh}
             >
               {filteredWorkouts.map((workout, idx) => {
-                const isOptimistic = workout.id.startsWith('temp-');
+                const isOptimistic = typeof workout.id === 'string' && workout.id.startsWith('temp-');
                 
                 return (
                   <div key={workout.id} className={`relative group ${isOptimistic ? 'opacity-60 grayscale-[0.2]' : ''}`}>

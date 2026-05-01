@@ -200,7 +200,7 @@ const AnalyticsGrowth: React.FC = () => {
 };
 
 function MetricMini({ label, value, trend }: { label: string, value: string, trend: string }) {
-  const isUp = trend.startsWith('+');
+  const isUp = typeof trend === 'string' && trend.startsWith('+');
   return (
     <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm group hover:shadow-xl hover:shadow-slate-200/50 transition-all">
        <div className="flex justify-between items-start mb-6">

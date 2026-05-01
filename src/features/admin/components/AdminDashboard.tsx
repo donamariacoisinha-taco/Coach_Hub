@@ -198,13 +198,14 @@ const AdminDashboard: React.FC = () => {
 };
 
 function KpiCard({ label, value, trend, icon, color }: { label: string, value: any, trend: string, icon: React.ReactNode, color: string }) {
+  const isUp = typeof trend === 'string' && trend.startsWith('+');
   return (
     <div className={`min-w-[240px] p-8 rounded-[2.5rem] border border-slate-200 shadow-sm transition-all hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 group ${color}`}>
       <div className="flex justify-between items-start mb-6">
         <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
           {icon}
         </div>
-        <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${trend.startsWith('+') ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+        <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${isUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
           {trend}
         </span>
       </div>

@@ -282,6 +282,8 @@ function KPICard({ label, value, trend, icon, color }: { label: string, value: a
     orange: 'bg-orange-50 border-orange-100 text-orange-600',
   };
 
+  const isUp = typeof trend === 'string' && trend.startsWith('+');
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -293,7 +295,7 @@ function KPICard({ label, value, trend, icon, color }: { label: string, value: a
           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-current/10 group-hover:scale-110 transition-transform ${colors[color as keyof typeof colors]}`}>
              {icon}
           </div>
-          <span className={`text-[10px] font-black px-3 py-1.5 rounded-full ${trend.startsWith('+') ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+          <span className={`text-[10px] font-black px-3 py-1.5 rounded-full ${isUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
             {trend}
           </span>
        </div>
@@ -335,7 +337,7 @@ function AlertItem({ icon, title, count, type }: { icon: React.ReactNode, title:
 }
 
 function TrendingItem({ label, usage, trend }: { label: string, usage: string, trend: string }) {
-  const isUp = trend.startsWith('+');
+  const isUp = typeof trend === 'string' && trend.startsWith('+');
   return (
     <div className="flex items-center justify-between group cursor-pointer p-2 rounded-2xl hover:bg-slate-50 transition-all">
        <div className="flex items-center gap-4">

@@ -75,7 +75,7 @@ export default function ExerciseAdminPro({
   // Handle Debounced Auto-Save
   const debouncedSave = useCallback(
     debounce(async (ex: Exercise) => {
-      if (!ex.id || ex.id.startsWith('temp-') || ex.name.length < 3) return;
+      if (!ex.id || (typeof ex.id === 'string' && ex.id.startsWith('temp-')) || ex.name.length < 3) return;
       setAutoSaving(true);
       try {
         const payload = { ...ex, quality_score: quality.score, quality_status: quality.status };
@@ -152,7 +152,7 @@ export default function ExerciseAdminPro({
   const handleSave = async (force: boolean = false) => {
     setSaving(true);
     try {
-      const isNew = exercise.id.startsWith('temp-');
+      const isNew = typeof exercise.id === 'string' && exercise.id.startsWith('temp-');
       
       // Sanitização básica recomendada no requisito
       const cleanName = exercise.name.trim().replace(/\s+/g, ' ');
