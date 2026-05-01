@@ -41,7 +41,7 @@ import { calculateStreak } from "../../domain/streak/streakEngine";
 
 // Sub-component for individual set cards to manage local input state
 // This prevents re-renders from clearing input focus or jumping values during typing
-const SetCard = React.memo(({ 
+const SetCard = ({ 
   idx, 
   setData, 
   isCurrent, 
@@ -288,7 +288,7 @@ const SetCard = React.memo(({
       )}
     </motion.div>
   );
-});
+};
 
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { navigate, goBack } = useNavigation();
@@ -907,28 +907,32 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   // Update a single set's data
   const updateSetData = (idx: number, field: 'weight' | 'reps' | 'rpe', value: number | string) => {
     setActiveSetsData(prev => {
-      const next = [...prev];
-      let numericValue = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
-      
-      // Safety limits
-      if (field === 'weight' && numericValue > 1000) numericValue = 1000;
-      if (field === 'reps' && numericValue > 500) numericValue = 500;
-      if (field === 'rpe' && (numericValue < 1 || numericValue > 10)) numericValue = 8;
-
-      next[idx] = { ...next[idx], [field]: isNaN(numericValue) ? 0 : numericValue };
-      
-      // Anomaly detection: check for huge jumps from historical data
-      if (field === 'weight' && historicalSets.length > 0) {
-        const histSet = historicalSets.find(s => s.set_number === idx + 1) || historicalSets[0];
-        if (numericValue > histSet.weight_achieved * 1.5 && numericValue > histSet.weight_achieved + 20) {
-          log("[ANOMALY] Huge weight increase detected", { from: histSet.weight_achieved, to: numericValue });
-          setAnomalyDetected(true);
-        } else {
-          setAnomalyDetected(false);
+      // Use map to ensure we create a new array and new objects, preventing any reference sharing issues
+      return prev.map((item, i) => {
+        if (i !== idx) return item;
+        
+        let numericValue = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
+        
+        // Safety limits
+        if (field === 'weight' && numericValue > 1000) numericValue = 1000;
+        if (field === 'reps' && numericValue > 500) numericValue = 500;
+        if (field === 'rpe' && (numericValue < 1 || numericValue > 10)) numericValue = 8;
+        
+        const updatedValue = isNaN(numericValue) ? 0 : numericValue;
+        
+        // Anomaly detection: check for huge jumps from historical data
+        if (field === 'weight' && i === idx && historicalSets.length > 0) {
+          const histSet = historicalSets.find(s => s.set_number === idx + 1) || historicalSets[0];
+          if (updatedValue > histSet.weight_achieved * 1.5 && updatedValue > histSet.weight_achieved + 20) {
+            log("[ANOMALY] Huge weight increase detected", { from: histSet.weight_achieved, to: updatedValue });
+            setAnomalyDetected(true);
+          } else {
+            setAnomalyDetected(false);
+          }
         }
-      }
 
-      return next;
+        return { ...item, [field]: updatedValue };
+      });
     });
   };
 
@@ -1012,15 +1016,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         set_type: SetType.NORMAL
       });
 
-      // Update next set suggestion optimistically
-      if (setIdx + 1 < activeSetsData.length) {
-         setActiveSetsData(prev => {
-           const next = [...prev];
-           next[setIdx + 1] = { ...next[setIdx + 1], weight: decision.nextWeight };
-           return next;
-         });
+      log("[SET_SAVED] Progress recorded");
+
+      // CRITICAL PERSISTENCE: Also update the template immediately for this exercise 
+      // to ensure that even if the user exits abruptly, their changes to weight/reps are saved for next time.
+      const formattedSetsForTemplate = activeSetsData.map(s => ({
+        weight: typeof s.weight === 'string' ? parseFloat(s.weight) : s.weight,
+        reps: s.reps.toString(),
+        rest_time: currentEx.rest_time || 60,
+        type: SetType.NORMAL
+      }));
+      
+      if (currentEx.id) {
+        await workoutApi.updateWorkoutExerciseSets(currentEx.id, formattedSetsForTemplate);
+        log("[TEMPLATE_AUTO_SYNC_SUCCESS]");
       }
     } catch (err) {
+      log("[SET_SAVE_ERROR]", err);
       showError(err);
     } finally {
       setSaving(false);
