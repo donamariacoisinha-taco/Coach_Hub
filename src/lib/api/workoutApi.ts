@@ -305,6 +305,8 @@ export const workoutApi = {
     
     while (true) {
       try {
+        // Idempotent write: try to upsert if possible, or insert
+        // Since we might not have a unique constraint, we use insert and handle history cleanup in batch
         const { error } = await supabase.from('workout_sets_log').insert([currentPayload]);
         return { error };
       } catch (err: any) {
@@ -321,5 +323,67 @@ export const workoutApi = {
         return { error: err };
       }
     }
+  },
+
+  async updateExerciseProgression(userId: string, exerciseId: string, weight: number, reps: number, rpe: number) {
+    const { error } = await supabase.from('exercise_progression').upsert({
+      user_id: userId,
+      exercise_id: exerciseId,
+      last_weight: weight,
+      last_reps: reps,
+      last_rpe: rpe,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,exercise_id' });
+    
+    if (error && error.code === 'PGRST116') return; 
+    if (error) {
+      console.warn("[PROGRESSION] Failed to update progression", error);
+    }
+  },
+
+  async updateProgressionFromLogs(userId: string, historyId: string) {
+    // Single Source of Truth: update progression based on what's actually in workout_sets_log
+    try {
+      const { data: logs, error: logsError } = await supabase
+        .from('workout_sets_log')
+        .select('exercise_id, weight_achieved, reps_achieved, rpe')
+        .eq('history_id', historyId)
+        .order('set_number', { ascending: false });
+
+      if (logsError) throw logsError;
+      if (!logs || logs.length === 0) return;
+
+      // Group by exercise and pick the "best" or last record
+      const latestPerExercise = new Map();
+      logs.forEach(log => {
+        if (!latestPerExercise.has(log.exercise_id)) {
+          latestPerExercise.set(log.exercise_id, log);
+        }
+      });
+
+      for (const [exId, data] of latestPerExercise.entries()) {
+        await this.updateExerciseProgression(userId, exId, data.weight_achieved, data.reps_achieved, data.rpe);
+      }
+      return true;
+    } catch (err) {
+      console.error("[INTEGRITY] Failed to update progression from logs", err);
+      return false;
+    }
+  },
+
+  async validateWorkoutIntegrity(historyId: string, expectedCount: number) {
+    const { data, count, error } = await supabase
+      .from('workout_sets_log')
+      .select('*', { count: 'exact', head: true })
+      .eq('history_id', historyId);
+    
+    if (error) throw error;
+    return count === expectedCount;
+  },
+
+  async saveWorkoutBatch(historyId: string, logs: any[]) {
+    // Split into smaller chunks to avoid payload limits if needed, but usually fits
+    const { error } = await supabase.from('workout_sets_log').insert(logs);
+    if (error) throw error;
   }
 };

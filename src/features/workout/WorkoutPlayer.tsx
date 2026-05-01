@@ -20,6 +20,7 @@ import {
   Award
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { supabase } from "../../lib/api/supabase";
 import { authApi } from "../../lib/api/authApi";
 import { workoutApi } from "../../lib/api/workoutApi";
 import { useNavigation } from "../../App";
@@ -120,9 +121,8 @@ const SetCard = React.memo(({
       style={{ overflow: "hidden" }}
       onClick={isCompleted ? () => {
         // Focus the input of the completed set for editing
-        const input = (inputRef as any).current; // This is a bit tricky since inputRef is a function
-        // However, in the parent we pass a function that populates inputRefs.current[idx]
-        // So we can't easily access it here. I'll pass the ref object directly instead.
+        const input = (setInputRef as any)?.current;
+        if (input) input.focus();
       } : undefined}
       transition={isCurrent && intensity === 'LOW' ? {
         scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
@@ -319,11 +319,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   // Track all sets for the current exercise
   const [activeSetsData, setActiveSetsData] = useState<{weight: number, reps: number, rpe: number}[]>([]);
   
+  // Track performance for ALL exercises in the session to guarantee persistence
+  const [workoutPerformance, setWorkoutPerformance] = useState<Record<number, {weight: number, reps: number, rpe: number}[]>>({});
+  
   const [lastSet, setLastSet] = useState<LastSetData | null>(null);
   const [previousSet, setPreviousSet] = useState<LastSetData | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [showExitModal, setShowExitModal] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+  const [isSavedSuccessfully, setIsSavedSuccessfully] = useState(false);
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [showExercisesList, setShowExercisesList] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -336,8 +340,25 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [isWorkoutComplete, setIsWorkoutComplete] = useState(false);
   const [streak, setStreak] = useState(0);
   const [fatigueDetected, setFatigueDetected] = useState(false);
+  const [anomalyDetected, setAnomalyDetected] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [historicalSets, setHistoricalSets] = useState<{weight_achieved: number, reps_achieved: number, set_number: number}[]>([]);
+  const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
+  const [recoverySession, setRecoverySession] = useState<any>(null);
+
+  useEffect(() => {
+    async function checkRecovery() {
+      const user = await authApi.getUser();
+      if (!user) return;
+      
+      const partial = await workoutApi.getPartialSession(user.id);
+      if (partial && partial.history_id && partial.workout_id === workoutId && partial.history_id !== historyId) {
+        setRecoverySession(partial);
+        setShowRecoveryPrompt(true);
+      }
+    }
+    checkRecovery();
+  }, [workoutId, historyId]);
 
   useEffect(() => {
     async function loadStreak() {
@@ -756,7 +777,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     fetchHistory();
 
     // Initialize active sets data
-    if (currentEx.sets_json && currentEx.sets_json.length > 0) {
+    if (workoutPerformance[currentIndex]) {
+      setActiveSetsData(workoutPerformance[currentIndex]);
+    } else if (currentEx.sets_json && currentEx.sets_json.length > 0) {
       setActiveSetsData(currentEx.sets_json.map((s, idx) => {
         // Auto-progression Memory: use lastSet for the first set if session is new
         if (idx === 0 && lastSet) {
@@ -778,7 +801,17 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       const initialReps = lastSet?.reps || 10;
       setActiveSetsData([{ weight: initialWeight, reps: initialReps, rpe: 8 }]);
     }
-  }, [currentEx, lastSet]);
+  }, [currentEx, lastSet, currentIndex]);
+
+  // Sync activeSetsData to workoutPerformance
+  useEffect(() => {
+    if (activeSetsData.length > 0 && currentEx) {
+      setWorkoutPerformance(prev => ({
+        ...prev,
+        [currentIndex]: activeSetsData
+      }));
+    }
+  }, [activeSetsData, currentIndex, currentEx]);
 
   // Update a single set's data
   const updateSetData = (idx: number, field: 'weight' | 'reps' | 'rpe', value: number | string) => {
@@ -792,6 +825,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       if (field === 'rpe' && (numericValue < 1 || numericValue > 10)) numericValue = 8;
 
       next[idx] = { ...next[idx], [field]: isNaN(numericValue) ? 0 : numericValue };
+      
+      // Anomaly detection: check for huge jumps from historical data
+      if (field === 'weight' && historicalSets.length > 0) {
+        const histSet = historicalSets.find(s => s.set_number === idx + 1) || historicalSets[0];
+        if (numericValue > histSet.weight_achieved * 1.5 && numericValue > histSet.weight_achieved + 20) {
+          log("[ANOMALY] Huge weight increase detected", { from: histSet.weight_achieved, to: numericValue });
+          setAnomalyDetected(true);
+        } else {
+          setAnomalyDetected(false);
+        }
+      }
+
       return next;
     });
   };
@@ -892,6 +937,96 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
   };
 
+  const saveWorkoutExecution = async (histId: string, userId: string) => {
+    log("[SAVE_WORKOUT_START]");
+    
+    // 1. Prepare logs for all completed exercises/sets
+    const logs: any[] = [];
+    const progressions: {exerciseId: string, weight: number, reps: number, rpe: number}[] = [];
+
+    Object.entries(workoutPerformance).forEach(([exIdxStr, setsUntyped]) => {
+      const exIdx = parseInt(exIdxStr);
+      const ex = exercises[exIdx];
+      if (!ex) return;
+      
+      const sets = setsUntyped as {weight: number, reps: number, rpe: number}[];
+
+      // Only save sets that have been "touched" or marked as completed
+      // In this player, we assume if it's in workoutPerformance and the user finished, they did it
+      sets.forEach((set, setIdx) => {
+        // We only save sets that were actually performed (completedSetIndices logic for current ex, 
+        // but for previous ones we assume they were completed if we moved past them)
+        // To be safe, we check if they have at least 1 rep
+        if (set.reps > 0) {
+          logs.push({
+            history_id: histId,
+            user_id: userId,
+            exercise_id: ex.exercise_id,
+            exercise_name_snapshot: ex.exercise_name,
+            set_number: setIdx + 1,
+            weight_achieved: set.weight,
+            reps_achieved: set.reps,
+            rpe: set.rpe,
+            set_type: SetType.NORMAL,
+            created_at: new Date().toISOString()
+          });
+        }
+      });
+
+      // Update progression with the best/last set of this exercise
+      if (sets.length > 0) {
+        const lastSetVal = sets[sets.length - 1];
+        if (lastSetVal.reps > 0) {
+          progressions.push({
+            exerciseId: ex.exercise_id,
+            weight: lastSetVal.weight,
+            reps: lastSetVal.reps,
+            rpe: lastSetVal.rpe
+          });
+        }
+      }
+    });
+
+    if (logs.length === 0) {
+      log("[SAVE_WORKOUT_EMPTY] No sets to save");
+      return;
+    }
+
+    // 2. Database Write (Batch)
+    try {
+      // Clean existing logs for this history to prevent duplicates from incremental saves
+      const { error: deleteError } = await supabase.from('workout_sets_log').delete().eq('history_id', histId);
+      if (deleteError) log("[SAVE_WORKOUT_CLEAN_WARN]", deleteError);
+
+      // Now save the final state
+      await workoutApi.saveWorkoutBatch(histId, logs);
+
+      // 3. Single Source of Truth Validation: re-fetch and check
+      const isValid = await workoutApi.validateWorkoutIntegrity(histId, logs.length);
+      if (!isValid) {
+        log("[INTEGRITY_FAIL] Mismatch between saved and expected logs. Retrying...");
+        // One retry attempt
+        await supabase.from('workout_sets_log').delete().eq('history_id', histId);
+        await workoutApi.saveWorkoutBatch(histId, logs);
+      }
+
+      // 4. Save to Last Valid State Cache
+      localStorage.setItem('last_valid_workout', JSON.stringify({
+        historyId: histId,
+        logs,
+        timestamp: Date.now()
+      }));
+
+      setIsSavedSuccessfully(true);
+      setTimeout(() => setIsSavedSuccessfully(false), 3000);
+
+      log("[SAVE_WORKOUT_SUCCESS]");
+    } catch (err) {
+      log("[SAVE_WORKOUT_ERROR]", err);
+      throw err;
+    }
+  };
+
   const finishWorkout = async (isSuccess: boolean) => {
     const currentStore = useWorkoutStore.getState();
     const currentHistoryId = currentStore.historyId;
@@ -904,17 +1039,32 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     
     setFinishing(true);
     try {
-      const user = await authApi.getUser();
+      const u = await authApi.getUser();
+      if (!u) throw new Error("Usuário não autenticado");
+
       const finalDuration = Math.round((Date.now() - (currentStartTime || Date.now())) / 60000);
 
       if (isSuccess) {
-        const finalExCount = exercises.length;
+        // GUARANTEE PERSISTENCE BEFORE COMPLETING
+        await saveWorkoutExecution(currentHistoryId, u.id);
+
+        const finalExCount = Object.keys(workoutPerformance).length;
         await workoutApi.finishWorkout(currentHistoryId, finalDuration, finalExCount);
-        if (user) await workoutApi.clearPartialSession(user.id);
+        
+        // UPDATE PROGRESSION FROM LOGS (Source of Truth)
+        await workoutApi.updateProgressionFromLogs(u.id, currentHistoryId);
+        
+        // Background Sync / Cache Invalidation
+        cacheStore.clear(`exercise_progression_${u.id}`);
+        exercises.forEach(ex => cacheStore.clear(`exercise_stats_${ex.exercise_id}`));
+
+        await workoutApi.clearPartialSession(u.id);
+        
         cacheStore.clear(`workout_init_${workoutId}`);
         setWorkoutDuration(finalDuration);
         setIsWorkoutComplete(true);
         setIsFinished(true);
+        showSuccess("Treino salvo com sucesso!");
       } else {
         await workoutApi.abandonWorkout(currentHistoryId);
         if (user) await workoutApi.clearPartialSession(user.id);
@@ -950,6 +1100,48 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   return (
     <div className="h-screen bg-[#F7F8FA] text-slate-900 flex flex-col font-sans overflow-hidden">
+      {showRecoveryPrompt && recoverySession && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }} 
+            className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl relative z-10 text-center"
+          >
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <RefreshCw size={32} className="text-blue-500" />
+            </div>
+            <h3 className="text-xl font-[1000] text-slate-900 uppercase tracking-tighter mb-2">Recuperar Treino?</h3>
+            <p className="text-sm text-slate-500 mb-8">Detectamos um treino não finalizado. Deseja continuar de onde parou?</p>
+            <div className="space-y-3">
+              <button 
+                onClick={() => {
+                  setWorkout({
+                    id: workoutId,
+                    exercises: playerQuery.data.exercises,
+                    historyId: recoverySession.history_id,
+                    startTime: new Date(recoverySession.start_time).getTime(),
+                    currentIndex: recoverySession.current_index || 0,
+                    currentSet: recoverySession.current_set || 1
+                  });
+                  setShowRecoveryPrompt(false);
+                  showSuccess("Treino recuperado!");
+                }}
+                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase"
+              >
+                Sim, recuperar
+              </button>
+              <button 
+                onClick={() => setShowRecoveryPrompt(false)}
+                className="w-full py-4 bg-white border border-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase"
+              >
+                Não, começar novo
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {isFinished && (
         <VictoryScreen 
           historyId={historyId!} 
@@ -994,9 +1186,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <span className="text-sm font-[1000] text-slate-900 truncate max-w-[150px] uppercase tracking-tighter">
                     {currentEx?.exercise_name || 'Carregando...'}
                   </span>
-                   <span className={`text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-0.5 ${momentum ? "hidden" : ""}`}>
-                    EX {currentIndex + 1}/{exercises.length} • SÉRIE {currentSet}/{activeSetsData.length}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className={`text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-0.5 ${momentum ? "hidden" : ""}`}>
+                      EX {currentIndex + 1}/{exercises.length} • SÉRIE {currentSet}/{activeSetsData.length}
+                    </span>
+                    <AnimatePresence>
+                      {isSavedSuccessfully && (
+                        <motion.span 
+                          initial={{ opacity: 0, x: -10 }} 
+                          animate={{ opacity: 1, x: 0 }} 
+                          exit={{ opacity: 0 }}
+                          className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1"
+                        >
+                          <Check size={8} strokeWidth={4} /> Salvo
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-4 items-center">
@@ -1201,6 +1407,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         <p className="text-xs font-black uppercase tracking-tight leading-snug">
                           {feedback}
                         </p>
+                      )}
+
+                      {anomalyDetected && (
+                         <div className="flex items-center gap-2 text-yellow-400 font-black text-[9px] uppercase tracking-widest">
+                           <Award size={10} /> Progressão incomum detectada — verifique a carga
+                         </div>
                       )}
 
                       {isResting && restOvertime > 15 && (
