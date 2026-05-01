@@ -1110,6 +1110,34 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setIsSavedSuccessfully(true);
       setTimeout(() => setIsSavedSuccessfully(false), 3000);
 
+      // 5. Update template and progressions (Synchronous and Critical)
+      try {
+        // Update global progressions first
+        await workoutApi.updateProgressionFromLogs(userId, histId);
+        
+        // Update the specific workout exercises (the template)
+        const updatePromises = Object.entries(finalPerformance).map(([idx, setsUntyped]) => {
+          const sets = setsUntyped as {weight: number, reps: number, rpe: number}[];
+          const ex = exercises[parseInt(idx)];
+          if (!ex?.id) return Promise.resolve();
+          
+          // Map to SetConfig format
+          const formattedSets = sets.map(s => ({
+            weight: typeof s.weight === 'string' ? parseFloat(s.weight) : s.weight,
+            reps: s.reps.toString(),
+            rest_time: ex.rest_time || 60,
+            type: SetType.NORMAL
+          }));
+          
+          return workoutApi.updateWorkoutExerciseSets(ex.id, formattedSets);
+        });
+        
+        await Promise.all(updatePromises);
+        log("[TEMPLATE_UPDATE_SUCCESS]");
+      } catch (err) {
+        log("[TEMPLATE_UPDATE_FAIL]", err);
+      }
+
       log("[SAVE_WORKOUT_SUCCESS]");
     } catch (err) {
       log("[SAVE_WORKOUT_ERROR]", err);

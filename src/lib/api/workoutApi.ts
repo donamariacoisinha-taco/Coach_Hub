@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import { WorkoutCategory, WorkoutExercise, WorkoutFolder, WorkoutHistory, UserProfile, MuscleGroup, Exercise } from '../../types';
+import { WorkoutCategory, WorkoutExercise, WorkoutFolder, WorkoutHistory, UserProfile, MuscleGroup, Exercise, SetConfig } from '../../types';
 
 export const workoutApi = {
   async getDashboardData(userId: string) {
@@ -323,6 +323,17 @@ export const workoutApi = {
         return { error: err };
       }
     }
+  },
+
+  async updateWorkoutExerciseSets(id: string, sets: SetConfig[]) {
+    const { error } = await supabase.from('workout_exercises').update({
+      sets_json: sets,
+      // For legacy compatibility, also update the flat fields with average or first set values
+      weight: sets.length > 0 ? sets[0].weight : 0,
+      reps: sets.length > 0 ? sets[0].reps : '10',
+      sets: sets.length
+    }).eq('id', id);
+    if (error) throw error;
   },
 
   async updateExerciseProgression(userId: string, exerciseId: string, weight: number, reps: number, rpe: number) {
