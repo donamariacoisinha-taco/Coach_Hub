@@ -839,6 +839,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const hasData = activeSetsData && activeSetsData.length > 0;
     const isNewIndex = lastInitializedIdx.current !== currentIndex;
     
+    // If it's the SAME index we already have data for, DON'T overwrite from workoutPerformance
+    // WorkoutPerformance might be lagging behind activeSetsData
     if (!isNewIndex && hasData) {
       log("[INIT] Already initialized for this index, skipping re-init");
       return;
@@ -1028,31 +1030,33 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const saveWorkoutExecution = async (histId: string, userId: string) => {
     log("[SAVE_WORKOUT_START]");
     
-    // 1. Prepare logs for all completed exercises/sets
+    // 1. Preparelogs for all completed exercises/sets
     const logs: any[] = [];
     const progressions: {exerciseId: string, weight: number, reps: number, rpe: number}[] = [];
 
-    Object.entries(workoutPerformance).forEach(([exIdxStr, setsUntyped]) => {
+    // Ensure we have the latest activeSetsData for the current exercise merged into the map
+    const finalPerformance = {
+      ...workoutPerformance,
+      [currentIndex]: activeSetsData
+    };
+
+    Object.entries(finalPerformance).forEach(([exIdxStr, setsUntyped]) => {
       const exIdx = parseInt(exIdxStr);
       const ex = exercises[exIdx];
       if (!ex) return;
       
       const sets = setsUntyped as {weight: number, reps: number, rpe: number}[];
 
-      // Only save sets that have been "touched" or marked as completed
-      // In this player, we assume if it's in workoutPerformance and the user finished, they did it
       sets.forEach((set, setIdx) => {
-        // We only save sets that were actually performed (completedSetIndices logic for current ex, 
-        // but for previous ones we assume they were completed if we moved past them)
-        // To be safe, we check if they have at least 1 rep
-        if (set.reps > 0) {
+        // Only save sets that have at least 1 rep or some weight
+        if (set.reps > 0 || set.weight > 0) {
           logs.push({
             history_id: histId,
             user_id: userId,
             exercise_id: ex.exercise_id,
             set_number: setIdx + 1,
-            weight_achieved: set.weight,
-            reps_achieved: set.reps,
+            weight_achieved: typeof set.weight === 'string' ? parseFloat(set.weight) : set.weight,
+            reps_achieved: typeof set.reps === 'string' ? parseInt(set.reps) : set.reps,
             rpe: set.rpe,
             set_type: SetType.NORMAL,
             created_at: new Date().toISOString()
@@ -1060,14 +1064,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         }
       });
 
-      // Update progression with the best/last set of this exercise
       if (sets.length > 0) {
         const lastSetVal = sets[sets.length - 1];
         if (lastSetVal.reps > 0) {
           progressions.push({
             exerciseId: ex.exercise_id,
-            weight: lastSetVal.weight,
-            reps: lastSetVal.reps,
+            weight: typeof lastSetVal.weight === 'string' ? parseFloat(lastSetVal.weight) : lastSetVal.weight,
+            reps: typeof lastSetVal.reps === 'string' ? parseInt(lastSetVal.reps) : lastSetVal.reps,
             rpe: lastSetVal.rpe
           });
         }
