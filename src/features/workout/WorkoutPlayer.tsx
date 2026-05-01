@@ -7,6 +7,7 @@ import {
   Minus,
   X,
   Check,
+  CheckCircle2,
   MoreHorizontal,
   Play,
   Loader2,
@@ -37,6 +38,11 @@ import { cacheStore } from "../../lib/cache/cacheStore";
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { navigate, goBack } = useNavigation();
   const { showError, showSuccess } = useErrorHandler();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    authApi.getUser().then(setUser).catch(console.error);
+  }, []);
   
   // Global State
   const { isOnline, pendingSyncCount, isSyncing } = useAppStore();
@@ -73,6 +79,54 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const lastScrollY = useRef(0);
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Background Sync / Interrupt Resilience
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Save current timestamp if resting
+        if (isResting) {
+          localStorage.setItem('workout_rest_start', Date.now().toString());
+          localStorage.setItem('workout_rest_time_left', timeLeft.toString());
+        }
+        // Save overall progress
+        if (user && workoutId && historyId) {
+          workoutApi.upsertPartialSession(
+            user.id, 
+            workoutId, 
+            historyId, 
+            new Date().toISOString()
+          ).catch(console.error);
+        }
+      } else {
+        // Returned to app
+        const restStart = localStorage.getItem('workout_rest_start');
+        const restTimeLeft = localStorage.getItem('workout_rest_time_left');
+        
+        if (isResting && restStart && restTimeLeft) {
+          const elapsed = Math.floor((Date.now() - parseInt(restStart)) / 1000);
+          const newTimeLeft = Math.max(0, parseInt(restTimeLeft) - elapsed);
+          setTimeLeft(newTimeLeft);
+        }
+        
+        localStorage.removeItem('workout_rest_start');
+        localStorage.removeItem('workout_rest_time_left');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isResting, timeLeft, user, workoutId, historyId]);
+
+  // Debounced Auto-Save of progress
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (user && historyId && activeSetsData.length > 0) {
+        workoutApi.updatePartialSession(historyId, currentIndex, currentSet).catch(console.error);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [activeSetsData, currentIndex, currentSet, historyId, user]);
 
   // Intensity Levels
   const getIntensity = () => {
@@ -181,12 +235,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   useEffect(() => {
     const activeRef = setRefs.current[currentSet - 1];
     if (activeRef) {
-      activeRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Delay slightly to let layout animations start/DOM update
+      const timer = setTimeout(() => {
+        activeRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Auto-focus input of next set
+        setTimeout(() => {
+          inputRefs.current[currentSet - 1]?.focus();
+          // Auto-select text on focus (as per Production Polish Layer point 4)
+          try {
+            inputRefs.current[currentSet - 1]?.select();
+          } catch (e) {}
+        }, 300);
+      }, 100);
       
-      // Auto-focus input of next set
-      setTimeout(() => {
-        inputRefs.current[currentSet - 1]?.focus();
-      }, 500); // Slight delay to wait for scroll
+      return () => clearTimeout(timer);
     }
   }, [currentSet, currentIndex]);
 
@@ -205,6 +268,27 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     return () => clearInterval(interval);
   }, [startTime]);
 
+  // Subtle Beep Helper
+  const playTimerBeep = (isTerminal = false) => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(isTerminal ? 880 : 440, audioCtx.currentTime);
+
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.1);
+    } catch (e) { /* Ignore audio errors */ }
+  };
+
   useEffect(() => {
     if (!isResting) {
       vibratedAlert5s.current = false;
@@ -216,7 +300,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setRestOvertime(prev => prev + 1);
       
       // Auto-advance after 1.5s of showing "VAI LÁ!" / Beep
-      if (restOvertime === 1) { // 1 second after hitting 0
+      if (restOvertime === 1) { 
         const isLastSet = currentSet >= (currentEx?.sets_json?.length || 0);
         
         setTimeout(() => {
@@ -227,11 +311,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             if (currentIndex < exercises.length - 1) {
               setCurrentIndex(currentIndex + 1);
               setCurrentSet(1);
-            } else {
-              // Workout finished? handleCompleteSet already handles finishing 
-              // but if they just waited for the timer of the last set...
-              // We'll let the user click "Finish" or we can auto-finish.
-              // User said: "load first set of next exercise".
             }
           } else {
             setCurrentSet(currentSet + 1);
@@ -241,27 +320,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       return;
     }
     
-    // Audio & Haptic alert at 5s (triggered once)
-    if (timeLeft === 5 && !vibratedAlert5s.current) {
-      vibratedAlert5s.current = true;
-      if (audioRef.current) {
-        audioRef.current.volume = 0.5;
-        audioRef.current.play().catch(() => {});
-      }
-      if ('vibrate' in navigator) navigator.vibrate([30, 30, 30]);
+    // Beep & Vibrate during final 5 seconds
+    if (timeLeft <= 5 && timeLeft > 0) {
+      playTimerBeep(false);
+      if ('vibrate' in navigator) navigator.vibrate(50);
     }
 
-    // Light repeating pulse when timer < 5s
-    if (timeLeft < 5 && timeLeft > 0 && timeLeft % 1 === 0) {
-      if ('vibrate' in navigator) navigator.vibrate(20);
-    }
-
-    // Strong alert at 0s
-    if (timeLeft === 0 && vibratedAlert5s.current) {
-      if (audioRef.current) {
-        audioRef.current.volume = 1.0;
-        audioRef.current.play().catch(() => {});
-      }
+    // Special alert at exactly 0s
+    if (timeLeft === 0) {
+      playTimerBeep(true);
       if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
     }
 
@@ -284,20 +351,30 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     fetchLast();
 
     // Initialize active sets data
-    if (currentEx.sets_json) {
+    if (currentEx.sets_json && currentEx.sets_json.length > 0) {
       setActiveSetsData(currentEx.sets_json.map(s => ({
         weight: s.weight || 0,
         reps: parseInt(s.reps as string) || 10,
         rpe: 8
       })));
+    } else {
+      // Empty state safety: ensure at least one set exists
+      setActiveSetsData([{ weight: 0, reps: 10, rpe: 8 }]);
     }
   }, [currentEx]);
 
   // Update a single set's data
-  const updateSetData = (idx: number, field: 'weight' | 'reps' | 'rpe', value: number) => {
+  const updateSetData = (idx: number, field: 'weight' | 'reps' | 'rpe', value: number | string) => {
     setActiveSetsData(prev => {
       const next = [...prev];
-      next[idx] = { ...next[idx], [field]: value };
+      let numericValue = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
+      
+      // Safety limits
+      if (field === 'weight' && numericValue > 1000) numericValue = 1000;
+      if (field === 'reps' && numericValue > 500) numericValue = 500;
+      if (field === 'rpe' && (numericValue < 1 || numericValue > 10)) numericValue = 8;
+
+      next[idx] = { ...next[idx], [field]: isNaN(numericValue) ? 0 : numericValue };
       return next;
     });
   };
@@ -372,6 +449,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           set_type: SetType.NORMAL
         });
         
+        // Finalize workout if terminal
+        if (isWorkoutTerminal) {
+          finishWorkout(true);
+          return;
+        }
+
         // Advance to next set or next exercise
         if (currentSet < (currentEx.sets_json?.length || 0)) {
           setCurrentSet(currentSet + 1);
@@ -428,6 +511,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const sec = s % 60;
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
+
+  const isFinalSetOfExercise = currentEx && currentSet >= (currentEx.sets_json?.length || 0);
+  const isFinalExercise = exercises && currentIndex >= exercises.length - 1;
+  const isWorkoutTerminal = isFinalSetOfExercise && isFinalExercise;
 
   const preHint = useMemo(() => {
     if (!currentEx) return null;
@@ -572,20 +659,29 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       ref={(el) => (setRefs.current[idx] = el)}
                       initial={false}
                       animate={{
-                        opacity: isCurrent ? 1 : isPast ? 0.45 : 0.7,
+                        opacity: isCurrent ? 1 : isPast ? 0 : 0.7,
                         scale: isCurrent 
                           ? (intensity === 'LOW' ? [1, 1.01, 1] : 1) 
-                          : 0.98,
+                          : isPast ? 0.96 : 0.98,
+                        height: isPast ? 0 : "auto",
+                        marginTop: isPast ? 0 : (idx === 0 ? 0 : 12),
+                        marginBottom: isPast ? 0 : 0,
+                        paddingTop: isPast ? 0 : 16,
+                        paddingBottom: isPast ? 0 : 16,
+                        paddingLeft: isPast ? 0 : 16,
+                        paddingRight: isPast ? 0 : 16,
+                        borderWidth: isPast ? 0 : 2,
                         borderColor: isCurrent ? '#f97316' : 'rgba(241, 245, 249, 0.5)',
                         boxShadow: isCurrent 
                           ? (intensity === 'HIGH' ? '0 15px 35px -5px rgba(249, 115, 22, 0.25)' : '0 10px 25px -5px rgba(249, 115, 22, 0.1)') 
                           : '0 0px 0px 0px rgba(0,0,0,0)',
                       }}
+                      style={{ overflow: "hidden" }}
                       transition={isCurrent && intensity === 'LOW' ? {
                         scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
                         default: { type: "spring", stiffness: 300, damping: 25 }
                       } : { type: "spring", stiffness: 300, damping: 25 }}
-                      className={`flex items-center justify-between p-4 rounded-2xl transition-colors duration-300 border-2 bg-white ${isCurrent && intensity === 'HIGH' ? 'border-orange-400 ring-4 ring-orange-500/10' : ''}`}
+                      className={`flex items-center justify-between rounded-2xl transition-colors duration-300 bg-white ${isCurrent && intensity === 'HIGH' ? 'border-orange-400 ring-4 ring-orange-500/10' : ''}`}
                     >
                       <div className="flex items-center gap-4">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
@@ -614,9 +710,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                            <div className="text-center group">
                               <motion.input 
                                 ref={(el) => (inputRefs.current[idx] = el)}
-                                type="number"
+                                type="text"
+                                inputMode="decimal"
                                 value={setData.weight}
-                                onChange={(e) => updateSetData(idx, 'weight', parseFloat(e.target.value) || 0)}
+                                onChange={(e) => updateSetData(idx, 'weight', e.target.value)}
                                 whileFocus={{ scale: 1.15, color: "#f97316" }}
                                 className={`text-xl font-black w-20 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
                                   isCurrent ? "text-slate-900" : "text-slate-400"
@@ -639,9 +736,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                            </div>
                            <div className="text-center">
                               <motion.input 
-                                type="number"
+                                type="text"
+                                inputMode="numeric"
                                 value={setData.reps}
-                                onChange={(e) => updateSetData(idx, 'reps', parseInt(e.target.value) || 0)}
+                                onChange={(e) => updateSetData(idx, 'reps', e.target.value)}
                                 whileFocus={{ scale: 1.15, color: "#f97316" }}
                                 className={`text-xl font-black w-14 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
                                   isCurrent ? "text-slate-900" : "text-slate-400"
@@ -746,44 +844,43 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               className={`fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl ${isResting && timeLeft <= 5 && timeLeft > 0 ? 'ring-2 ring-orange-500/20' : ''}`}
             >
               
-              {/* COMPACT TIMER BAR (CENTERED) */}
-              <div className="flex items-center justify-center gap-8 mb-6">
+              {/* COMPACT TIMER BAR (CENTERED CONTROL BAR) */}
+              <div className="flex items-center justify-between bg-slate-50/50 rounded-2xl p-2 mb-4 border border-slate-100">
                 <button 
                   onClick={() => setTimeLeft(prev => Math.max(0, prev - 10))}
-                  className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:scale-90 transition-all font-black text-sm"
+                  className="w-14 h-10 bg-white text-slate-400 rounded-xl flex items-center justify-center active:scale-95 transition-all font-black text-[10px] tracking-widest shadow-sm border border-slate-100"
                 >
-                  -10
+                  -10S
                 </button>
 
-                <div className="flex flex-col items-center min-w-[120px]">
-                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Descanso</p>
+                <div className="flex flex-col items-center">
                   <motion.span 
                     key={isResting ? 'active' : 'idle'}
                     animate={isResting && timeLeft <= 5 ? {
-                      scale: [1, 1.15, 1],
-                      opacity: [1, 0.7, 1],
-                      color: timeLeft <= 0 ? '#10b981' : (timeLeft <= 2 ? '#ef4444' : '#f97316')
+                      scale: [1, 1.2, 1],
+                      color: timeLeft <= 0 ? '#10b981' : '#ef4444'
                     } : {
                       scale: 1,
-                      opacity: isResting ? 1 : 0.3,
-                      color: isResting ? '#2563eb' : '#f8fafc'
+                      opacity: isResting ? 1 : 0.4,
+                      color: isResting ? '#0f172a' : '#94a3b8'
                     }}
                     transition={isResting && timeLeft <= 5 ? {
-                      duration: 0.8,
+                      duration: 1,
                       repeat: Infinity,
                       ease: "easeInOut"
                     } : { duration: 0.3 }}
-                    className="text-4xl font-black tabular-nums transition-all drop-shadow-sm"
+                    className="text-2xl font-black tabular-nums transition-all tracking-tighter"
                   >
                     {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
                   </motion.span>
+                  <p className="text-[7px] font-[1000] text-slate-400/60 uppercase tracking-[0.2em] -mt-1">Descanso</p>
                 </div>
 
                 <button 
                   onClick={() => setTimeLeft(prev => prev + 10)}
-                  className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:scale-90 transition-all font-black text-sm"
+                  className="w-14 h-10 bg-white text-slate-400 rounded-xl flex items-center justify-center active:scale-95 transition-all font-black text-[10px] tracking-widest shadow-sm border border-slate-100"
                 >
-                  +10
+                  +10S
                 </button>
               </div>
 
@@ -806,8 +903,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
                   <>
-                    {isResting ? (timeLeft <= 0 ? "Próxima série" : "Pular Descanso") : "Concluir Série"}
-                    {!isResting && <ArrowRight size={18} strokeWidth={4} />}
+                    {isResting 
+                      ? (timeLeft <= 0 ? "Próxima série" : "Pular Descanso") 
+                      : (isWorkoutTerminal ? "Finalizar Treino" : "Concluir Série")}
+                    {!isResting && (isWorkoutTerminal ? <CheckCircle2 size={18} strokeWidth={4} /> : <ArrowRight size={18} strokeWidth={4} />)}
                   </>
                 )}
               </motion.button>
