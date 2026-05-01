@@ -118,7 +118,7 @@ const SetCard = ({
           ? (intensity === 'HIGH' ? '0 15px 35px -5px rgba(249, 115, 22, 0.25)' : '0 10px 25px -5px rgba(249, 115, 22, 0.1)') 
           : (focusedIdx === idx && isCompleted ? '0 4px 12px rgba(0,0,0,0.05)' : '0 0px 0px 0px rgba(0,0,0,0)'),
       }}
-      style={{ overflow: "hidden" }}
+      style={{ overflow: "visible" }}
       onClick={isCompleted ? () => {
         // Focus the input of the completed set for editing
         const input = (setInputRef as any)?.current;
@@ -150,11 +150,11 @@ const SetCard = ({
                {(showPR && isCurrent) || (lastSet && parseFloat(localWeight) > lastSet.weight) ? (
                  <motion.div 
                    initial={{ opacity: 0, y: 10, scale: 0.5 }}
-                   animate={{ opacity: 1, y: -25, scale: 1 }}
+                   animate={{ opacity: 1, y: -20, scale: 1 }}
                    exit={{ opacity: 0, scale: 0.5 }}
-                   className="absolute top-0 left-0 right-0 flex justify-center z-10 pointer-events-none"
+                   className="absolute top-0 left-0 right-0 flex justify-center z-50 pointer-events-none"
                  >
-                   <span className="bg-yellow-400 text-yellow-900 text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg border border-yellow-200 uppercase tracking-tighter flex items-center gap-1">
+                   <span className="bg-yellow-400 text-yellow-900 text-[10px] font-black px-3 py-1 rounded-full shadow-xl border border-yellow-200 uppercase tracking-tighter flex items-center gap-1 whitespace-nowrap">
                       🏆 NOVO RECORDE
                    </span>
                  </motion.div>
@@ -1519,7 +1519,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               
               {/* PR / FEEDBACK / SUGGESTION OVERLAY */}
               <AnimatePresence>
-                {(feedback || suggestion || (isResting && restOvertime > 15)) && (
+                {(feedback || suggestion || anomalyDetected || fatigueDetected || (isResting && restOvertime > 15)) && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1540,8 +1540,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       )}
 
                       {anomalyDetected && (
-                         <div className="flex items-center gap-2 text-yellow-400 font-black text-[9px] uppercase tracking-widest">
-                           <Award size={10} /> Progressão incomum detectada — verifique a carga
+                         <div className="flex items-center gap-2 text-yellow-400 font-black text-[10px] uppercase tracking-widest">
+                           <Award size={12} /> Progressão incomum detectada — verifique a carga
                          </div>
                       )}
 
@@ -1552,8 +1552,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       )}
 
                       {fatigueDetected && (
-                         <div className="flex items-center gap-2 text-slate-400 font-black text-[9px] uppercase tracking-widest">
-                           <Loader2 size={10} className="animate-spin" /> Fadiga detectada — mantenha a carga
+                         <div className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-widest">
+                           <Loader2 size={12} className="animate-spin" /> Fadiga detectada — mantenha a carga
                          </div>
                       )}
                     </div>
