@@ -341,10 +341,50 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [streak, setStreak] = useState(0);
   const [fatigueDetected, setFatigueDetected] = useState(false);
   const [anomalyDetected, setAnomalyDetected] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [historicalSets, setHistoricalSets] = useState<{weight_achieved: number, reps_achieved: number, set_number: number}[]>([]);
   const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
   const [recoverySession, setRecoverySession] = useState<any>(null);
+
+  useEffect(() => {
+    if (!historyId || exercises.length === 0) return;
+    
+    async function hydrate() {
+      log("[RECOVERY] Hydrating session from logs", { historyId });
+      setIsHydrating(true);
+      try {
+        const logs = await workoutApi.getWorkoutLogsSimple(historyId);
+        if (logs && logs.length > 0) {
+           const newPerf: Record<number, {weight: number, reps: number, rpe: number}[]> = {};
+           logs.forEach(l => {
+              const exIdx = exercises.findIndex(ex => ex.exercise_id === l.exercise_id);
+              if (exIdx === -1) return;
+              if (!newPerf[exIdx]) newPerf[exIdx] = [];
+              newPerf[exIdx][l.set_number - 1] = {
+                weight: l.weight_achieved,
+                reps: l.reps_achieved,
+                rpe: l.rpe || 8
+              };
+           });
+           setWorkoutPerformance(newPerf);
+           
+           // Populate completed sets for current exercise
+           const currentExLogs = logs.filter(l => l.exercise_id === exercises[currentIndex]?.exercise_id);
+           if (currentExLogs.length > 0) {
+             const completed = new Set<number>();
+             currentExLogs.forEach(l => completed.add(l.set_number - 1));
+             setCompletedSetIndices(completed);
+           }
+        }
+      } catch (err) {
+        console.error("Failed to hydrate session", err);
+      } finally {
+        setIsHydrating(false);
+      }
+    }
+    hydrate();
+  }, [historyId, exercises.length]);
 
   useEffect(() => {
     async function checkRecovery() {
@@ -777,10 +817,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     fetchHistory();
 
     // Initialize active sets data
+    let nextSets: { weight: number, reps: number, rpe: number }[] = [];
+
     if (workoutPerformance[currentIndex]) {
-      setActiveSetsData(workoutPerformance[currentIndex]);
+      nextSets = workoutPerformance[currentIndex];
     } else if (currentEx.sets_json && currentEx.sets_json.length > 0) {
-      setActiveSetsData(currentEx.sets_json.map((s, idx) => {
+      nextSets = currentEx.sets_json.map((s, idx) => {
         // Auto-progression Memory: use lastSet for the first set if session is new
         if (idx === 0 && lastSet) {
           return {
@@ -794,24 +836,37 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           reps: parseInt(s.reps as string) || 10,
           rpe: 8
         };
-      }));
+      });
     } else {
       // Empty state safety: ensure at least one set exists
       const initialWeight = lastSet?.weight || 0;
       const initialReps = lastSet?.reps || 10;
-      setActiveSetsData([{ weight: initialWeight, reps: initialReps, rpe: 8 }]);
+      nextSets = [{ weight: initialWeight, reps: initialReps, rpe: 8 }];
     }
-  }, [currentEx, lastSet, currentIndex]);
+
+    // PROTECTIVE CHECK: Only update state if data has actually changed to prevent infinite loops
+    setActiveSetsData(prev => {
+      if (JSON.stringify(prev) === JSON.stringify(nextSets)) return prev;
+      return nextSets;
+    });
+  }, [currentEx, lastSet, currentIndex, workoutPerformance]);
 
   // Sync activeSetsData to workoutPerformance
   useEffect(() => {
-    if (activeSetsData.length > 0 && currentEx) {
-      setWorkoutPerformance(prev => ({
-        ...prev,
-        [currentIndex]: activeSetsData
-      }));
+    if (!isHydrating && activeSetsData.length > 0 && currentEx) {
+      setWorkoutPerformance(prev => {
+        const current = prev[currentIndex];
+        // If the data is already identical, don't update to avoid triggering dependent effects
+        if (current && JSON.stringify(current) === JSON.stringify(activeSetsData)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [currentIndex]: activeSetsData
+        };
+      });
     }
-  }, [activeSetsData, currentIndex, currentEx]);
+  }, [activeSetsData, currentIndex, currentEx, isHydrating]);
 
   // Update a single set's data
   const updateSetData = (idx: number, field: 'weight' | 'reps' | 'rpe', value: number | string) => {
@@ -914,7 +969,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         history_id: historyId,
         user_id: user?.id,
         exercise_id: currentEx.exercise_id,
-        exercise_name_snapshot: currentEx.exercise_name,
         set_number: currentSet,
         weight_achieved: weight,
         reps_achieved: reps,
@@ -962,7 +1016,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             history_id: histId,
             user_id: userId,
             exercise_id: ex.exercise_id,
-            exercise_name_snapshot: ex.exercise_name,
             set_number: setIdx + 1,
             weight_achieved: set.weight,
             reps_achieved: set.reps,

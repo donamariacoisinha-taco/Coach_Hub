@@ -382,8 +382,29 @@ export const workoutApi = {
   },
 
   async saveWorkoutBatch(historyId: string, logs: any[]) {
-    // Split into smaller chunks to avoid payload limits if needed, but usually fits
-    const { error } = await supabase.from('workout_sets_log').insert(logs);
-    if (error) throw error;
+    let currentLogs = [...logs];
+    
+    while (true) {
+      try {
+        const { error } = await supabase.from('workout_sets_log').insert(currentLogs);
+        if (error) throw error;
+        return;
+      } catch (err: any) {
+        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+          const match = err.message.match(/column '(.*)'/);
+          if (match && match[1]) {
+            const badColumn = match[1];
+            console.warn(`[BATCH] Removing missing column: ${badColumn}`);
+            currentLogs = currentLogs.map(log => {
+              const { [badColumn]: _, ...remaining } = log;
+              return remaining;
+            });
+            if (currentLogs.length > 0 && Object.keys(currentLogs[0]).length === 0) throw err;
+            continue;
+          }
+        }
+        throw err;
+      }
+    }
   }
 };

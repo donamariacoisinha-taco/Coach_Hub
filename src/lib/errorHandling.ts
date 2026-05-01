@@ -21,7 +21,7 @@ export interface AppError {
  */
 export function mapError(error: any): AppError {
   const message = typeof error === 'string' ? error : error?.message || '';
-  const code = error?.code || '';
+  const code = error?.code?.toString() || '';
 
   // NETWORK ERRORS
   if (message.includes('Failed to fetch') || message.includes('network') || code === 'PGRST301') {
@@ -55,7 +55,7 @@ export function mapError(error: any): AppError {
   }
 
   // SERVER ERRORS
-  if (code.startsWith('5') || message.includes('server error') || message.includes('database error')) {
+  if (code && typeof code === 'string' && code.startsWith('5') || message.includes('server error') || message.includes('database error')) {
     return {
       type: 'server',
       title: 'Instabilidade temporária',
