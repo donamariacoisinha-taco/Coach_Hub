@@ -72,6 +72,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [showExercisesList, setShowExercisesList] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [pendingSetToComplete, setPendingSetToComplete] = useState<number | null>(null);
+  const [completedSetIndices, setCompletedSetIndices] = useState<Set<number>>(new Set());
 
   // Smart Footer Logic
   const [isFooterVisible, setIsFooterVisible] = useState(true);
@@ -289,33 +291,57 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     } catch (e) { /* Ignore audio errors */ }
   };
 
+  // CENTRALIZED PROGRESSION LOGIC
+  const advanceWorkout = async (completedIdx: number) => {
+    if (!currentEx || !historyId) return;
+
+    // 1. Mark as completed
+    setCompletedSetIndices(prev => new Set([...prev, completedIdx]));
+    
+    // 2. Sound & Haptic
+    playTimerBeep(true);
+    if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+
+    // 3. Determine next step
+    const isLastSet = currentSet >= (currentEx.sets_json?.length || 0);
+
+    if (isLastSet) {
+      if (currentIndex < exercises.length - 1) {
+        // Next Exercise
+        setCurrentIndex(currentIndex + 1);
+        setCurrentSet(1);
+        setCompletedSetIndices(new Set()); // Reset for next exercise
+      } else {
+        // Workout Finished
+        finishWorkout(true);
+      }
+    } else {
+      // Next Set
+      setCurrentSet(currentSet + 1);
+    }
+
+    // 4. Update Remote Session
+    workoutApi.updatePartialSession(historyId, currentIndex, currentSet).catch(console.error);
+    setPendingSetToComplete(null);
+  };
+
   useEffect(() => {
     if (!isResting) {
       vibratedAlert5s.current = false;
       return;
     }
     
-    // Auto-advance logic at 0
+    // Progression trigger at 0
     if (timeLeft <= 0) {
       setRestOvertime(prev => prev + 1);
       
-      // Auto-advance after 1.5s of showing "VAI LÁ!" / Beep
+      // Auto-advance after 1s of showing "VAI LÁ!"
       if (restOvertime === 1) { 
-        const isLastSet = currentSet >= (currentEx?.sets_json?.length || 0);
-        
-        setTimeout(() => {
-          setIsResting(false);
-          setRestOvertime(0);
-          
-          if (isLastSet) {
-            if (currentIndex < exercises.length - 1) {
-              setCurrentIndex(currentIndex + 1);
-              setCurrentSet(1);
-            }
-          } else {
-            setCurrentSet(currentSet + 1);
-          }
-        }, 1500); 
+        setIsResting(false);
+        setRestOvertime(0);
+        if (pendingSetToComplete !== null) {
+          advanceWorkout(pendingSetToComplete);
+        }
       }
       return;
     }
@@ -326,15 +352,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       if ('vibrate' in navigator) navigator.vibrate(50);
     }
 
-    // Special alert at exactly 0s
-    if (timeLeft === 0) {
-      playTimerBeep(true);
-      if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
-    }
-
     const timer = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearTimeout(timer);
-  }, [isResting, timeLeft]);
+  }, [isResting, timeLeft, restOvertime, pendingSetToComplete]);
 
   // Fetch Last Set
   useEffect(() => {
@@ -380,7 +400,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   };
 
   const handleCompleteSet = async () => {
-    if (saving || !currentEx || !historyId) return;
+    if (saving || !currentEx || !historyId || isResting) return;
     
     const setIdx = currentSet - 1;
     const currentSetData = activeSetsData[setIdx];
@@ -413,9 +433,36 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setTimeout(() => setShowPR(false), 2000);
     }
 
-    // MICRO DELAY FOR PERCEIVED PRECISION
-    setTimeout(async () => {
-      // Optimistic UI for NEXT set
+    // SET PENDING FOR PROGRESSION
+    setPendingSetToComplete(setIdx);
+    setFeedback(emotional);
+    setPreviousSet(currentSetData);
+    setTimeout(() => setFeedback(null), 3000);
+
+    // INITIATE REST
+    setTimeLeft(adaptiveRest);
+    setRestOvertime(0);
+    setIsResting(true);
+    
+    if ('vibrate' in navigator) navigator.vibrate(30);
+
+    // SAVE DATA (ASYNC)
+    setSaving(true);
+    try {
+      const user = await authApi.getUser();
+      await saveSet({ 
+        history_id: historyId,
+        user_id: user?.id,
+        exercise_id: currentEx.exercise_id,
+        exercise_name_snapshot: currentEx.exercise_name,
+        set_number: currentSet,
+        weight_achieved: weight,
+        reps_achieved: reps,
+        rpe: rpe,
+        set_type: SetType.NORMAL
+      });
+
+      // Update next set suggestion optimistically
       if (setIdx + 1 < activeSetsData.length) {
          setActiveSetsData(prev => {
            const next = [...prev];
@@ -423,50 +470,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
            return next;
          });
       }
-      
-      setFeedback(emotional);
-      setPreviousSet(currentSetData);
-      setTimeout(() => setFeedback(null), 3000);
-
-      setTimeLeft(adaptiveRest);
-      setRestOvertime(0);
-      setIsResting(true);
-      
-      if ('vibrate' in navigator) navigator.vibrate(30);
-
-      setSaving(true);
-      try {
-        const user = await authApi.getUser();
-        await saveSet({ 
-          history_id: historyId,
-          user_id: user?.id,
-          exercise_id: currentEx.exercise_id,
-          exercise_name_snapshot: currentEx.exercise_name,
-          set_number: currentSet,
-          weight_achieved: weight,
-          reps_achieved: reps,
-          rpe: rpe,
-          set_type: SetType.NORMAL
-        });
-        
-        // Finalize workout if terminal
-        if (isWorkoutTerminal) {
-          finishWorkout(true);
-          return;
-        }
-
-        // Advance to next set or next exercise
-        if (currentSet < (currentEx.sets_json?.length || 0)) {
-          setCurrentSet(currentSet + 1);
-        }
-        
-        workoutApi.updatePartialSession(historyId, currentIndex, currentSet).catch(console.error);
-      } catch (err) {
-        showError(err);
-      } finally {
-        setSaving(false);
-      }
-    }, 200); // 200ms momentum delay
+    } catch (err) {
+      showError(err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const finishWorkout = async (isSuccess: boolean) => {
@@ -650,7 +658,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               <div className="px-4 space-y-3 pb-8 overflow-hidden">
                 {activeSetsData.map((setData, idx) => {
                   const isCurrent = idx === currentSet - 1;
-                  const isPast = idx < currentSet - 1;
+                  const isCompleted = completedSetIndices.has(idx);
+                  const isPending = pendingSetToComplete === idx;
+                  const isPast = idx < currentSet - 1; // Used for animation
                   
                   return (
                     <motion.div 
@@ -659,20 +669,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       ref={(el) => (setRefs.current[idx] = el)}
                       initial={false}
                       animate={{
-                        opacity: isCurrent ? 1 : isPast ? 0 : 0.7,
+                        opacity: isCompleted ? 0.45 : 1,
                         scale: isCurrent 
                           ? (intensity === 'LOW' ? [1, 1.01, 1] : 1) 
-                          : isPast ? 0.96 : 0.98,
-                        height: isPast ? 0 : "auto",
-                        marginTop: isPast ? 0 : (idx === 0 ? 0 : 12),
-                        marginBottom: isPast ? 0 : 0,
-                        paddingTop: isPast ? 0 : 16,
-                        paddingBottom: isPast ? 0 : 16,
-                        paddingLeft: isPast ? 0 : 16,
-                        paddingRight: isPast ? 0 : 16,
-                        borderWidth: isPast ? 0 : 2,
-                        borderColor: isCurrent ? '#f97316' : 'rgba(241, 245, 249, 0.5)',
-                        boxShadow: isCurrent 
+                          : isPast && !isCurrent ? 0.96 : 0.98,
+                        height: "auto",
+                        marginTop: (idx === 0 ? 0 : 12),
+                        borderColor: isCurrent ? (isPending ? '#94a3b8' : '#f97316') : 'rgba(241, 245, 249, 0.5)',
+                        boxShadow: isCurrent && !isPending
                           ? (intensity === 'HIGH' ? '0 15px 35px -5px rgba(249, 115, 22, 0.25)' : '0 10px 25px -5px rgba(249, 115, 22, 0.1)') 
                           : '0 0px 0px 0px rgba(0,0,0,0)',
                       }}
@@ -681,13 +685,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
                         default: { type: "spring", stiffness: 300, damping: 25 }
                       } : { type: "spring", stiffness: 300, damping: 25 }}
-                      className={`flex items-center justify-between rounded-2xl transition-colors duration-300 bg-white ${isCurrent && intensity === 'HIGH' ? 'border-orange-400 ring-4 ring-orange-500/10' : ''}`}
+                      className={`flex items-center justify-between p-4 rounded-2xl transition-all duration-300 bg-white border-2 ${isCurrent && intensity === 'HIGH' && !isPending ? 'border-orange-400 ring-4 ring-orange-500/10' : ''}`}
                     >
                       <div className="flex items-center gap-4">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
-                          isCurrent ? "bg-orange-500 text-white shadow-md" : isPast ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400"
+                          isCompleted ? "bg-emerald-500 text-white" : 
+                          isCurrent ? "bg-orange-500 text-white shadow-md" : 
+                          "bg-slate-200 text-slate-400"
                         }`}>
-                          {isPast ? <Check size={16} strokeWidth={4} /> : idx + 1}
+                          {isCompleted ? <Check size={16} strokeWidth={4} /> : idx + 1}
                         </div>
                         
                         <div className="flex items-center gap-6 relative">
