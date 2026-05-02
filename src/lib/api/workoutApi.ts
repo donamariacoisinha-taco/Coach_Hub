@@ -1,28 +1,31 @@
 
 import { supabase } from './supabase';
 import { WorkoutCategory, WorkoutExercise, WorkoutFolder, WorkoutHistory, UserProfile, MuscleGroup, Exercise, SetConfig } from '../../types';
+import { fetchWithRetry } from '../utils';
 
 export const workoutApi = {
   async getDashboardData(userId: string) {
-    const [profileRes, foldersRes, workoutsRes, historyRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-      supabase.from('workout_folders').select('id, name').eq('user_id', userId).order('name'),
-      supabase.from('workout_categories').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-      supabase.from('workout_history').select('*').eq('user_id', userId).not('completed_at', 'is', null).gt('exercises_count', 0).order('completed_at', { ascending: false })
-    ]);
+    return fetchWithRetry(async () => {
+      const [profileRes, foldersRes, workoutsRes, historyRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+        supabase.from('workout_folders').select('id, name').eq('user_id', userId).order('name'),
+        supabase.from('workout_categories').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('workout_history').select('*').eq('user_id', userId).not('completed_at', 'is', null).gt('exercises_count', 0).order('completed_at', { ascending: false })
+      ]);
 
-    if (profileRes.error) throw profileRes.error;
-    if (foldersRes.error) throw foldersRes.error;
-    if (workoutsRes.error) throw workoutsRes.error;
-    if (historyRes.error) throw historyRes.error;
+      if (profileRes.error) throw profileRes.error;
+      if (foldersRes.error) throw foldersRes.error;
+      if (workoutsRes.error) throw workoutsRes.error;
+      if (historyRes.error) throw historyRes.error;
 
-    return {
-      profile: profileRes.data as UserProfile | null,
-      folders: (foldersRes.data || []) as WorkoutFolder[],
-      workouts: (workoutsRes.data || []) as WorkoutCategory[],
-      history: (historyRes.data || []) as WorkoutHistory[],
-      stats: { sessions: historyRes.data?.length || 0 }
-    };
+      return {
+        profile: profileRes.data as UserProfile | null,
+        folders: (foldersRes.data || []) as WorkoutFolder[],
+        workouts: (workoutsRes.data || []) as WorkoutCategory[],
+        history: (historyRes.data || []) as WorkoutHistory[],
+        stats: { sessions: historyRes.data?.length || 0 }
+      };
+    });
   },
 
   async deleteWorkout(id: string) {
@@ -40,31 +43,33 @@ export const workoutApi = {
   },
 
   async getWorkoutInitData(workoutId: string, userId: string) {
-    // We use a more explicit column list for exercises to avoid schema cache issues with newly added EKE columns
-    const [catRes, exRes, partialRes] = await Promise.all([
-      supabase.from('workout_categories').select('*').eq('id', workoutId).single(),
-      supabase.from('workout_exercises')
-        .select(`*, exercises (id, name, muscle_group, image_url, is_active)`)
-        .eq('category_id', workoutId)
-        .order('sort_order'),
-      supabase.from('partial_workout_sessions').select('*').eq('user_id', userId).eq('workout_id', workoutId).maybeSingle()
-    ]);
+    return fetchWithRetry(async () => {
+      // We use a more explicit column list for exercises to avoid schema cache issues with newly added EKE columns
+      const [catRes, exRes, partialRes] = await Promise.all([
+        supabase.from('workout_categories').select('*').eq('id', workoutId).single(),
+        supabase.from('workout_exercises')
+          .select(`*, exercises (id, name, muscle_group, image_url, is_active)`)
+          .eq('category_id', workoutId)
+          .order('sort_order'),
+        supabase.from('partial_workout_sessions').select('*').eq('user_id', userId).eq('workout_id', workoutId).maybeSingle()
+      ]);
 
-    if (catRes.error) throw catRes.error;
-    if (exRes.error) throw exRes.error;
+      if (catRes.error) throw catRes.error;
+      if (exRes.error) throw exRes.error;
 
-    const loadedExercises = (exRes.data || []).map((item: any) => ({
-      ...item,
-      exercise_name: item.exercises?.name || item.exercise_name_snapshot || item.exercise_name || 'Exercício Indisponível',
-      muscle_group: item.exercises?.muscle_group || item.muscle_group,
-      exercise_image: item.exercises?.image_url || item.exercise_image
-    }));
+      const loadedExercises = (exRes.data || []).map((item: any) => ({
+        ...item,
+        exercise_name: item.exercises?.name || item.exercise_name_snapshot || item.exercise_name || 'Exercício Indisponível',
+        muscle_group: item.exercises?.muscle_group || item.muscle_group,
+        exercise_image: item.exercises?.image_url || item.exercise_image
+      }));
 
-    return {
-      category: catRes.data as WorkoutCategory,
-      exercises: (loadedExercises || []) as WorkoutExercise[],
-      partialSession: partialRes.data
-    };
+      return {
+        category: catRes.data as WorkoutCategory,
+        exercises: (loadedExercises || []) as WorkoutExercise[],
+        partialSession: partialRes.data
+      };
+    });
   },
 
   async startWorkoutHistory(userId: string, workoutId: string, categoryName: string) {
@@ -191,21 +196,25 @@ export const workoutApi = {
   },
 
   async getWorkoutLogs(historyId: string) {
-    const { data, error } = await supabase.from('workout_sets_log').select('weight_achieved, reps_achieved, exercise_id').eq('history_id', historyId);
-    if (error) throw error;
-    return data || [];
+    return fetchWithRetry(async () => {
+      const { data, error } = await supabase.from('workout_sets_log').select('weight_achieved, reps_achieved, exercise_id').eq('history_id', historyId);
+      if (error) throw error;
+      return data || [];
+    });
   },
 
   async getWorkoutHistory(userId: string) {
-    const { data, error } = await supabase
-      .from('workout_history')
-      .select('*')
-      .eq('user_id', userId)
-      .not('completed_at', 'is', null)
-      .gt('exercises_count', 0) // Only show workouts that actually had exercises recorded
-      .order('completed_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    return fetchWithRetry(async () => {
+      const { data, error } = await supabase
+        .from('workout_history')
+        .select('*')
+        .eq('user_id', userId)
+        .not('completed_at', 'is', null)
+        .gt('exercises_count', 0) // Only show workouts that actually had exercises recorded
+        .order('completed_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    });
   },
 
   async getExerciseList() {

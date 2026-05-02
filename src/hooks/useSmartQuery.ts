@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { cacheStore } from '../lib/cache/cacheStore';
 import { UIStatus } from '../components/ui/ScreenState';
+import { fetchWithRetry } from '../lib/utils';
 
 interface SmartQueryOptions {
   ttl?: number;
@@ -30,7 +31,7 @@ export function useSmartQuery<T>(
     }
 
     try {
-      const result = await fetcher();
+      const result = await fetchWithRetry(fetcher);
       cacheStore.set(key, result);
       setData(result);
       

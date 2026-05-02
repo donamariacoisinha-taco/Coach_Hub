@@ -38,6 +38,7 @@ import { workoutEngine } from "../../domain/workout/workoutEngine";
 import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
+import { fetchWithRetry } from "../../lib/utils";
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
@@ -426,7 +427,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       try {
         const user = await authApi.getUser();
         if (user) {
-          const history = await workoutApi.getWorkoutHistory(user.id);
+          const history = await fetchWithRetry(() => workoutApi.getWorkoutHistory(user.id));
           const currentStreak = calculateStreak(history.map((h: any) => h.completed_at));
           setStreak(currentStreak);
         }
@@ -442,7 +443,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       try {
         const u = await authApi.getUser();
         if (u) {
-          const history = await workoutApi.getWorkoutHistory(u.id);
+          const history = await fetchWithRetry(() => workoutApi.getWorkoutHistory(u.id));
           const count = history.length;
           if (count < 10) setUserLevel('BEGINNER');
           else if (count < 40) setUserLevel('INTERMEDIATE');

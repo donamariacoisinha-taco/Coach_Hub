@@ -1,15 +1,16 @@
 
 import { supabase } from './supabase';
+import { fetchWithRetry } from '../utils';
 
 export const authApi = {
   async getUser() {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const { data: { user }, error } = await fetchWithRetry(() => supabase.auth.getUser());
     if (error) throw error;
     return user;
   },
 
   async getSession() {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const { data: { session }, error } = await fetchWithRetry(() => supabase.auth.getSession());
     if (error) throw error;
     return session;
   },

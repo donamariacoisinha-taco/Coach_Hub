@@ -1,6 +1,7 @@
 
 import { useCallback } from 'react';
 import { cacheStore } from '../lib/cache/cacheStore';
+import { fetchWithRetry } from '../lib/utils';
 
 export function usePrefetch() {
   const prefetch = useCallback(async <T>(key: string, fetcher: () => Promise<T>) => {
@@ -11,7 +12,7 @@ export function usePrefetch() {
     }
 
     try {
-      const data = await fetcher();
+      const data = await fetchWithRetry(fetcher);
       cacheStore.set(key, data);
     } catch (err) {
       console.error(`Prefetch failed for key: ${key}`, err);
