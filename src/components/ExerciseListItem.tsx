@@ -2,15 +2,16 @@
 import React from 'react';
 import { Exercise } from '../types';
 import { motion } from 'motion/react';
-import { Replace, Info } from 'lucide-react';
+import { Replace, Info, Heart } from 'lucide-react';
 
 interface ExerciseListItemProps {
   exercise: Exercise;
   onSelect: (exercise: Exercise) => void;
   isReplacing: boolean;
+  isFavorite?: boolean;
 }
 
-export const ExerciseListItem: React.FC<ExerciseListItemProps> = ({ exercise, onSelect, isReplacing }) => {
+export const ExerciseListItem: React.FC<ExerciseListItemProps> = ({ exercise, onSelect, isReplacing, isFavorite }) => {
   return (
     <motion.div
       whileTap={{ backgroundColor: 'rgba(241, 245, 249, 1)' }}
@@ -20,11 +21,17 @@ export const ExerciseListItem: React.FC<ExerciseListItemProps> = ({ exercise, on
       }}
       className="flex items-center gap-4 py-4 px-6 border-b border-slate-100 cursor-pointer active:bg-slate-50 transition-colors group"
     >
-      <div className="w-14 h-14 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center p-2 shrink-0 group-active:scale-95 transition-transform">
+      <div className="relative w-14 h-14 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center p-2 shrink-0 group-active:scale-95 transition-transform">
         <img 
           src={exercise.static_frame_url || exercise.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
           className="w-full h-full object-contain mix-blend-multiply" 
+          referrerPolicy="no-referrer"
         />
+        {isFavorite && (
+          <div className="absolute top-1 right-1 text-amber-500">
+            <Heart size={10} fill="currentColor" />
+          </div>
+        )}
       </div>
       
       <div className="flex-1 min-w-0">

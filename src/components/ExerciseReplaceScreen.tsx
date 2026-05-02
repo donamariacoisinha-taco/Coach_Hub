@@ -15,6 +15,7 @@ interface ExerciseReplaceScreenProps {
   onSelect: (exercise: Exercise) => void;
   replacingIndex: number | null;
   currentExercise?: any;
+  favoriteIds?: Set<string>;
 }
 
 export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
@@ -23,7 +24,8 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
   availableExercises,
   onSelect,
   replacingIndex,
-  currentExercise
+  currentExercise,
+  favoriteIds = new Set<string>()
 }) => {
   const {
     search,
@@ -35,7 +37,7 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
     filteredExercises,
     suggestions,
     availableCuts
-  } = useExerciseFilters(availableExercises, currentExercise);
+  } = useExerciseFilters(availableExercises, currentExercise, favoriteIds);
 
   return (
     <AnimatePresence>
@@ -141,6 +143,7 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
                       exercise={ex} 
                       onSelect={onSelect} 
                       isReplacing={replacingIndex !== null}
+                      isFavorite={favoriteIds.has(ex.id)}
                     />
                   ))
                 ) : (

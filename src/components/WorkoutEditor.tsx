@@ -232,6 +232,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   const [folders, setFolders] = useState<WorkoutFolder[]>([]);
   const [exercises, setExercises] = useState<EditorExercise[]>([]);
   const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
   const editorState = useAsyncState<boolean>(false);
   const [saving, setSaving] = useState(false);
@@ -286,16 +287,21 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
     // Only suggest active exercises
     const activeAvailable = availableExercises.filter(ex => ex.is_active !== false);
 
-    if (exercises.length === 0) return activeAvailable.slice(0, 5);
+    if (exercises.length === 0) {
+      return [...activeAvailable]
+        .sort((a, b) => favoriteIds.has(b.id) ? -1 : 1)
+        .slice(0, 5);
+    }
     
     const lastEx = exercises[exercises.length - 1];
     const lastMuscle = lastEx.muscle_group;
     
-    // Sugerir exercícios do mesmo grupo muscular que ainda não estão no treino
+    // Sugerir exercícios do mesmo grupo muscular que ainda não estão no treino, priorizando favoritos
     return activeAvailable
       .filter(ex => ex.muscle_group === lastMuscle && !exercises.some(ee => ee.exercise_id === ex.id))
+      .sort((a, b) => favoriteIds.has(b.id) ? -1 : 1)
       .slice(0, 4);
-  }, [exercises, availableExercises]);
+  }, [exercises, availableExercises, favoriteIds]);
 
   const handleMagicBuild = async () => {
     if (magicParams.focusMuscles.length === 0) {
@@ -385,6 +391,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
     setAvailableExercises(data.exercises || []);
     setFolders(data.folders || []);
     setMuscleGroups(data.muscleGroups || []);
+    setFavoriteIds(new Set(data.favorites || []));
 
     if (data.category) {
       setName(data.category.name);
@@ -1017,6 +1024,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
         onSelect={handleAddOrReplaceExercise}
         replacingIndex={replacingIndex}
         currentExercise={replacingIndex !== null ? exercises[replacingIndex] : undefined}
+        favoriteIds={favoriteIds}
       />
     </div>
   );

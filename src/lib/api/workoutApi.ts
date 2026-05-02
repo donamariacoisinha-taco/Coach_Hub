@@ -248,7 +248,8 @@ export const workoutApi = {
     const queries: any[] = [
       supabase.from('workout_folders').select('*').eq('user_id', userId).order('name'),
       supabase.from('muscle_groups').select('*').order('sort_order'),
-      supabase.from('exercises').select('id, name, muscle_group, image_url, is_active').order('name')
+      supabase.from('exercises').select('id, name, muscle_group, image_url, is_active').order('name'),
+      supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', userId)
     ];
 
     if (workoutId) {
@@ -264,8 +265,9 @@ export const workoutApi = {
       folders: (results[0].data || []) as WorkoutFolder[],
       muscleGroups: (results[1].data || []) as MuscleGroup[],
       exercises: (results[2].data || []) as Exercise[],
-      category: workoutId ? results[3].data as WorkoutCategory : null,
-      workoutExercises: workoutId ? (results[4].data || []) as WorkoutExercise[] : []
+      favorites: (results[3].data || []).map((f: any) => f.exercise_id),
+      category: workoutId ? results[4].data as WorkoutCategory : null,
+      workoutExercises: workoutId ? (results[5].data || []) as WorkoutExercise[] : []
     };
   },
 

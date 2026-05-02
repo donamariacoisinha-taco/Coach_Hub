@@ -22,7 +22,7 @@ export const ANATOMICAL_CUTS: Record<string, string[]> = {
   'Core': ['Abdominal Superior', 'Abdominal Inferior', 'Oblíquos']
 };
 
-export function useExerciseFilters(availableExercises: Exercise[], currentExercise?: any) {
+export function useExerciseFilters(availableExercises: Exercise[], currentExercise?: any, favoriteIds: Set<string> = new Set()) {
   const [search, setSearch] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [selectedCut, setSelectedCut] = useState<string | null>(null);
@@ -39,6 +39,11 @@ export function useExerciseFilters(availableExercises: Exercise[], currentExerci
         return matchesSearch && matchesMuscle && matchesCut && (ex.is_active !== false);
       })
       .sort((a, b) => {
+        // Prioridade 0: Favoritos sempre no topo
+        const aFav = favoriteIds.has(a.id) ? 0 : 1;
+        const bFav = favoriteIds.has(b.id) ? 0 : 1;
+        if (aFav !== bFav) return aFav - bFav;
+
         // 1. Mesmo grupo muscular do exercício atual (se houver)
         if (currentExercise) {
           const aMuscleMatch = a.muscle_group === currentExercise.muscle_group ? 0 : 1;
