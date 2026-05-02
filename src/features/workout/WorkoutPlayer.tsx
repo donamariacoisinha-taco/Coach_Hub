@@ -651,16 +651,27 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { status: queryStatus, isFetching, refresh } = playerQuery;
 
   useEffect(() => {
-    if (footerRef.current) {
-      const observer = new ResizeObserver((entries) => {
-        for (const entry of entries) {
+    // Consolidated height observer for footer to ensure scroll padding is always accurate
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target.clientHeight > 0) {
           setFooterHeight(entry.target.clientHeight);
         }
-      });
-      observer.observe(footerRef.current);
-      return () => observer.disconnect();
+      }
+    });
+
+    const currentFooter = footerRef.current;
+    if (currentFooter) {
+      observer.observe(currentFooter);
     }
-  }, [queryStatus]); // Re-attach when data loads and footer is rendered
+
+    return () => {
+      if (currentFooter) {
+        observer.unobserve(currentFooter);
+      }
+      observer.disconnect();
+    };
+  }, [playerQuery.status]); // Re-run when status changes as footer might be newly rendered
 
   // Sync Store with Query Data
   useEffect(() => {
@@ -1420,10 +1431,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
             {/* 2. CONTEÚDO SCROLLABLE */}
             <div 
-              className="flex-1 overflow-y-auto bg-[#F8FAFC]"
+              className="flex-1 overflow-y-auto bg-[#F8FAFC] transition-[padding] duration-300"
               onScroll={handleScroll}
               onClick={() => setIsFooterVisible(true)}
-              style={{ paddingBottom: `calc(${footerHeight + 48}px + env(safe-area-inset-bottom))` }}
+              style={{ paddingBottom: `${footerHeight + 80}px` }}
             >
               
               {/* COMPACT EXERCISE HEADER (DYNAMIC COMPRESSION) */}
@@ -1609,7 +1620,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               </div>
 
               {/* FAILSAFE SPACER */}
-              <div style={{ height: footerHeight + 40 }} />
+              <div style={{ height: footerHeight + 80 }} />
 
             </div>
 
@@ -1623,7 +1634,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 scale: (isResting && timeLeft <= 0) ? 1.03 : 1
               }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className={`fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl ${isResting && timeLeft <= 5 && timeLeft > 0 ? 'ring-2 ring-orange-500/20' : ''}`}
+              className={`absolute bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl ${isResting && timeLeft <= 5 && timeLeft > 0 ? 'ring-2 ring-orange-500/20' : ''}`}
             >
               
               {/* PR / FEEDBACK / SUGGESTION OVERLAY */}
