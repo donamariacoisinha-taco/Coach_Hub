@@ -654,8 +654,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     // Consolidated height observer for footer to ensure scroll padding is always accurate
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (entry.target.clientHeight > 0) {
-          setFooterHeight(entry.target.clientHeight);
+        const height = entry.target.clientHeight;
+        if (height > 0) {
+          setFooterHeight(height);
         }
       }
     });
@@ -664,6 +665,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     if (currentFooter) {
       observer.observe(currentFooter);
     }
+
+    // Default height if observer hasn't run yet or returned 0
+    if (footerHeight === 0) setFooterHeight(200);
 
     return () => {
       if (currentFooter) {
@@ -1431,10 +1435,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
             {/* 2. CONTEÚDO SCROLLABLE */}
             <div 
-              className="flex-1 overflow-y-auto bg-[#F8FAFC] transition-[padding] duration-300"
+              className="flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-300"
               onScroll={handleScroll}
               onClick={() => setIsFooterVisible(true)}
-              style={{ paddingBottom: `${footerHeight + 80}px` }}
+              style={{ paddingBottom: `calc(${footerHeight + 120}px + env(safe-area-inset-bottom))` }}
             >
               
               {/* COMPACT EXERCISE HEADER (DYNAMIC COMPRESSION) */}
@@ -1620,7 +1624,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               </div>
 
               {/* FAILSAFE SPACER */}
-              <div style={{ height: footerHeight + 80 }} />
+              <div style={{ height: `calc(${footerHeight + 120}px + env(safe-area-inset-bottom))` }} />
 
             </div>
 
@@ -1634,7 +1638,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 scale: (isResting && timeLeft <= 0) ? 1.03 : 1
               }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className={`absolute bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl ${isResting && timeLeft <= 5 && timeLeft > 0 ? 'ring-2 ring-orange-500/20' : ''}`}
+              className={`fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl ${isResting && timeLeft <= 5 && timeLeft > 0 ? 'ring-2 ring-orange-500/20' : ''}`}
             >
               
               {/* PR / FEEDBACK / SUGGESTION OVERLAY */}
