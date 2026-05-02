@@ -8,6 +8,7 @@ import { MoreVertical, Plus, Flame, Play, Edit2, Trash2, Dumbbell, Copy } from '
 import { motion, AnimatePresence } from 'motion/react';
 import { ScreenState } from '../../components/ui/ScreenState';
 import { DashboardSkeleton } from '../../components/ui/Skeleton';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useSmartQuery } from '../../hooks/useSmartQuery';
 import { usePrefetch } from '../../hooks/usePrefetch';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
@@ -28,6 +29,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [showMagicModal, setShowMagicModal] = useState(false);
   const [magicLoading, setMagicLoading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string, type: 'workout' | 'folder' } | null>(null);
+  const [isPerformingAction, setIsPerformingAction] = useState(false);
   const [magicParams, setMagicParams] = useState({
     goal: Goal.HYPERTROPHY,
     duration: 45,
@@ -82,7 +85,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   };
 
   const handleDeleteWorkout = async (id: string) => {
-    if (!confirm("Deseja excluir este protocolo?")) return;
+    setDeleteConfirm(null);
+    setIsPerformingAction(true);
     
     // Optimistic Update
     const previousData = data;
@@ -96,11 +100,27 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
     try {
       await workoutApi.deleteWorkout(id);
-      // Success - no need to do anything as UI is already updated
+      showSuccess("Treino excluído", "O protocolo foi removido.");
     } catch (err) {
       // Rollback
       if (previousData) mutate(previousData);
       showError(err);
+    } finally {
+      setIsPerformingAction(false);
+    }
+  };
+
+  const handleDeleteFolder = async (id: string) => {
+    setDeleteConfirm(null);
+    setIsPerformingAction(true);
+    try {
+      await workoutApi.deleteFolder(id);
+      showSuccess("Pasta excluída", "Os treinos foram movidos para a categoria geral.");
+      refresh();
+    } catch (err) {
+      showError(err);
+    } finally {
+      setIsPerformingAction(false);
     }
   };
 
@@ -331,15 +351,24 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               Todos
             </button>
             {folders.map((folder) => (
-              <button
-                key={folder.id}
-                onClick={() => setActiveFolderId(folder.id)}
-                className={`text-[10px] font-black uppercase tracking-[0.2em] pb-6 border-b-4 transition-all whitespace-nowrap ${
-                  activeFolderId === folder.id ? "border-slate-900 text-slate-900" : "border-transparent text-slate-300"
-                }`}
-              >
-                {folder.name}
-              </button>
+              <div key={folder.id} className="relative flex items-center group/folder">
+                <button
+                  onClick={() => setActiveFolderId(folder.id)}
+                  className={`text-[10px] font-black uppercase tracking-[0.2em] pb-6 border-b-4 transition-all whitespace-nowrap pr-2 ${
+                    activeFolderId === folder.id ? "border-slate-900 text-slate-900" : "border-transparent text-slate-300"
+                  }`}
+                >
+                  {folder.name}
+                </button>
+                {activeFolderId === folder.id && (
+                  <button 
+                    onClick={() => setDeleteConfirm({ id: folder.id, name: folder.name, type: 'folder' })}
+                    className="pb-6 border-b-4 border-slate-900 text-slate-300 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
 
@@ -437,7 +466,11 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                           <Copy size={14} /> Duplicar
                         </button>
                         <button 
-                          onClick={() => handleDeleteWorkout(workout.id)}
+                          onClick={() => {
+                            const w = data?.workouts.find(w => w.id === workout.id);
+                            setDeleteConfirm({ id: workout.id, name: w?.name || 'este treino', type: 'workout' });
+                            setActiveMenuId(null);
+                          }}
                           className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-xl transition"
                         >
                           <Trash2 size={14} /> Excluir
@@ -460,6 +493,21 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             setParams={setMagicParams}
             onBuild={handleMagicBuild}
             muscleGroups={data?.muscleGroups || []}
+        />
+
+        <ConfirmModal 
+          isOpen={!!deleteConfirm}
+          onClose={() => setDeleteConfirm(null)}
+          onConfirm={() => {
+            if (deleteConfirm?.type === 'workout') handleDeleteWorkout(deleteConfirm.id);
+            else if (deleteConfirm?.type === 'folder') handleDeleteFolder(deleteConfirm.id);
+          }}
+          title={deleteConfirm?.type === 'workout' ? "Excluir Treino" : "Excluir Pasta"}
+          message={deleteConfirm?.type === 'workout' 
+            ? `Deseja excluir o protocolo "${deleteConfirm?.name || ''}" permanentemente?` 
+            : (deleteConfirm?.type === 'folder' ? `Deseja excluir a pasta "${deleteConfirm?.name || ''}"? Os treinos nela serão movidos para "Todos".` : "")}
+          confirmText="Sim, Excluir"
+          loading={isPerformingAction}
         />
       </div>
     </div>

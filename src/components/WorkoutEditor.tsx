@@ -33,6 +33,8 @@ import { cacheStore } from '../lib/cache/cacheStore';
 import { ekeService } from '../domain/eke/ekeService';
 import { Goal, ExperienceLevel } from '../types';
 
+import { ConfirmModal } from './ui/ConfirmModal';
+
 interface SortableItemProps {
   ex: EditorExercise;
   idx: number;
@@ -248,6 +250,8 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   });
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [editingSetsIndex, setEditingSetsIndex] = useState<number | null>(null);
 
@@ -477,6 +481,25 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
     }
   };
 
+  const handleDeleteWorkout = async () => {
+    if (!workoutId) return;
+    setShowDeleteConfirm(false);
+    setIsDeleting(true);
+    try {
+      await workoutApi.deleteWorkout(workoutId);
+      // Invalidate cache
+      cacheStore.clear('dashboard_data');
+      cacheStore.clear(`workout_init_${workoutId}`);
+      
+      showSuccess("Treino excluído", "O protocolo foi removido com sucesso.");
+      navigate('dashboard');
+    } catch (err) {
+      showError(err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleSave = async (isPermanent: boolean) => {
     if (!name.trim()) {
       showError({ message: 'validation: Dê um nome ao treino!' });
@@ -585,14 +608,36 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
             </div>
           </div>
         </div>
-        <button 
-          onClick={() => setShowSaveModal(true)} 
-          disabled={saving} 
-          className="px-5 py-2.5 bg-slate-900 rounded-full text-white font-black text-[9px] uppercase tracking-[0.2em] shadow-lg shadow-slate-900/20 active:scale-90 transition-all disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Salvar'}
-        </button>
+        <div className="flex items-center gap-2">
+          {workoutId && (
+            <button 
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isDeleting || saving}
+              className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-red-500 active:scale-90 transition-all disabled:opacity-50"
+              title="Excluir Treino"
+            >
+              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 size={18} />}
+            </button>
+          )}
+          <button 
+            onClick={() => setShowSaveModal(true)} 
+            disabled={saving || isDeleting} 
+            className="px-5 py-2.5 bg-slate-900 rounded-full text-white font-black text-[9px] uppercase tracking-[0.2em] shadow-lg shadow-slate-900/20 active:scale-90 transition-all disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Salvar'}
+          </button>
+        </div>
       </header>
+
+      <ConfirmModal 
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteWorkout}
+        title="Excluir Treino"
+        message="Deseja excluir este treino permanentemente? Esta ação não pode ser desfeita."
+        confirmText="Sim, Excluir"
+        loading={isDeleting}
+      />
 
       <ScreenState
         status={editorState.status}

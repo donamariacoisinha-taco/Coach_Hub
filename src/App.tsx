@@ -21,7 +21,6 @@ import { profileApi } from './lib/api/profileApi';
 import { exerciseApi } from './lib/api/exerciseApi';
 import { usePrefetch } from './hooks/usePrefetch';
 import { imagePrefetcher } from './lib/utils/imagePrefetcher';
-import { DebugOverlay } from './components/DebugOverlay';
 import { cacheStore } from './lib/cache/cacheStore';
 import { useWorkoutStore } from './app/store/workoutStore';
 import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt, Flame } from 'lucide-react';
@@ -372,7 +371,6 @@ const App: React.FC = () => {
                 )}
               </motion.div>
             </AnimatePresence>
-            <DebugOverlay />
           </main>
 
           {!isImmersive && session && navState.view !== 'admin' && (

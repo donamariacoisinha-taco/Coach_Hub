@@ -8,7 +8,7 @@ export const workoutApi = {
       supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
       supabase.from('workout_folders').select('id, name').eq('user_id', userId).order('name'),
       supabase.from('workout_categories').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-      supabase.from('workout_history').select('*').eq('user_id', userId).not('completed_at', 'is', null).order('completed_at', { ascending: false })
+      supabase.from('workout_history').select('*').eq('user_id', userId).not('completed_at', 'is', null).gt('exercises_count', 0).order('completed_at', { ascending: false })
     ]);
 
     if (profileRes.error) throw profileRes.error;
@@ -26,7 +26,16 @@ export const workoutApi = {
   },
 
   async deleteWorkout(id: string) {
+    // We explicitly delete exercises first to avoid foreign key issues if cascade is not set
+    await supabase.from('workout_exercises').delete().eq('category_id', id);
     const { error } = await supabase.from('workout_categories').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  async deleteFolder(id: string) {
+    // Move workouts to uncategorized first
+    await supabase.from('workout_categories').update({ folder_id: null }).eq('folder_id', id);
+    const { error } = await supabase.from('workout_folders').delete().eq('id', id);
     if (error) throw error;
   },
 
@@ -151,17 +160,29 @@ export const workoutApi = {
   },
 
   async abandonWorkout(historyId: string) {
+    if (!historyId) return;
+    
     // Primeiro limpamos todas as dependências que podem ter chaves estrangeiras
     const { offlineQueue } = await import('../offline/offlineQueue');
-    await Promise.all([
-      offlineQueue.clearByHistoryId(historyId),
-      supabase.from('workout_sets_log').delete().eq('history_id', historyId),
-      supabase.from('partial_workout_sessions').delete().eq('history_id', historyId)
-    ]);
+    
+    try {
+      await Promise.all([
+        offlineQueue.clearByHistoryId(historyId),
+        supabase.from('workout_sets_log').delete().eq('history_id', historyId),
+        supabase.from('partial_workout_sessions').delete().eq('history_id', historyId)
+      ]);
 
-    // Depois abandonamos o histórico
-    const { error } = await supabase.from('workout_history').delete().eq('id', historyId);
-    if (error) throw error;
+      // Depois abandonamos o histórico
+      const { error } = await supabase.from('workout_history').delete().eq('id', historyId);
+      if (error) {
+        console.error(`[workoutApi] Failed to delete history record ${historyId}:`, error);
+        // Se falhar a deleção por algum motivo, pelo menos garantimos que completed_at continua nulo
+        // Mas o ideal é que o ON DELETE CASCADE cuide disso se a política permitir
+      }
+    } catch (err) {
+      console.error(`[workoutApi] Error during abandonWorkout for ${historyId}:`, err);
+      throw err;
+    }
   },
 
   async clearPartialSession(userId: string) {
@@ -176,7 +197,13 @@ export const workoutApi = {
   },
 
   async getWorkoutHistory(userId: string) {
-    const { data, error } = await supabase.from('workout_history').select('*').eq('user_id', userId).not('completed_at', 'is', null).order('completed_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('workout_history')
+      .select('*')
+      .eq('user_id', userId)
+      .not('completed_at', 'is', null)
+      .gt('exercises_count', 0) // Only show workouts that actually had exercises recorded
+      .order('completed_at', { ascending: false });
     if (error) throw error;
     return data || [];
   },

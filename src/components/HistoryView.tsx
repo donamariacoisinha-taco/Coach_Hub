@@ -9,6 +9,7 @@ import ShareCard from './ShareCard';
 import { ExerciseProgress } from './ExerciseProgress';
 import { MoreVertical, Share2, Trash2, ChevronDown, ChevronUp, History, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ConfirmModal } from './ui/ConfirmModal';
 import { ScreenState } from './ui/ScreenState';
 import { WorkoutSkeleton } from './ui/Skeleton';
 import { useAsyncState } from '../hooks/useAsyncState';
@@ -28,6 +29,7 @@ const HistoryView: React.FC = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [shareData, setShareData] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -102,10 +104,8 @@ const HistoryView: React.FC = () => {
     finally { setLoadingDetails(false); }
   };
 
-  const handleDeleteHistory = async (e: React.MouseEvent, historyId: string) => {
-    e.stopPropagation();
-    if (!confirm("Deseja apagar este registro permanentemente?")) return;
-
+  const handleDeleteHistory = async (historyId: string) => {
+    setShowDeleteConfirm(null);
     setIsDeleting(historyId);
     try {
       await workoutApi.abandonWorkout(historyId);
@@ -216,10 +216,14 @@ const HistoryView: React.FC = () => {
                             <Share2 size={14} /> Compartilhar
                           </button>
                           <button 
-                            onClick={(e) => handleDeleteHistory(e, item.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowDeleteConfirm(item.id);
+                              setActiveMenuId(null);
+                            }}
                             className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-xl transition"
                           >
-                            <Trash2 size={14} /> {isDeleting === item.id ? 'Excluindo...' : 'Excluir'}
+                            <Trash2 size={14} /> Excluir
                           </button>
                         </motion.div>
                       )}
@@ -261,6 +265,16 @@ const HistoryView: React.FC = () => {
           onClose={() => setShareData(null)} 
         />
       )}
+
+      <ConfirmModal 
+        isOpen={!!showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(null)}
+        onConfirm={() => showDeleteConfirm && handleDeleteHistory(showDeleteConfirm)}
+        title="Excluir Registro"
+        message="Deseja apagar este registro de treino permanentemente do seu histórico?"
+        confirmText="Sim, Apagar"
+        loading={!!isDeleting}
+      />
     </div>
   );
 };

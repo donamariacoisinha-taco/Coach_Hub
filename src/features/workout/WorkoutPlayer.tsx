@@ -39,6 +39,8 @@ import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 
+type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+
 // Sub-component for individual set cards to manage local input state
 // This prevents re-renders from clearing input focus or jumping values during typing
 const SetCard = ({ 
@@ -59,10 +61,20 @@ const SetCard = ({
   setIsFooterVisible, 
   setRowRef, 
   setInputRef, 
-  focusedIdx 
+  focusedIdx,
+  userLevel = 'BEGINNER' 
 }: any) => {
   const [localWeight, setLocalWeight] = useState(setData.weight.toString());
   const [localReps, setLocalReps] = useState(setData.reps.toString());
+
+  // Level attributes
+  const isBeginner = userLevel === 'BEGINNER';
+  const isAdvanced = userLevel === 'ADVANCED';
+  
+  // Transition timing
+  const transitionConfig = isAdvanced 
+    ? { type: "tween", duration: 0.15 } 
+    : { type: "spring", stiffness: isBeginner ? 200 : 300, damping: isBeginner ? 30 : 25 };
 
   // Use refs to track if user is currently typing to avoid overwriting from global state
   const isEditing = useRef(false);
@@ -126,9 +138,9 @@ const SetCard = ({
       } : undefined}
       transition={isCurrent && intensity === 'LOW' ? {
         scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
-        default: { type: "spring", stiffness: 300, damping: 25 }
-      } : { type: "spring", stiffness: 300, damping: 25 }}
-      className={`flex flex-col items-stretch p-4 rounded-2xl transition-all duration-300 border-2 ${
+        default: transitionConfig
+      } : transitionConfig}
+      className={`flex flex-col items-stretch ${isAdvanced ? 'p-3' : 'p-4'} rounded-2xl transition-all duration-300 border-2 ${
         isCompleted ? "bg-slate-50/50 cursor-pointer hover:bg-slate-100" : 
         isPending ? "bg-slate-50 border-dashed animate-pulse cursor-wait" :
         "bg-white"
@@ -168,10 +180,12 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">Kg</p>
+                <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">
+                  {isBeginner ? 'Peso' : 'Kg'}
+                </p>
                 
                 {/* DELTA WEIGHT */}
-                {delta && (
+                {delta && !isBeginner && (
                   <motion.p 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 0.8 }}
@@ -207,10 +221,12 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">Reps</p>
+                <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">
+                  {isBeginner ? 'Repetições' : 'Reps'}
+                </p>
                 
                 {/* DELTA REPS */}
-                {delta && (
+                {delta && !isBeginner && (
                   <motion.p 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 0.8 }}
@@ -241,28 +257,41 @@ const SetCard = ({
           )}
         </div>
 
-        <div className="flex flex-col items-center">
-           <div className="flex gap-1">
-              {[8, 9, 10].map(v => (
-                <button 
-                  key={v}
-                  onClick={() => updateSetData(idx, 'rpe', v)}
-                  className={`w-7 h-7 rounded-lg text-[9px] font-black transition-all ${
-                    setData.rpe === v 
-                      ? (isCurrent ? "bg-slate-900 text-white shadow-md scale-110" : "bg-slate-400 text-white")
-                      : "bg-slate-50 text-slate-300 hover:text-slate-400 font-bold"
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
-           </div>
-           <p className="text-[8px] font-black text-slate-300 mt-1 tracking-widest uppercase">RPE</p>
-        </div>
+        {!isBeginner && (
+          <div className="flex flex-col items-center">
+             <div className="flex gap-1">
+                {[8, 9, 10].map(v => (
+                  <button 
+                    key={v}
+                    onClick={() => updateSetData(idx, 'rpe', v)}
+                    className={`w-7 h-7 rounded-lg text-[9px] font-black transition-all ${
+                      setData.rpe === v 
+                        ? (isCurrent ? "bg-slate-900 text-white shadow-md scale-110" : "bg-slate-400 text-white")
+                        : "bg-slate-50 text-slate-300 hover:text-slate-400 font-bold"
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+             </div>
+             <p className="text-[8px] font-black text-slate-300 mt-1 tracking-widest uppercase">RPE</p>
+          </div>
+        )}
       </div>
 
+      {/* BEGINNER HELPER TEXT */}
+      {isBeginner && isCurrent && (
+        <motion.p 
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-[9px] font-bold text-blue-500 uppercase tracking-wide mt-3 text-center"
+        >
+          Use um peso confortável
+        </motion.p>
+      )}
+
       {/* MINI PROGRESS BAR COMPARISON */}
-      {delta && (
+      {delta && !isBeginner && (
         <div className="w-full mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
            <motion.div 
              initial={{ width: 0 }}
@@ -300,9 +329,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [timeLeft, setTimeLeft] = useState(90);
   const [restOvertime, setRestOvertime] = useState(0);
   const [showPR, setShowPR] = useState(false);
+  const [userLevel, setUserLevel] = useState<UserLevel>('BEGINNER');
+  const isBeginner = userLevel === 'BEGINNER';
+  const isIntermediate = userLevel === 'INTERMEDIATE';
+  const isAdvanced = userLevel === 'ADVANCED';
   
   // Momentum & Compression
-  const momentum = currentSet >= 3;
+  const momentum = currentSet >= 3 || userLevel === 'ADVANCED';
   
   // Track all sets for the current exercise
   const [activeSetsData, setActiveSetsData] = useState<{weight: number, reps: number, rpe: number}[]>([]);
@@ -402,6 +435,25 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     }
     loadStreak();
+  }, []);
+
+  useEffect(() => {
+    async function determineLevel() {
+      try {
+        const u = await authApi.getUser();
+        if (u) {
+          const history = await workoutApi.getWorkoutHistory(u.id);
+          const count = history.length;
+          if (count < 10) setUserLevel('BEGINNER');
+          else if (count < 40) setUserLevel('INTERMEDIATE');
+          else setUserLevel('ADVANCED');
+          log("[LEVEL_DETECTED]", { count, level: count < 10 ? 'BEGINNER' : count < 40 ? 'INTERMEDIATE' : 'ADVANCED' });
+        }
+      } catch (e) {
+        console.error("Error determining level", e);
+      }
+    }
+    determineLevel();
   }, []);
 
   const log = (msg: string, data?: any) => {
@@ -569,18 +621,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [footerHeight, setFooterHeight] = useState(180);
 
   useEffect(() => {
-    if (footerRef.current) {
-      const observer = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          setFooterHeight(entry.target.clientHeight);
-        }
-      });
-      observer.observe(footerRef.current);
-      return () => observer.disconnect();
-    }
-  }, []);
-
-  useEffect(() => {
     // Initialize audio for timer
     audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3");
   }, []);
@@ -609,6 +649,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const { status: queryStatus, isFetching, refresh } = playerQuery;
 
+  useEffect(() => {
+    if (footerRef.current) {
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          setFooterHeight(entry.target.clientHeight);
+        }
+      });
+      observer.observe(footerRef.current);
+      return () => observer.disconnect();
+    }
+  }, [queryStatus]); // Re-attach when data loads and footer is rendered
+
   // Sync Store with Query Data
   useEffect(() => {
     if (playerQuery.data && playerQuery.data.historyId) {
@@ -626,6 +678,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   }, [playerQuery.data, workoutId, setWorkout]);
 
   const currentEx = useMemo(() => (exercises && exercises[currentIndex]) || null, [exercises, currentIndex]);
+  const nextEx = useMemo(() => (exercises && exercises[currentIndex + 1]) || null, [exercises, currentIndex]);
 
   // Failsafe & Consistency Guard
   useEffect(() => {
@@ -732,7 +785,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setIsTransitioning(false);
       isAdvancingRef.current = false;
       log("[ADVANCE_WORKOUT] Transition Complete");
-    }, 400); 
+    }, isAdvanced ? 150 : 400); 
   };
 
   // Scroll and focus handler
@@ -959,7 +1012,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
 
     // FATIGUE DETECTION
-    if (previousSet) {
+    if (previousSet && !isBeginner) {
        if (reps < previousSet.reps || rpe >= 9) {
           setFatigueDetected(true);
        } else {
@@ -967,20 +1020,26 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
        }
     }
 
-    // PREDICTIVE LOAD SUGGESTION
-    if (decision.action === 'increase') {
-       setSuggestion(`Próxima: ${decision.nextWeight}kg ↑`);
-    } else if (decision.action.startsWith('decrease')) {
-       setSuggestion(`Próxima: ${decision.nextWeight}kg ↓`);
+    // PREDICTIVE LOAD SUGGESTION (Intermediate & Advanced only)
+    if (!isBeginner) {
+      if (decision.action === 'increase') {
+         setSuggestion(`Próxima: ${decision.nextWeight}kg ↑`);
+      } else if (decision.action.startsWith('decrease')) {
+         setSuggestion(`Próxima: ${decision.nextWeight}kg ↓`);
+      } else {
+         setSuggestion(null);
+      }
     } else {
-       setSuggestion(null);
+      setSuggestion(null);
     }
 
     // SET PENDING FOR PROGRESSION
     setPendingSetToComplete(setIdx);
-    setFeedback(emotional);
+    if (!isAdvanced) {
+      setFeedback(emotional);
+      setTimeout(() => setFeedback(null), 3000);
+    }
     setPreviousSet(currentSetData);
-    setTimeout(() => setFeedback(null), 3000);
 
     // INITIATE REST
     setTimeLeft(adaptiveRest);
@@ -1167,22 +1226,34 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         await saveWorkoutExecution(currentHistoryId, u.id);
 
         const finalExCount = Object.keys(workoutPerformance).length;
-        await workoutApi.finishWorkout(currentHistoryId, finalDuration, finalExCount);
         
-        // UPDATE PROGRESSION FROM LOGS (Source of Truth)
-        await workoutApi.updateProgressionFromLogs(u.id, currentHistoryId);
-        
-        // Background Sync / Cache Invalidation
-        cacheStore.clear(`exercise_progression_${u.id}`);
-        exercises.forEach(ex => cacheStore.clear(`exercise_stats_${ex.exercise_id}`));
+        // Only mark as finished if there are actually exercises recorded
+        if (finalExCount > 0) {
+          await workoutApi.finishWorkout(currentHistoryId, finalDuration, finalExCount);
+          
+          // UPDATE PROGRESSION FROM LOGS (Source of Truth)
+          await workoutApi.updateProgressionFromLogs(u.id, currentHistoryId);
+          
+          // Background Sync / Cache Invalidation
+          cacheStore.clear(`exercise_progression_${u.id}`);
+          exercises.forEach(ex => cacheStore.clear(`exercise_stats_${ex.exercise_id}`));
 
-        await workoutApi.clearPartialSession(u.id);
-        
-        cacheStore.clear(`workout_init_${workoutId}`);
-        setWorkoutDuration(finalDuration);
-        setIsWorkoutComplete(true);
-        setIsFinished(true);
-        showSuccess("Treino salvo com sucesso!");
+          await workoutApi.clearPartialSession(u.id);
+          
+          cacheStore.clear(`workout_init_${workoutId}`);
+          setWorkoutDuration(finalDuration);
+          setIsWorkoutComplete(true);
+          setIsFinished(true);
+          showSuccess("Treino salvo com sucesso!");
+        } else {
+          // If no exercises recorded, just abandon it to keep history clean
+          await workoutApi.abandonWorkout(currentHistoryId);
+          if (user) await workoutApi.clearPartialSession(user.id);
+          cacheStore.clear(`workout_init_${workoutId}`);
+          resetWorkout();
+          navigate('dashboard');
+          showSuccess("Sessão vazia descartada.");
+        }
       } else {
         await workoutApi.abandonWorkout(currentHistoryId);
         if (user) await workoutApi.clearPartialSession(user.id);
@@ -1209,12 +1280,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const isWorkoutTerminal = isFinalSetOfExercise && isFinalExercise;
 
   const preHint = useMemo(() => {
-    if (!currentEx) return null;
+    if (!currentEx || isAdvanced) return null;
     return getPreSetHint({
       lastSet,
       targetReps: parseInt(currentEx.sets_json?.[currentSet - 1]?.reps as string) || 10
     });
-  }, [currentEx, currentSet, lastSet]);
+  }, [currentEx, currentSet, lastSet, isAdvanced]);
 
   return (
     <div className="h-screen bg-[#F7F8FA] text-slate-900 flex flex-col font-sans overflow-hidden">
@@ -1274,6 +1345,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         isFetching={isFetching}
         onRetry={() => refresh()}
       >
+        {!isAdvanced && (
+          <div className={`transition-all duration-500 overflow-hidden ${isResting ? 'h-0' : 'h-auto border-b border-slate-50 bg-[#F8FAFC]'}`}>
+            <div className="px-4 py-1.5 flex items-center justify-center gap-2">
+              <p className="text-[8px] font-[1000] text-slate-400 uppercase tracking-[0.2em]">
+                {isBeginner ? "Modo Iniciante • Guiado" : "Modo Intermediário • Adaptativo"}
+              </p>
+            </div>
+          </div>
+        )}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1342,7 +1422,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               className="flex-1 overflow-y-auto bg-[#F8FAFC]"
               onScroll={handleScroll}
               onClick={() => setIsFooterVisible(true)}
-              style={{ paddingBottom: `calc(${footerHeight + 32}px + env(safe-area-inset-bottom))` }}
+              style={{ paddingBottom: `calc(${footerHeight + 48}px + env(safe-area-inset-bottom))` }}
             >
               
               {/* COMPACT EXERCISE HEADER (DYNAMIC COMPRESSION) */}
@@ -1381,9 +1461,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5 line-clamp-1">
                         {currentEx?.muscle_group} • {currentEx?.equipment || 'Sem equipamento'}
                       </p>
-                      <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
-                        Foco na amplitude e contração lenta.
-                      </p>
+                      {!isAdvanced && (
+                        <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                          Foco na amplitude e contração lenta.
+                        </p>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -1406,7 +1488,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               </div>
 
               {/* SERIES LIST (CORE) */}
-              <div className="px-4 space-y-3 pb-8 overflow-hidden">
+              <div className={`px-4 ${isAdvanced ? 'space-y-2' : 'space-y-3'} pb-8 overflow-hidden`}>
                 {activeSetsData.map((setData, idx) => {
                   const isCurrent = idx === currentSet - 1;
                   const isCompleted = completedSetIndices.has(idx);
@@ -1435,6 +1517,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       setRowRef={(el: any) => (setRefs.current[idx] = el)}
                       setInputRef={(el: any) => (inputRefs.current[idx] = el)}
                       focusedIdx={focusedIdx}
+                      userLevel={userLevel}
                     />
                   );
                 })}
@@ -1450,11 +1533,48 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 >
                   <Plus size={14} /> Adicionar Série
                 </button>
+
+                {nextEx && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 0.8, y: 0 }}
+                    whileHover={{ opacity: 1 }}
+                    className="mt-10 px-2 transition-all duration-300"
+                  >
+                    <p className="text-[7px] font-[1000] text-slate-400 uppercase tracking-[0.25em] mb-3 text-center">Prepare-se: Próximo Exercício</p>
+                    <div className="flex items-center gap-4 bg-white/40 backdrop-blur-sm rounded-[2rem] p-4 border border-slate-100 shadow-sm">
+                      <div className="w-12 h-12 bg-slate-100 rounded-2xl overflow-hidden flex-shrink-0 border border-white shadow-inner">
+                        {nextEx.image_url ? (
+                          <img src={nextEx.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                            <Play size={18} className="text-slate-200 fill-slate-200" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-black text-slate-900 truncate uppercase tracking-tighter">{nextEx.exercise_name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                            {nextEx.sets_json?.[0]?.weight || 0}kg × {nextEx.sets_json?.[0]?.reps || 10}
+                           </span>
+                           <div className="w-1 h-1 rounded-full bg-slate-200" />
+                           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                            {nextEx.sets_json?.length || 0} séries
+                           </span>
+                        </div>
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+                        <ArrowRight size={14} strokeWidth={3} />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               {/* FEEDBACK INTELIGENTE (IA) */}
               <AnimatePresence mode="wait">
-                {(feedback || preHint) && (
+                {(feedback || preHint) && !isAdvanced && (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -1472,7 +1592,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               </AnimatePresence>
 
               {/* NAVIGATION BETWEEN EXERCISES */}
-              <div className="flex justify-between px-8 mt-12 pb-32">
+              <div className="flex justify-between px-8 mt-12 mb-8">
                 <button 
                   onClick={() => currentIndex > 0 && setCurrentIndex(currentIndex - 1)}
                   className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 tracking-[0.2em] transition-colors flex items-center gap-2"
@@ -1488,7 +1608,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               </div>
 
               {/* FAILSAFE SPACER */}
-              <div style={{ height: footerHeight }} />
+              <div style={{ height: footerHeight + 40 }} />
 
             </div>
 
