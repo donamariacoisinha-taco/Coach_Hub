@@ -596,7 +596,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col relative text-slate-900 pb-32">
+    <div className="min-h-screen bg-white flex flex-col relative text-slate-900 pb-48">
       <header className="px-6 pt-10 pb-4 flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-xl z-[100]">
         <div className="flex items-center gap-3">
           <button onClick={() => goBack()} className="w-8 h-8 flex items-center justify-center text-slate-400 active:text-slate-900 active:scale-90 transition-all">
@@ -821,6 +821,9 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                <PlusCircle size={18} />
                <span className="text-[12px] font-bold tracking-tight">Adicionar Exercício</span>
             </button>
+            
+            {/* Espaçador de segurança final */}
+            <div className="h-20 w-full" />
           </div>
         </div>
       </ScreenState>
@@ -845,8 +848,8 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
               </button>
             </header>
             
-            <div className="flex-1 overflow-y-auto p-6 space-y-10 no-scrollbar pb-32">
-              <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto w-full">
+              <div className="px-6 py-6 space-y-10 no-scrollbar pb-12">
                 {exercises[editingSetsIndex].sets_json?.map((set, sIdx) => (
                   <div key={sIdx} className="bg-[#F7F8FA] p-8 rounded-3xl space-y-8">
                     <div className="flex justify-between items-center">
@@ -912,11 +915,21 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
               >+ Adicionar Série</button>
             </div>
             
-            <footer className="px-6 py-10 border-t border-slate-50 bg-white pb-safe">
+            <footer className="px-6 pt-6 pb-10 border-t border-slate-50 bg-white/95 backdrop-blur-md z-50">
+              <div className="flex items-center justify-between mb-6 px-2">
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Total de Séries</span>
+                  <span className="text-sm font-black text-slate-900">{exercises[editingSetsIndex].sets_json?.length || 0}</span>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Descanso Sugerido</span>
+                  <span className="text-sm font-black text-blue-600">{exercises[editingSetsIndex].sets_json?.[0]?.rest_time || 60}s</span>
+                </div>
+              </div>
               <button 
                 onClick={() => setEditingSetsIndex(null)}
                 className="w-full py-6 bg-slate-900 rounded-3xl font-black text-white uppercase text-xs tracking-[0.3em] shadow-2xl shadow-slate-900/20 active:scale-95 transition-all"
-              >Confirmar</button>
+              >Confirmar Ajustes</button>
             </footer>
           </motion.div>
         )}

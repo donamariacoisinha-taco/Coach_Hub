@@ -375,6 +375,24 @@ export default function ExerciseAdminPro({
 
               <div className="space-y-2">
                 <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-400">
+                  Tipo de Equipamento
+                </label>
+                <select
+                  value={exercise.type}
+                  onChange={(e) => handleChange("type", e.target.value)}
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none appearance-none"
+                >
+                  <option value="free_weight">Peso Livre</option>
+                  <option value="machine">Máquina</option>
+                  <option value="bodyweight">Peso Corporal</option>
+                  <option value="cable">Polia / Cabo</option>
+                  <option value="band">Elástico</option>
+                  <option value="other">Outro</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-400">
                   Dificuldade
                 </label>
                 <select

@@ -124,6 +124,8 @@ export interface AIIssue {
   description: string;
 }
 
+export type ExerciseType = 'free_weight' | 'machine' | 'bodyweight' | 'cable' | 'band' | 'other';
+
 export interface Exercise {
   id: string;
   user_id?: string;
@@ -131,7 +133,7 @@ export interface Exercise {
   alt_name?: string;
   muscle_group: string;
   muscle_group_id: string;
-  type: string;
+  type: ExerciseType | string;
   instructions?: string;
   description?: string;
   video_url?: string;

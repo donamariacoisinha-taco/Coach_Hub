@@ -47,7 +47,7 @@ const ExerciseEditorV2: React.FC = () => {
       setForm({
         name: '',
         muscle_group: '',
-        type: 'Força',
+        type: 'free_weight',
         difficulty_level: 'beginner',
         is_active: true
       });
@@ -290,7 +290,21 @@ const ExerciseEditorV2: React.FC = () => {
                                <Textarea label="Execution Step-by-Step" value={form.instructions} onChange={(val) => setForm({...form, instructions: val})} />
                                <Textarea label="Technical Pro Tips (Advanced)" value={form.technical_tips} onChange={(val) => setForm({...form, technical_tips: val})} />
                                <div className="grid grid-cols-2 gap-8">
-                                   <Input label="Primary Equipment" value={form.type} onChange={(val) => setForm({...form, type: val})} />
+                                   <div className="space-y-3">
+                                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Primary Equipment Type</label>
+                                      <select 
+                                        value={form.type || ''}
+                                        onChange={(e) => setForm({...form, type: e.target.value})}
+                                        className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all appearance-none"
+                                      >
+                                         <option value="free_weight">Peso Livre (Free Weight)</option>
+                                         <option value="machine">Máquina (Machine)</option>
+                                         <option value="bodyweight">Peso Corporal (Bodyweight)</option>
+                                         <option value="cable">Cabo / Polia (Cable)</option>
+                                         <option value="band">Elástico (Band)</option>
+                                         <option value="other">Outro (Other)</option>
+                                      </select>
+                                   </div>
                                    <Input label="Motor Pattern" value={form.movement_pattern} onChange={(val: any) => setForm({...form, movement_pattern: val})} />
                                </div>
                             </div>
