@@ -6,20 +6,20 @@ export const MUSCLE_GROUPS = [
   'Peito',
   'Costas',
   'Pernas',
-  'Ombro',
+  'Ombros',
   'Bíceps',
   'Tríceps',
-  'Core'
+  'Abdominais'
 ];
 
 export const ANATOMICAL_CUTS: Record<string, string[]> = {
   'Peito': ['Superior', 'Médio', 'Inferior'],
   'Costas': ['Largura', 'Espessura', 'Lombar'],
-  'Ombro': ['Anterior', 'Lateral', 'Posterior'],
+  'Ombros': ['Anterior', 'Lateral', 'Posterior'],
   'Pernas': ['Quadríceps', 'Posterior', 'Glúteo', 'Panturrilha'],
   'Bíceps': ['Cabeça Longa', 'Cabeça Curta', 'Braquial'],
   'Tríceps': ['Cabeça Longa', 'Cabeça Lateral', 'Cabeça Medial'],
-  'Core': ['Abdominal Superior', 'Abdominal Inferior', 'Oblíquos']
+  'Abdominais': ['Abdominal Superior', 'Abdominal Inferior', 'Oblíquos']
 };
 
 export function useExerciseFilters(availableExercises: Exercise[], currentExercise?: any, favoriteIds: Set<string> = new Set()) {
@@ -33,7 +33,11 @@ export function useExerciseFilters(availableExercises: Exercise[], currentExerci
     return availableExercises
       .filter(ex => {
         const matchesSearch = ex.name.toLowerCase().includes(query);
-        const matchesMuscle = !selectedMuscle || ex.muscle_group === selectedMuscle;
+        const matchesMuscle = !selectedMuscle || 
+          ex.muscle_group === selectedMuscle ||
+          (selectedMuscle === 'Pernas' && (ex.muscle_group === 'Perna' || ex.muscle_group === 'Panturrilhas' || ex.muscle_group === 'Adutores' || ex.muscle_group === 'Glúteos' || ex.muscle_group === 'Quadríceps' || ex.muscle_group === 'Posterior' || ex.muscle_group === 'Posteriores')) ||
+          (selectedMuscle === 'Abdominais' && (ex.muscle_group === 'Abdômen' || ex.muscle_group === 'Oblíquos')) ||
+          (selectedMuscle === 'Ombros' && ex.muscle_group === 'Ombro');
         const matchesCut = !selectedCut || ex.anatomical_cut === selectedCut;
         // Apenas exercícios ativos devem ser visíveis na seleção pública
         return matchesSearch && matchesMuscle && matchesCut && (ex.is_active !== false);

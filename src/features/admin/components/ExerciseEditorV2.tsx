@@ -242,7 +242,7 @@ const ExerciseEditorV2: React.FC = () => {
                                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all appearance-none"
                                   >
                                      <option value="">Select Cluster</option>
-                                     {['Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps', 'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilha', 'Abdômen', 'Full Body', 'Cardio', 'Mobilidade'].map(m => (
+                                     {['Peito', 'Costas', 'Ombros', 'Pernas', 'Bíceps', 'Tríceps', 'Abdominais', 'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilha', 'Full Body', 'Cardio', 'Mobilidade'].map(m => (
                                        <option key={m} value={m}>{m}</option>
                                      ))}
                                   </select>

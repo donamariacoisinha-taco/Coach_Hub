@@ -46,9 +46,9 @@ const LibraryOS: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'published' | 'hidden' | 'premium' | 'rising' | 'critical' | 'no-media'>('all');
 
   const muscleGroups = [
-    'Todos', 'Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps', 
-    'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilha', 
-    'Abdômen', 'Full Body', 'Cardio', 'Mobilidade'
+    'Todos', 'Peito', 'Costas', 'Ombros', 'Pernas', 'Bíceps', 'Tríceps', 
+    'Abdominais', 'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilha', 
+    'Full Body', 'Cardio', 'Mobilidade'
   ];
 
   const filtered = useMemo(() => {
@@ -66,7 +66,12 @@ const LibraryOS: React.FC = () => {
 
     // Muscle Filter
     if (selectedMuscleFilter !== 'Todos') {
-      result = result.filter(ex => ex.muscle_group === selectedMuscleFilter);
+      result = result.filter(ex => 
+        ex.muscle_group === selectedMuscleFilter ||
+        (selectedMuscleFilter === 'Pernas' && (ex.muscle_group === 'Perna' || ex.muscle_group === 'Panturrilhas' || ex.muscle_group === 'Adutores' || ex.muscle_group === 'Glúteos' || ex.muscle_group === 'Quadríceps' || ex.muscle_group === 'Posterior' || ex.muscle_group === 'Posteriores')) ||
+        (selectedMuscleFilter === 'Abdominais' && (ex.muscle_group === 'Abdômen' || ex.muscle_group === 'Oblíquos')) ||
+        (selectedMuscleFilter === 'Ombros' && ex.muscle_group === 'Ombro')
+      );
     }
     
     // Status Filter

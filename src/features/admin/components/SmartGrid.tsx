@@ -46,7 +46,12 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
       );
     }
     if (selectedMuscleFilter !== 'Todos') {
-      result = result.filter(ex => ex.muscle_group === selectedMuscleFilter);
+      result = result.filter(ex => 
+        ex.muscle_group === selectedMuscleFilter ||
+        (selectedMuscleFilter === 'Pernas' && (ex.muscle_group === 'Perna' || ex.muscle_group === 'Panturrilhas' || ex.muscle_group === 'Adutores' || ex.muscle_group === 'Glúteos' || ex.muscle_group === 'Quadríceps' || ex.muscle_group === 'Posterior' || ex.muscle_group === 'Posteriores')) ||
+        (selectedMuscleFilter === 'Abdominais' && (ex.muscle_group === 'Abdômen' || ex.muscle_group === 'Oblíquos')) ||
+        (selectedMuscleFilter === 'Ombros' && ex.muscle_group === 'Ombro')
+      );
     }
     return result;
   }, [exercises, searchQuery, selectedMuscleFilter]);
@@ -192,7 +197,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                          <InlineCellEditor 
                            value={ex.muscle_group} 
                            type="select"
-                           options={['Peito', 'Costas', 'Ombros', 'Pernas']} 
+                           options={['Peito', 'Costas', 'Ombros', 'Pernas', 'Bíceps', 'Tríceps', 'Abdominais']} 
                            onSave={(val) => handleInlineSave(ex.id, 'muscle_group', val)} 
                            onCancel={() => setEditingCell(null)} 
                          />
