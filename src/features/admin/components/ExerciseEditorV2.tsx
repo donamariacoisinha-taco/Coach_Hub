@@ -25,17 +25,12 @@ import {
 import { useAdminStore } from '../../../store/adminStore';
 import { Exercise } from '../../../types';
 import { VisibilityBadge, VisibilityToggle } from './VisibilityBadge';
-import { useMediaUpload } from '../hooks/useMediaUpload';
 import { AssetMediaHub } from './media/AssetMediaHub';
-import { ImageUploader } from './media/ImageUploader';
 import { useErrorHandler } from '../../../hooks/useErrorHandler';
-import { mediaApi } from '../api/mediaApi';
-import { UploadProgress } from './media/UploadProgress';
 
 const ExerciseEditorV2: React.FC = () => {
   const { isEditorOpen, closeEditor, selectedExercise, updateExercise, createExercise, loading: storeLoading } = useAdminStore();
   const { showSuccess, showError } = useErrorHandler();
-  const { uploadFile, isUploading, uploads } = useMediaUpload();
   const [activeTab, setActiveTab] = useState<'basic' | 'technique' | 'ai' | 'media' | 'seo' | 'history'>('basic');
   const [form, setForm] = useState<Partial<Exercise>>({});
   const [saving, setSaving] = useState(false);
@@ -55,32 +50,17 @@ const ExerciseEditorV2: React.FC = () => {
     setActiveTab('basic');
   }, [selectedExercise, isEditorOpen]);
 
-  const handleMediaUpdate = async (updates: Partial<Exercise>) => {
-    console.log('[DB_UPDATE_START]', updates);
-    const newForm = { ...form, ...updates };
-    setForm(newForm);
+  const handleMediaUpdate = (updatedExercise: Exercise) => {
+    console.log('[LOCAL_SYNC] Syncing media updates with form and store', updatedExercise);
+    setForm(updatedExercise);
     
-    // Auto-save media to database if exercise exists
-    if (newForm.id) {
-       try {
-         setSaving(true);
-         // Ensure static_frame syncs with image_url if it's the primary static frame
-         const finalUpdates = { ...updates };
-         if (updates.static_frame_url) {
-            finalUpdates.image_url = updates.static_frame_url;
-            console.log('[SYNC] Mapping static_frame_url to image_url for preview affinity');
-         }
-
-         await updateExercise(newForm.id, finalUpdates);
-         console.log('[DB_UPDATE_SUCCESS]', finalUpdates);
-         showSuccess('Assets Sincronizados', 'A mídia foi salva e sincronizada com o sistema.');
-       } catch (err: any) {
-         console.error('[DB_UPDATE_ERROR]', err);
-         showError('Erro ao auto-salvar mídia: ' + err.message);
-       } finally {
-         setSaving(false);
-       }
-    }
+    // Atualizamos o store localmente para que o grid reflita as mudanças
+    // mas evitamos chamar o database de novo (double-write prevention)
+    const { exercises, setExercises } = useAdminStore.getState();
+    const newExercises = exercises.map(ex => 
+      ex.id === updatedExercise.id ? updatedExercise : ex
+    );
+    setExercises(newExercises);
   };
 
   if (!isEditorOpen) return null;
@@ -269,7 +249,7 @@ const ExerciseEditorV2: React.FC = () => {
                             <div className="space-y-3">
                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Operational Description</label>
                                <textarea 
-                                  value={form.description}
+                                  value={form.description || ''}
                                   onChange={(e) => setForm({...form, description: e.target.value})}
                                   placeholder="Centro de gravidade, pontos de contato e objetivo principal..."
                                   className="w-full h-44 bg-white border border-slate-200 rounded-3xl p-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all resize-none leading-relaxed"
@@ -335,7 +315,7 @@ const ExerciseEditorV2: React.FC = () => {
                             <div className="space-y-3">
                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">AI Context Prompt</label>
                                <textarea 
-                                  value={form.technical_prompt}
+                                  value={form.technical_prompt || ''}
                                   onChange={(e) => setForm({...form, technical_prompt: e.target.value})}
                                   placeholder="Instruções específicas para o modelo de linguagem sobre este exercício..."
                                   className="w-full h-44 bg-white border border-slate-200 rounded-3xl p-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all resize-none leading-relaxed"
@@ -382,7 +362,6 @@ const ExerciseEditorV2: React.FC = () => {
              </main>
           </div>
        </motion.div>
-       <UploadProgress uploads={uploads} />
     </div>
   );
 };

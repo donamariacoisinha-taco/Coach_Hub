@@ -27,25 +27,35 @@ export const adminApi = {
       ...updateData 
     } = payload as any;
     
-    let currentPayload = { ...updateData };
-    
-    // Sanitização básica
-    if (currentPayload.name) {
-      currentPayload.name = currentPayload.name.trim().replace(/\s+/g, ' ');
+    // Explicitly remove any fields that are objects or arrays as they might be relations
+    const sanitizedData: any = {};
+    Object.keys(updateData).forEach(key => {
+      const val = updateData[key];
+      if (val !== undefined && typeof val !== 'object') {
+        sanitizedData[key] = val;
+      } else if (val === null) {
+        sanitizedData[key] = null;
+      }
+    });
+
+    if (sanitizedData.name) {
+      sanitizedData.name = sanitizedData.name.trim().replace(/\s+/g, ' ');
     }
 
     // Mapeamento de compatibilidade agressivo: static_frame_url sempre espelha image_url
-    if (currentPayload.static_frame_url) {
-      currentPayload.image_url = currentPayload.static_frame_url;
+    if (sanitizedData.static_frame_url) {
+      sanitizedData.image_url = sanitizedData.static_frame_url;
     }
     
-    console.log('[ADMIN_DB_UPDATE_START]', { id, fields: Object.keys(currentPayload) });
+    console.log('[ADMIN_DB_UPDATE_START]', { id, fields: Object.keys(sanitizedData) });
+
+    let currentPayload = { ...sanitizedData };
 
     while (true) {
       try {
-        const { error } = await supabase.from('exercises').update(currentPayload).eq('id', id);
+        const { error, status } = await supabase.from('exercises').update(currentPayload).eq('id', id);
         if (error) {
-          console.error('[ADMIN_DB_UPDATE_ERROR_RAW]', error);
+          console.error('[ADMIN_DB_UPDATE_ERROR_RAW]', { status, error });
           if (error.code === '23505') {
             throw new Error('Já existe um exercício com este nome.');
           }
@@ -55,16 +65,27 @@ export const adminApi = {
         return; // Success
       } catch (err: any) {
         const msg = err.message || '';
-        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist') || msg.includes('PGRST204');
+        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist') || msg.includes('PGRST204') || msg.includes('schema cache');
 
         if (isColumnError) {
           const match = msg.match(/column "([^"]+)"/) || 
                         msg.match(/named "([^"]+)"/) || 
                         msg.match(/column '([^']+)'/) ||
+                        msg.match(/'([^']+)' column/) ||
                         msg.match(/named '([^']+)'/) ||
-                        msg.match(/field "([^"]+)"/);
+                        msg.match(/field "([^"]+)"/) ||
+                        msg.match(/column ([^ ]+) /);
           
-          const badColumn = match ? match[1] : null;
+          let badColumn = match ? match[1] : null;
+
+          // Fallback manual checks for known sensitive columns
+          if (!badColumn) {
+            if (msg.includes('static_frame_url')) badColumn = 'static_frame_url';
+            else if (msg.includes('technical_prompt')) badColumn = 'technical_prompt';
+            else if (msg.includes('quality_score_v3')) badColumn = 'quality_score_v3';
+            else if (msg.includes('guide_images')) badColumn = 'guide_images';
+            else if (msg.includes('biomechanics_images')) badColumn = 'biomechanics_images';
+          }
 
           if (badColumn) {
             console.warn(`[ADMIN] Auto-removing missing column from update: ${badColumn}`);
@@ -122,16 +143,27 @@ export const adminApi = {
         return; // Success
       } catch (err: any) {
         const msg = err.message || '';
-        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist') || msg.includes('PGRST204');
+        const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist') || msg.includes('PGRST204') || msg.includes('schema cache');
 
         if (isColumnError) {
           const match = msg.match(/column "([^"]+)"/) || 
                         msg.match(/named "([^"]+)"/) || 
                         msg.match(/column '([^']+)'/) ||
+                        msg.match(/'([^']+)' column/) ||
                         msg.match(/named '([^']+)'/) ||
-                        msg.match(/field "([^"]+)"/);
+                        msg.match(/field "([^"]+)"/) ||
+                        msg.match(/column ([^ ]+) /);
           
-          const badColumn = match ? match[1] : null;
+          let badColumn = match ? match[1] : null;
+
+          // Fallback manual checks for known sensitive columns
+          if (!badColumn) {
+            if (msg.includes('static_frame_url')) badColumn = 'static_frame_url';
+            else if (msg.includes('technical_prompt')) badColumn = 'technical_prompt';
+            else if (msg.includes('quality_score_v3')) badColumn = 'quality_score_v3';
+            else if (msg.includes('guide_images')) badColumn = 'guide_images';
+            else if (msg.includes('biomechanics_images')) badColumn = 'biomechanics_images';
+          }
 
           if (badColumn) {
             console.warn(`[ADMIN] Auto-removing missing column from insert: ${badColumn}`);
@@ -148,9 +180,26 @@ export const adminApi = {
     }
   },
 
-  async uploadExerciseImage(file: File, _exerciseId: string) {
-    const url = await cloudinaryService.uploadImage(file);
-    return url;
+  async uploadExerciseImage(file: File, exerciseId: string) {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `exercises/${exerciseId}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('exercise-images')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('exercise-images')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (err: any) {
+      console.error('[ADMIN_UPLOAD_ERROR]', err);
+      throw err;
+    }
   },
 
   async updateMuscleGroup(id: string, payload: Partial<MuscleGroup>) {
@@ -229,7 +278,7 @@ export const adminApi = {
       if (err.message?.includes('column') && err.message?.includes('schema cache')) {
         console.warn('[ADMIN] Fallback ativado em getAdminData:', err.message);
         const [exRes, mgRes] = await Promise.all([
-          supabase.from('exercises').select('id, name, muscle_group, is_active').order('name'),
+          supabase.from('exercises').select('id, name, muscle_group, is_active, image_url, description, instructions, equipment').order('name'),
           supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true })
         ]);
         if (exRes.error) throw exRes.error;

@@ -110,11 +110,36 @@ const ExerciseLibrary: React.FC = () => {
   const filteredExercises = useMemo(() => {
     return exercises.filter(ex => {
       const name = ex.name || '';
-      const muscleGroup = ex.muscle_group || '';
+      const exMuscleGroupId = ex.muscle_group_id;
+      const exMuscleGroupName = (ex.muscle_group || '').trim();
+      
       const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
-      const mg = muscleGroups.find(m => m.name === muscleGroup);
-      const isParentMatch = selectedMuscle === 'Todos' || muscleGroup === selectedMuscle || (mg?.parent_id && muscleGroups.find(p => p.id === mg.parent_id)?.name === selectedMuscle);
-      const matchesSide = selectedSide === 'all' || mg?.body_side === selectedSide;
+      
+      // Find the muscle group object for this exercise - try ID first, then name fallback
+      const mg = muscleGroups.find(m => m.id === exMuscleGroupId) || 
+                 muscleGroups.find(m => m.name.toLowerCase() === exMuscleGroupName.toLowerCase());
+      
+      // Parent matching logic
+      let isParentMatch = selectedMuscle === 'Todos';
+      if (!isParentMatch) {
+        // Direct match (case insensitive)
+        if (exMuscleGroupName.toLowerCase() === selectedMuscle.toLowerCase()) {
+          isParentMatch = true;
+        } 
+        // Hierarchy match: if the exercise's muscle group belongs to the selected parent
+        else if (mg) {
+          if (mg.name.toLowerCase() === selectedMuscle.toLowerCase()) {
+            isParentMatch = true;
+          } else if (mg.parent_id) {
+            const parent = muscleGroups.find(p => p.id === mg.parent_id);
+            if (parent && parent.name.toLowerCase() === selectedMuscle.toLowerCase()) {
+              isParentMatch = true;
+            }
+          }
+        }
+      }
+
+      const matchesSide = selectedSide === 'all' || (mg && mg.body_side === selectedSide);
       
       let matchesStatus = true;
       if (isAdmin) {
@@ -207,7 +232,11 @@ const ExerciseLibrary: React.FC = () => {
                 >
                   <div className="flex items-center gap-6 flex-1 min-w-0">
                     <div className="w-16 h-16 bg-white border border-slate-50 rounded-2xl overflow-hidden flex items-center justify-center p-3 shrink-0 shadow-sm">
-                      <img src={ex.static_frame_url || ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" />
+                      <img 
+                        src={ex.image_url || ex.static_frame_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
+                        className="w-full h-full object-contain" 
+                        referrerPolicy="no-referrer"
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -281,7 +310,11 @@ const ExerciseLibrary: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-12 no-scrollbar pb-32">
               <div className="w-full aspect-square bg-[#F7F8FA] rounded-[3rem] overflow-hidden flex items-center justify-center p-12">
-                <img src={selectedExercise.static_frame_url || selectedExercise.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} className="w-full h-full object-contain" />
+                <img 
+                  src={selectedExercise.image_url || selectedExercise.static_frame_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
+                  className="w-full h-full object-contain" 
+                  referrerPolicy="no-referrer"
+                />
               </div>
 
               <div className="space-y-12">

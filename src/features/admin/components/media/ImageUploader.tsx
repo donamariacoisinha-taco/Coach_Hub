@@ -131,7 +131,7 @@ export const ImageUploader: React.FC<Props> = ({
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-900 animate-pulse">
-                {uploadProgress < 100 ? 'Enviando para Cloudinary...' : 'Otimizando Imagem...'}
+                {uploadProgress < 100 ? 'Enviando para Storage...' : 'Otimizando Imagem...'}
               </p>
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Otimização Profissional Ativa</p>
             </div>

@@ -1,383 +1,247 @@
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { 
   ImageIcon, 
-  Layers, 
-  Activity, 
   Play, 
-  Search, 
   Save,
-  ChevronRight,
-  Sparkles,
-  Info,
   CheckCircle2,
-  Zap
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 import { Exercise } from '../../../../types';
-import { ImageUploader } from './ImageUploader';
-import { MediaGallery } from './MediaGallery';
-import { VideoManager } from './VideoManager';
-import { UploadProgress } from './UploadProgress';
-import { useMediaUpload } from '../../hooks/useMediaUpload';
 import { mediaApi } from '../../api/mediaApi';
 import { useErrorHandler } from '../../../../hooks/useErrorHandler';
-import { aiMediaFinder } from '../../services/aiMediaFinder';
-import { AIMediaFinderModal } from './AIMediaFinderModal';
 import { cn } from '../../../../lib/utils';
-// const { cn } = utils; // Removed incorrect destructuring
+import { supabase } from '../../../../lib/api/supabase';
 
 interface Props {
   exercise: Exercise;
   onUpdate: (updatedExercise: Exercise) => void;
 }
 
-type Tab = 'main' | 'guides' | 'biomechanics' | 'videos' | 'metadata';
-
 export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
   const { showError, showSuccess } = useErrorHandler();
-  const [activeTab, setActiveTab] = useState<Tab>('main');
-  const { uploadFile, uploads, isUploading } = useMediaUpload();
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [localData, setLocalData] = useState<Exercise>(exercise);
   const [hasChanges, setHasChanges] = useState(false);
-  const [isFinderOpen, setIsFinderOpen] = useState(false);
 
-  // Auto-save logic - Increased delay to 5s to avoid race conditions
-  React.useEffect(() => {
-    if (!hasChanges || saving) return;
-    
-    const timeout = setTimeout(() => {
-      handleSave();
-    }, 5000); 
-    
-    return () => clearTimeout(timeout);
-  }, [localData, hasChanges, saving]);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'image_url' | 'video_url' | 'thumbnail_url') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleUpdate = (updates: Partial<Exercise>) => {
-    const newData = { ...localData, ...updates };
-    setLocalData(newData);
-    setHasChanges(true);
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${exercise.id}-${field}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `exercises/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('exercise-images')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('exercise-images')
+        .getPublicUrl(filePath);
+
+      const updates = { [field]: publicUrl };
+      if (field === 'image_url') {
+        // @ts-ignore - potentially missing statically but we handle it
+        updates.static_frame_url = publicUrl;
+      }
+      setLocalData(prev => ({ 
+        ...prev, 
+        ...updates,
+        // Ao subir imagem principal, espelhamos no legado para garantir que a UI se atualize localmente
+        ...(field === 'image_url' ? { static_frame_url: publicUrl } : {})
+      }));
+      setHasChanges(true);
+      showSuccess('Upload concluído', 'A mídia foi carregada. Clique em salvar para confirmar.');
+    } catch (err: any) {
+      showError("Erro ao subir imagem: " + err.message);
+    } finally {
+      setUploading(false);
+      if (e.target) e.target.value = '';
+    }
   };
 
-  const handleAIMediaApply = (updates: Partial<Exercise>) => {
-    setLocalData(prev => ({ ...prev, ...updates }));
-    setHasChanges(true);
-    showSuccess('Inteligência Media Finder', 'Ativos aplicados com sucesso. Salvando automaticamente...');
-  };
-
-  const handleAutoComplete = async () => {
-    if (saving || isUploading) return;
+  const handleSave = async () => {
+    if (saving || uploading) return;
     setSaving(true);
     try {
-      showSuccess('Cérebro Rubi Ativado', 'Iniciando modo 1-Tap Complete. Localizando mídias...');
-      const results = await aiMediaFinder.findMedia(exercise);
-      
-      const updates: Partial<Exercise> = {
-        image_url: results.main_images?.[0]?.url,
-        video_url: results.videos?.[0]?.url,
-        thumbnail_url: results.main_images?.[0]?.url // Reuse for thumb
+      // Prioritizamos image_url. Só enviamos static_frame_url se formos forçados 
+      // ou se quisermos garantir compatibilidade, mas o mediaApi já lida com isso.
+      const updatePayload: any = {
+        image_url: localData.image_url || null,
+        video_url: localData.video_url || null,
+        thumbnail_url: localData.thumbnail_url || null,
+        updated_at: new Date().toISOString()
       };
 
-      handleUpdate(updates);
-      showSuccess('⚡ Exercício Completado', 'Mídias localizadas e aplicadas via IA.');
-    } catch (err: any) {
-      showError('Falha no Modo Completo: ' + err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Manual save for better control
-  const handleSave = async () => {
-    if (saving || isUploading) return;
-    setSaving(true);
-    console.log('[ASSET_HUB_SAVE_START]', { exerciseId: exercise.id, hasChanges });
-    try {
-      // Sync static_frame_url to image_url for maximum compatibility
-      const dataToSave = { ...localData };
-      if (dataToSave.static_frame_url) {
-        dataToSave.image_url = dataToSave.static_frame_url;
+      // Se existir static_frame_url no exercício original, tentamos atualizar também para manter paridade
+      if (exercise.static_frame_url !== undefined) {
+        updatePayload.static_frame_url = localData.image_url || null;
       }
 
-      await mediaApi.updateExerciseMedia(exercise.id, dataToSave);
-      console.log('[ASSET_HUB_SAVE_SUCCESS]');
+      await mediaApi.updateExerciseMedia(exercise.id, updatePayload);
       
-      // Update local state and parent with synchronized data
-      setLocalData(dataToSave);
-      if (onUpdate) onUpdate(dataToSave);
+      // Criamos o objeto atualizado garantindo que refletimos as mudanças para o componente pai
+      const updatedExercise = { ...exercise, ...updatePayload };
+      if (onUpdate) {
+        onUpdate(updatedExercise as Exercise);
+      }
       
       setHasChanges(false);
-      showSuccess('Mídias Sincronizadas', 'Alterações salvas com sucesso via Cloudinary Service.');
+      showSuccess('Mídias Salvas', 'O exercício foi atualizado com as novas mídias.');
     } catch (err: any) {
-      console.error('[ASSET_HUB_SAVE_ERROR]', err);
-      const errorMessage = err.message || (typeof err === 'string' ? err : 'Ocorreu um erro ao salvar as mídias.');
-      showError(`Falha Crítica: ${errorMessage}`);
+      showError(`Erro ao salvar: ${err.message}`);
     } finally {
       setSaving(false);
     }
   };
 
-  const tabs = [
-    { id: 'main', label: 'Imagem Principal', icon: ImageIcon },
-    { id: 'guides', label: 'Guias Visuais', icon: Layers },
-    { id: 'biomechanics', label: 'Biomechanical Cuts', icon: Activity },
-    { id: 'videos', label: 'Vídeos', icon: Play },
-    { id: 'metadata', label: 'SEO / Metadata', icon: Search },
-  ];
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Tab Navigation */}
-      <div className="flex items-center justify-between gap-4 mb-10">
-        <div className="flex flex-1 gap-2 p-1.5 bg-slate-100 rounded-[2rem] overflow-x-auto no-scrollbar">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as Tab)}
-                className={cn(
-                  "flex items-center gap-3 px-6 py-3.5 rounded-3xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                  isActive 
-                    ? "bg-white text-slate-900 shadow-sm" 
-                    : "text-slate-400 hover:text-slate-600"
-                )}
+    <div className="space-y-8 max-w-4xl mx-auto pb-20">
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Main Image */}
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Imagem Principal (1:1)</h4>
+            {localData.image_url && (
+              <button 
+                onClick={() => { setLocalData({...localData, image_url: '', static_frame_url: ''}); setHasChanges(true); }}
+                className="p-2 text-red-400 hover:text-red-600 transition-colors"
               >
-                <Icon size={16} className={cn(isActive ? "text-blue-500" : "text-slate-300")} />
-                {tab.label}
+                <Trash2 size={16} />
               </button>
-            );
-          })}
+            )}
+          </div>
+          
+          <div className="aspect-square bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 overflow-hidden relative group">
+            {localData.image_url ? (
+              <img 
+                src={localData.image_url} 
+                alt="Preview" 
+                className="w-full h-full object-contain" 
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300">
+                <ImageIcon size={48} strokeWidth={1} />
+                <p className="text-[10px] font-bold uppercase tracking-widest mt-4">Nenhuma imagem</p>
+              </div>
+            )}
+            
+            <label className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+              <span className="bg-white text-slate-900 px-6 py-3 rounded-full font-black text-[10px] uppercase tracking-widest">
+                Alterar Imagem
+              </span>
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'image_url')} />
+            </label>
+          </div>
         </div>
 
-        <div className="flex gap-3">
-          <button 
-             onClick={() => setIsFinderOpen(true)}
-             className="flex items-center gap-3 px-8 py-4 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-[2rem] font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all shadow-lg active:scale-95 group"
-          >
-            <Sparkles size={16} className="group-hover:rotate-12 transition-transform" />
-            <span>Buscar Mídia com IA</span>
-          </button>
-
-          <button 
-             onClick={handleAutoComplete}
-             disabled={saving || isUploading}
-             className="flex items-center gap-3 px-8 py-4 bg-amber-50 border border-amber-100 text-amber-600 rounded-[2rem] font-black text-[10px] uppercase tracking-widest hover:bg-amber-100 transition-all shadow-lg active:scale-95 group disabled:opacity-50"
-          >
-            <Zap size={16} className="group-hover:scale-125 transition-transform" />
-            <span>Completar Exercício</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Content Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pb-24">
-        <AnimatePresence mode="wait">
-          {activeTab === 'main' && (
-            <motion.div
-              key="main"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="grid md:grid-cols-2 gap-10"
-            >
-              <div className="space-y-10">
-                <ImageUploader 
-                  label="Upload 1:1 Static Frame"
-                  value={localData.static_frame_url || localData.image_url || ''}
-                  onChange={(url) => {
-                    console.log('[PUBLIC_URL_READY]', url);
-                    handleUpdate({ 
-                      static_frame_url: url,
-                      image_url: url // Sync for preview affinity
-                    });
-                  }}
-                  onUpload={(file) => uploadFile(file, `static-frames/${exercise.id}`, { compress: true })}
-                />
-                <ImageUploader 
-                  label="Thumbnail do App (Premium Cache)"
-                  value={localData.thumbnail_url || ''}
-                  onChange={(url) => handleUpdate({ thumbnail_url: url })}
-                  onUpload={(file) => uploadFile(file, `thumbnails/${exercise.id}`, { compress: true })}
-                  className="w-1/2"
-                />
-              </div>
-
-              <div className="space-y-8">
-                 <div className="p-8 bg-blue-50/50 rounded-[2.5rem] border border-blue-100/50 space-y-6">
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
-                          <Sparkles size={20} />
-                       </div>
-                       <div>
-                          <h4 className="text-[11px] font-black text-blue-900 uppercase tracking-widest">IA Auto-Optimization</h4>
-                          <p className="text-[9px] font-bold text-blue-800/60 uppercase tracking-tight">Rubi Engine processa e otimiza todas as imagens para WebP 2.0.</p>
-                       </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                       <InfoItem label="Performance" value="Load time < 100ms" />
-                       <InfoItem label="Seo" value="Alt-tags automáticas" />
-                       <InfoItem label="Storage" value="Bucket: exercise-images" />
-                    </div>
-                 </div>
-
-                 <div className="p-10 bg-slate-900 rounded-[3rem] text-white space-y-6 shadow-2xl relative overflow-hidden">
-                    <div className="relative z-10">
-                       <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] mb-2">Dica Pro</p>
-                       <p className="text-sm font-bold leading-relaxed text-slate-300">
-                         Utilize imagens com fundo limpo (neutral background) para garantir a melhor experiência na galeria do usuário.
-                       </p>
-                    </div>
-                    <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-blue-600/20 blur-[60px]" />
-                 </div>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'guides' && (
-            <motion.div
-              key="guides"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              <MediaGallery 
-                label="Passo a Passo (Visual Guides)"
-                items={localData.guide_images || []}
-                onChange={(items) => handleUpdate({ guide_images: items })}
-                onUpload={(file) => uploadFile(file, 'guides', { compress: true })}
-              />
-            </motion.div>
-          )}
-
-          {activeTab === 'biomechanics' && (
-            <motion.div
-              key="biomechanics"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              <MediaGallery 
-                label="Cortes Biomecânicos Precisos"
-                items={localData.biomechanics_images || []}
-                onChange={(items) => handleUpdate({ biomechanics_images: items })}
-                onUpload={(file) => uploadFile(file, 'cuts', { compress: true })}
-              />
-            </motion.div>
-          )}
-
-          {activeTab === 'videos' && (
-            <motion.div
-              key="videos"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              <VideoManager 
-                value={localData.video_url || ''}
-                onChange={(url) => handleUpdate({ video_url: url })}
-                onUpload={(file) => uploadFile(file, 'videos')}
-              />
-            </motion.div>
-          )}
-
-          {activeTab === 'metadata' && (
-            <motion.div
-              key="metadata"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-10"
-            >
-               <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Asset Internal ID</label>
-                     <input 
-                       type="text" 
-                       readOnly 
-                       value={localData.id} 
-                       className="w-full p-6 bg-slate-50 border-none rounded-[2rem] font-mono text-[10px] text-slate-400" 
-                     />
-                  </div>
-                  <div className="space-y-4">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Media Version</label>
-                     <input 
-                       type="text" 
-                       readOnly 
-                       value={localData.version || '1.0.0'} 
-                       className="w-full p-6 bg-slate-50 border-none rounded-[2rem] font-mono text-[10px] text-slate-400" 
-                     />
-                  </div>
+        {/* Thumbnail & Meta */}
+        <div className="space-y-8">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Thumbnail (App Cache)</h4>
+            <div className="flex items-center gap-6">
+               <div className="w-24 h-24 bg-slate-50 rounded-2xl border border-slate-100 flex-shrink-0 overflow-hidden">
+                 {localData.thumbnail_url ? (
+                   <img 
+                    src={localData.thumbnail_url} 
+                    className="w-full h-full object-contain" 
+                    referrerPolicy="no-referrer"
+                   />
+                 ) : (
+                   <div className="w-full h-full flex items-center justify-center text-slate-300">
+                     <ImageIcon size={24} />
+                   </div>
+                 )}
                </div>
-            </motion.div>
+               <div className="flex-1 space-y-3">
+                 <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed">Imagem menor usada em listagens para carregamento instantâneo.</p>
+                 <label className="inline-block px-6 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-black text-[9px] uppercase tracking-widest cursor-pointer transition-colors">
+                   Upload Thumb
+                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'thumbnail_url')} />
+                 </label>
+               </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vídeo Demonstrativo</h4>
+            <div className="flex items-center gap-4">
+               <div className={cn(
+                 "w-12 h-12 rounded-2xl flex items-center justify-center",
+                 localData.video_url ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-300"
+               )}>
+                 <Play size={20} fill={localData.video_url ? "currentColor" : "none"} />
+               </div>
+               <input 
+                 type="text" 
+                 placeholder="Cole a URL do vídeo ou suba um arquivo..."
+                 value={localData.video_url || ''}
+                 onChange={(e) => { setLocalData({...localData, video_url: e.target.value}); setHasChanges(true); }}
+                 className="flex-1 bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-xs"
+               />
+               <label className="p-3 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer transition-colors">
+                  <Save size={16} className="text-slate-500" />
+                  <input type="file" accept="video/*" className="hidden" onChange={(e) => handleFileUpload(e, 'video_url')} />
+               </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {uploading && (
+        <div className="p-6 bg-blue-600 rounded-3xl text-white flex items-center justify-between shadow-xl animate-pulse">
+          <div className="flex items-center gap-4">
+             <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+             <span className="font-black text-[10px] uppercase tracking-[0.2em]">Enviando mídia para o armazenamento seguro...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Warning if still attempting to use static_frame_url as PRIMARY source */}
+      {exercise.static_frame_url && !exercise.image_url && !hasChanges && (
+        <div className="p-6 bg-amber-50 rounded-3xl border border-amber-100 flex items-start gap-4">
+          <AlertCircle className="text-amber-500 flex-shrink-0" size={20} />
+          <div>
+            <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest">Legacy Media Source</p>
+            <p className="text-[10px] font-bold text-amber-800/60 uppercase tracking-tight mt-1">
+              Este exercício usa o campo legado 'static_frame_url'. Ao salvar, migraremos os dados para 'image_url' automaticamente.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-center pt-10">
+        <button
+          onClick={handleSave}
+          disabled={saving || uploading || !hasChanges}
+          className={cn(
+            "h-16 px-16 rounded-full font-black text-[11px] uppercase tracking-[0.4em] shadow-2xl transition-all flex items-center gap-3",
+            (saving || uploading)
+              ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+              : !hasChanges 
+                ? "bg-emerald-50 text-emerald-500 border border-emerald-100"
+                : "bg-slate-900 text-white hover:scale-105 active:scale-95 shadow-slate-900/30"
           )}
-        </AnimatePresence>
+        >
+          {saving ? (
+            <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+          ) : !hasChanges ? (
+            <CheckCircle2 size={18} />
+          ) : (
+            <Save size={18} />
+          )}
+          {saving ? 'Gravando...' : !hasChanges ? 'Mídias up-to-date' : 'Confirmar e Salvar Alterações'}
+        </button>
       </div>
-
-      {/* Floating Save Bar */}
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[80]">
-         <motion.button
-           onClick={handleSave}
-           disabled={saving || isUploading || !hasChanges}
-           className={cn(
-             "h-16 px-12 rounded-full font-black text-[11px] uppercase tracking-[0.4em] shadow-2xl transition-all flex items-center gap-3",
-             (saving || isUploading)
-               ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-               : !hasChanges 
-                 ? "bg-green-50 text-green-500 border border-green-100"
-                 : "bg-slate-900 text-white hover:scale-105 active:scale-95 shadow-slate-900/30"
-           )}
-         >
-           {saving ? (
-             <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
-           ) : !hasChanges ? (
-             <CheckCircle2 size={18} />
-           ) : (
-             <Save size={18} />
-           )}
-           {saving ? 'Persistenting...' : !hasChanges ? 'All Assets Saved' : 'Save Media Changes'}
-         </motion.button>
-      </div>
-
-      {/* Global Upload Progress */}
-      <UploadProgress uploads={uploads} />
-
-      <AIMediaFinderModal 
-        exercise={localData}
-        isOpen={isFinderOpen}
-        onClose={() => setIsFinderOpen(false)}
-        onApply={handleAIMediaApply}
-      />
     </div>
   );
 };
-
-function InfoItem({ label, value }: { label: string, value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest">{label}</span>
-      <span className="text-[9px] font-black text-blue-700 uppercase tracking-widest bg-blue-100/50 px-3 py-1 rounded-full">{value}</span>
-    </div>
-  );
-}
-
-function Field({ label, value, readOnly = false, onChange }: { label: string, value: string, readOnly?: boolean, onChange?: (v: string) => void }) {
-  return (
-    <div className="space-y-3">
-       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
-       <input 
-         type="text" 
-         value={value} 
-         readOnly={readOnly}
-         onChange={e => onChange?.(e.target.value)}
-         className={cn(
-           "w-full p-5 rounded-2xl font-bold text-xs outline-none transition-all",
-           readOnly ? "bg-slate-50 text-slate-400 cursor-not-allowed" : "bg-white border border-slate-100 focus:ring-4 focus:ring-blue-500/5"
-         )}
-       />
-    </div>
-  );
-}

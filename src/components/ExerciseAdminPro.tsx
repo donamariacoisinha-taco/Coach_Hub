@@ -502,9 +502,10 @@ export default function ExerciseAdminPro({
 
               <div className="mt-3 flex items-center gap-3">
                 <img
-                  src={exercise.static_frame_url || exercise.image_url || "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=112&q=80"}
+                  src={exercise.image_url || exercise.static_frame_url || "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=112&q=80"}
                   alt=""
-                  className="h-14 w-14 rounded-2xl object-cover bg-slate-100"
+                  className="h-14 w-14 rounded-2xl object-contain bg-slate-100"
+                  referrerPolicy="no-referrer"
                 />
 
                 <div className="min-w-0 flex-1">

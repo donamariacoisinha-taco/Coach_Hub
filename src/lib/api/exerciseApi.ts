@@ -14,7 +14,7 @@ export const exerciseApi = {
         console.warn('[DB] Fallback ativado devido a erro de schema cache:', err.message);
         // Tenta buscar apenas colunas essenciais que sabemos que existem
         const { data, error } = await supabase.from('exercises')
-          .select('id, name, muscle_group, image_url, is_active')
+          .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
           .order('name');
         if (error) throw error;
         return (data || []) as Exercise[];
@@ -35,7 +35,7 @@ export const exerciseApi = {
       const isSchemaError = err.message?.includes('column') && err.message?.includes('schema cache');
       if (isSchemaError) {
         const { data, error } = await supabase.from('exercises')
-          .select('id, name, muscle_group, image_url, is_active')
+          .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
           .eq('is_active', true)
           .order('name');
         if (error) throw error;

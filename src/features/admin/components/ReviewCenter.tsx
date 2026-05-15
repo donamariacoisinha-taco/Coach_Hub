@@ -105,9 +105,10 @@ const ReviewCenter: React.FC = () => {
                  <div className="flex flex-col md:flex-row gap-12 items-center">
                     <div className="w-full md:w-1/2 aspect-square bg-slate-50 rounded-[3rem] border border-slate-100 flex items-center justify-center p-8">
                        <img 
-                         src={getExercisesByStatus('draft')[0]?.static_frame_url || getExercisesByStatus('draft')[0]?.image_url || 'https://placehold.co/600x600'} 
+                         src={getExercisesByStatus('draft')[0]?.image_url || getExercisesByStatus('draft')[0]?.static_frame_url || 'https://placehold.co/600x600'} 
                          alt="" 
                          className="w-full h-full object-contain"
+                         referrerPolicy="no-referrer"
                        />
                     </div>
                     
@@ -186,8 +187,13 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ exercise, onClick }) => {
     >
        <div className="flex items-start justify-between mb-6">
           <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center p-2">
-             {(exercise.static_frame_url || exercise.image_url) ? (
-               <img src={exercise.static_frame_url || exercise.image_url} alt="" className="w-full h-full object-contain" />
+             {exercise.image_url || exercise.static_frame_url ? (
+               <img 
+                src={exercise.image_url || exercise.static_frame_url} 
+                alt="" 
+                className="w-full h-full object-contain" 
+                referrerPolicy="no-referrer"
+               />
              ) : (
                <Dumbbell size={20} className="text-slate-200" />
              )}

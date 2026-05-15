@@ -131,9 +131,13 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ exercise, onClick }) => {
          </div>
          
          <div className="flex -space-x-1.5 shrink-0">
-            {(exercise.static_frame_url || exercise.image_url) && (
+            {(exercise.image_url || exercise.static_frame_url) && (
               <div className="w-6 h-6 rounded-full border-2 border-white bg-slate-100 overflow-hidden">
-                <img src={exercise.static_frame_url || exercise.image_url} className="w-full h-full object-cover" />
+                <img 
+                  src={exercise.image_url || exercise.static_frame_url} 
+                  className="w-full h-full object-cover" 
+                  referrerPolicy="no-referrer"
+                />
               </div>
             )}
             {exercise.video_url && <div className="w-6 h-6 rounded-full border-2 border-white bg-blue-100 flex items-center justify-center text-blue-600"><FileText size={10} /></div>}

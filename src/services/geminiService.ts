@@ -8,7 +8,12 @@ export const geminiService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params)
     });
-    if (!response.ok) throw new Error("AI Proxy request failed");
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `AI Proxy request failed (${response.status})`);
+    }
+
     return await response.json();
   },
 

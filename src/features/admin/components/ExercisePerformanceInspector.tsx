@@ -43,8 +43,13 @@ const ExercisePerformanceInspector: React.FC<InspectorProps> = ({ exercise, onCl
         <div className="px-12 py-8 bg-white border-b border-slate-100 flex items-center justify-between">
            <div className="flex items-center gap-6">
               <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center shadow-inner overflow-hidden">
-                {(exercise.static_frame_url || exercise.image_url) ? (
-                  <img src={exercise.static_frame_url || exercise.image_url} alt="" className="w-full h-full object-contain" />
+                {exercise.image_url || exercise.static_frame_url ? (
+                  <img 
+                    src={exercise.image_url || exercise.static_frame_url} 
+                    alt="" 
+                    className="w-full h-full object-contain border-4 border-white shadow-xl rounded-2xl bg-white" 
+                    referrerPolicy="no-referrer"
+                  />
                 ) : (
                   <Zap size={32} className="text-slate-300" />
                 )}

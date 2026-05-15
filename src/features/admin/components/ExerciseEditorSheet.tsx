@@ -242,7 +242,12 @@ const ExerciseEditorSheet: React.FC = () => {
                    </div>
 
                    <Field label="Dicas Técnicas (Separadas por ponto)">
-                      <textarea rows={4} className="w-full p-6 bg-slate-50 border-none rounded-[2rem] font-bold text-sm outline-none resize-none" />
+                       <textarea 
+                         value={formData.technical_tips || ''} 
+                         onChange={e => setFormData({ ...formData, technical_tips: e.target.value })}
+                         rows={4} 
+                         className="w-full p-6 bg-slate-50 border-none rounded-[2rem] font-bold text-sm outline-none resize-none" 
+                       />
                    </Field>
                 </div>
               )}

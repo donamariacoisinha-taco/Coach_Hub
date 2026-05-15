@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,34 +13,49 @@ async function startServer() {
 
   app.use(express.json());
 
-  const getGenAI = async () => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey.trim() === "") {
-      throw new Error("GEMINI_API_KEY is missing. Please set it in the platform Settings.");
+  // Gemini Client Initialization
+  const apiKey = process.env.GEMINI_API_KEY;
+  const ai = new GoogleGenAI({
+    apiKey: apiKey || "",
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      }
     }
-    const { GoogleGenAI } = await import("@google/genai");
-    return new GoogleGenAI({ apiKey });
+  });
+
+  const getGenAI = () => {
+    if (!apiKey || apiKey.trim() === "") {
+      throw new Error("GEMINI_API_KEY is missing. Please set it in the platform Settings > Secrets panel.");
+    }
+    return ai;
   };
 
   const handleAIError = (error: any, res: any, prefix: string) => {
     console.error(`[${prefix}] Error:`, error);
-    if (error.message?.includes("API key not valid")) {
+    
+    // Explicit check for invalid API key from Gemini API
+    if (error.message?.includes("API key not valid") || error.message?.includes("API_KEY_INVALID")) {
       return res.status(401).json({ 
-        error: "The provided GEMINI_API_KEY is invalid. Please check your API key in Settings." 
+        error: "The provided GEMINI_API_KEY is invalid. Please check and update your API key in the Settings > Secrets panel." 
       });
     }
+
     if (error.message?.includes("GEMINI_API_KEY is missing")) {
       return res.status(401).json({ error: error.message });
     }
-    res.status(500).json({ error: error.message });
+
+    res.status(500).json({ 
+      error: error.message || "An unexpected error occurred in the AI service.",
+      details: error.toString()
+    });
   };
 
   // AI Intelligence Routes
   app.post("/api/intelligence/optimize", async (req, res) => {
     try {
       const { prompt, systemInstruction } = req.body;
-      const { Type } = await import("@google/genai");
-      const genAI = await getGenAI();
+      const genAI = getGenAI();
       
       const response = await genAI.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -85,8 +101,7 @@ async function startServer() {
   app.post("/api/intelligence/find-media", async (req, res) => {
     try {
       const { prompt, systemInstruction } = req.body;
-      const { Type } = await import("@google/genai");
-      const genAI = await getGenAI();
+      const genAI = getGenAI();
 
       const response = await genAI.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -146,8 +161,8 @@ async function startServer() {
 
   app.post("/api/intelligence/proxy", async (req, res) => {
     try {
-      const genAI = await getGenAI();
-      const { prompt, systemInstruction, responseSchema, model: modelName = "gemini-1.5-flash" } = req.body;
+      const genAI = getGenAI();
+      const { prompt, systemInstruction, responseSchema, model: modelName = "gemini-3-flash-preview" } = req.body;
       
       const config: any = {
         responseMimeType: responseSchema ? "application/json" : "text/plain",

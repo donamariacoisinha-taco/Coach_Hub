@@ -23,7 +23,7 @@ export const ExerciseListItem: React.FC<ExerciseListItemProps> = ({ exercise, on
     >
       <div className="relative w-14 h-14 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center p-2 shrink-0 group-active:scale-95 transition-transform">
         <img 
-          src={exercise.static_frame_url || exercise.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
+          src={exercise.image_url || exercise.static_frame_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
           className="w-full h-full object-contain mix-blend-multiply" 
           referrerPolicy="no-referrer"
         />
