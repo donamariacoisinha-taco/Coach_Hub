@@ -26,6 +26,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
   const [uploading, setUploading] = useState(false);
   const [localData, setLocalData] = useState<Exercise>(exercise);
   const [hasChanges, setHasChanges] = useState(false);
+  const isLegacy = !!(exercise.static_frame_url && !exercise.image_url);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'image_url' | 'video_url' | 'thumbnail_url') => {
     const file = e.target.files?.[0];
@@ -72,8 +73,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
     if (saving || uploading) return;
     setSaving(true);
     try {
-      // Prioritizamos image_url. Só enviamos static_frame_url se formos forçados 
-      // ou se quisermos garantir compatibilidade, mas o mediaApi já lida com isso.
+      // Ao clicar em confirmar, marcamos como salvando
       const updatePayload: any = {
         image_url: localData.image_url || null,
         video_url: localData.video_url || null,
@@ -81,11 +81,14 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
         updated_at: new Date().toISOString()
       };
 
-      // Se existir static_frame_url no exercício original, tentamos atualizar também para manter paridade
-      if (exercise.static_frame_url !== undefined) {
-        updatePayload.static_frame_url = localData.image_url || null;
+      // REGRA DE MIGRAÇÃO: Se estamos salvando algo que tinha static_frame_url, 
+      // garantimos que o novo image_url seja enviado para ambos os campos (se existirem)
+      // O mediaApi já tenta remover colunas que falham, mas aqui somos explícitos.
+      if (exercise.static_frame_url) {
+        updatePayload.static_frame_url = updatePayload.image_url;
       }
 
+      console.log('[ASSET_MEDIA_HUB] Initing save operation...', updatePayload);
       await mediaApi.updateExerciseMedia(exercise.id, updatePayload);
       
       // Criamos o objeto atualizado garantindo que refletimos as mudanças para o componente pai
@@ -206,14 +209,15 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
         </div>
       )}
 
-      {/* Warning if still attempting to use static_frame_url as PRIMARY source */}
+      {/* Legacy Media Warning - matches user report and provides clear instruction */}
       {exercise.static_frame_url && !exercise.image_url && !hasChanges && (
         <div className="p-6 bg-amber-50 rounded-3xl border border-amber-100 flex items-start gap-4">
           <AlertCircle className="text-amber-500 flex-shrink-0" size={20} />
           <div>
-            <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest">Legacy Media Source</p>
-            <p className="text-[10px] font-bold text-amber-800/60 uppercase tracking-tight mt-1">
-              Este exercício usa o campo legado 'static_frame_url'. Ao salvar, migraremos os dados para 'image_url' automaticamente.
+            <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest">Legacy Media Detected</p>
+            <p className="text-[10px] font-bold text-amber-800/60 uppercase tracking-tight mt-1 leading-relaxed">
+              Este exercício ainda utiliza o campo legado 'static_frame_url'. 
+              Para migrar para o novo sistema, altere a imagem acima ou apenas clique em "Confirmar e Salvar Alterações" abaixo.
             </p>
           </div>
         </div>
@@ -222,24 +226,24 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
       <div className="flex justify-center pt-10">
         <button
           onClick={handleSave}
-          disabled={saving || uploading || !hasChanges}
+          disabled={saving || uploading || (!hasChanges && !isLegacy)}
           className={cn(
             "h-16 px-16 rounded-full font-black text-[11px] uppercase tracking-[0.4em] shadow-2xl transition-all flex items-center gap-3",
             (saving || uploading)
               ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-              : !hasChanges 
+              : (!hasChanges && !isLegacy) 
                 ? "bg-emerald-50 text-emerald-500 border border-emerald-100"
                 : "bg-slate-900 text-white hover:scale-105 active:scale-95 shadow-slate-900/30"
           )}
         >
           {saving ? (
             <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
-          ) : !hasChanges ? (
+          ) : (!hasChanges && !isLegacy) ? (
             <CheckCircle2 size={18} />
           ) : (
             <Save size={18} />
           )}
-          {saving ? 'Gravando...' : !hasChanges ? 'Mídias up-to-date' : 'Confirmar e Salvar Alterações'}
+          {saving ? 'Gravando...' : (!hasChanges && !isLegacy) ? 'Mídias up-to-date' : 'Confirmar e Salvar Alterações'}
         </button>
       </div>
     </div>

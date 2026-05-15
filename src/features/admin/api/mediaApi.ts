@@ -76,15 +76,33 @@ export const mediaApi = {
     try {
       while (true) {
         try {
+          // Verify supabase client is available
+          if (!supabase) {
+            throw new Error('Supabase client is not initialized');
+          }
+
           const { error, status } = await supabase.from('exercises').update(currentPayload).eq('id', exerciseId);
           
           console.log('[MEDIA_API][UPDATE_RESPONSE]', { status, error });
 
-          if (error) throw error;
+          if (error) {
+            // Check for specific Supabase error types
+            if (error.message?.includes('Failed to fetch')) {
+              console.error('[MEDIA_API] Network error detected. Check connection to Supabase.');
+            }
+            throw error;
+          }
           console.log('[MEDIA_DB_SYNC_SUCCESS]', { remainingFields: Object.keys(currentPayload) });
           return;
         } catch (err: any) {
           const msg = err.message || '';
+          
+          // Enhanced fetch error handling
+          if (msg.includes('Failed to fetch')) {
+             console.error('[MEDIA_API] Critical Fetch Failure. Supabase might be unreachable.');
+             throw new Error('Erro de conexão com o banco de dados (Failed to fetch). Verifique sua internet ou tente novamente em instantes.');
+          }
+
           const isColumnError = msg.includes('column') || msg.includes('named') || msg.includes('does not exist') || msg.includes('PGRST204') || msg.includes('schema cache');
 
           if (isColumnError) {

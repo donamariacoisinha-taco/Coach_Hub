@@ -249,8 +249,13 @@ const App: React.FC = () => {
   };
 
   const goBack = () => {
-    if (window.history.length > 1) window.history.back();
-    else navigate('dashboard');
+    if (navState.view === 'admin') {
+      navigate('dashboard');
+    } else if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      navigate('dashboard');
+    }
   };
 
   const toggleTheme = (newTheme: Theme) => {
