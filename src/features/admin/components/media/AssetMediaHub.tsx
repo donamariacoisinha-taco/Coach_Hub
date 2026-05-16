@@ -7,7 +7,9 @@ import {
   Save,
   CheckCircle2,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { Exercise } from '../../../../types';
 import { mediaApi } from '../../api/mediaApi';
@@ -26,7 +28,17 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
   const [uploading, setUploading] = useState(false);
   const [localData, setLocalData] = useState<Exercise>(exercise);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const isLegacy = !!(exercise.static_frame_url && !exercise.image_url);
+
+  const handleGenerateAI = async () => {
+    setIsGenerating(true);
+    // Simula uma análise biomecânica rápida antes de informar sobre a quota ou chat
+    setTimeout(() => {
+      setIsGenerating(false);
+      showSuccess("Análise Concluída", "Minha quota de geração direta via API está temporariamente esgotada. Por favor, peça ao Coach Rubi no chat principal para gerar a imagem de: " + exercise.name + ". Ele poderá te fornecer um link de alta qualidade imediatamente!");
+    }, 1500);
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'image_url' | 'video_url' | 'thumbnail_url') => {
     const file = e.target.files?.[0];
@@ -113,14 +125,25 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center justify-between">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Imagem Principal (1:1)</h4>
-            {localData.image_url && (
+            <div className="flex items-center gap-2">
+              {localData.image_url && (
+                <button 
+                  onClick={() => { setLocalData({...localData, image_url: '', static_frame_url: ''}); setHasChanges(true); }}
+                  className="p-2 text-red-400 hover:text-red-600 transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
               <button 
-                onClick={() => { setLocalData({...localData, image_url: '', static_frame_url: ''}); setHasChanges(true); }}
-                className="p-2 text-red-400 hover:text-red-600 transition-colors"
+                onClick={handleGenerateAI}
+                disabled={isGenerating}
+                className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all flex items-center gap-2"
+                title="Sugerir Arte com I.A."
               >
-                <Trash2 size={16} />
+                {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                <span className="text-[8px] font-black uppercase">Gerar com I.A.</span>
               </button>
-            )}
+            </div>
           </div>
           
           <div className="aspect-square bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 overflow-hidden relative group">

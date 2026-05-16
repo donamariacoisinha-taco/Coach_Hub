@@ -77,5 +77,17 @@ export const autoFixApi = {
 
     if (error) throw error;
     return data as Exercise[];
+  },
+
+  getMissingContentQueue: async () => {
+    // Busca exercícios que não tem instruções OU descrição preenchidas
+    const { data, error } = await supabase
+      .from('exercises')
+      .select('*')
+      .or('instructions.is.null,instructions.eq."",description.is.null,description.eq.""')
+      .limit(50);
+    
+    if (error) throw error;
+    return data as Exercise[];
   }
 };

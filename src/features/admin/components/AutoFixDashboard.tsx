@@ -20,6 +20,7 @@ import { useAdminStore } from '../../../store/adminStore';
 import { autoFixApi } from '../api/autoFixApi';
 import { auditExercise } from '../services/aiAuditService';
 import { applyAiFix } from '../services/aiFixService';
+import { geminiService } from '../../../services/geminiService';
 
 const AutoFixDashboard: React.FC = () => {
   const { 
@@ -38,6 +39,76 @@ const AutoFixDashboard: React.FC = () => {
     addActivity
   } = useAutoFixStore();
   const { exercises, setExercises } = useAdminStore();
+  const [isFillingDescriptions, setIsFillingDescriptions] = useState(false);
+  const [fillProgress, setFillProgress] = useState(0);
+
+  const handleFillMissingDescriptions = async () => {
+    if (isFillingDescriptions) return;
+    
+    setIsFillingDescriptions(true);
+    setFillProgress(0);
+    
+    try {
+      const missingQueue = await autoFixApi.getMissingContentQueue();
+      if (missingQueue.length === 0) {
+        addActivity({
+          id: Date.now().toString(),
+          type: 'info',
+          title: 'Biblioteca Completa',
+          desc: 'Não foram encontrados exercícios com descrições faltando.',
+          time: 'Agora'
+        });
+        setIsFillingDescriptions(false);
+        return;
+      }
+
+      addActivity({
+        id: Date.now().toString(),
+        type: 'info',
+        title: 'Gerando Conteúdo',
+        desc: `Iniciando geração de instruções para ${missingQueue.length} exercícios.`,
+        time: 'Agora'
+      });
+
+      let count = 0;
+      const updatedExercises = [...exercises];
+
+      for (const ex of missingQueue) {
+        try {
+          const aiData = await geminiService.generateExerciseData(ex.name, ex.muscle_group);
+          const updated = {
+            ...ex,
+            ...aiData,
+            auto_fixed: true,
+            ai_fixed_at: new Date().toISOString()
+          };
+          
+          await autoFixApi.updateExercise(updated);
+          
+          const idx = updatedExercises.findIndex(e => e.id === ex.id);
+          if (idx !== -1) updatedExercises[idx] = updated;
+          
+          count++;
+          setFillProgress(Math.round((count / missingQueue.length) * 100));
+        } catch (err) {
+          console.error(`Error filling content for ${ex.name}:`, err);
+        }
+      }
+
+      setExercises(updatedExercises);
+      addActivity({
+        id: Date.now().toString(),
+        type: 'success',
+        title: 'Conteúdo Gerado',
+        desc: `${count} exercícios agora possuem instruções de execução.`,
+        time: 'Agora'
+      });
+    } catch (err) {
+      console.error("Critical failure during fill operation:", err);
+    } finally {
+      setIsFillingDescriptions(false);
+    }
+  };
 
   const handleStartAudit = async () => {
     if (isAuditing) return;
@@ -178,8 +249,17 @@ const AutoFixDashboard: React.FC = () => {
 
         <div className="flex items-center gap-6 bg-white p-2 rounded-3xl border border-slate-100 shadow-sm">
           <button 
+            onClick={handleFillMissingDescriptions}
+            disabled={isFillingDescriptions || isAuditing || isFixing}
+            className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${isFillingDescriptions ? 'bg-blue-100 text-blue-600' : 'bg-blue-50 text-blue-600 hover:scale-105 active:scale-95 shadow-lg shadow-blue-50'}`}
+          >
+            <Brain size={16} />
+            {isFillingDescriptions ? `Gerando (${fillProgress}%)` : 'Preencher Descrições'}
+          </button>
+
+          <button 
             onClick={handleRepairAllCritical}
-            disabled={isFixing || isAuditing}
+            disabled={isFixing || isAuditing || isFillingDescriptions}
             className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${isFixing ? 'bg-amber-100 text-amber-600' : 'bg-amber-500 text-white hover:scale-105 active:scale-95 shadow-xl shadow-amber-100'}`}
           >
             <Sparkles size={16} />
@@ -247,6 +327,35 @@ const AutoFixDashboard: React.FC = () => {
       {/* Main Content Area */}
       <div className="grid grid-cols-3 gap-8">
         <div className="col-span-2 space-y-8">
+           {/* Progress Panel for Filling Descriptions */}
+           {isFillingDescriptions && (
+            <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white overflow-hidden relative mb-8">
+               <div className="absolute top-0 right-0 p-12 opacity-10">
+                  <Sparkles size={120} className="animate-pulse" />
+               </div>
+               <div className="relative z-10 space-y-8">
+                  <div>
+                     <h3 className="text-2xl font-black mb-2">Gerando Conteúdo Técnico...</h3>
+                     <p className="text-slate-400 text-sm font-bold uppercase tracking-tight">O Motor Rubi AI está escrevendo instruções de execução biomecanicamente corretas.</p>
+                  </div>
+                  
+                  <div className="space-y-4">
+                     <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest">
+                        <span>Progresso da Geração</span>
+                        <span>{fillProgress}%</span>
+                     </div>
+                     <div className="h-4 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${fillProgress}%` }}
+                          className="h-full bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)]"
+                        />
+                     </div>
+                  </div>
+               </div>
+            </div>
+           )}
+
            {/* Progress Panel */}
            {isAuditing && (
              <div className="bg-slate-950 rounded-[2.5rem] p-10 text-white overflow-hidden relative">
