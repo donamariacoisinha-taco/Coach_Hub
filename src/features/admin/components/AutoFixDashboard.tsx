@@ -21,6 +21,8 @@ import { autoFixApi } from '../api/autoFixApi';
 import { auditExercise } from '../services/aiAuditService';
 import { applyAiFix } from '../services/aiFixService';
 import { geminiService } from '../../../services/geminiService';
+import AutoFixQueue from './AutoFixQueue';
+import ExerciseEditorSheet from './ExerciseEditorSheet';
 
 const AutoFixDashboard: React.FC = () => {
   const { 
@@ -411,6 +413,8 @@ const AutoFixDashboard: React.FC = () => {
                  <HealthBar label="Mídia de Alta Qualidade" value={45} color="red" />
               </div>
            </div>
+
+           <AutoFixQueue />
         </div>
 
         {/* Sidebar Activity */}
@@ -456,6 +460,7 @@ const AutoFixDashboard: React.FC = () => {
            </div>
         </div>
       </div>
+      <ExerciseEditorSheet />
     </div>
   );
 };

@@ -11,7 +11,8 @@ import {
   Sparkles,
   Maximize2,
   Trash2,
-  Filter
+  Filter,
+  Edit3
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
 import { Exercise } from '../../../types';
@@ -19,7 +20,7 @@ import { getQualityBadge } from '../services/qualityScoreV2';
 import CompareChanges from './CompareChanges';
 
 const AutoFixQueue: React.FC = () => {
-  const { exercises } = useAdminStore();
+  const { exercises, openEditor } = useAdminStore();
   const [filter, setFilter] = useState<'all' | 'critical' | 'auto_fixed'>('all');
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
 
@@ -104,12 +105,22 @@ const AutoFixQueue: React.FC = () => {
                       </div>
                    </td>
                    <td className="px-8 py-6 text-right">
-                      <button 
-                        onClick={() => setSelectedExercise(ex)}
-                        className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-white rounded-xl border border-transparent hover:border-slate-100 hover:shadow-sm transition-all"
-                      >
-                         <Maximize2 size={16} />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => setSelectedExercise(ex)}
+                          className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-white rounded-xl border border-transparent hover:border-slate-100 hover:shadow-sm transition-all"
+                          title="Comparar Mudanças"
+                        >
+                           <Maximize2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => openEditor(ex)}
+                          className="p-2 text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-white rounded-xl border border-transparent hover:border-slate-100 hover:shadow-sm transition-all"
+                          title="Editar Exercício"
+                        >
+                           <Edit3 size={16} />
+                        </button>
+                      </div>
                    </td>
                 </tr>
               ))}
