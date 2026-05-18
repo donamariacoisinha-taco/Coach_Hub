@@ -175,24 +175,10 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
         {/* QUICK ACTIONS INLINE */}
         <div className="flex items-center gap-1 shrink-0 px-2" onPointerDown={(e) => e.stopPropagation()}>
           <button 
-            onClick={() => onDuplicate(idx)}
-            className="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-blue-500 transition-colors"
-            title="Duplicar"
-          >
-            <Copy size={14} />
-          </button>
-          <button 
-            onClick={() => { setReplacingIndex(idx); setShowExerciseSelector(true); }}
-            className="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-slate-900 transition-colors"
-            title="Substituir"
-          >
-            <Replace size={14} />
-          </button>
-          <button 
             onClick={() => setActiveMenuId(activeMenuId === ex.tempId ? null : ex.tempId)}
-            className="w-8 h-8 flex items-center justify-center text-slate-200 active:text-slate-900 transition-colors"
+            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeMenuId === ex.tempId ? 'bg-slate-900 text-white' : 'text-slate-300 hover:text-slate-900 hover:bg-slate-50'}`}
           >
-            <MoreVertical size={16} />
+            <MoreVertical size={20} />
           </button>
         </div>
       </motion.div>
@@ -200,26 +186,33 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
       <AnimatePresence>
         {activeMenuId === ex.tempId && (
           <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute right-0 top-16 z-50 bg-white rounded-2xl shadow-2xl border border-slate-50 p-4 min-w-[160px] space-y-2"
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="absolute right-0 top-16 z-[100] bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-50 p-3 min-w-[190px] space-y-1"
           >
             <button 
               onClick={() => { setEditingSetsIndex(idx); setActiveMenuId(null); }}
-              className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+              className="w-full flex items-center gap-3 p-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-2xl transition"
             >
-              <SlidersHorizontal size={14} /> Ajustar Séries
+              <SlidersHorizontal size={14} className="text-blue-500" /> Ajustar Séries
+            </button>
+            <button 
+              onClick={() => { onDuplicate(idx); setActiveMenuId(null); }}
+              className="w-full flex items-center gap-3 p-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-2xl transition"
+            >
+              <Copy size={14} className="text-blue-400" /> Duplicar Papel
             </button>
             <button 
               onClick={() => { setReplacingIndex(idx); setShowExerciseSelector(true); setActiveMenuId(null); }}
-              className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+              className="w-full flex items-center gap-3 p-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-2xl transition"
             >
-              <Replace size={14} /> Substituir
+              <Replace size={14} className="text-amber-500" /> Substituir
             </button>
+            <div className="h-px bg-slate-50 mx-2 my-1" />
             <button 
               onClick={() => { setExercises(prev => prev.filter(e => e.tempId !== ex.tempId)); setActiveMenuId(null); }}
-              className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-xl transition"
+              className="w-full flex items-center gap-3 p-3.5 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-2xl transition"
             >
               <Trash2 size={14} /> Remover
             </button>
