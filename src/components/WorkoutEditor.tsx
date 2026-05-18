@@ -77,14 +77,14 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 100 : 1,
+    zIndex: isDragging || activeMenuId === ex.tempId ? 100 : 1,
   };
 
   const isNew = lastAddedId === ex.tempId;
   const dragControls = useDragControls();
 
   return (
-    <div className="relative">
+    <div className="relative" style={{ zIndex: activeMenuId === ex.tempId ? 50 : 1 }}>
       {showGroupLabel && (
         <div className="px-6 py-3 bg-slate-50/50 border-y border-slate-50 flex items-center justify-between">
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{showGroupLabel}</span>
@@ -119,7 +119,7 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
           if (info.offset.x > 80) onDuplicate(idx);
           if (info.offset.x < -80) setExercises(prev => prev.filter(e => e.tempId !== ex.tempId));
         }}
-        className={`flex items-center gap-4 py-2.5 transition-all bg-white relative z-10 border-b border-slate-50 ${isDragging ? 'shadow-2xl rounded-2xl scale-[1.02] border-none z-50 px-4' : ''} ${isNew ? 'bg-blue-50/30' : ''}`}
+        className={`flex items-center gap-4 py-2.5 transition-all bg-white relative z-10 border-b border-slate-50 ${isDragging ? 'shadow-2xl rounded-2xl scale-[1.02] border-none z-50 px-4' : ''} ${activeMenuId === ex.tempId ? 'z-[60]' : ''} ${isNew ? 'bg-blue-50/30' : ''}`}
       >
         {/* DRAG HANDLE - triggering dnd-kit */}
         <div 
