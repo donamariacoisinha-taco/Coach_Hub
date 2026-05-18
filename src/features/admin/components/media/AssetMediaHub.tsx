@@ -9,13 +9,17 @@ import {
   Trash2,
   AlertCircle,
   Sparkles,
-  Loader2
+  Loader2,
+  Maximize2
 } from 'lucide-react';
 import { Exercise } from '../../../../types';
 import { mediaApi } from '../../api/mediaApi';
 import { useErrorHandler } from '../../../../hooks/useErrorHandler';
 import { cn } from '../../../../lib/utils';
 import { supabase } from '../../../../lib/api/supabase';
+import { ImageAdjusterModal } from './ImageAdjusterModal';
+import { cloudinaryService } from '../../../../services/cloudinaryService';
+import { AnimatePresence } from 'motion/react';
 
 interface Props {
   exercise: Exercise;
@@ -29,6 +33,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
   const [localData, setLocalData] = useState<Exercise>(exercise);
   const [hasChanges, setHasChanges] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [adjustingImage, setAdjustingImage] = useState<{ src: string, field: 'image_url' | 'thumbnail_url' } | null>(null);
   const isLegacy = !!(exercise.static_frame_url && !exercise.image_url);
 
   const handleGenerateAI = async () => {
@@ -44,40 +49,67 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // For images, we open the adjustment modal first
+    if (field === 'image_url' || field === 'thumbnail_url') {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setAdjustingImage({ src: reader.result as string, field });
+      };
+      reader.readAsDataURL(file);
+      if (e.target) e.target.value = '';
+      return;
+    }
+
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${exercise.id}-${field}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `exercises/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('exercise-images')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('exercise-images')
-        .getPublicUrl(filePath);
+      const fileName = `${exercise.id}-${field}-${Math.random().toString(36).substring(7)}`;
+      // Videos still go to Supabase for now as Cloudinary might have size limits or different flow
+      const publicUrl = await mediaApi.uploadAsset(file, fileName, 'exercise-images');
 
       const updates = { [field]: publicUrl };
-      if (field === 'image_url') {
-        // @ts-ignore - potentially missing statically but we handle it
-        updates.static_frame_url = publicUrl;
-      }
       setLocalData(prev => ({ 
-        ...prev, 
-        ...updates,
-        // Ao subir imagem principal, espelhamos no legado para garantir que a UI se atualize localmente
-        ...(field === 'image_url' ? { static_frame_url: publicUrl } : {})
+          ...prev, 
+          ...updates
       }));
       setHasChanges(true);
-      showSuccess('Upload concluído', 'A mídia foi carregada. Clique em salvar para confirmar.');
+      showSuccess('Upload concluído', 'O vídeo foi carregado. Clique em salvar para confirmar.');
     } catch (err: any) {
-      showError("Erro ao subir imagem: " + err.message);
+      showError("Erro ao subir mídia: " + err.message);
     } finally {
       setUploading(false);
       if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleCropConfirm = async (croppedBlob: Blob) => {
+    if (!adjustingImage) return;
+    const field = adjustingImage.field;
+    setAdjustingImage(null);
+    setUploading(true);
+
+    try {
+      // Use Cloudinary for images to get auto-optimization benefits
+      const publicUrl = await cloudinaryService.uploadImage(
+        croppedBlob, 
+        field === 'image_url' ? 'main' : 'thumbs'
+      );
+
+      const updates: any = { [field]: publicUrl };
+      if (field === 'image_url') {
+        updates.static_frame_url = publicUrl;
+        // Se subir imagem principal e não tiver thumb, gera um auto
+        if (!localData.thumbnail_url) {
+          updates.thumbnail_url = cloudinaryService.getThumbnailUrl(publicUrl);
+        }
+      }
+
+      setLocalData(prev => ({ ...prev, ...updates }));
+      setHasChanges(true);
+      showSuccess('Ajuste Concluído', 'A imagem foi processada e está pronta para salvar.');
+    } catch (err: any) {
+      showError("Erro no processamento da imagem: " + err.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -161,10 +193,11 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
               </div>
             )}
             
-            <label className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-              <span className="bg-white text-slate-900 px-6 py-3 rounded-full font-black text-[10px] uppercase tracking-widest">
-                Alterar Imagem
-              </span>
+            <label className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer gap-2">
+              <div className="bg-white text-slate-900 px-6 py-3 rounded-full font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-transform">
+                <Maximize2 size={14} />
+                Ajustar & Salvar
+              </div>
               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'image_url')} />
             </label>
           </div>
@@ -269,6 +302,17 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
           {saving ? 'Gravando...' : (!hasChanges && !isLegacy) ? 'Mídias up-to-date' : 'Confirmar e Salvar Alterações'}
         </button>
       </div>
+
+      <AnimatePresence>
+        {adjustingImage && (
+          <ImageAdjusterModal 
+            image={adjustingImage.src}
+            onClose={() => setAdjustingImage(null)}
+            onConfirm={handleCropConfirm}
+            aspect={adjustingImage.field === 'image_url' ? 1 : 1}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

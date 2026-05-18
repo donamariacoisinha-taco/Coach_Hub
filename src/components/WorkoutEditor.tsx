@@ -109,6 +109,8 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
 
       <motion.div 
         drag="x"
+        dragListener={!isDragging}
+        dragDirectionLock
         dragConstraints={{ left: -100, right: 100 }}
         dragElastic={0.2}
         onDragEnd={(_, info) => {
@@ -120,8 +122,12 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
         {/* DRAG HANDLE */}
         <div 
           {...attributes} 
-          {...listeners} 
-          className="flex items-center justify-center w-6 h-10 text-slate-200 cursor-grab active:cursor-grabbing"
+          {...listeners}
+          onPointerDown={(e) => {
+            listeners?.onPointerDown?.(e);
+            e.stopPropagation();
+          }}
+          className="flex items-center justify-center w-10 h-10 text-slate-200 cursor-grab active:cursor-grabbing -ml-2"
         >
           <GripVertical size={18} />
         </div>

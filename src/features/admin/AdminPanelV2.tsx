@@ -80,12 +80,12 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
       {/* Sidebar - Pro Design */}
       <aside className="fixed left-0 top-0 bottom-0 w-80 bg-white border-r border-slate-200 hidden lg:flex flex-col z-40">
         <div className="p-8">
-          <div className="flex items-center gap-4 mb-12">
-            <div className="w-12 h-12 bg-slate-950 rounded-[1.25rem] flex items-center justify-center text-white shadow-2xl shadow-slate-950/20">
+          <div className="flex items-center gap-4 mb-12 cursor-pointer group" onClick={onBack}>
+            <div className="w-12 h-12 bg-slate-950 rounded-[1.25rem] flex items-center justify-center text-white shadow-2xl shadow-slate-950/20 group-hover:scale-110 transition-transform">
               <Sparkles size={24} className="text-blue-400" />
             </div>
             <div>
-              <h1 className="font-black text-2xl tracking-tighter leading-none">RUBI <span className="text-blue-600">OS</span></h1>
+              <h1 className="font-black text-2xl tracking-tighter leading-none group-hover:text-blue-600 transition-colors">RUBI <span className="text-blue-600 group-hover:text-slate-950">OS</span></h1>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mt-1.5 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                 Admin v2.0
@@ -156,12 +156,21 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
             <h1 className="font-black text-xl tracking-tighter">RUBI <span className="text-blue-600">OS</span></h1>
           </div>
 
-          {/* Context Title - Desktop */}
           <div className="hidden lg:block">
-             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 flex items-center gap-2">
-                Painel Admin <ChevronRight size={10} /> {tabs.find(t => t.id === activeTab)?.label}
-             </h2>
-             <p className="text-lg font-black tracking-tight mt-0.5 text-slate-950">
+             <div className="flex items-center gap-3 mb-1">
+                <button 
+                  onClick={onBack}
+                  className="p-1 px-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5"
+                >
+                  <ArrowLeft size={10} />
+                  App Inicial
+                </button>
+                <div className="w-1 h-1 bg-slate-300 rounded-full" />
+                <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 flex items-center gap-2">
+                   Painel Admin <ChevronRight size={10} /> {tabs.find(t => t.id === activeTab)?.label}
+                </h2>
+             </div>
+             <p className="text-lg font-black tracking-tight text-slate-950">
                 {tabs.find(t => t.id === activeTab)?.desc}
              </p>
           </div>
@@ -225,9 +234,17 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 h-24 bg-white border-t border-slate-200 lg:hidden flex items-center justify-around px-4 z-50 pb-6 pointer-events-auto">
-         {tabs.filter(t => t.id !== 'settings' && t.id !== 'analytics').map((tab) => {
+         <button 
+            onClick={onBack}
+            className="flex flex-col items-center gap-1.5 min-w-[64px] text-slate-400"
+         >
+            <div className="p-2.5 rounded-2xl bg-slate-50 text-slate-400">
+               <ArrowLeft size={22} />
+            </div>
+            <span className="text-[9px] font-black uppercase tracking-widest leading-none">Voltar</span>
+         </button>
+         {tabs.filter(t => t.id !== 'settings' && t.id !== 'analytics').slice(0, 4).map((tab) => {
            const Icon = tab.icon;
            const isActive = activeTab === tab.id;
            return (
