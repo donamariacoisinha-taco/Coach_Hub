@@ -10,7 +10,7 @@ import { ScreenState } from './ui/ScreenState';
 import { WorkoutSkeleton } from './ui/Skeleton';
 import { useAsyncState } from '../hooks/useAsyncState';
 import { ChevronLeft, Save, PlusCircle, GripVertical, SlidersHorizontal, Trash2, Search, X, MoreVertical, Play, Edit2, Replace, Copy, Clock, Dumbbell, Sparkles, ArrowUpCircle, Info, CheckCircle2, AlertCircle, Loader2, Shield, Star } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useDragControls } from 'motion/react';
 import {
   DndContext,
   closestCenter,
@@ -81,6 +81,7 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
   };
 
   const isNew = lastAddedId === ex.tempId;
+  const dragControls = useDragControls();
 
   return (
     <div className="relative">
@@ -109,7 +110,8 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
 
       <motion.div 
         drag="x"
-        dragListener={!isDragging}
+        dragControls={dragControls}
+        dragListener={false}
         dragDirectionLock
         dragConstraints={{ left: -100, right: 100 }}
         dragElastic={0.2}
@@ -119,50 +121,52 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
         }}
         className={`flex items-center gap-4 py-2.5 transition-all bg-white relative z-10 border-b border-slate-50 ${isDragging ? 'shadow-2xl rounded-2xl scale-[1.02] border-none z-50 px-4' : ''} ${isNew ? 'bg-blue-50/30' : ''}`}
       >
-        {/* DRAG HANDLE */}
+        {/* DRAG HANDLE - triggering dnd-kit */}
         <div 
           {...attributes} 
           {...listeners}
-          onPointerDown={(e) => {
-            listeners?.onPointerDown?.(e);
-            e.stopPropagation();
-          }}
-          className="flex items-center justify-center w-10 h-10 text-slate-200 cursor-grab active:cursor-grabbing -ml-2"
+          className="flex items-center justify-center w-10 h-10 text-slate-200 cursor-grab active:cursor-grabbing -ml-2 shrink-0 z-20"
         >
           <GripVertical size={18} />
         </div>
 
-        {/* EXERCISE IMAGE */}
-        <div className="w-12 h-12 bg-slate-50 rounded-lg overflow-hidden shrink-0 flex items-center justify-center p-1.5 border border-slate-100">
-          <img 
-            src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
-            className="w-full h-full object-contain mix-blend-multiply" 
-            referrerPolicy="no-referrer" 
-          />
-        </div>
-
-        {/* INFO */}
+        {/* SWIPE TRIGGER GROUP - triggering framer-motion drag */}
         <div 
-          className="flex-1 min-w-0 cursor-pointer py-0.5"
-          onClick={() => setEditingSetsIndex(idx)}
+          className="flex-1 flex items-center gap-4 min-w-0"
+          onPointerDown={(e) => dragControls.start(e)}
         >
-          <div className="flex items-center gap-2">
-            <h4 className="font-bold text-[15px] text-slate-900 leading-tight break-words">
-              {ex.exercise_name}
-            </h4>
-            {ex.type?.toLowerCase().includes('composto') && (
-              <div className="px-1.5 py-0.5 bg-blue-50 rounded text-[7px] font-black text-blue-600 uppercase tracking-widest shrink-0">
-                Base
-              </div>
-            )}
+          {/* EXERCISE IMAGE */}
+          <div className="w-12 h-12 bg-slate-50 rounded-lg overflow-hidden shrink-0 flex items-center justify-center p-1.5 border border-slate-100">
+            <img 
+              src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
+              className="w-full h-full object-contain mix-blend-multiply" 
+              referrerPolicy="no-referrer" 
+            />
           </div>
-          <p className="text-[11px] font-semibold text-slate-400 mt-0.5 uppercase tracking-tight">
-            {ex.sets_json?.length || 3} Séries • {ex.sets_json?.[0]?.reps || '12'} Reps
-          </p>
+
+          {/* INFO */}
+          <div 
+            className="flex-1 min-w-0 cursor-pointer py-0.5"
+            onClick={() => setEditingSetsIndex(idx)}
+          >
+            <div className="flex items-center gap-2">
+              <h4 className="font-bold text-[15px] text-slate-900 leading-tight break-words">
+                {ex.exercise_name}
+              </h4>
+              {ex.type?.toLowerCase().includes('composto') && (
+                <div className="px-1.5 py-0.5 bg-blue-50 rounded text-[7px] font-black text-blue-600 uppercase tracking-widest shrink-0">
+                  Base
+                </div>
+              )}
+            </div>
+            <p className="text-[11px] font-semibold text-slate-400 mt-0.5 uppercase tracking-tight">
+              {ex.sets_json?.length || 3} Séries • {ex.sets_json?.[0]?.reps || '12'} Reps
+            </p>
+          </div>
         </div>
 
         {/* QUICK ACTIONS INLINE */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0 px-2" onPointerDown={(e) => e.stopPropagation()}>
           <button 
             onClick={() => onDuplicate(idx)}
             className="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-blue-500 transition-colors"
