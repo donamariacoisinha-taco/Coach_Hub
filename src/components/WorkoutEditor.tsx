@@ -125,18 +125,22 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
         <div 
           {...attributes} 
           {...listeners}
-          className="flex items-center justify-center w-10 h-10 text-slate-200 cursor-grab active:cursor-grabbing -ml-2 shrink-0 z-20"
+          style={{ touchAction: 'none' }}
+          className="flex items-center justify-center w-12 h-12 text-slate-300 cursor-grab active:cursor-grabbing -ml-2 shrink-0 z-30"
         >
-          <GripVertical size={18} />
+          <GripVertical size={20} />
         </div>
 
         {/* SWIPE TRIGGER GROUP - triggering framer-motion drag */}
         <div 
-          className="flex-1 flex items-center gap-4 min-w-0"
-          onPointerDown={(e) => dragControls.start(e)}
+          className="flex-1 flex items-center gap-4 min-w-0 h-full py-2"
+          onPointerDown={(e) => {
+            // Prevent swipe if drag handle was clicked (though z-index should handle it)
+            dragControls.start(e);
+          }}
         >
           {/* EXERCISE IMAGE */}
-          <div className="w-12 h-12 bg-slate-50 rounded-lg overflow-hidden shrink-0 flex items-center justify-center p-1.5 border border-slate-100">
+          <div className="w-12 h-12 bg-slate-50 rounded-lg overflow-hidden shrink-0 flex items-center justify-center p-1.5 border border-slate-100 pointer-events-none">
             <img 
               src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
               className="w-full h-full object-contain mix-blend-multiply" 
@@ -146,8 +150,11 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
 
           {/* INFO */}
           <div 
-            className="flex-1 min-w-0 cursor-pointer py-0.5"
-            onClick={() => setEditingSetsIndex(idx)}
+            className="flex-1 min-w-0 py-0.5"
+            onClick={(e) => {
+                e.stopPropagation();
+                setEditingSetsIndex(idx);
+            }}
           >
             <div className="flex items-center gap-2">
               <h4 className="font-bold text-[15px] text-slate-900 leading-tight break-words">
