@@ -18,7 +18,8 @@ import { useWorkoutStore } from '../../app/store/workoutStore';
 import { cacheStore } from '../../lib/cache/cacheStore';
 import { ekeService } from '../../domain/eke/ekeService';
 import { Goal, ExperienceLevel, MuscleGroup } from '../../types';
-import { Sparkles, Loader2, Clock, CheckCircle2, Shield, Star } from 'lucide-react';
+import { Sparkles, Loader2, Clock, CheckCircle2, Shield, Star, Activity } from 'lucide-react';
+import { ProgressIntelligence } from './ProgressIntelligence';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
@@ -26,6 +27,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const prefetch = usePrefetch();
   
   const [activeFolderId, setActiveFolderId] = useState<string | null>(initialFolderId || null);
+  const [activeTab, setActiveTab] = useState<'protocols' | 'evolution'>('protocols');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [showMagicModal, setShowMagicModal] = useState(false);
   const [magicLoading, setMagicLoading] = useState(false);
@@ -277,213 +279,241 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           </div>
         </header>
         
-        {/* PREDICTIVE ACTION */}
-        <AnimatePresence>
-          {nextAction && (
-            <motion.section 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-16"
-            >
-              <div className="w-full bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm flex flex-col items-start">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">
-                  {nextAction.type === 'start_workout' ? 'Hoje para você' : 'Sugestão'}
-                </p>
-                
-                <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase leading-tight mb-2">
-                  {nextAction.title}
-                </h3>
-                
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-10">
-                  {nextAction.description}
-                </p>
+        {/* NAVIGATION TAB CONTROLS */}
+        <div className="flex bg-slate-100/90 p-1.5 rounded-2xl mb-8 border border-slate-200/40 shadow-inner">
+          <button 
+            onClick={() => { setActiveTab('protocols'); if ('vibrate' in navigator) navigator.vibrate(5); }}
+            className={`flex-1 py-3 rounded-xl text-[10px] font-[1000] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === 'protocols' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <Dumbbell size={13} />
+            Protocolos
+          </button>
+          <button 
+            onClick={() => { setActiveTab('evolution'); if ('vibrate' in navigator) navigator.vibrate(5); }}
+            className={`flex-1 py-3 rounded-xl text-[10px] font-[1000] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === 'evolution' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <Activity size={13} className="text-violet-500 animate-pulse" />
+            Evolução Inteligente
+          </button>
+        </div>
 
-                {nextAction.suggestedWorkoutId && (
-                  <button 
-                    onClick={() => {
-                      useWorkoutStore.getState().resetWorkout();
-                      navigate('preparation', { id: nextAction.suggestedWorkoutId });
-                    }}
-                    onMouseEnter={() => handlePrefetchWorkout(nextAction.suggestedWorkoutId!)}
-                    className="w-full py-6 bg-slate-900 text-white rounded-full font-black uppercase text-[11px] tracking-[0.4em] active:scale-[0.97] transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3"
-                  >
-                    <Play size={16} fill="currentColor" />
-                    {nextAction.type === 'start_workout' ? 'Iniciar Treino' : 'Retomar Agora'}
-                  </button>
-                )}
-              </div>
-            </motion.section>
-          )}
-        </AnimatePresence>
-
-        {/* PROTOCOLS */}
-        <section className="space-y-12">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
-              Seus Protocolos
-            </h2>
-            <button 
-              onClick={() => navigate('editor')}
-              onMouseEnter={() => prefetch('editor_init_new', async () => {
-                return { workout: null, exercises: [] };
-              })}
-              className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors"
-            >
-              <span className="text-[9px] font-black uppercase tracking-widest">Manual</span>
-              <Plus size={16} />
-            </button>
-            <button 
-              onClick={() => setShowMagicModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full text-blue-600 hover:bg-blue-100 transition-all border border-blue-100/50"
-            >
-              <Sparkles size={14} className="animate-pulse" />
-              <span className="text-[9px] font-black uppercase tracking-widest">Magic Builder</span>
-            </button>
-          </div>
-
-          <div className="flex gap-10 overflow-x-auto no-scrollbar border-b border-slate-100 -mx-6 px-6">
-            <button
-              onClick={() => setActiveFolderId(null)}
-              className={`text-[10px] font-black uppercase tracking-[0.2em] pb-6 border-b-4 transition-all whitespace-nowrap ${
-                activeFolderId === null ? "border-slate-900 text-slate-900" : "border-transparent text-slate-300"
-              }`}
-            >
-              Todos
-            </button>
-            {folders.map((folder) => (
-              <div key={folder.id} className="relative flex items-center group/folder">
-                <button
-                  onClick={() => setActiveFolderId(folder.id)}
-                  className={`text-[10px] font-black uppercase tracking-[0.2em] pb-6 border-b-4 transition-all whitespace-nowrap pr-2 ${
-                    activeFolderId === folder.id ? "border-slate-900 text-slate-900" : "border-transparent text-slate-300"
-                  }`}
+        {activeTab === 'protocols' ? (
+          <>
+            {/* PREDICTIVE ACTION */}
+            <AnimatePresence>
+              {nextAction && (
+                <motion.section 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-16"
                 >
-                  {folder.name}
-                </button>
-                {activeFolderId === folder.id && (
-                  <button 
-                    onClick={() => setDeleteConfirm({ id: folder.id, name: folder.name, type: 'folder' })}
-                    className="pb-6 border-b-4 border-slate-900 text-slate-300 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+                  <div className="w-full bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm flex flex-col items-start">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">
+                      {nextAction.type === 'start_workout' ? 'Hoje para você' : 'Sugestão'}
+                    </p>
+                    
+                    <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase leading-tight mb-2">
+                      {nextAction.title}
+                    </h3>
+                    
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-10">
+                      {nextAction.description}
+                    </p>
 
-          <div className="space-y-2">
-            <ScreenState
-              status={status}
-              isFetching={isFetching}
-              skeleton={<DashboardSkeleton />}
-              onRetry={refresh}
-            >
-              {filteredWorkouts.map((workout, idx) => {
-                const isOptimistic = typeof workout.id === 'string' && workout.id.startsWith('temp-');
-                
-                return (
-                  <div key={workout.id} className={`relative group ${isOptimistic ? 'opacity-60 grayscale-[0.2]' : ''}`}>
-                    <div 
-                      onClick={() => {
-                      if (!isOptimistic) {
-                        useWorkoutStore.getState().resetWorkout();
-                        navigate('preparation', { id: workout.id });
-                      }
-                    }}
-                      onMouseEnter={() => !isOptimistic && handlePrefetchWorkout(workout.id)}
-                      className={`flex items-center justify-between py-10 px-4 rounded-[2rem] hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all cursor-pointer group-active:scale-[0.98] ${
-                        idx !== filteredWorkouts.length - 1 ? 'border-b border-slate-50' : ''
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase truncate pr-4">
-                            {workout.name}
-                          </h3>
-                          {isOptimistic && (
-                            <span className="px-2 py-0.5 bg-slate-100 rounded text-[7px] font-black text-slate-400 uppercase tracking-widest animate-pulse">
-                              Sincronizando
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 mt-2">
-                        <span className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em]">
-                          {workout.description || 'Treino'}
-                        </span>
-                        <div className="w-1 h-1 bg-slate-200 rounded-full" />
-                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">
-                          {idx % 2 === 0 ? '45 min' : '60 min'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {!isOptimistic && (
+                    {nextAction.suggestedWorkoutId && (
                       <button 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          setActiveMenuId(activeMenuId === workout.id ? null : workout.id); 
+                        onClick={() => {
+                          useWorkoutStore.getState().resetWorkout();
+                          navigate('preparation', { id: nextAction.suggestedWorkoutId });
                         }}
-                        className="w-12 h-12 flex items-center justify-center text-slate-200 hover:text-slate-900 transition-colors"
+                        onMouseEnter={() => handlePrefetchWorkout(nextAction.suggestedWorkoutId!)}
+                        className="w-full py-6 bg-slate-900 text-white rounded-full font-black uppercase text-[11px] tracking-[0.4em] active:scale-[0.97] transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3"
                       >
-                        <MoreVertical size={18} />
+                        <Play size={16} fill="currentColor" />
+                        {nextAction.type === 'start_workout' ? 'Iniciar Treino' : 'Retomar Agora'}
                       </button>
                     )}
                   </div>
+                </motion.section>
+              )}
+            </AnimatePresence>
 
-                  <AnimatePresence>
-                    {activeMenuId === workout.id && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 10 }}
-                        className="absolute right-0 top-16 z-50 bg-white rounded-2xl shadow-2xl border border-slate-50 p-4 min-w-[160px] space-y-2"
+            {/* PROTOCOLS */}
+            <section className="space-y-12">
+              <div className="flex items-center justify-between">
+                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
+                  Seus Protocolos
+                </h2>
+                <button 
+                  onClick={() => navigate('editor')}
+                  onMouseEnter={() => prefetch('editor_init_new', async () => {
+                    return { workout: null, exercises: [] };
+                  })}
+                  className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors"
+                >
+                  <span className="text-[9px] font-black uppercase tracking-widest">Manual</span>
+                  <Plus size={16} />
+                </button>
+                <button 
+                  onClick={() => setShowMagicModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full text-blue-600 hover:bg-blue-100 transition-all border border-blue-100/50"
+                >
+                  <Sparkles size={14} className="animate-pulse" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">Magic Builder</span>
+                </button>
+              </div>
+
+              <div className="flex gap-10 overflow-x-auto no-scrollbar border-b border-slate-100 -mx-6 px-6">
+                <button
+                  onClick={() => setActiveFolderId(null)}
+                  className={`text-[10px] font-black uppercase tracking-[0.2em] pb-6 border-b-4 transition-all whitespace-nowrap ${
+                    activeFolderId === null ? "border-slate-900 text-slate-900" : "border-transparent text-slate-300"
+                  }`}
+                >
+                  Todos
+                </button>
+                {folders.map((folder) => (
+                  <div key={folder.id} className="relative flex items-center group/folder">
+                    <button
+                      onClick={() => setActiveFolderId(folder.id)}
+                      className={`text-[10px] font-black uppercase tracking-[0.2em] pb-6 border-b-4 transition-all whitespace-nowrap pr-2 ${
+                        activeFolderId === folder.id ? "border-slate-900 text-slate-900" : "border-transparent text-slate-300"
+                      }`}
+                    >
+                      {folder.name}
+                    </button>
+                    {activeFolderId === folder.id && (
+                      <button 
+                        onClick={() => setDeleteConfirm({ id: folder.id, name: folder.name, type: 'folder' })}
+                        className="pb-6 border-b-4 border-slate-900 text-slate-300 hover:text-red-500 transition-colors"
                       >
-                        <button 
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <ScreenState
+                  status={status}
+                  isFetching={isFetching}
+                  skeleton={<DashboardSkeleton />}
+                  onRetry={refresh}
+                >
+                  {filteredWorkouts.map((workout, idx) => {
+                    const isOptimistic = typeof workout.id === 'string' && workout.id.startsWith('temp-');
+                    
+                    return (
+                      <div key={workout.id} className={`relative group ${isOptimistic ? 'opacity-60 grayscale-[0.2]' : ''}`}>
+                        <div 
                           onClick={() => {
+                          if (!isOptimistic) {
                             useWorkoutStore.getState().resetWorkout();
                             navigate('preparation', { id: workout.id });
-                          }}
-                          className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+                          }
+                        }}
+                          onMouseEnter={() => !isOptimistic && handlePrefetchWorkout(workout.id)}
+                          className={`flex items-center justify-between py-10 px-4 rounded-[2rem] hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all cursor-pointer group-active:scale-[0.98] ${
+                            idx !== filteredWorkouts.length - 1 ? 'border-b border-slate-50' : ''
+                          }`}
                         >
-                          <Play size={14} /> Iniciar
-                        </button>
-                        <button 
-                          onClick={() => navigate('editor', { id: workout.id })}
-                          onMouseEnter={() => prefetch(`editor_init_${workout.id}`, async () => {
-                            const user = await authApi.getUser();
-                            if (!user) return null;
-                            return workoutApi.getWorkoutEditorData(user.id, workout.id);
-                          })}
-                          className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
-                        >
-                          <Edit2 size={14} /> Editar
-                        </button>
-                        <button 
-                          onClick={() => handleDuplicateWorkout(workout)}
-                          className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
-                        >
-                          <Copy size={14} /> Duplicar
-                        </button>
-                        <button 
-                          onClick={() => {
-                            const w = data?.workouts.find(w => w.id === workout.id);
-                            setDeleteConfirm({ id: workout.id, name: w?.name || 'este treino', type: 'workout' });
-                            setActiveMenuId(null);
-                          }}
-                          className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-xl transition"
-                        >
-                          <Trash2 size={14} /> Excluir
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-            </ScreenState>
-          </div>
-        </section>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3">
+                              <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase truncate pr-4">
+                                {workout.name}
+                              </h3>
+                              {isOptimistic && (
+                                <span className="px-2 py-0.5 bg-slate-100 rounded text-[7px] font-black text-slate-400 uppercase tracking-widest animate-pulse">
+                                  Sincronizando
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 mt-2">
+                            <span className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em]">
+                              {workout.description || 'Treino'}
+                            </span>
+                            <div className="w-1 h-1 bg-slate-200 rounded-full" />
+                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">
+                              {idx % 2 === 0 ? '45 min' : '60 min'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {!isOptimistic && (
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              setActiveMenuId(activeMenuId === workout.id ? null : workout.id); 
+                            }}
+                            className="w-12 h-12 flex items-center justify-center text-slate-200 hover:text-slate-900 transition-colors"
+                          >
+                            <MoreVertical size={18} />
+                          </button>
+                        )}
+                      </div>
+
+                      <AnimatePresence>
+                        {activeMenuId === workout.id && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            className="absolute right-0 top-16 z-50 bg-white rounded-2xl shadow-2xl border border-slate-50 p-4 min-w-[160px] space-y-2"
+                          >
+                            <button 
+                              onClick={() => {
+                                useWorkoutStore.getState().resetWorkout();
+                                navigate('preparation', { id: workout.id });
+                              }}
+                              className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+                            >
+                              <Play size={14} /> Iniciar
+                            </button>
+                            <button 
+                              onClick={() => navigate('editor', { id: workout.id })}
+                              onMouseEnter={() => prefetch(`editor_init_${workout.id}`, async () => {
+                                const user = await authApi.getUser();
+                                if (!user) return null;
+                                return workoutApi.getWorkoutEditorData(user.id, workout.id);
+                              })}
+                              className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+                            >
+                              <Edit2 size={14} /> Editar
+                            </button>
+                            <button 
+                              onClick={() => handleDuplicateWorkout(workout)}
+                              className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+                            >
+                              <Copy size={14} /> Duplicar
+                            </button>
+                            <button 
+                              onClick={() => {
+                                const w = data?.workouts.find(w => w.id === workout.id);
+                                setDeleteConfirm({ id: workout.id, name: w?.name || 'este treino', type: 'workout' });
+                                setActiveMenuId(null);
+                              }}
+                              className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-xl transition"
+                            >
+                              <Trash2 size={14} /> Excluir
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+                </ScreenState>
+              </div>
+            </section>
+          </>
+        ) : (
+          <ProgressIntelligence 
+            history={history}
+            profile={profile || null}
+            workouts={workouts}
+          />
+        )}
 
         <MagicBuildModal 
             isOpen={showMagicModal}
