@@ -4,9 +4,29 @@ import { fetchWithRetry } from '../utils';
 
 export const authApi = {
   async getUser() {
-    const { data: { user }, error } = await fetchWithRetry(() => supabase.auth.getUser());
-    if (error) throw error;
-    return user;
+    try {
+      const { data: { user }, error } = await fetchWithRetry(() => supabase.auth.getUser());
+      if (error) {
+        if (
+          error.message?.includes('session') || 
+          error.message?.includes('missing') || 
+          error.status === 401
+        ) {
+          return null;
+        }
+        throw error;
+      }
+      return user;
+    } catch (err: any) {
+      if (
+        err.message?.includes('session') || 
+        err.message?.includes('missing') || 
+        err.status === 401
+      ) {
+        return null;
+      }
+      throw err;
+    }
   },
 
   async getSession() {

@@ -1,7 +1,8 @@
 
 import { supabase } from './supabase';
-import { WorkoutCategory, WorkoutExercise, WorkoutFolder, WorkoutHistory, UserProfile, MuscleGroup, Exercise, SetConfig } from '../../types';
+import { WorkoutCategory, WorkoutExercise, WorkoutFolder, WorkoutHistory, UserProfile, MuscleGroup, Exercise, SetConfig, normalizeMuscleGroup } from '../../types';
 import { fetchWithRetry } from '../utils';
+import { exerciseApi } from './exerciseApi';
 
 export const workoutApi = {
   async getDashboardData(userId: string) {
@@ -60,7 +61,7 @@ export const workoutApi = {
       const loadedExercises = (exRes.data || []).map((item: any) => ({
         ...item,
         exercise_name: item.exercises?.name || item.exercise_name_snapshot || item.exercise_name || 'Exercício Indisponível',
-        muscle_group: item.exercises?.muscle_group || item.muscle_group,
+        muscle_group: normalizeMuscleGroup(item.exercises?.muscle_group || item.muscle_group || 'Outros'),
         exercise_image: item.exercises?.image_url || item.exercise_image
       }));
 
@@ -245,10 +246,11 @@ export const workoutApi = {
   },
 
   async getWorkoutEditorData(userId: string, workoutId?: string) {
+    // We fetch folders, muscle groups, and user favorites. 
+    // Exercises are fetched reliably below.
     const queries: any[] = [
       supabase.from('workout_folders').select('*').eq('user_id', userId).order('name'),
       supabase.from('muscle_groups').select('*').order('sort_order'),
-      supabase.from('exercises').select('id, name, muscle_group, image_url, is_active').order('name'),
       supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', userId)
     ];
 
@@ -261,13 +263,28 @@ export const workoutApi = {
     const errors = results.filter(r => r.error);
     if (errors.length > 0) throw errors[0].error;
 
+    // Fetch exercises using the ultra-resilient exerciseApi cache/fallback/normalization flow
+    let exercisesList: Exercise[] = [];
+    try {
+      exercisesList = await exerciseApi.getExercises();
+    } catch (err) {
+      console.warn('[WorkoutEditor] Erro ao buscar exercícios via exerciseApi. Retornando padrão estático.', err);
+      // Fallback
+      try {
+        const { fallbackExercises } = await import('./fallbackExercises');
+        exercisesList = fallbackExercises;
+      } catch (importErr) {
+        console.error('[WorkoutEditor] Falha crítica de importação de fallback:', importErr);
+      }
+    }
+
     return {
       folders: (results[0].data || []) as WorkoutFolder[],
       muscleGroups: (results[1].data || []) as MuscleGroup[],
-      exercises: (results[2].data || []) as Exercise[],
-      favorites: (results[3].data || []).map((f: any) => f.exercise_id),
-      category: workoutId ? results[4].data as WorkoutCategory : null,
-      workoutExercises: workoutId ? (results[5].data || []) as WorkoutExercise[] : []
+      exercises: exercisesList,
+      favorites: (results[2].data || []).map((f: any) => f.exercise_id),
+      category: workoutId ? results[3].data as WorkoutCategory : null,
+      workoutExercises: workoutId ? (results[4].data || []) as WorkoutExercise[] : []
     };
   },
 

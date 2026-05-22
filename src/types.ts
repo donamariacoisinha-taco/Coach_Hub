@@ -348,3 +348,89 @@ export interface ExercisePerformanceMemory {
   fatigue_response: 'high' | 'moderate' | 'low';
 }
 
+// TAXONOMY NORMALIZATION ENUM
+export enum MuscleGroupEnum {
+  PEITO = 'Peito',
+  COSTAS = 'Costas',
+  OMBROS = 'Ombros',
+  PERNAS = 'Pernas',
+  ABDOMEN = 'Abdômen',
+  BRACOS = 'Braços'
+}
+
+export function normalizeMuscleGroup(mg: string): string {
+  if (!mg) return 'Outros';
+  const clean = mg.trim().toLowerCase();
+  
+  // Specific normalizations
+  if (
+    clean.startsWith('perna') || 
+    clean.includes('quadriceps') || 
+    clean.includes('quadríceps') ||
+    clean.includes('posterior') || 
+    clean.includes('panturrilha') || 
+    clean.includes('gluteo') || 
+    clean.includes('glúteo') || 
+    clean.includes('coxa') ||
+    clean === 'perna' ||
+    clean === 'pernas'
+  ) {
+    return 'Pernas';
+  }
+  if (
+    clean.startsWith('ombro') || 
+    clean.includes('deltoide') || 
+    clean.includes('deltoide') ||
+    clean === 'ombros' ||
+    clean === 'ombro'
+  ) {
+    return 'Ombros';
+  }
+  if (
+    clean.startsWith('abdomen') || 
+    clean.includes('abdominais') || 
+    clean.includes('abdômen') || 
+    clean.includes('abdominal') ||
+    clean === 'abdomen' ||
+    clean === 'abdominais' ||
+    clean === 'abdômen'
+  ) {
+    return 'Abdômen';
+  }
+  if (
+    clean.startsWith('peito') || 
+    clean.includes('peitoral') ||
+    clean === 'peito' ||
+    clean === 'peitoral'
+  ) {
+    return 'Peito';
+  }
+  if (
+    clean.startsWith('costas') || 
+    clean.includes('dorsal') || 
+    clean.includes('trapézio') || 
+    clean.includes('trapezio') ||
+    clean === 'costas'
+  ) {
+    return 'Costas';
+  }
+  if (
+    clean.startsWith('braço') || 
+    clean.startsWith('braco') || 
+    clean.includes('biceps') || 
+    clean.includes('triceps') || 
+    clean.includes('antebraço') || 
+    clean.includes('antebraco') || 
+    clean.includes('bíceps') || 
+    clean.includes('tríceps') ||
+    clean === 'braço' ||
+    clean === 'braços'
+  ) {
+    return 'Braços';
+  }
+  
+  // Title case fallback
+  return mg.charAt(0).toUpperCase() + mg.slice(1);
+}
+
+

@@ -1,52 +1,150 @@
 
 import { supabase } from './supabase';
-import { Exercise, MuscleGroup } from '../../types';
+import { Exercise, MuscleGroup, normalizeMuscleGroup } from '../../types';
 import { fetchWithRetry } from '../utils';
+import { fallbackExercises } from './fallbackExercises';
+
+const CACHE_KEY = 'rubi_exercises_offline_cache';
+
+function getLocalCache(): Exercise[] {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        if (import.meta.env.DEV) {
+          console.log(`[ExerciseApi] Recuperado cache persistente com ${parsed.length} exercícios.`);
+        }
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('[ExerciseApi] Erro ao ler cache persistente do localStorage:', err);
+  }
+  return [];
+}
+
+function setLocalCache(exercises: Exercise[]): void {
+  try {
+    if (Array.isArray(exercises) && exercises.length > 0) {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(exercises));
+      if (import.meta.env.DEV) {
+        console.log(`[ExerciseApi] Salvo cache com de ${exercises.length} exercícios.`);
+      }
+    }
+  } catch (err) {
+    console.error('[ExerciseApi] Falha ao escrever cache no localStorage:', err);
+  }
+}
 
 export const exerciseApi = {
   async getExercises() {
     return fetchWithRetry(async () => {
+      let data: any[] | null = null;
+      let error: any = null;
+
       try {
-        const { data, error } = await supabase.from('exercises').select('*').order('name');
+        const response = await supabase.from('exercises').select('*').order('name');
+        data = response.data;
+        error = response.error;
         if (error) throw error;
-        return (data || []) as Exercise[];
       } catch (err: any) {
+        console.error('[ExerciseApi] Erro principal ao carregar exercícios:', err?.message || err);
         const isSchemaError = err.message?.includes('column') && err.message?.includes('schema cache');
         if (isSchemaError) {
           console.warn('[DB] Fallback ativado devido a erro de schema cache:', err.message);
-          // Tenta buscar apenas colunas essenciais que sabemos que existem
-          const { data, error } = await supabase.from('exercises')
+          const response = await supabase.from('exercises')
             .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
             .order('name');
+          data = response.data;
+          error = response.error;
           if (error) throw error;
-          return (data || []) as Exercise[];
+        } else {
+          // If a general network/auth error happens, load from local cache or static backup
+          const cached = getLocalCache();
+          if (cached.length > 0) {
+            return cached;
+          }
+          console.warn('[ExerciseApi] Sem cache local, retornando banco estático de backup devido a falha.');
+          return fallbackExercises;
         }
-        throw err;
       }
+
+      // If data is empty (P0 newly created user issue / empty library), load cache/static backup
+      if (!data || data.length === 0) {
+        console.warn('[ExerciseApi] Consulta ao Supabase retornou vazia. Ativando recuperação.');
+        const cached = getLocalCache();
+        if (cached.length > 0) {
+          return cached;
+        }
+        console.warn('[ExerciseApi] Usando biblioteca estática de fábrica.');
+        return fallbackExercises;
+      }
+
+      // Normalize muscle groups on the fly to avoid taxonomy bugs
+      const normalizedExercises = data.map((ex) => ({
+        ...ex,
+        muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros')
+      })) as Exercise[];
+
+      // Populate local cache for offline/fresh users
+      setLocalCache(normalizedExercises);
+
+      if (import.meta.env.DEV) {
+        console.log(`[ExerciseApi] exercises carregados com sucesso: ${normalizedExercises.length} registros.`);
+      }
+
+      return normalizedExercises;
     });
   },
 
   async getPublicExercises() {
     return fetchWithRetry(async () => {
+      let data: any[] | null = null;
+      let error: any = null;
+
       try {
-        const { data, error } = await supabase.from('exercises')
+        const response = await supabase.from('exercises')
           .select('*')
           .eq('is_active', true)
           .order('name');
+        data = response.data;
+        error = response.error;
         if (error) throw error;
-        return (data || []) as Exercise[];
       } catch (err: any) {
+        console.error('[ExerciseApi] Erro principal ao carregar exercícios públicos:', err?.message || err);
         const isSchemaError = err.message?.includes('column') && err.message?.includes('schema cache');
         if (isSchemaError) {
-          const { data, error } = await supabase.from('exercises')
+          const response = await supabase.from('exercises')
             .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
             .eq('is_active', true)
             .order('name');
+          data = response.data;
+          error = response.error;
           if (error) throw error;
-          return (data || []) as Exercise[];
+        } else {
+          const cached = getLocalCache().filter(e => e.is_active);
+          if (cached.length > 0) {
+            return cached;
+          }
+          return fallbackExercises.filter(e => e.is_active);
         }
-        throw err;
       }
+
+      if (!data || data.length === 0) {
+        const cached = getLocalCache().filter(e => e.is_active);
+        if (cached.length > 0) {
+          return cached;
+        }
+        return fallbackExercises.filter(e => e.is_active);
+      }
+
+      const normalizedExercises = data.map((ex) => ({
+        ...ex,
+        muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros')
+      })) as Exercise[];
+
+      return normalizedExercises;
     });
   },
 
