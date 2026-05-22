@@ -34,6 +34,9 @@ import {
   Info
 } from 'lucide-react';
 import { WorkoutHistory, UserProfile, WorkoutCategory } from '../../types';
+import { athleteMemoryEngine } from '../../services/athleteMemoryEngine';
+import { authApi } from '../../lib/api/authApi';
+
 
 interface ProgressIntelligenceProps {
   history: WorkoutHistory[];
@@ -49,6 +52,21 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
   const [isAdvanced, setIsAdvanced] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'heatmap'>('overview');
   const [heatmapView, setHeatmapView] = useState<'front' | 'back'>('front');
+  const [athleteMemory, setAthleteMemory] = useState<any>(null);
+
+  React.useEffect(() => {
+    async function loadMem() {
+      try {
+        const u = await authApi.getUser();
+        if (u) {
+          const m = await athleteMemoryEngine.getMemory(u.id);
+          setAthleteMemory(m);
+        }
+      } catch (e) {}
+    }
+    loadMem();
+  }, [history]);
+
 
   // 1. READINESS SCORE CALCULATION
   const readiness = useMemo(() => {
@@ -302,6 +320,16 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
       };
     }
 
+    if (athleteMemory) {
+      const memoryInsights = athleteMemoryEngine.generateContextualInsights(athleteMemory, history);
+      if (memoryInsights && memoryInsights.length > 0) {
+        return {
+          text: memoryInsights[0],
+          tag: athleteMemory.training_personality || "Identidade"
+        };
+      }
+    }
+
     const weeklyDiffVal = calculatedStats.volChangePercent;
     if (weeklyDiffVal > 5) {
       return {
@@ -326,7 +354,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
       text: "Frequência excelente. Seu Readiness Score indica prontidão ideal para focar em quebras de marcas pessoais (PRs) hoje.",
       tag: "Prontidão"
     };
-  }, [history, calculatedStats]);
+  }, [history, calculatedStats, athleteMemory]);
 
   // TIMELINE OF EVOLUTIONS (MOCKED OFFLINE RECENT EVENTS)
   const evolutionTimeline = useMemo(() => {
@@ -467,6 +495,90 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
           </p>
         </div>
       </div>
+
+      {/* ATHLETE IDENTITY CARD (Whoop / Oura inspired memory profile) */}
+      {athleteMemory && (
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border border-slate-100 bg-white rounded-[2.5rem] p-6 space-y-5 shadow-sm"
+        >
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-slate-900 rounded-full flex items-center justify-center text-white">
+                <Fingerprint size={16} />
+              </div>
+              <div>
+                <h4 className="text-xs font-[1000] text-slate-900 uppercase tracking-tighter">Identidade de Treino</h4>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">
+                  Perfil de Memória do Atleta
+                </p>
+              </div>
+            </div>
+            {athleteMemory.training_personality && (
+              <span className="px-3 py-1 bg-slate-900 text-white rounded-full text-[8.5px] font-black uppercase tracking-widest">
+                {athleteMemory.training_personality}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-slate-50 flex items-center gap-3.5">
+              <div className="w-8 h-8 rounded-2xl bg-violet-50 flex items-center justify-center text-violet-500 shrink-0">
+                <Award size={15} />
+              </div>
+              <div>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Scoring Consistência</p>
+                <p className="text-sm font-black text-slate-900 mt-1 leading-none">{athleteMemory.consistency_score}%</p>
+              </div>
+            </div>
+
+            <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-slate-50 flex items-center gap-3.5">
+              <div className="w-8 h-8 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-500 shrink-0">
+                <Clock size={15} />
+              </div>
+              <div>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Horário Preferido</p>
+                <p className="text-sm font-black text-slate-900 mt-1 leading-none uppercase">{athleteMemory.preferred_training_time || 'Noite'}</p>
+              </div>
+            </div>
+
+            <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-slate-50 flex items-center gap-3.5">
+              <div className="w-8 h-8 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500 shrink-0">
+                <Target size={15} />
+              </div>
+              <div>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Descanso Médio</p>
+                <p className="text-sm font-black text-slate-900 mt-1 leading-none">{athleteMemory.average_rest_time || 90}s</p>
+              </div>
+            </div>
+
+            <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-slate-50 flex items-center gap-3.5">
+              <div className="w-8 h-8 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
+                <TrendingUp size={15} />
+              </div>
+              <div>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Tolerância Volume</p>
+                <p className="text-sm font-black text-slate-900 mt-1 leading-none uppercase">{athleteMemory.volume_tolerance || 'MODERADO'}</p>
+              </div>
+            </div>
+          </div>
+
+          {athleteMemory.favorite_exercises && athleteMemory.favorite_exercises.length > 0 && (
+            <div className="pt-2">
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-3">Exercícios de Assinatura</p>
+              <div className="flex flex-wrap gap-2">
+                {athleteMemory.favorite_exercises.slice(0, 3).map((exName: string, i: number) => (
+                  <span key={i} className="px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[9px] font-black text-slate-600 uppercase tracking-widest shadow-sm">
+                    {exName}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
+
 
       {/* 4. SUB-TABS SECTION AND CONTENT */}
       <div className="space-y-4">

@@ -308,3 +308,43 @@ export type ProgressionInput = {
   repsTarget: number;
   rpe: number;
 };
+
+export interface AthleteMemory {
+  user_id: string;
+  favorite_exercises: string[];
+  exercise_skip_patterns: Record<string, number>; // exercise_id -> skip count
+  average_rest_time: number;
+  weekly_frequency: number;
+  preferred_training_time: string; // e.g. "morning", "afternoon", "evening" or specific hours
+  average_rpe: number;
+  fatigue_patterns: Record<string, number>; // muscle -> fatigue level 0-100
+  recovery_profile: 'fast' | 'moderate' | 'slow';
+  consistency_score: number; // 0-100
+  volume_tolerance: 'low' | 'medium' | 'high';
+  preferred_workout_duration: number; // in mins
+  motivation_profile: 'disciplined' | 'dynamic' | 'goal_oriented' | 'calm';
+  most_successful_workout_split: string; // e.g., "AB", "ABC", "Push/Pull/Legs"
+  dropout_risk_score: number; // 0-100
+  last_motivation_state: string; // "high" | "moderate" | "low"
+  historical_adherence: number; // completion rate percentage (0-100)
+  preferred_ui_density: 'cozy' | 'compact';
+  training_personality: string; // e.g. "Perfeccionista", "Focado em Progressão", "Consistente Pragmático"
+  adaptation_level: number; // metric of how well user adapts 0-100
+  last_updated_at: string;
+}
+
+export interface ExercisePerformanceMemory {
+  user_id: string;
+  exercise_id: string;
+  previous_loads: number[];
+  rep_history: number[];
+  rpe_history: number[];
+  best_weight: number;
+  best_reps: number;
+  best_1rm: number;
+  best_execution_rpe: number;
+  average_rest_used: number;
+  last_completed_at: string | null;
+  fatigue_response: 'high' | 'moderate' | 'low';
+}
+

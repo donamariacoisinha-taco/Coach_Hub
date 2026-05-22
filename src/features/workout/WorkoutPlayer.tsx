@@ -41,6 +41,8 @@ import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 import { fetchWithRetry } from "../../lib/utils";
+import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../services/athleteMemoryEngine";
+
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
@@ -100,6 +102,19 @@ const SetCard = ({
     updateSetData(idx, 'weight', localWeight);
     setFocusedIdx(null);
     setIsInputFocused(false);
+    playSensoryTone('click');
+    playHapticFeedback('light');
+
+    // Track if load was reduced
+    try {
+      const parsedVal = parseFloat(localWeight.replace(',', '.'));
+      if (!isNaN(parsedVal) && parsedVal < setData.weight) {
+        const uId = localStorage.getItem('coach_rubi_user_id') || 'guest';
+        if (uId) {
+          athleteMemoryEngine.trackExerciseIntensityReduction(uId, setData.exercise_id);
+        }
+      }
+    } catch (e) {}
   };
 
   const commitReps = () => {
@@ -107,7 +122,10 @@ const SetCard = ({
     updateSetData(idx, 'reps', localReps);
     setFocusedIdx(null);
     setIsInputFocused(false);
+    playSensoryTone('click');
+    playHapticFeedback('light');
   };
+
 
   const handleKeyDown = (e: React.KeyboardEvent, commitFn: () => void) => {
     if (e.key === 'Enter') {
@@ -349,6 +367,30 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [lastSet, setLastSet] = useState<LastSetData | null>(null);
   const [previousSet, setPreviousSet] = useState<LastSetData | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [memoryLoadSuggestion, setMemoryLoadSuggestion] = useState<any>(null);
+
+  useEffect(() => {
+    async function fetchSuggestion() {
+      try {
+        const u = await authApi.getUser();
+        const activeEx = exercises && exercises[currentIndex];
+        if (u && activeEx?.exercise_id) {
+          const sug = await athleteMemoryEngine.predictLoadSuggestion(
+            u.id, 
+            activeEx.exercise_id, 
+            userLevel as any
+          );
+          setMemoryLoadSuggestion(sug);
+        } else {
+          setMemoryLoadSuggestion(null);
+        }
+      } catch (e) {
+        setMemoryLoadSuggestion(null);
+      }
+    }
+    fetchSuggestion();
+  }, [exercises, currentIndex, userLevel]);
+
   const [showExitModal, setShowExitModal] = useState(false);
   const [showEvolutionModal, setShowEvolutionModal] = useState(false);
   const [originalExercises, setOriginalExercises] = useState<WorkoutExercise[]>([]);
@@ -1340,6 +1382,34 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         if (finalExCount > 0) {
           await workoutApi.finishWorkout(currentHistoryId, finalDuration, finalExCount);
           
+          // Learn from Completed Session in Athlete Memory
+          try {
+            const mappedLogs = Object.entries(workoutPerformance).map(([exIdxStr, setsUntyped]) => {
+              const exIdx = parseInt(exIdxStr);
+              const ex = exercises[exIdx];
+              return {
+                exercise_id: ex?.exercise_id,
+                exercise_name: ex?.exercise_name_snapshot || ex?.exercise_name,
+                muscle_group: ex?.muscle_group,
+                sets: setsUntyped
+              };
+            }).filter(item => item.exercise_id);
+
+            await athleteMemoryEngine.learnFromWorkoutSession(
+              u.id,
+              currentHistoryId,
+              playerQuery?.data?.category?.name || "Treino Rubi",
+              finalDuration,
+              mappedLogs
+            );
+          } catch (memErr) {
+            console.error("[AthleteMemory] learning failed", memErr);
+          }
+
+          // Play pristine success bells and heavy haptics
+          playSensoryTone('success');
+          playHapticFeedback('success');
+          
           // UPDATE PROGRESSION FROM LOGS (Source of Truth)
           await workoutApi.updateProgressionFromLogs(u.id, currentHistoryId);
           
@@ -1360,6 +1430,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           }
         } else {
           // If no exercises recorded, just abandon it to keep history clean
+          await athleteMemoryEngine.trackWorkoutAbandonment(u.id);
           await workoutApi.abandonWorkout(currentHistoryId);
           if (user) await workoutApi.clearPartialSession(user.id);
           cacheStore.clear(`workout_init_${workoutId}`);
@@ -1368,6 +1439,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           showSuccess("Sessão vazia descartada.");
         }
       } else {
+        // Track abandonment
+        try {
+          await athleteMemoryEngine.trackWorkoutAbandonment(u.id);
+          playSensoryTone('warning');
+        } catch (e) {}
         await workoutApi.abandonWorkout(currentHistoryId);
         if (user) await workoutApi.clearPartialSession(user.id);
         cacheStore.clear(`workout_init_${workoutId}`);
@@ -1794,22 +1870,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
               {/* FEEDBACK INTELIGENTE (IA) */}
               <AnimatePresence mode="wait">
-                {(feedback || preHint) && !isAdvanced && (
+                {(feedback || memoryLoadSuggestion?.message || preHint) && !isAdvanced && (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     className="px-4 mb-4"
                   >
-                    <div className="bg-blue-600 p-6 rounded-[2.5rem] flex items-start gap-4 shadow-xl shadow-blue-500/20">
-                      <Zap size={20} className="text-white fill-white mt-1 flex-shrink-0" />
-                      <p className="text-sm font-bold text-white leading-relaxed">
-                        {feedback || preHint}
+                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] flex items-start gap-4 shadow-xl">
+                      <Zap size={20} className="text-orange-500 fill-orange-500 mt-1 flex-shrink-0" />
+                      <p className="text-sm font-bold text-slate-100 leading-relaxed">
+                        {feedback || memoryLoadSuggestion?.message || preHint}
                       </p>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
+
 
               {/* NAVIGATION BETWEEN EXERCISES */}
               <div className="flex justify-between px-8 mt-12 mb-8">
