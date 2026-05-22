@@ -16,12 +16,7 @@ async function startServer() {
   // Gemini Client Initialization
   const apiKey = process.env.GEMINI_API_KEY;
   const ai = new GoogleGenAI({
-    apiKey: apiKey || "",
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      }
-    }
+    apiKey: apiKey || ""
   });
 
   const getGenAI = () => {
@@ -201,7 +196,8 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    // Express 5 catch-all pattern
+    app.get('*all', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

@@ -1,54 +1,61 @@
 
 import { supabase } from './supabase';
 import { Exercise, MuscleGroup } from '../../types';
+import { fetchWithRetry } from '../utils';
 
 export const exerciseApi = {
   async getExercises() {
-    try {
-      const { data, error } = await supabase.from('exercises').select('*').order('name');
-      if (error) throw error;
-      return (data || []) as Exercise[];
-    } catch (err: any) {
-      const isSchemaError = err.message?.includes('column') && err.message?.includes('schema cache');
-      if (isSchemaError) {
-        console.warn('[DB] Fallback ativado devido a erro de schema cache:', err.message);
-        // Tenta buscar apenas colunas essenciais que sabemos que existem
-        const { data, error } = await supabase.from('exercises')
-          .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
-          .order('name');
+    return fetchWithRetry(async () => {
+      try {
+        const { data, error } = await supabase.from('exercises').select('*').order('name');
         if (error) throw error;
         return (data || []) as Exercise[];
+      } catch (err: any) {
+        const isSchemaError = err.message?.includes('column') && err.message?.includes('schema cache');
+        if (isSchemaError) {
+          console.warn('[DB] Fallback ativado devido a erro de schema cache:', err.message);
+          // Tenta buscar apenas colunas essenciais que sabemos que existem
+          const { data, error } = await supabase.from('exercises')
+            .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
+            .order('name');
+          if (error) throw error;
+          return (data || []) as Exercise[];
+        }
+        throw err;
       }
-      throw err;
-    }
+    });
   },
 
   async getPublicExercises() {
-    try {
-      const { data, error } = await supabase.from('exercises')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      return (data || []) as Exercise[];
-    } catch (err: any) {
-      const isSchemaError = err.message?.includes('column') && err.message?.includes('schema cache');
-      if (isSchemaError) {
+    return fetchWithRetry(async () => {
+      try {
         const { data, error } = await supabase.from('exercises')
-          .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
+          .select('*')
           .eq('is_active', true)
           .order('name');
         if (error) throw error;
         return (data || []) as Exercise[];
+      } catch (err: any) {
+        const isSchemaError = err.message?.includes('column') && err.message?.includes('schema cache');
+        if (isSchemaError) {
+          const { data, error } = await supabase.from('exercises')
+            .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
+            .eq('is_active', true)
+            .order('name');
+          if (error) throw error;
+          return (data || []) as Exercise[];
+        }
+        throw err;
       }
-      throw err;
-    }
+    });
   },
 
   async getMuscleGroups() {
-    const { data, error } = await supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true });
-    if (error) throw error;
-    return (data || []) as MuscleGroup[];
+    return fetchWithRetry(async () => {
+      const { data, error } = await supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true });
+      if (error) throw error;
+      return (data || []) as MuscleGroup[];
+    });
   },
 
   async getFavorites(userId: string) {

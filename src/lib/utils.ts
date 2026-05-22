@@ -14,14 +14,20 @@ export async function fetchWithRetry<T>(
   try {
     return await fn();
   } catch (err: any) {
+    const message = typeof err === 'string' ? err : err?.message || '';
+    const status = err?.status !== undefined ? err.status : (err?.statusCode || -1);
+
     const isNetworkError = 
-      err?.message?.includes('Failed to fetch') || 
-      err?.message?.includes('network') ||
-      err?.message?.includes('load') ||
-      err?.status === 0;
+      message.includes('Failed to fetch') || 
+      message.includes('network') ||
+      message.includes('load') ||
+      message.toLowerCase().includes('aborted') ||
+      status === 0 ||
+      status === 503 ||
+      status === 504;
 
     if (retries > 0 && isNetworkError) {
-      console.warn(`[RETRY] Fetch failed. Retrying in ${interval}ms... (${retries} left)`);
+      console.warn(`[RETRY] Fetch failed: ${message.substring(0, 50)}. Retrying in ${interval}ms... (${retries} left)`);
       await new Promise(resolve => setTimeout(resolve, interval));
       return fetchWithRetry(
         fn, 

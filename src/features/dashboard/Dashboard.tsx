@@ -214,7 +214,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
         showSuccess('EKE Ativada', 'O motor inteligente montou seu treino personalizado.');
         useWorkoutStore.getState().resetWorkout();
-        navigate('workout', { id: category.id });
+        navigate('preparation', { id: category.id });
     } catch (err: any) {
         showError(err);
     } finally {
@@ -302,7 +302,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                   <button 
                     onClick={() => {
                       useWorkoutStore.getState().resetWorkout();
-                      navigate('workout', { id: nextAction.suggestedWorkoutId });
+                      navigate('preparation', { id: nextAction.suggestedWorkoutId });
                     }}
                     onMouseEnter={() => handlePrefetchWorkout(nextAction.suggestedWorkoutId!)}
                     className="w-full py-6 bg-slate-900 text-white rounded-full font-black uppercase text-[11px] tracking-[0.4em] active:scale-[0.97] transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3"
@@ -388,7 +388,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                       onClick={() => {
                       if (!isOptimistic) {
                         useWorkoutStore.getState().resetWorkout();
-                        navigate('workout', { id: workout.id });
+                        navigate('preparation', { id: workout.id });
                       }
                     }}
                       onMouseEnter={() => !isOptimistic && handlePrefetchWorkout(workout.id)}
@@ -442,7 +442,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         <button 
                           onClick={() => {
                             useWorkoutStore.getState().resetWorkout();
-                            navigate('workout', { id: workout.id });
+                            navigate('preparation', { id: workout.id });
                           }}
                           className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
                         >

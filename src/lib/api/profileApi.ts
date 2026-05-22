@@ -1,31 +1,40 @@
 
 import { supabase } from './supabase';
 import { UserProfile, BodyMeasurement } from '../../types';
+import { fetchWithRetry } from '../utils';
 
 export const profileApi = {
   async getProfile(userId: string) {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-    if (error) throw error;
-    return data as UserProfile | null;
+    return fetchWithRetry(async () => {
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+      if (error) throw error;
+      return data as UserProfile | null;
+    });
   },
 
   async updateStreak(userId: string, streak: number) {
-    const { error } = await supabase.from('profiles').update({ workout_streak: streak }).eq('id', userId);
-    if (error) throw error;
+    return fetchWithRetry(async () => {
+      const { error } = await supabase.from('profiles').update({ workout_streak: streak }).eq('id', userId);
+      if (error) throw error;
+    });
   },
 
   async updateWeight(userId: string, weight: number) {
-    const { error } = await supabase.from('profiles').update({ weight }).eq('id', userId);
-    if (error) throw error;
+    return fetchWithRetry(async () => {
+      const { error } = await supabase.from('profiles').update({ weight }).eq('id', userId);
+      if (error) throw error;
+    });
   },
 
   async updateProfile(userId: string, payload: Partial<UserProfile>) {
-    // We use upsert to ensure it works even if the profile was not yet created
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({ ...payload, id: userId })
-      .eq('id', userId);
-    if (error) throw error;
+    return fetchWithRetry(async () => {
+      // We use upsert to ensure it works even if the profile was not yet created
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({ ...payload, id: userId })
+        .eq('id', userId);
+      if (error) throw error;
+    });
   },
 
   async ensureProfile(userId: string) {

@@ -17,7 +17,9 @@ import {
   ArrowRight,
   Target,
   Flame,
-  Award
+  Award,
+  Sparkles,
+  Dumbbell
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "../../lib/api/supabase";
@@ -348,6 +350,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [previousSet, setPreviousSet] = useState<LastSetData | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showEvolutionModal, setShowEvolutionModal] = useState(false);
+  const [originalExercises, setOriginalExercises] = useState<WorkoutExercise[]>([]);
   const [isFinished, setIsFinished] = useState(false);
   const [isSavedSuccessfully, setIsSavedSuccessfully] = useState(false);
   const [workoutDuration, setWorkoutDuration] = useState(0);
@@ -642,8 +646,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       await workoutApi.upsertPartialSession(user.id, workoutId, sessionData.historyId, new Date(sessionData.startTime).toISOString());
     }
 
+    let exercisesToUse = loadedExercises;
+    const tempKey = `workout_session_temp_${workoutId}`;
+    const localSaved = localStorage.getItem(tempKey);
+    if (localSaved) {
+      try {
+        const parsed = JSON.parse(localSaved);
+        if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+          exercisesToUse = parsed;
+        }
+      } catch (e) {
+        console.warn("Failed to load pre-planned exercises", e);
+      }
+    }
+
     return {
-      exercises: loadedExercises,
+      exercises: exercisesToUse,
+      originalExercises: loadedExercises,
       ...sessionData
     };
   }, { revalidateOnFocus: false });
@@ -688,6 +707,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         currentIndex: playerQuery.data.currentIndex,
         currentSet: playerQuery.data.currentSet
       });
+      if (playerQuery.data.originalExercises) {
+        setOriginalExercises(playerQuery.data.originalExercises);
+      }
     } else if (playerQuery.data && !playerQuery.data.historyId) {
       playerQuery.refresh();
     }
@@ -695,6 +717,108 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const currentEx = useMemo(() => (exercises && exercises[currentIndex]) || null, [exercises, currentIndex]);
   const nextEx = useMemo(() => (exercises && exercises[currentIndex + 1]) || null, [exercises, currentIndex]);
+
+  const sessionDiff = useMemo(() => {
+    if (!originalExercises || originalExercises.length === 0 || !exercises || exercises.length === 0) {
+      return { hasChanges: false, diffs: [] as string[] };
+    }
+
+    const diffsList: string[] = [];
+    let changed = false;
+
+    // 1. Order changed?
+    const origIds = originalExercises.map(ex => ex.exercise_id);
+    const activeIds = exercises.map(ex => ex.exercise_id);
+    const isSameSet = origIds.length === activeIds.length && 
+                      origIds.every(id => activeIds.includes(id));
+    const orderChanged = isSameSet && origIds.some((id, idx) => id !== activeIds[idx]);
+    
+    if (orderChanged) {
+      diffsList.push("Ordem dos exercícios alterada");
+      changed = true;
+    }
+
+    // 2. Exercise substitutions / added / removed
+    const substitutedNames: string[] = [];
+    exercises.forEach((ex) => {
+      if (ex.id) {
+        const orig = originalExercises.find(o => o.id === ex.id);
+        if (orig && orig.exercise_id !== ex.exercise_id) {
+          substitutedNames.push(ex.exercise_name);
+        }
+      }
+    });
+
+    if (substitutedNames.length > 0) {
+      diffsList.push(`Substituição de exercício realizada (${substitutedNames.join(', ')})`);
+      changed = true;
+    }
+
+    const addedCount = exercises.filter(ex => !ex.id).length;
+    if (addedCount > 0) {
+      diffsList.push(`${addedCount} novos exercícios adicionados`);
+      changed = true;
+    }
+
+    const activeIdsSet = new Set(exercises.map(ex => ex.id).filter(Boolean));
+    const removedCount = originalExercises.filter(ex => ex.id && !activeIdsSet.has(ex.id)).length;
+    if (removedCount > 0) {
+      diffsList.push(`${removedCount} exercícios removidos da ficha`);
+      changed = true;
+    }
+
+    // 3. Weight/Carga adjustments
+    const weightChanges: string[] = [];
+    exercises.forEach((ex) => {
+      if (ex.id) {
+        const orig = originalExercises.find(o => o.id === ex.id);
+        if (orig && orig.weight !== ex.weight) {
+          weightChanges.push(`${ex.exercise_name} para ${ex.weight}kg`);
+        }
+      }
+    });
+    if (weightChanges.length > 0) {
+      diffsList.push(`Carga base ajustada (${weightChanges.join(', ')})`);
+      changed = true;
+    }
+
+    // 4. Rest adjustments
+    const restChanges: string[] = [];
+    exercises.forEach((ex) => {
+      if (ex.id) {
+        const orig = originalExercises.find(o => o.id === ex.id);
+        if (orig && orig.rest_time !== ex.rest_time) {
+          restChanges.push(`${ex.exercise_name} para ${ex.rest_time}s`);
+        }
+      }
+    });
+    if (restChanges.length > 0) {
+      diffsList.push(`Tempo de descanso alterado (${restChanges.join(', ')})`);
+      changed = true;
+    }
+
+    // 5. Sets/reps count target adjustments
+    const targetChanges: string[] = [];
+    exercises.forEach((ex) => {
+      if (ex.id) {
+        const orig = originalExercises.find(o => o.id === ex.id);
+        const originalSets = orig ? (orig.sets_json?.length || orig.sets || 3) : 3;
+        const activeSets = ex.sets_json?.length || ex.sets || 3;
+        if (orig && (orig.reps !== ex.reps || originalSets !== activeSets)) {
+          targetChanges.push(`${ex.exercise_name}`);
+        }
+      }
+    });
+    if (targetChanges.length > 0) {
+      diffsList.push(`Target de Séries/Reps de ${targetChanges.join(', ')}`);
+      changed = true;
+    }
+
+    return {
+      hasChanges: changed,
+      diffs: diffsList
+    };
+  }, [originalExercises, exercises]);
 
   // Failsafe & Consistency Guard
   useEffect(() => {
@@ -1080,20 +1204,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       });
 
       log("[SET_SAVED] Progress recorded");
-
-      // CRITICAL PERSISTENCE: Also update the template immediately for this exercise 
-      // to ensure that even if the user exits abruptly, their changes to weight/reps are saved for next time.
-      const formattedSetsForTemplate = activeSetsData.map(s => ({
-        weight: typeof s.weight === 'string' ? parseFloat(s.weight) : s.weight,
-        reps: s.reps.toString(),
-        rest_time: currentEx.rest_time || 60,
-        type: SetType.NORMAL
-      }));
-      
-      if (currentEx.id) {
-        await workoutApi.updateWorkoutExerciseSets(currentEx.id, formattedSetsForTemplate);
-        log("[TEMPLATE_AUTO_SYNC_SUCCESS]");
-      }
     } catch (err) {
       log("[SET_SAVE_ERROR]", err);
       showError(err);
@@ -1185,32 +1295,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setIsSavedSuccessfully(true);
       setTimeout(() => setIsSavedSuccessfully(false), 3000);
 
-      // 5. Update template and progressions (Synchronous and Critical)
+      // 5. Update global progressions (Critical)
       try {
-        // Update global progressions first
         await workoutApi.updateProgressionFromLogs(userId, histId);
-        
-        // Update the specific workout exercises (the template)
-        const updatePromises = Object.entries(finalPerformance).map(([idx, setsUntyped]) => {
-          const sets = setsUntyped as {weight: number, reps: number, rpe: number}[];
-          const ex = exercises[parseInt(idx)];
-          if (!ex?.id) return Promise.resolve();
-          
-          // Map to SetConfig format
-          const formattedSets = sets.map(s => ({
-            weight: typeof s.weight === 'string' ? parseFloat(s.weight) : s.weight,
-            reps: s.reps.toString(),
-            rest_time: ex.rest_time || 60,
-            type: SetType.NORMAL
-          }));
-          
-          return workoutApi.updateWorkoutExerciseSets(ex.id, formattedSets);
-        });
-        
-        await Promise.all(updatePromises);
-        log("[TEMPLATE_UPDATE_SUCCESS]");
+        log("[PROGRESSIONS_UPDATE_SUCCESS]");
       } catch (err) {
-        log("[TEMPLATE_UPDATE_FAIL]", err);
+        log("[PROGRESSIONS_UPDATE_FAIL]", err);
       }
 
       log("[SAVE_WORKOUT_SUCCESS]");
@@ -1221,6 +1311,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   };
 
   const finishWorkout = async (isSuccess: boolean) => {
+    // Clear temporary workout planning session cache
+    localStorage.removeItem(`workout_session_temp_${workoutId}`);
+
     const currentStore = useWorkoutStore.getState();
     const currentHistoryId = currentStore.historyId;
     const currentStartTime = currentStore.startTime;
@@ -1258,9 +1351,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           
           cacheStore.clear(`workout_init_${workoutId}`);
           setWorkoutDuration(finalDuration);
-          setIsWorkoutComplete(true);
-          setIsFinished(true);
-          showSuccess("Treino salvo com sucesso!");
+          if (sessionDiff.hasChanges) {
+            setShowEvolutionModal(true);
+          } else {
+            setIsWorkoutComplete(true);
+            setIsFinished(true);
+            showSuccess("Treino salvo com sucesso!");
+          }
         } else {
           // If no exercises recorded, just abandon it to keep history clean
           await workoutApi.abandonWorkout(currentHistoryId);
@@ -1283,6 +1380,113 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setFinishing(false);
       setShowExitModal(false);
     }
+  };
+
+  const handleApplyTemplateEvolution = async () => {
+    setSaving(true);
+    try {
+      const u = await authApi.getUser();
+      if (!u) throw new Error("Usuário não autenticado");
+
+      // 1. Process active exercises in their new sequence
+      for (let index = 0; index < exercises.length; index++) {
+        const ex = exercises[index];
+        const numSets = ex.sets_json?.length || ex.sets || 3;
+        const targetReps = ex.reps?.toString() || "10";
+        const targetWeight = typeof ex.weight === 'string' ? parseFloat(ex.weight) : (ex.weight || 0);
+        const targetRest = ex.rest_time || 60;
+
+        if (ex.id) {
+          // Existed in original template -> Update granularly
+          const orig = originalExercises.find(o => o.id === ex.id);
+          const patch: any = {};
+          if (orig) {
+            if (orig.exercise_id !== ex.exercise_id) {
+              patch.exercise_id = ex.exercise_id;
+              patch.exercise_name_snapshot = ex.exercise_name;
+            }
+            if (orig.sort_order !== index) {
+              patch.sort_order = index;
+            }
+            if (orig.sets !== numSets) {
+              patch.sets = numSets;
+            }
+            if (orig.reps !== targetReps) {
+              patch.reps = targetReps;
+            }
+            if (orig.weight !== targetWeight) {
+              patch.weight = targetWeight;
+            }
+            if (orig.rest_time !== targetRest) {
+              patch.rest_time = targetRest;
+            }
+
+            const baseSetsJson = Array.from({ length: numSets }).map(() => ({
+              reps: targetReps,
+              weight: targetWeight,
+              rest_time: targetRest,
+              type: SetType.NORMAL
+            }));
+
+            if (JSON.stringify(orig.sets_json) !== JSON.stringify(baseSetsJson)) {
+              patch.sets_json = baseSetsJson;
+            }
+
+            if (Object.keys(patch).length > 0) {
+              const { error } = await supabase.from('workout_exercises').update(patch).eq('id', ex.id);
+              if (error) throw error;
+            }
+          }
+        } else {
+          // Newly added exercise -> Create row
+          const newRow = {
+            category_id: workoutId,
+            exercise_id: ex.exercise_id,
+            sort_order: index,
+            sets: numSets,
+            reps: targetReps,
+            weight: targetWeight,
+            rest_time: targetRest,
+            sets_json: Array.from({ length: numSets }).map(() => ({
+              reps: targetReps,
+              weight: targetWeight,
+              rest_time: targetRest,
+              type: SetType.NORMAL
+            })),
+            exercise_name_snapshot: ex.exercise_name || 'Exercício'
+          };
+          const { error } = await supabase.from('workout_exercises').insert([newRow]);
+          if (error) throw error;
+        }
+      }
+
+      // 2. Remove deleted exercises
+      const activeIdsSet = new Set(exercises.map(ex => ex.id).filter(Boolean));
+      const removedExercises = originalExercises.filter(ex => ex.id && !activeIdsSet.has(ex.id));
+      for (const rem of removedExercises) {
+        const { error } = await supabase.from('workout_exercises').delete().eq('id', rem.id);
+        if (error) throw error;
+      }
+
+      showSuccess("Ficha de treino atualizada com sucesso!");
+      cacheStore.clear(`workout_init_${workoutId}`);
+      
+      setShowEvolutionModal(false);
+      setIsWorkoutComplete(true);
+      setIsFinished(true);
+    } catch (err) {
+      log("[TEMPLATE_EVOLUTION_ERROR]", err);
+      showError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDiscardTemplateEvolution = () => {
+    setShowEvolutionModal(false);
+    setIsWorkoutComplete(true);
+    setIsFinished(true);
+    showSuccess("Alterações salvas apenas para hoje!");
   };
 
   const formatTime = (s: number) => {
@@ -1849,6 +2053,80 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     className="w-full py-2 text-slate-300 font-black text-[10px] uppercase tracking-widest hover:text-slate-500 transition-colors"
                   >
                     Cancelar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE EVOLUÇÃO DA FICHA */}
+      <AnimatePresence>
+        {showEvolutionModal && (
+          <div className="fixed inset-0 z-[1400] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => handleDiscardTemplateEvolution()} 
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.9, opacity: 0, y: 20 }} 
+              className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl relative z-10 border border-slate-100/50 overflow-hidden"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-violet-50 border border-violet-100 rounded-full flex items-center justify-center mb-6 shadow-inner relative">
+                  <Sparkles size={28} className="text-violet-600 animate-pulse" />
+                  <span className="absolute -top-1 -right-1 bg-violet-600 text-[8px] font-black uppercase text-white px-2 py-0.5 rounded-full tracking-wider animate-bounce">
+                    Novo
+                  </span>
+                </div>
+                
+                <h3 className="text-xl font-[1000] text-slate-800 tracking-tight leading-6 mb-2">
+                  Salvar alterações no treino original?
+                </h3>
+                
+                <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-6">
+                  Você ajustou este treino durante a sessão. Deseja transformar essas alterações no novo padrão da ficha?
+                </p>
+
+                {/* Box de Resumo de Mudanças */}
+                <div className="w-full bg-slate-50 border border-slate-200/50 rounded-3xl p-4 mb-8 text-left space-y-2.5 max-h-[160px] overflow-y-auto custom-scrollbar">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                    <Dumbbell size={11} className="text-violet-500" strokeWidth={3} /> Alterações detectadas:
+                  </p>
+                  {sessionDiff.diffs.map((diff, dIdx) => (
+                    <motion.div 
+                      key={dIdx} 
+                      initial={{ opacity: 0, x: -10 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      transition={{ delay: dIdx * 0.08 }}
+                      className="flex items-start gap-2 text-slate-700 text-xs font-bold animate-fadeIn"
+                    >
+                      <Check size={14} className="text-violet-500 shrink-0 mt-0.5" strokeWidth={3} />
+                      <span className="leading-tight text-slate-655">{diff}</span>
+                    </motion.div>
+                  ))}
+                </div>
+                
+                <div className="w-full space-y-3">
+                  <button 
+                    onClick={() => handleApplyTemplateEvolution()} 
+                    disabled={saving}
+                    className="w-full py-4 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-violet-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 border border-violet-700/10"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Atualizar ficha"}
+                  </button>
+                  <button 
+                    onClick={() => handleDiscardTemplateEvolution()} 
+                    disabled={saving}
+                    className="w-full py-4 bg-white border border-slate-100 hover:bg-slate-50 text-slate-400 hover:text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center"
+                  >
+                    Manter apenas hoje
                   </button>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 
 import { supabase } from './supabase';
 import { Exercise } from '../../types';
+import { fetchWithRetry } from '../utils';
 
 export const ekeApi = {
   /**
@@ -11,62 +12,66 @@ export const ekeApi = {
     progressionAchieved: boolean,
     volumeTrend: 'up' | 'down' | 'stable'
   }) {
-    const { data: ex, error: fetchError } = await supabase
-      .from('exercises')
-      .select('performance_score, usage_count')
-      .eq('id', exerciseId)
-      .single();
+    return fetchWithRetry(async () => {
+      const { data: ex, error: fetchError } = await supabase
+        .from('exercises')
+        .select('performance_score, usage_count')
+        .eq('id', exerciseId)
+        .single();
 
-    if (fetchError) throw fetchError;
+      if (fetchError) throw fetchError;
 
-    let scoreChange = 1; // Base point for using it
-    if (stats.completedAllSets) scoreChange += 2;
-    if (stats.progressionAchieved) scoreChange += 5;
-    if (stats.volumeTrend === 'up') scoreChange += 2;
-    if (stats.volumeTrend === 'down') scoreChange -= 1;
+      let scoreChange = 1; // Base point for using it
+      if (stats.completedAllSets) scoreChange += 2;
+      if (stats.progressionAchieved) scoreChange += 5;
+      if (stats.volumeTrend === 'up') scoreChange += 2;
+      if (stats.volumeTrend === 'down') scoreChange -= 1;
 
-    const newScore = Math.min(100, Math.max(0, (ex.performance_score || 50) + scoreChange));
-    const newUsageCount = (ex.usage_count || 0) + 1;
+      const newScore = Math.min(100, Math.max(0, (ex.performance_score || 50) + scoreChange));
+      const newUsageCount = (ex.usage_count || 0) + 1;
 
-    const { error: updateError } = await supabase
-      .from('exercises')
-      .update({ 
-        performance_score: newScore,
-        usage_count: newUsageCount,
-        last_used_at: new Date().toISOString()
-      })
-      .eq('id', exerciseId);
+      const { error: updateError } = await supabase
+        .from('exercises')
+        .update({ 
+          performance_score: newScore,
+          usage_count: newUsageCount,
+          last_used_at: new Date().toISOString()
+        })
+        .eq('id', exerciseId);
 
-    if (updateError) throw updateError;
-    
-    return { exerciseId, newScore, newUsageCount };
+      if (updateError) throw updateError;
+      
+      return { exerciseId, newScore, newUsageCount };
+    });
   },
 
   /**
    * Fetches all relevant exercises for EKE ranking.
    */
   async getExercisesForEke() {
-    try {
-      const { data, error } = await supabase
-        .from('exercises')
-        .select('*')
-        .eq('is_active', true);
-      
-      if (error) throw error;
-      return data as Exercise[];
-    } catch (err: any) {
-      if (err.message?.includes('column') && err.message?.includes('schema cache')) {
-        console.warn('[EKE] Fallback ativado em getExercisesForEke:', err.message);
-        // Fallback: exclude the new EKE columns if they are missing
+    return fetchWithRetry(async () => {
+      try {
         const { data, error } = await supabase
           .from('exercises')
-          .select('id, name, muscle_group, is_active')
+          .select('*')
           .eq('is_active', true);
+        
         if (error) throw error;
         return data as Exercise[];
+      } catch (err: any) {
+        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
+          console.warn('[EKE] Fallback ativado em getExercisesForEke:', err.message);
+          // Fallback: exclude the new EKE columns if they are missing
+          const { data, error } = await supabase
+            .from('exercises')
+            .select('id, name, muscle_group, is_active')
+            .eq('is_active', true);
+          if (error) throw error;
+          return data as Exercise[];
+        }
+        throw err;
       }
-      throw err;
-    }
+    });
   },
 
   async logDecision(payload: any) {

@@ -6,6 +6,7 @@ import SmartOnboarding from './features/onboarding/SmartOnboarding';
 import Dashboard from './features/dashboard/Dashboard';
 import WorkoutPlayer from './features/workout/WorkoutPlayer';
 import WorkoutEditor from './components/WorkoutEditor';
+import { WorkoutPreparation } from './components/WorkoutPreparation';
 import AdminPanelV2 from './features/admin/AdminPanelV2';
 import HistoryView from './components/HistoryView';
 import ProfileViewV2 from './features/user/ProfileViewV2';
@@ -29,7 +30,7 @@ import { NavItem } from './components/ui/NavItem';
 import { isAdmin } from './lib/utils/auth';
 import { ekeService } from './domain/eke/ekeService';
 
-type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'editor' | 'history' | 'admin' | 'profile' | 'library';
+type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'preparation' | 'editor' | 'history' | 'admin' | 'profile' | 'library';
 type Theme = 'classic' | 'light' | 'aggressive' | 'bloom' | 'neon-strike';
 
 interface NavigationState { view: View; params: any; }
@@ -54,6 +55,7 @@ const getPathFromState = (view: View, params: any) => {
     case 'landing': return '/';
     case 'dashboard': return '/dashboard';
     case 'workout': return params.id ? `/workout/${params.id}` : '/workout';
+    case 'preparation': return params.id ? `/preparation/${params.id}` : '/preparation';
     case 'editor': return params.id ? `/editor/${params.id}` : '/editor';
     case 'profile': return '/profile';
     case 'history': return '/history';
@@ -71,7 +73,7 @@ const getStateFromUrl = (): NavigationState => {
   if (parts.length === 0) return { view: 'landing', params: {} };
   const view = parts[0] as View;
   const id = parts[1];
-  const validViews: View[] = ['auth', 'onboarding', 'dashboard', 'workout', 'editor', 'history', 'admin', 'profile', 'library'];
+  const validViews: View[] = ['auth', 'onboarding', 'dashboard', 'workout', 'preparation', 'editor', 'history', 'admin', 'profile', 'library'];
   if (validViews.includes(view)) return { view, params: id ? { id } : {} };
   return { view: 'landing', params: {} };
 };
@@ -270,7 +272,7 @@ const App: React.FC = () => {
     </div>
   );
 
-  const isImmersive = ['workout', 'onboarding', 'editor', 'landing', 'auth'].includes(navState.view);
+  const isImmersive = ['workout', 'preparation', 'onboarding', 'editor', 'landing', 'auth'].includes(navState.view);
 
   return (
     <ErrorProvider>
@@ -367,6 +369,7 @@ const App: React.FC = () => {
                 {navState.view === 'onboarding' && <SmartOnboarding />}
                 {navState.view === 'dashboard' && <Dashboard />}
                 {navState.view === 'workout' && <WorkoutPlayer workoutId={navState.params.id} />}
+                {navState.view === 'preparation' && <WorkoutPreparation workoutId={navState.params.id} />}
                 {navState.view === 'editor' && <WorkoutEditor workoutId={navState.params.id} />}
                 {navState.view === 'history' && <HistoryView />}
                 {navState.view === 'library' && <ExerciseLibrary />}
