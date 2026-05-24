@@ -433,4 +433,46 @@ export function normalizeMuscleGroup(mg: string): string {
   return mg.charAt(0).toUpperCase() + mg.slice(1);
 }
 
+export function getVirtualAnatomicalCut(mg: string, name: string): string | undefined {
+  if (!mg) return undefined;
+  const clean = mg.trim().toLowerCase();
+  const cleanName = name.toLowerCase();
+  
+  // Braços cuts: 'Bíceps', 'Tríceps', 'Antebraço'
+  if (clean.includes('bicep') || clean.includes('bíceps')) return 'Bíceps';
+  if (clean.includes('tricep') || clean.includes('tríceps')) return 'Tríceps';
+  if (clean.includes('antebraço') || clean.includes('antebraco')) return 'Antebraço';
+  
+  // Pernas cuts: 'Quadríceps', 'Posterior', 'Glúteo', 'Panturrilha'
+  if (clean.includes('quadriceps') || clean.includes('quadríceps')) return 'Quadríceps';
+  if (clean.includes('posterior') || clean.includes('isquios')) return 'Posterior';
+  if (clean.includes('panturrilha') || clean.includes('gêmeos')) return 'Panturrilha';
+  if (clean.includes('glúteo') || clean.includes('gluteo') || clean.includes('glúteos')) return 'Glúteo';
+  
+  // Abdômen cuts: 'Superior', 'Inferior', 'Oblíquos'
+  if (clean.includes('oblíquo') || clean.includes('obliquo')) return 'Oblíquos';
+  
+  // Fallbacks based on exercise name keywords
+  if (cleanName.includes('biceps') || cleanName.includes('rosca') || cleanName.includes('bíceps')) return 'Bíceps';
+  if (cleanName.includes('tricep') || cleanName.includes('tríceps') || cleanName.includes('testa') || cleanName.includes('coice') || cleanName.includes('french') || cleanName.includes('francês')) return 'Tríceps';
+  if (cleanName.includes('panturrilha') || cleanName.includes('gêmeos') || cleanName.includes('gemeos') || cleanName.includes('galeos') || cleanName.includes('calf')) return 'Panturrilha';
+  if (cleanName.includes('stiff') || cleanName.includes('flexor') || cleanName.includes('flexora') || cleanName.includes('curl') || cleanName.includes('mesa flexora')) return 'Posterior';
+  if (cleanName.includes('agachamento') || cleanName.includes('extensor') || cleanName.includes('extensora') || cleanName.includes('leg press') || cleanName.includes('hacker') || cleanName.includes('squat')) return 'Quadríceps';
+  if (cleanName.includes('gluteo') || cleanName.includes('glúteo') || cleanName.includes('elevação pélvica') || cleanName.includes('elevacao pelvica') || cleanName.includes('afundo') || cleanName.includes('búlgaro')) return 'Glúteo';
+  if (cleanName.includes('abdominal') || cleanName.includes('supra') || cleanName.includes('crunch') || cleanName.includes('prancha')) return 'Superior';
+  if (cleanName.includes('infra') || cleanName.includes('elevação de pernas') || cleanName.includes('elevacao de pernas')) return 'Inferior';
+  if (cleanName.includes('oblíquo') || cleanName.includes('obliquo') || cleanName.includes('rotacional') || cleanName.includes('twist')) return 'Oblíquos';
+
+  // Specific db fields mapping
+  if (clean === 'perna') {
+    if (cleanName.includes('flexor') || cleanName.includes('flexora') || cleanName.includes('stiff')) return 'Posterior';
+    if (cleanName.includes('glúteo') || cleanName.includes('gluteo') || cleanName.includes('pélvica') || cleanName.includes('pelvica') || cleanName.includes('afundo') || cleanName.includes('búlgaro')) return 'Glúteo';
+    if (cleanName.includes('panturrilha') || cleanName.includes('gêmeos')) return 'Panturrilha';
+    return 'Quadríceps';
+  }
+  
+  return undefined;
+}
+
+
 

@@ -7,9 +7,8 @@ export const MUSCLE_GROUPS = [
   'Costas',
   'Pernas',
   'Ombros',
-  'Bíceps',
-  'Tríceps',
-  'Abdominais'
+  'Braços',
+  'Abdômen'
 ];
 
 export const ANATOMICAL_CUTS: Record<string, string[]> = {
@@ -17,9 +16,8 @@ export const ANATOMICAL_CUTS: Record<string, string[]> = {
   'Costas': ['Largura', 'Espessura', 'Lombar'],
   'Ombros': ['Anterior', 'Lateral', 'Posterior'],
   'Pernas': ['Quadríceps', 'Posterior', 'Glúteo', 'Panturrilha'],
-  'Bíceps': ['Cabeça Longa', 'Cabeça Curta', 'Braquial'],
-  'Tríceps': ['Cabeça Longa', 'Cabeça Lateral', 'Cabeça Medial'],
-  'Abdominais': ['Abdominal Superior', 'Abdominal Inferior', 'Oblíquos']
+  'Braços': ['Bíceps', 'Tríceps', 'Antebraço'],
+  'Abdômen': ['Superior', 'Inferior', 'Oblíquos']
 };
 
 export const useExerciseFilters = (availableExercises: Exercise[], currentExercise?: any, favoriteIds: Set<string> = new Set()) => {
@@ -45,9 +43,8 @@ export const useExerciseFilters = (availableExercises: Exercise[], currentExerci
           else if (muscle === 'costas') matchesMuscle = exMuscle.includes('costas') || exMuscle.includes('dorsal') || exMuscle.includes('lombar') || exMuscle.includes('latíssimo') || exMuscle.includes('trapézio');
           else if (muscle === 'ombros') matchesMuscle = exMuscle.includes('ombro') || exMuscle.includes('deltóide') || exMuscle.includes('manguito');
           else if (muscle === 'pernas') matchesMuscle = exMuscle.includes('perna') || exMuscle.includes('coxa') || exMuscle.includes('panturrilha') || exMuscle.includes('glúteo') || exMuscle.includes('quadríceps') || exMuscle.includes('isquiotibiais') || exMuscle.includes('adutor') || exMuscle.includes('abdutor');
-          else if (muscle === 'bíceps') matchesMuscle = exMuscle.includes('bíceps') || exMuscle.includes('braquial') || exMuscle.includes('antebraço');
-          else if (muscle === 'tríceps') matchesMuscle = exMuscle.includes('tríceps');
-          else if (muscle === 'abdominais') matchesMuscle = exMuscle.includes('abdômen') || exMuscle.includes('abdominal') || exMuscle.includes('oblíquo') || exMuscle.includes('core');
+          else if (muscle === 'braços') matchesMuscle = exMuscle.includes('braç') || exMuscle.includes('brac') || exMuscle.includes('bíceps') || exMuscle.includes('tríceps') || exMuscle.includes('antebraço');
+          else if (muscle === 'abdômen') matchesMuscle = exMuscle.includes('abdômen') || exMuscle.includes('abdominal') || exMuscle.includes('oblíquo') || exMuscle.includes('core') || exMuscle.includes('abdominais');
           else matchesMuscle = exMuscle.includes(muscle);
         }
 

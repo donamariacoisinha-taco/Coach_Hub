@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import { Exercise, MuscleGroup, normalizeMuscleGroup } from '../../types';
+import { Exercise, MuscleGroup, normalizeMuscleGroup, getVirtualAnatomicalCut } from '../../types';
 import { fetchWithRetry } from '../utils';
 import { fallbackExercises } from './fallbackExercises';
 
@@ -84,7 +84,8 @@ export const exerciseApi = {
       // Normalize muscle groups on the fly to avoid taxonomy bugs
       const normalizedExercises = data.map((ex) => ({
         ...ex,
-        muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros')
+        muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros'),
+        anatomical_cut: ex.anatomical_cut || getVirtualAnatomicalCut(ex.muscle_group || '', ex.name)
       })) as Exercise[];
 
       // Populate local cache for offline/fresh users
@@ -141,7 +142,8 @@ export const exerciseApi = {
 
       const normalizedExercises = data.map((ex) => ({
         ...ex,
-        muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros')
+        muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros'),
+        anatomical_cut: ex.anatomical_cut || getVirtualAnatomicalCut(ex.muscle_group || '', ex.name)
       })) as Exercise[];
 
       return normalizedExercises;
