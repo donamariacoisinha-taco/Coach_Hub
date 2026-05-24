@@ -492,28 +492,69 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
     setShowExerciseSelector(true);
   }, []);
 
-  // Substitute finalized selection
+  // Substitute finalized selection or append new exercise
   const handleSelectSubstitute = useCallback((exercise: Exercise) => {
-    if (replacingIndex === null) return;
-    setExercises(prev => {
-      const next = [...prev];
-      const target = next[replacingIndex];
+    if (replacingIndex !== null) {
+      setExercises(prev => {
+        const next = [...prev];
+        const target = next[replacingIndex];
 
-      next[replacingIndex] = {
-        ...target,
-        exercise_id: exercise.id,
-        exercise_name: exercise.name,
-        exercise_image: exercise.image_url || exercise.static_frame_url,
-        muscle_group: exercise.muscle_group,
-        type: exercise.type,
-      };
+        next[replacingIndex] = {
+          ...target,
+          exercise_id: exercise.id,
+          exercise_name: exercise.name,
+          exercise_image: exercise.image_url || exercise.static_frame_url,
+          muscle_group: exercise.muscle_group,
+          type: exercise.type,
+        };
 
-      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(next));
-      return next;
-    });
-    setShowExerciseSelector(false);
-    setReplacingIndex(null);
-    showSuccess('Exercício substituído', `Alterado para ${exercise.name} hoje.`);
+        localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(next));
+        return next;
+      });
+      setShowExerciseSelector(false);
+      setReplacingIndex(null);
+      showSuccess('Exercício substituído', `Alterado para ${exercise.name} hoje.`);
+    } else {
+      // Adding a new exercise to the workout session
+      setExercises(prev => {
+        const newOrder = prev.length + 1;
+        const tempId = `new-ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        const numSets = 3;
+        const targetReps = '10';
+        const targetWeight = 10;
+        const targetRest = 60;
+
+        const defaultSetsJson = Array.from({ length: numSets }).map(() => ({
+          reps: targetReps,
+          weight: targetWeight,
+          rest_time: targetRest,
+          type: SetType.NORMAL
+        }));
+
+        const newWorkoutEx: WorkoutExercise = {
+          id: tempId,
+          category_id: workoutId,
+          exercise_id: exercise.id,
+          exercise_name: exercise.name,
+          exercise_image: exercise.image_url || exercise.static_frame_url,
+          muscle_group: exercise.muscle_group,
+          type: exercise.type,
+          sets: numSets,
+          reps: targetReps,
+          weight: targetWeight,
+          rest_time: targetRest,
+          sets_json: defaultSetsJson,
+          order: newOrder
+        };
+
+        const next = [...prev, newWorkoutEx];
+        localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(next));
+        return next;
+      });
+      setShowExerciseSelector(false);
+      showSuccess('Exercício adicionado', `${exercise.name} adicionado ao treino de hoje.`);
+    }
   }, [replacingIndex, workoutId, showSuccess]);
 
   // Delete exercise
@@ -691,36 +732,48 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
               </button>
             </div>
           ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={exercises.map(ex => ex.id)}
-                strategy={verticalListSortingStrategy}
+            <>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
               >
-                <div className="space-y-3">
-                  {exercises.map((ex, idx) => (
-                    <SortablePrepExerciseCard
-                      key={ex.id}
-                      ex={ex}
-                      idx={idx}
-                      activeMenuId={activeMenuId}
-                      setActiveMenuId={setActiveMenuId}
-                      onUpdateWeight={handleUpdateWeight}
-                      onUpdateReps={handleUpdateReps}
-                      onEditSetsReps={handleEditSetsReps}
-                      onAddNote={handleAddNote}
-                      onUpdateNote={handleUpdateNote}
-                      onRemoveNote={handleRemoveNote}
-                      onReplace={handleOpenReplace}
-                      onRemove={handleRemoveExercise}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
+                <SortableContext
+                  items={exercises.map(ex => ex.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-3">
+                    {exercises.map((ex, idx) => (
+                      <SortablePrepExerciseCard
+                        key={ex.id}
+                        ex={ex}
+                        idx={idx}
+                        activeMenuId={activeMenuId}
+                        setActiveMenuId={setActiveMenuId}
+                        onUpdateWeight={handleUpdateWeight}
+                        onUpdateReps={handleUpdateReps}
+                        onEditSetsReps={handleEditSetsReps}
+                        onAddNote={handleAddNote}
+                        onUpdateNote={handleUpdateNote}
+                        onRemoveNote={handleRemoveNote}
+                        onReplace={handleOpenReplace}
+                        onRemove={handleRemoveExercise}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+
+              <button
+                onClick={() => {
+                  setReplacingIndex(null);
+                  setShowExerciseSelector(true);
+                }}
+                className="w-full py-4 border-2 border-dashed border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-4 shadow-sm"
+              >
+                <Plus size={14} strokeWidth={3} /> Adicionar Exercício
+              </button>
+            </>
           )}
         </div>
 
