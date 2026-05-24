@@ -249,7 +249,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] text-slate-900 pb-32">
+    <div 
+      className="min-h-screen bg-[#F7F8FA] text-slate-900 pb-32"
+      onClick={() => setActiveMenuId(null)}
+    >
       <div className="max-w-md mx-auto px-6 pt-16">
         
         {/* HEADER */}
@@ -437,7 +440,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     const isOptimistic = typeof workout.id === 'string' && workout.id.startsWith('temp-');
                     
                     return (
-                      <div key={workout.id} className={`relative group ${isOptimistic ? 'opacity-60 grayscale-[0.2]' : ''}`}>
+                      <div key={workout.id} className={`relative group ${activeMenuId === workout.id ? 'z-[100]' : 'z-[1]'} ${isOptimistic ? 'opacity-60 grayscale-[0.2]' : ''}`}>
                         <div 
                           onClick={() => {
                           if (!isOptimistic) {
@@ -491,7 +494,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 10 }}
-                            className="absolute right-0 top-16 z-50 bg-white rounded-2xl shadow-2xl border border-slate-50 p-4 min-w-[160px] space-y-2"
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute right-0 top-16 z-[110] bg-white rounded-2xl shadow-2xl border border-slate-50 p-4 min-w-[160px] space-y-2"
                           >
                             <button 
                               onClick={() => {
