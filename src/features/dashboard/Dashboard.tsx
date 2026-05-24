@@ -33,6 +33,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const [magicLoading, setMagicLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string, type: 'workout' | 'folder' } | null>(null);
   const [isPerformingAction, setIsPerformingAction] = useState(false);
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+  const [createFolderLoading, setCreateFolderLoading] = useState(false);
   const [magicParams, setMagicParams] = useState({
     goal: Goal.HYPERTROPHY,
     duration: 45,
@@ -123,6 +125,25 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       showError(err);
     } finally {
       setIsPerformingAction(false);
+    }
+  };
+
+  const handleCreateFolder = async (name: string) => {
+    setCreateFolderLoading(true);
+    try {
+      const session = await authApi.getSession();
+      if (!session?.user) throw new Error("Sessão expirada.");
+
+      const newFolder = await workoutApi.createFolder(session.user.id, name);
+      showSuccess("Pasta criada", `A pasta "${name}" foi criada com sucesso.`);
+      setShowCreateFolderModal(false);
+      cacheStore.clear('dashboard_data');
+      await refresh();
+      setActiveFolderId(newFolder.id);
+    } catch (err) {
+      showError(err);
+    } finally {
+      setCreateFolderLoading(false);
     }
   };
 
@@ -392,6 +413,14 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     )}
                   </div>
                 ))}
+                
+                <button
+                  onClick={() => setShowCreateFolderModal(true)}
+                  className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] pb-6 border-b-4 border-transparent text-slate-400 hover:text-slate-900 transition-all whitespace-nowrap"
+                >
+                  <Plus size={14} className="text-slate-400" />
+                  <span>Nova Pasta</span>
+                </button>
               </div>
 
               <div className="space-y-2">
@@ -539,8 +568,95 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           confirmText="Sim, Excluir"
           loading={isPerformingAction}
         />
+
+        <FolderCreateModal
+          isOpen={showCreateFolderModal}
+          onClose={() => setShowCreateFolderModal(false)}
+          onCreate={handleCreateFolder}
+          loading={createFolderLoading}
+        />
       </div>
     </div>
+  );
+};
+
+interface FolderCreateModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreate: (name: string) => void;
+  loading: boolean;
+}
+
+const FolderCreateModal: React.FC<FolderCreateModalProps> = ({ isOpen, onClose, onCreate, loading }) => {
+  const [name, setName] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onCreate(name.trim());
+    setName('');
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[1200] flex items-end justify-center">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            onClick={onClose} 
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-fade-in" 
+          />
+          <motion.div 
+            initial={{ y: "100%" }} 
+            animate={{ y: 0 }} 
+            exit={{ y: "100%" }} 
+            className="w-full max-w-md bg-white rounded-t-[3rem] p-10 space-y-10 shadow-2xl relative z-10"
+          >
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-600 mx-auto border border-slate-100 font-bold">
+                <Plus size={32} />
+              </div>
+              <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Criar Nova Pasta</h3>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Organize seus treinos por categoria</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome da Pasta</label>
+                <input 
+                  type="text" 
+                  value={name} 
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Ex: Força, Cardio, Hipertrofia..."
+                  className="w-full p-5 rounded-2xl bg-slate-50 text-slate-800 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 placeholder-slate-300 text-sm"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <button 
+                  type="submit"
+                  disabled={loading || !name.trim()}
+                  className="w-full py-6 bg-slate-900 rounded-3xl font-black text-white uppercase text-[11px] tracking-[0.4em] shadow-2xl shadow-slate-900/30 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                >
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : 'Criar Pasta'}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={onClose} 
+                  className="w-full py-2 text-slate-300 font-black uppercase text-[10px] tracking-[0.2em] active:text-slate-900 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };
 

@@ -43,6 +43,12 @@ export const workoutApi = {
     if (error) throw error;
   },
 
+  async createFolder(userId: string, name: string) {
+    const { data, error } = await supabase.from('workout_folders').insert([{ user_id: userId, name }]).select().single();
+    if (error) throw error;
+    return data as WorkoutFolder;
+  },
+
   async getWorkoutInitData(workoutId: string, userId: string) {
     return fetchWithRetry(async () => {
       // We use a more explicit column list for exercises to avoid schema cache issues with newly added EKE columns
