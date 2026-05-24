@@ -507,6 +507,8 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
       // Invalidate cache
       cacheStore.clear('dashboard_data');
       cacheStore.clear(`workout_init_${workoutId}`);
+      cacheStore.clear(`editor_init_${workoutId}`);
+      cacheStore.clear('editor_init_new');
       
       showSuccess("Treino excluído", "O protocolo foi removido com sucesso.");
       navigate('dashboard');
@@ -563,7 +565,9 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
           await workoutApi.updateCategory(currentId, payload);
           // Invalidate cache for this workout
           cacheStore.clear(`workout_init_${currentId}`);
+          cacheStore.clear(`editor_init_${currentId}`);
         }
+        cacheStore.clear('editor_init_new');
 
         await workoutApi.deleteExercisesByCategory(currentId!);
         if (exercises.length > 0) {

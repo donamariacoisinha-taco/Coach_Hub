@@ -120,6 +120,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     try {
       await workoutApi.deleteFolder(id);
       showSuccess("Pasta excluída", "Os treinos foram movidos para a categoria geral.");
+      cacheStore.clear('dashboard_data');
+      cacheStore.clearPrefix('editor_init');
       refresh();
     } catch (err) {
       showError(err);
@@ -138,6 +140,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       showSuccess("Pasta criada", `A pasta "${name}" foi criada com sucesso.`);
       setShowCreateFolderModal(false);
       cacheStore.clear('dashboard_data');
+      cacheStore.clearPrefix('editor_init');
       await refresh();
       setActiveFolderId(newFolder.id);
     } catch (err) {

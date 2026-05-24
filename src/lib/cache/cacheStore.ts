@@ -56,6 +56,15 @@ class CacheStore {
     }
   }
 
+  clearPrefix(prefix: string): void {
+    for (const key of Array.from(this.cache.keys())) {
+      if (key.startsWith(prefix)) {
+        this.cache.delete(key);
+        console.log(`[CacheStore] CLEAR PREFIX (${prefix}): ${key}`);
+      }
+    }
+  }
+
   // Periodic cleanup of very old items (e.g. > 1 hour)
   cleanup(): void {
     const now = Date.now();
