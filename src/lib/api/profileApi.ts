@@ -31,8 +31,7 @@ export const profileApi = {
       // We use upsert to ensure it works even if the profile was not yet created
       const { error } = await supabase
         .from('profiles')
-        .upsert({ ...payload, id: userId })
-        .eq('id', userId);
+        .upsert({ ...payload, id: userId });
       if (error) throw error;
     });
   },

@@ -146,9 +146,9 @@ const SetCard = ({
           : isPast && !isCurrent ? 0.96 : 0.98,
         height: "auto",
         marginTop: (idx === 0 ? 0 : 12),
-        borderColor: isPending ? '#cbd5e1' : (isCurrent ? (showPR ? '#fb923c' : '#f97316') : (focusedIdx === idx && isCompleted ? '#94a3b8' : 'rgba(241, 245, 249, 0.5)')),
+        borderColor: isPending ? '#cbd5e1' : (isCurrent ? (showPR ? '#a5b4fc' : '#6366f1') : (focusedIdx === idx && isCompleted ? '#94a3b8' : 'rgba(241, 245, 249, 0.5)')),
         boxShadow: isCurrent && !isPending
-          ? (showPR ? '0 20px 40px -5px rgba(249, 115, 22, 0.35)' : (intensity === 'HIGH' ? '0 15px 35px -5px rgba(249, 115, 22, 0.25)' : '0 10px 25px -5px rgba(249, 115, 22, 0.1)')) 
+          ? (showPR ? '0 20px 40px -5px rgba(99, 102, 241, 0.25)' : (intensity === 'HIGH' ? '0 15px 35px -5px rgba(99, 102, 241, 0.15)' : '0 10px 25px -5px rgba(99, 102, 241, 0.05)')) 
           : (focusedIdx === idx && isCompleted ? '0 4px 12px rgba(0,0,0,0.05)' : '0 0px 0px 0px rgba(0,0,0,0)'),
       }}
       style={{ overflow: "visible" }}
@@ -165,13 +165,13 @@ const SetCard = ({
         isCompleted ? "bg-slate-50/50 cursor-pointer hover:bg-slate-100" : 
         isPending ? "bg-slate-50 border-dashed animate-pulse cursor-wait" :
         "bg-white"
-      } ${isCurrent && intensity === 'HIGH' && !isPending ? 'border-orange-400 ring-4 ring-orange-500/10' : ''}`}
+      } ${isCurrent && intensity === 'HIGH' && !isPending ? 'border-indigo-400 ring-4 ring-indigo-500/10' : ''}`}
     >
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-4">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
             isCompleted ? "bg-emerald-500 text-white" : 
-            isCurrent ? "bg-orange-500 text-white shadow-md" : 
+            isCurrent ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/15" : 
             "bg-slate-200 text-slate-400"
           }`}>
             {isCompleted ? <Check size={16} strokeWidth={4} /> : idx + 1}
@@ -190,7 +190,7 @@ const SetCard = ({
                   }}
                   onBlur={commitWeight}
                   onKeyDown={(e) => handleKeyDown(e, commitWeight)}
-                  whileFocus={{ scale: 1.15, color: "#f97316" }}
+                  whileFocus={{ scale: 1.15, color: "#6366f1" }}
                   className={`text-xl font-black w-20 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
                     isCurrent ? "text-slate-900" : "text-slate-400"
                   }`}
@@ -231,7 +231,7 @@ const SetCard = ({
                   }}
                   onBlur={commitReps}
                   onKeyDown={(e) => handleKeyDown(e, commitReps)}
-                  whileFocus={{ scale: 1.15, color: "#f97316" }}
+                  whileFocus={{ scale: 1.15, color: "#6366f1" }}
                   className={`text-xl font-black w-14 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
                     isCurrent ? "text-slate-900" : "text-slate-400"
                   }`}
@@ -270,7 +270,7 @@ const SetCard = ({
                 e.stopPropagation();
                 rollbackToSet(idx);
               }}
-              className="absolute right-3 top-3 p-1.5 bg-white border border-slate-100 rounded-lg text-slate-300 hover:text-orange-500 hover:border-orange-200 transition-all active:scale-90 group"
+              className="absolute right-3 top-3 p-1.5 bg-white border border-slate-100 rounded-lg text-slate-300 hover:text-indigo-500 hover:border-indigo-200 transition-all active:scale-90 group"
               title="Voltar para esta série"
             >
               <RefreshCw size={12} className="group-hover:rotate-[-45deg] transition-transform" />

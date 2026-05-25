@@ -468,7 +468,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
 
         <div className="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-1.5">
-            <Flame size={14} className="text-orange-500 animate-pulse fill-orange-500" />
+            <Flame size={14} className="text-indigo-400 animate-pulse fill-indigo-400" />
             <span className="text-[10px] font-bold text-slate-300">
               Sequência ativa: <strong className="text-white">{profile?.workout_streak || 0} dias</strong>
             </span>
@@ -534,7 +534,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
             </div>
 
             <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-slate-50 flex items-center gap-3.5">
-              <div className="w-8 h-8 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-500 shrink-0">
+              <div className="w-8 h-8 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 shrink-0">
                 <Clock size={15} />
               </div>
               <div>
