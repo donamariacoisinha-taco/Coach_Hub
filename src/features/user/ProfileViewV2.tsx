@@ -38,6 +38,7 @@ export default function ProfileViewV2() {
 
   // Local Form States
   const [name, setName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [goal, setGoal] = useState('');
   const [frequency, setFrequency] = useState('');
   const [gender, setGender] = useState('');
@@ -56,7 +57,23 @@ export default function ProfileViewV2() {
     const cached = localStorage.getItem(`rubi_cached_profile_${userIdRef}`);
     if (cached) {
       try {
-        return JSON.parse(cached);
+        return {
+          id: userIdRef,
+          name: 'Atleta Rubi',
+          full_name: 'Atleta Rubi',
+          goal: 'Hipertrofia',
+          frequency: '3',
+          gender: 'Masculino',
+          age: 25,
+          weight: 75,
+          height: 175,
+          target_weight: 72,
+          onboarding_completed: true,
+          workout_streak: 3,
+          workouts_completed: 6,
+          avatar_url: '',
+          ...JSON.parse(cached)
+        };
       } catch (e) {}
     }
     return {
@@ -112,9 +129,15 @@ export default function ProfileViewV2() {
             setProfile(fallback);
             localStorage.setItem(`rubi_cached_profile_${user.id}`, JSON.stringify(fallback));
           }
+        } else {
+          // Offline/no auth user: pull default/cached local athlete and set in store so it remains reactive
+          const fallback = getFallbackProfile();
+          setProfile(fallback);
         }
       } catch (err) {
         console.error('[PROFILE_V4][FETCH_ERROR]', err);
+        const fallback = getFallbackProfile();
+        setProfile(fallback);
       } finally {
         setLocalLoading(false);
       }
@@ -141,6 +164,7 @@ export default function ProfileViewV2() {
       setWeight(profile.weight || '');
       setHeight(profile.height || '');
       setTargetWeight(profile.target_weight || '');
+      setAvatarUrl(profile.avatar_url || '');
     }
   }, [storeProfile]);
 
@@ -162,7 +186,8 @@ export default function ProfileViewV2() {
     (age === '' ? '' : Number(age)) !== (profile.age || '') ||
     (weight === '' ? '' : Number(weight)) !== (profile.weight || '') ||
     (height === '' ? '' : Number(height)) !== (profile.height || '') ||
-    (targetWeight === '' ? '' : Number(targetWeight)) !== (profile.target_weight || '')
+    (targetWeight === '' ? '' : Number(targetWeight)) !== (profile.target_weight || '') ||
+    avatarUrl !== (profile.avatar_url || '')
   );
 
   const handleSaveAll = async () => {
@@ -181,6 +206,7 @@ export default function ProfileViewV2() {
         weight: weight !== '' ? parseFloat(weight.toString()) : null,
         height: height !== '' ? parseInt(height.toString()) : null,
         target_weight: targetWeight !== '' ? parseFloat(targetWeight.toString()) : null,
+        avatar_url: avatarUrl || null
       };
 
       // Cache locally
@@ -230,6 +256,9 @@ export default function ProfileViewV2() {
       
       const updates = { avatar_url: url };
       
+      // Update local React state instantly for real-time loading
+      setAvatarUrl(url);
+
       // Update local storage
       const updatedProfileObject = { ...profile, ...updates };
       localStorage.setItem(`rubi_cached_profile_${userIdRef}`, JSON.stringify(updatedProfileObject));
@@ -362,10 +391,10 @@ export default function ProfileViewV2() {
       </div>
 
       {/* Luxury Sticky Top Navigation Bar */}
-      <div className="sticky top-0 z-40 bg-[#F8FAFC]/55 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b border-slate-100/30">
+      <div className="sticky top-0 z-40 bg-[#F8FAFC]/80 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b border-slate-100/35">
         <button 
           onClick={goBack}
-          className="bg-white/80 p-2.5 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.02)] border border-slate-200/50 text-slate-400 hover:text-slate-800 active:scale-95 transition-all"
+          className="bg-white/90 p-2.5 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.02)] border border-slate-200/50 text-slate-400 hover:text-slate-800 active:scale-95 transition-all cursor-pointer"
         >
           <ArrowLeft size={16} strokeWidth={3} />
         </button>
@@ -373,46 +402,25 @@ export default function ProfileViewV2() {
           <span className="text-[10px] font-black tracking-[0.25em] text-slate-800 uppercase leading-none">Athlete Profile</span>
           <span className="text-[7.5px] font-bold text-slate-400 tracking-wider uppercase mt-1">Rubi Engine V4.0</span>
         </div>
-        <div className="flex items-center justify-end min-w-[70px]">
-          <AnimatePresence mode="wait">
-            {hasChanges ? (
-              <motion.button
-                key="save-btn"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                onClick={handleSaveAll}
-                disabled={saving}
-                className="bg-blue-600 shadow-[0_4px_12px_rgba(37,99,235,0.2)] text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-blue-700 active:scale-95 disabled:opacity-50 transition-all cursor-pointer flex items-center gap-1"
-              >
-                {saving ? (
-                  <Spinner size={10} className="animate-spin" />
-                ) : null}
-                {saving ? '...' : 'Salvar'}
-              </motion.button>
-            ) : saveSuccess ? (
-              <motion.span 
-                key="saved-indicator"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1"
-              >
-                Salvo!
-              </motion.span>
-            ) : (
-              <motion.div 
-                key="idle-sparkle"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                onClick={handleSaveAll}
-                className="bg-white/80 border border-slate-200/50 p-2.5 rounded-2xl text-blue-500 hover:text-blue-700 hover:border-blue-200 active:scale-95 transition-all cursor-pointer flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
-                title="Sincronizado"
-              >
-                <Sparkles size={14} className="animate-pulse" />
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className="flex items-center justify-end min-w-[90px]">
+          <button
+            onClick={handleSaveAll}
+            disabled={saving}
+            className={`px-4.5 py-2 rounded-2xl text-[10.5px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border min-h-[36px] ${
+              saveSuccess
+                ? 'bg-emerald-50 text-emerald-600 border-emerald-200 shadow-[0_4px_12px_rgba(16,185,129,0.08)]'
+                : hasChanges
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-[0_4px_12px_rgba(37,99,235,0.22)] hover:bg-blue-700 hover:scale-[1.02] active:scale-95'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+            id="top-save-button"
+            title="Salvar alterações"
+          >
+            {saving ? (
+              <Spinner size={10} className="animate-spin text-current" />
+            ) : null}
+            <span>{saving ? '...' : saveSuccess ? 'Salvo!' : 'Salvar'}</span>
+          </button>
         </div>
       </div>
 
@@ -431,18 +439,20 @@ export default function ProfileViewV2() {
                 <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
               ) : (
                 <img 
-                  src={profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (name || 'Rubi')} 
+                  src={avatarUrl || profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (name || 'Rubi')} 
                   alt="Athlete avatar" 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   referrerPolicy="no-referrer"
+                  id="athlete-avatar-img"
                 />
               )}
             </div>
 
             <button 
               onClick={() => fileInputRef.current?.click()}
-              className="absolute bottom-0 right-[-3px] bg-slate-900 border border-slate-800 text-white p-2 rounded-full shadow-md hover:scale-110 active:scale-90 transition-all z-20"
+              className="absolute bottom-0 right-[-3px] bg-slate-900 border border-slate-800 text-white p-2 rounded-full shadow-md hover:scale-110 active:scale-90 transition-all z-20 cursor-pointer"
               title="Mudar Foto"
+              id="upload-avatar-trigger"
             >
               <Camera size={11} strokeWidth={2.5} />
             </button>
@@ -457,13 +467,20 @@ export default function ProfileViewV2() {
 
           {/* Inline Editable Name & Subtitles */}
           <div className="space-y-1 w-full px-2">
-            <input 
-              type="text" 
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="text-3xl font-black tracking-tight text-slate-900 text-center bg-transparent border-none focus:outline-none focus:ring-0 w-full placeholder-slate-300"
-              placeholder="Digite seu nome"
-            />
+            {/* Visual editable input right below the picture for superb context */}
+            <div className="relative max-w-xs mx-auto mb-2 focus-within:scale-[1.01] transition-transform">
+              <input 
+                type="text" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="text-2xl font-black tracking-tight text-slate-900 text-center bg-white/70 border border-slate-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl py-1.5 px-4 w-full placeholder-slate-300 shadow-[0_4px_10px_rgba(0,0,0,0.01)] focus:shadow-[0_8px_20px_rgba(0,0,0,0.04)] transition-all text-ellipsis"
+                placeholder="Nome do Atleta"
+                id="athlete-name-input-bottom"
+              />
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 hover:opacity-100 text-slate-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-pencil"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              </span>
+            </div>
             
             <div className="flex items-center justify-center gap-2 pt-1">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full border border-slate-200/30">
