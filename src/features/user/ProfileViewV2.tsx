@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { ProfileHeader } from './components/ProfileHeader';
 import { ProgressStats } from './components/ProgressStats';
 import { GoalsCard } from './components/GoalsCard';
+import { PhysicalProfileCard } from './components/PhysicalProfileCard';
 import { ProfileActions } from './components/ProfileActions';
 import { useUserStore } from '../../store/userStore';
 import { profileApi } from '../../lib/api/profileApi';
@@ -56,6 +57,7 @@ export default function ProfileViewV2() {
         <ProfileHeader />
         <ProgressStats />
         <GoalsCard />
+        <PhysicalProfileCard />
         <ProfileActions />
       </div>
     </div>
