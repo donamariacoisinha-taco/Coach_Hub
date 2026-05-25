@@ -248,6 +248,14 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   const [saving, setSaving] = useState(false);
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
   
+  const nameInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editorState.status === 'success' && !workoutId && nameInputRef.current) {
+      nameInputRef.current.focus();
+    }
+  }, [editorState.status, workoutId]);
+  
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -398,12 +406,26 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   };
 
   const hydrateEditorState = (data: any) => {
+    const loadedFolders = data.folders || [];
     setAvailableExercises(data.exercises || []);
-    setFolders(data.folders || []);
+    setFolders(loadedFolders);
     setMuscleGroups(data.muscleGroups || []);
     setFavoriteIds(new Set(data.favorites || []));
 
-    if (data.category) {
+    if (!workoutId) {
+      const targetFolder = loadedFolders.find((f: any) => {
+        const nameLower = f.name.toLowerCase();
+        return nameLower.includes('iniciante') || 
+               nameLower.includes('incitante') || 
+               nameLower.includes('inicitante') || 
+               nameLower.includes('iniciar');
+      });
+      if (targetFolder) {
+        setFolderId(targetFolder.id);
+      } else if (loadedFolders.length > 0) {
+        setFolderId(loadedFolders[0].id);
+      }
+    } else if (data.category) {
       setName(data.category.name);
       setDescription(data.category.description || '');
       setFolderId(data.category.folder_id || '');
@@ -719,6 +741,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
           {/* BASIC INFO SECTION */}
           <section className="space-y-4">
             <input 
+              ref={nameInputRef}
               type="text" 
               placeholder="Nome do Treino" 
               value={name} 
@@ -743,12 +766,6 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Exercícios</h3>
               <div className="flex gap-2">
-                <button 
-                  onClick={() => setShowMagicModal(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full text-[9px] font-black text-blue-600 uppercase tracking-widest active:scale-95 transition-all"
-                >
-                  <Sparkles size={12} /> Magic Builder
-                </button>
                 <button 
                   onClick={handleSmartSort}
                   className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full text-[9px] font-black text-slate-600 uppercase tracking-widest active:scale-95 transition-all"

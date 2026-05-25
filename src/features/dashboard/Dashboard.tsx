@@ -374,19 +374,14 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 <button 
                   onClick={() => navigate('editor')}
                   onMouseEnter={() => prefetch('editor_init_new', async () => {
-                    return { workout: null, exercises: [] };
+                    const user = await authApi.getUser();
+                    if (!user) return null;
+                    return workoutApi.getWorkoutEditorData(user.id);
                   })}
                   className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors"
                 >
-                  <span className="text-[9px] font-black uppercase tracking-widest">Manual</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Criar Ficha</span>
                   <Plus size={16} />
-                </button>
-                <button 
-                  onClick={() => setShowMagicModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full text-blue-600 hover:bg-blue-100 transition-all border border-blue-100/50"
-                >
-                  <Sparkles size={14} className="animate-pulse" />
-                  <span className="text-[9px] font-black uppercase tracking-widest">Magic Builder</span>
                 </button>
               </div>
 
