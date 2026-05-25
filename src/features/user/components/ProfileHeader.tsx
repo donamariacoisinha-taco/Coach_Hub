@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useUserStore } from '../../../store/userStore';
-import { Camera, Check, Edit2 } from 'lucide-react';
+import { Camera, Check, Edit2, Zap, Award, Sparkles, Heart } from 'lucide-react';
 import { cloudinaryService } from '../../../services/cloudinaryService';
 import { profileApi } from '../../../lib/api/profileApi';
 import { motion, AnimatePresence } from 'motion/react';
@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 export function ProfileHeader() {
   const { profile, updateProfile } = useUserStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [isEditing, setIsEditing] = useState(false);
   const [localName, setLocalName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -61,28 +62,51 @@ export function ProfileHeader() {
     }
   };
 
+  if (!profile) return null;
+
+  // Compute Adaptive Athlete Title
+  const getAthleteTitle = (): string => {
+    const workouts = profile.workouts_completed || 0;
+    const streak = profile.workout_streak || 0;
+    const goalStr = (profile.goal || '').toLowerCase();
+
+    if (streak >= 5) return 'Disciplina Elevada';
+    if (workouts > 12) return 'Volume Estratégico';
+    if (streak >= 3) return 'Consistente';
+    if (goalStr.includes('hipertrofia')) return 'Construção de Massa';
+    if (goalStr.includes('força') || goalStr.includes('intensidade')) return 'Alta Intensidade';
+    return 'Recuperação Eficiente';
+  };
+
+  const title = getAthleteTitle();
+
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-[2rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.05)] text-center space-y-4 border border-slate-50 relative overflow-hidden"
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+      className="bg-slate-900 rounded-[2.5rem] p-8 text-center space-y-6 border border-slate-800 shadow-2xl relative overflow-hidden"
     >
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-20" />
-      
+      {/* Background soft glowing accent lines/spheres inspired by Oura */}
+      <div className="absolute top-0 left-0 w-36 h-36 bg-blue-500 rounded-full blur-[80px] opacity-20 pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-36 h-36 bg-emerald-500 rounded-full blur-[80px] opacity-15 pointer-events-none" />
+
+      {/* Avatar Container with glowing border */}
       <div className="relative mx-auto w-28 h-28 group">
-        <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 animate-pulse opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
+        <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500 via-purple-500 to-emerald-500 opacity-60 blur-[3px] scale-105 group-hover:opacity-100 transition duration-500" />
         <img
           src={profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (profile?.name || 'User')}
-          className="w-full h-full rounded-full object-cover border-4 border-white shadow-2xl relative z-10 transition-transform duration-500 group-hover:scale-105"
+          className="w-full h-full rounded-full object-cover border-4 border-slate-900 relative z-10 transition-transform duration-500 group-hover:scale-102"
           alt="Avatar"
           referrerPolicy="no-referrer"
         />
 
         <button 
           onClick={handleAvatarClick}
-          className="absolute bottom-0 right-0 bg-black text-white p-2.5 rounded-full shadow-lg hover:scale-110 active:scale-90 transition-all z-20 border-2 border-white"
+          className="absolute bottom-0 right-0 bg-white text-slate-900 p-2.5 rounded-full shadow-lg hover:scale-115 active:scale-90 transition-all z-20 border border-slate-100"
+          title="Alterar Foto"
         >
-          <Camera size={14} className="font-bold" />
+          <Camera size={14} className="stroke-[2.5]" />
         </button>
         
         <input 
@@ -94,7 +118,8 @@ export function ProfileHeader() {
         />
       </div>
 
-      <div className="space-y-2 pt-2 flex flex-col items-center">
+      {/* Text Info */}
+      <div className="space-y-3 pt-1 flex flex-col items-center relative z-10">
         <AnimatePresence mode="wait">
           {isEditing ? (
             <motion.div 
@@ -102,7 +127,7 @@ export function ProfileHeader() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2 w-full max-w-xs transition-all focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10"
+              className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/50 rounded-2xl px-4 py-2 w-full max-w-xs transition-all focus-within:border-blue-500"
             >
               <input
                 type="text"
@@ -112,18 +137,17 @@ export function ProfileHeader() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSaveName();
                 }}
-                className="bg-transparent border-none text-center text-lg font-black text-slate-900 focus:outline-none w-full"
+                className="bg-transparent border-none text-center text-lg font-black text-white focus:outline-none w-full"
                 placeholder="Seu nome"
                 autoFocus
               />
               <button 
                 onMouseDown={(e) => {
-                  e.preventDefault(); // prevents blur from closing it before save
+                  e.preventDefault(); 
                   handleSaveName();
                 }}
                 disabled={saving}
-                className="p-1 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
-                title="Salvar Nome"
+                className="p-1 text-emerald-400 hover:bg-white/5 rounded-lg transition-colors"
               >
                 <Check size={16} strokeWidth={3} />
               </button>
@@ -137,18 +161,31 @@ export function ProfileHeader() {
               onClick={() => setIsEditing(true)}
               className="group/name flex items-center justify-center gap-2 cursor-pointer py-1"
             >
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 group-hover/name:text-blue-600 transition-colors">
+              <h1 className="text-2xl font-black tracking-tight text-white group-hover/name:text-blue-400 transition-colors">
                 {profile?.name || profile?.full_name || 'Corredor Rubi'}
               </h1>
-              <Edit2 size={12} className="text-slate-300 group-hover/name:text-blue-500 transition-colors" />
+              <Edit2 size={12} className="text-slate-500 group-hover/name:text-blue-400 transition-colors" />
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div className="flex items-center justify-center gap-2">
-           <span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-500">
-             {profile?.goal || 'Foco em Hipertrofia'}
-           </span>
+        {/* Dynamic Athlete Characteristics badges */}
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+          <span className="px-3.5 py-1.5 bg-blue-500/10 text-blue-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-blue-500/10 flex items-center gap-1">
+            <Award size={10} strokeWidth={3} />
+            {title}
+          </span>
+          <span className="px-3.5 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-500/10">
+            {profile?.goal || 'Sem Objetivo'}
+          </span>
+        </div>
+
+        {/* Real-time Status banner */}
+        <div className="flex items-center gap-1.5 bg-white/5 px-4 py-2.5 rounded-2xl border border-white/[0.04] mt-2">
+          <Sparkles size={11} className="text-amber-400 animate-pulse fill-amber-400" />
+          <span className="text-[10px] text-slate-300 font-bold leading-none">
+            Seu ritmo semanal está ativo e focado.
+          </span>
         </div>
       </div>
     </motion.div>
