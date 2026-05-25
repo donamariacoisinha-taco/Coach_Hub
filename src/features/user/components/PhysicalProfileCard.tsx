@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useUserStore } from '../../../store/userStore';
 import { profileApi } from '../../../lib/api/profileApi';
 import { motion, AnimatePresence } from 'motion/react';
-import { Scale, Ruler, User, Dumbbell, Droplet, Flame, Sparkles, Heart } from 'lucide-react';
+import { Scale, Ruler, Dumbbell, Droplet, Flame, Sparkles, Heart, Save, Check } from 'lucide-react';
 
 export function PhysicalProfileCard() {
   const { profile, updateProfile } = useUserStore();
 
-  // Local state for forms to handle smooth input typing
-  const [name, setName] = useState('');
+  // Local state for forms
   const [gender, setGender] = useState('');
   const [weight, setWeight] = useState<number | ''>('');
   const [height, setHeight] = useState<number | ''>('');
@@ -16,10 +15,12 @@ export function PhysicalProfileCard() {
   const [targetWeight, setTargetWeight] = useState<number | ''>('');
   const [isFocused, setIsFocused] = useState<string | null>(null);
 
-  // Sync state with profile
+  const [saving, setSaving] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Sync state with profile once loaded
   useEffect(() => {
     if (profile) {
-      setName(profile.name || profile.full_name || '');
       setGender(profile.gender || '');
       setWeight(profile.weight || '');
       setHeight(profile.height || '');
@@ -28,15 +29,36 @@ export function PhysicalProfileCard() {
     }
   }, [profile]);
 
-  const handlePersist = async (field: string, value: any) => {
+  // Check if there are unsaved changes
+  const hasChanges = profile ? (
+    gender !== (profile.gender || '') ||
+    (weight === '' ? '' : Number(weight)) !== (profile.weight || '') ||
+    (height === '' ? '' : Number(height)) !== (profile.height || '') ||
+    (age === '' ? '' : Number(age)) !== (profile.age || '') ||
+    (targetWeight === '' ? '' : Number(targetWeight)) !== (profile.target_weight || '')
+  ) : false;
+
+  const handleSave = async () => {
     if (!profile) return;
+    setSaving(true);
+    setSavedSuccess(false);
     try {
-      // Handle empty values
-      const parsedValue = value === '' ? null : value;
-      await profileApi.updateProfile(profile.id, { [field]: parsedValue });
-      updateProfile({ [field]: parsedValue });
+      const updates = {
+        gender: gender || null,
+        weight: weight !== '' ? parseFloat(weight.toString()) : null,
+        height: height !== '' ? parseInt(height.toString()) : null,
+        age: age !== '' ? parseInt(age.toString()) : null,
+        target_weight: targetWeight !== '' ? parseFloat(targetWeight.toString()) : null,
+      };
+
+      await profileApi.updateProfile(profile.id, updates);
+      updateProfile(updates);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 2500);
     } catch (err) {
-      console.error(`[PHYSICAL_PROFILE_PERSIST_ERROR][${field}]`, err);
+      console.error('[PHYSICAL_PROFILE_SAVE_ERROR]', err);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -129,47 +151,36 @@ export function PhysicalProfileCard() {
     >
       {/* 1. PHYSICAL PROFILE INPUTS CARD */}
       <div className="bg-white rounded-[2rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.05)] space-y-6 border border-slate-50">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-50 text-blue-500 p-2.5 rounded-xl">
-            <User size={18} strokeWidth={2.5} />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-50 text-blue-500 p-2.5 rounded-xl">
+              <Scale size={18} strokeWidth={2.5} />
+            </div>
+            <div>
+              <h2 className="text-sm font-[1000] uppercase tracking-widest text-slate-900 leading-tight">Dados Corporais</h2>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Suas características físicas</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-sm font-[1000] uppercase tracking-widest text-slate-900 leading-tight">Dados Corporais</h2>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ajuste suas características físicas</p>
-          </div>
+          {hasChanges && (
+            <span className="text-[8px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-full uppercase tracking-widest animate-pulse">
+              Alterações pendentes
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          {/* Nome */}
-          <div className="col-span-2 space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nome Completo</label>
-            <div className={`relative flex items-center bg-slate-50 border-2 rounded-2xl transition-all ${isFocused === 'name' ? 'border-blue-500 bg-white ring-2 ring-blue-500/10' : 'border-transparent'}`}>
-              <input
-                type="text"
-                value={name}
-                onFocus={() => setIsFocused('name')}
-                onBlur={() => { setIsFocused(null); handlePersist('name', name); }}
-                onChange={(e) => { setName(e.target.value); updateProfile({ name: e.target.value }); }}
-                placeholder="Ex Carlos Roberto"
-                className="w-full bg-transparent border-none p-4 text-sm font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none"
-              />
-              <User size={14} className="absolute right-4 text-slate-300" />
-            </div>
-          </div>
-
           {/* Sexo */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 font-sans">Sexo Biológico</label>
             <div className="relative">
               <select
                 value={gender}
-                onChange={(e) => { setGender(e.target.value); handlePersist('gender', e.target.value); }}
+                onChange={(e) => setGender(e.target.value)}
                 className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold text-slate-900 appearance-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all cursor-pointer"
               >
                 <option value="">Selecione</option>
                 <option value="Masculino">Masculino</option>
                 <option value="Feminino">Feminino</option>
-                <option value="Outro">Outro</option>
               </select>
               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300">
                 <Heart size={14} />
@@ -185,11 +196,10 @@ export function PhysicalProfileCard() {
                 type="number"
                 value={age}
                 onFocus={() => setIsFocused('age')}
-                onBlur={() => { setIsFocused(null); handlePersist('age', age !== '' ? parseInt(age.toString()) : null); }}
+                onBlur={() => setIsFocused(null)}
                 onChange={(e) => {
                   const val = e.target.value;
                   setAge(val === '' ? '' : Number(val));
-                  if (val !== '') updateProfile({ age: Number(val) });
                 }}
                 placeholder="Idade"
                 className="w-full bg-transparent border-none p-4 text-sm font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-0"
@@ -206,11 +216,10 @@ export function PhysicalProfileCard() {
                 step="0.1"
                 value={weight}
                 onFocus={() => setIsFocused('weight')}
-                onBlur={() => { setIsFocused(null); handlePersist('weight', weight !== '' ? parseFloat(weight.toString()) : null); }}
+                onBlur={() => setIsFocused(null)}
                 onChange={(e) => {
                   const val = e.target.value;
                   setWeight(val === '' ? '' : Number(val));
-                  if (val !== '') updateProfile({ weight: Number(val) });
                 }}
                 placeholder="Ex 75.5"
                 className="w-full bg-transparent border-none p-4 text-sm font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-0"
@@ -227,11 +236,10 @@ export function PhysicalProfileCard() {
                 type="number"
                 value={height}
                 onFocus={() => setIsFocused('height')}
-                onBlur={() => { setIsFocused(null); handlePersist('height', height !== '' ? parseInt(height.toString()) : null); }}
+                onBlur={() => setIsFocused(null)}
                 onChange={(e) => {
                   const val = e.target.value;
                   setHeight(val === '' ? '' : Number(val));
-                  if (val !== '') updateProfile({ height: Number(val) });
                 }}
                 placeholder="Ex 175"
                 className="w-full bg-transparent border-none p-4 text-sm font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-0"
@@ -249,11 +257,10 @@ export function PhysicalProfileCard() {
                 step="0.1"
                 value={targetWeight}
                 onFocus={() => setIsFocused('targetWeight')}
-                onBlur={() => { setIsFocused(null); handlePersist('target_weight', targetWeight !== '' ? parseFloat(targetWeight.toString()) : null); }}
+                onBlur={() => setIsFocused(null)}
                 onChange={(e) => {
                   const val = e.target.value;
                   setTargetWeight(val === '' ? '' : Number(val));
-                  if (val !== '') updateProfile({ target_weight: Number(val) });
                 }}
                 placeholder="Ex: 70.0"
                 className="w-full bg-transparent border-none p-4 text-sm font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-0"
@@ -262,6 +269,33 @@ export function PhysicalProfileCard() {
             </div>
           </div>
         </div>
+
+        {/* Dynamic Save Button */}
+        <button
+          onClick={handleSave}
+          disabled={saving || (!hasChanges && !savedSuccess)}
+          className={`w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all duration-300 flex items-center justify-center gap-2 ${
+            savedSuccess 
+              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+              : hasChanges 
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 active:scale-[0.98]' 
+                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+          }`}
+        >
+          {saving ? (
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : savedSuccess ? (
+            <>
+              <Check size={16} strokeWidth={3} />
+              <span>Salvo com sucesso!</span>
+            </>
+          ) : (
+            <>
+              <Save size={16} />
+              <span>{hasChanges ? 'Salvar Alterações' : 'Dados Salvos'}</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* 2. DYNAMIC HEALTH INSIGHTS AND IMC DASHBOARD */}
