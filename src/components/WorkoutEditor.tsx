@@ -251,9 +251,23 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   const nameInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (editorState.status === 'success' && !workoutId && nameInputRef.current) {
-      nameInputRef.current.focus();
+    let t1: any;
+    let t2: any;
+    if (editorState.status === 'success' && !workoutId) {
+      if (nameInputRef.current) {
+        nameInputRef.current.focus();
+      }
+      t1 = setTimeout(() => {
+        if (nameInputRef.current) nameInputRef.current.focus();
+      }, 50);
+      t2 = setTimeout(() => {
+        if (nameInputRef.current) nameInputRef.current.focus();
+      }, 150);
     }
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [editorState.status, workoutId]);
   
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
@@ -741,7 +755,16 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
           {/* BASIC INFO SECTION */}
           <section className="space-y-4">
             <input 
-              ref={nameInputRef}
+              ref={(el) => {
+                // @ts-ignore
+                nameInputRef.current = el;
+                if (el && !workoutId) {
+                  el.focus();
+                  setTimeout(() => {
+                    if (el) el.focus();
+                  }, 50);
+                }
+              }}
               type="text" 
               placeholder="Nome do Treino" 
               value={name} 
