@@ -214,7 +214,20 @@ export default function ProfileViewV2() {
     setUploadingAvatar(true);
 
     try {
-      const url = await cloudinaryService.uploadImage(file, 'avatars');
+      let url = '';
+      try {
+        url = await cloudinaryService.uploadImage(file, 'avatars');
+      } catch (uploadErr) {
+        console.warn('[CLOUDINARY_FAILED_USING_BASE64_FALLBACK]', uploadErr);
+        // Fallback to FileReader reader as base64 string
+        url = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (err) => reject(err);
+          reader.readAsDataURL(file);
+        });
+      }
+      
       const updates = { avatar_url: url };
       
       // Update local storage
@@ -360,8 +373,46 @@ export default function ProfileViewV2() {
           <span className="text-[10px] font-black tracking-[0.25em] text-slate-800 uppercase leading-none">Athlete Profile</span>
           <span className="text-[7.5px] font-bold text-slate-400 tracking-wider uppercase mt-1">Rubi Engine V4.0</span>
         </div>
-        <div className="w-10 flex items-center justify-end text-blue-500">
-          <Sparkles size={15} className="animate-pulse" />
+        <div className="flex items-center justify-end min-w-[70px]">
+          <AnimatePresence mode="wait">
+            {hasChanges ? (
+              <motion.button
+                key="save-btn"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={handleSaveAll}
+                disabled={saving}
+                className="bg-blue-600 shadow-[0_4px_12px_rgba(37,99,235,0.2)] text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-blue-700 active:scale-95 disabled:opacity-50 transition-all cursor-pointer flex items-center gap-1"
+              >
+                {saving ? (
+                  <Spinner size={10} className="animate-spin" />
+                ) : null}
+                {saving ? '...' : 'Salvar'}
+              </motion.button>
+            ) : saveSuccess ? (
+              <motion.span 
+                key="saved-indicator"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1"
+              >
+                Salvo!
+              </motion.span>
+            ) : (
+              <motion.div 
+                key="idle-sparkle"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                onClick={handleSaveAll}
+                className="bg-white/80 border border-slate-200/50 p-2.5 rounded-2xl text-blue-500 hover:text-blue-700 hover:border-blue-200 active:scale-95 transition-all cursor-pointer flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
+                title="Sincronizado"
+              >
+                <Sparkles size={14} className="animate-pulse" />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
