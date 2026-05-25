@@ -416,56 +416,88 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
         {activeTab === 'protocols' ? (
           <>
-            {/* FEATURED ADAPTIVE ACTION CARD - PREDICTIVE ACTION (No Orange Dominance) */}
+            {/* FEATURED ADAPTIVE ACTION CARD - PREDICTIVE ACTION (Apple Health & Oura Inspired Premium Style) */}
             <AnimatePresence>
               {nextAction && (
                 <motion.section 
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
                   className="mb-8 font-sans"
                 >
-                  <div className="w-full bg-slate-900 text-white rounded-[2.2rem] p-8 shadow-xl relative overflow-hidden flex flex-col items-start border border-slate-850">
-                    {/* Glowing effect inside the dark card */}
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-[60px] pointer-events-none" />
+                  <div className="w-full bg-[#F3F5F9] bg-gradient-to-br from-[#F7F8FC] via-[#EEF2F8] to-[#E8EDF5] rounded-[2.2rem] p-7 shadow-[0_10px_40px_rgba(15,23,42,0.06)] relative overflow-hidden flex flex-col items-start border border-white/70">
+                    {/* Living high-tech biometrics background ambient glows (Ultra-slow movement) */}
+                    <motion.div 
+                      animate={{ 
+                        scale: [1, 1.15, 1], 
+                        x: [0, 8, 0], 
+                        y: [0, -8, 0] 
+                      }} 
+                      transition={{ 
+                        repeat: Infinity, 
+                        duration: 12, 
+                        ease: "easeInOut" 
+                      }}
+                      className="absolute top-0 right-0 w-52 h-52 bg-indigo-500/[0.08] rounded-full blur-[45px] pointer-events-none" 
+                    />
+                    <motion.div 
+                      animate={{ 
+                        scale: [1, 1.1, 1], 
+                        x: [0, -6, 0], 
+                        y: [0, 6, 0] 
+                      }} 
+                      transition={{ 
+                        repeat: Infinity, 
+                        duration: 10, 
+                        ease: "easeInOut" 
+                      }}
+                      className="absolute bottom-0 left-0 w-44 h-44 bg-purple-500/[0.05] rounded-full blur-[40px] pointer-events-none" 
+                    />
                     
-                    <p className="text-[8.5px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-2.5">
+                    <span className="text-[8px] font-semibold text-indigo-500 uppercase tracking-[0.25em] mb-2.5 ml-0.5 relative z-10 select-none">
                       {nextAction.type === 'start_workout' ? 'Hoje recomendado' : 'Sugestão'}
-                    </p>
+                    </span>
                     
-                    <h3 className="text-3xl font-black text-white tracking-tighter uppercase leading-[1.05] mb-2 max-w-[80%]">
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-[0.95] uppercase mb-1.5 max-w-[85%] relative z-10">
                       {nextAction.title}
                     </h3>
                     
-                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-8 max-w-[90%]">
+                    <p className="text-slate-500 font-medium text-xs leading-relaxed mb-6 max-w-[90%] relative z-10">
                       {nextAction.description}
                     </p>
 
-                    <div className="w-full flex items-center justify-between gap-4 mt-2">
-                      <div className="flex gap-4">
+                    <div className="w-full flex items-center justify-between gap-4 relative z-10">
+                      {/* Editorial Separated Metadata Block */}
+                      <div className="flex items-center gap-4">
                         <div className="flex flex-col">
-                          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Duração</span>
-                          <span className="text-xs font-black text-slate-300">45 minutos</span>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Duração</span>
+                          <span className="text-xs font-semibold text-slate-800">45 minutos</span>
                         </div>
+                        <div className="w-px h-6 bg-slate-200/50" />
                         <div className="flex flex-col">
-                          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Foco</span>
-                          <span className="text-xs font-black text-indigo-300">Intensidade</span>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Foco</span>
+                          <span className="text-xs font-semibold text-indigo-500">Intensidade</span>
                         </div>
                       </div>
 
                       {nextAction.suggestedWorkoutId && (
-                        <button 
+                        <motion.button 
                           onClick={() => {
                             useWorkoutStore.getState().resetWorkout();
                             navigate('preparation', { id: nextAction.suggestedWorkoutId });
                           }}
                           onMouseEnter={() => handlePrefetchWorkout(nextAction.suggestedWorkoutId!)}
-                          className="w-14 h-14 rounded-full bg-indigo-500 text-white hover:bg-indigo-600 active:scale-95 transition-all shadow-xl shadow-indigo-500/20 flex items-center justify-center relative group"
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                          style={{ background: 'linear-gradient(135deg, rgba(93, 95, 239, 0.28), rgba(168, 85, 247, 0.18))' }}
+                          className="w-13 h-13 rounded-full border border-white/90 shadow-[0_4px_16px_rgba(99,102,241,0.12)] flex items-center justify-center relative group backdrop-blur-md active:scale-95 transition-all pr-[1px]"
                           title="Iniciar Treino Recomendado"
                         >
-                          {/* Pulsative ring effect */}
-                          <span className="absolute inset-0 rounded-full bg-indigo-400/20 group-hover:animate-ping opacity-75" />
-                          <Play size={20} fill="currentColor" className="ml-1 text-white relative z-10" />
-                        </button>
+                          {/* Inner glowing effect on hover */}
+                          <span className="absolute inset-0 rounded-full bg-indigo-400/10 group-hover:scale-125 transition-transform duration-500" />
+                          <Play size={15} fill="#ffffff" className="ml-[3px] text-white relative z-10 filter drop-shadow-[0_2px_4px_rgba(99,102,241,0.25)]" />
+                        </motion.button>
                       )}
                     </div>
                   </div>
