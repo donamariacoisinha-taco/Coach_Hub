@@ -55,14 +55,6 @@ export function ProfileActions() {
         </button>
       </div>
 
-      <button
-        onClick={logout}
-        className="w-full bg-red-50 text-red-600 py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-sm hover:bg-red-600 hover:text-white active:scale-[0.98] transition-all flex items-center justify-center gap-3 border border-red-100 hover:border-red-600"
-      >
-        <LogOut size={16} strokeWidth={3} />
-        Sair da conta
-      </button>
-
       <div className="text-center pt-4">
         <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-300">Coach Rubi • v2.5.0</p>
       </div>

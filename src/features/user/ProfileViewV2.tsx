@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useUserStore } from '../../store/userStore';
+import { useAuthStore } from '../../store/authStore';
 import { profileApi } from '../../lib/api/profileApi';
 import { authApi } from '../../lib/api/authApi';
 import { cloudinaryService } from '../../services/cloudinaryService';
@@ -30,6 +31,7 @@ interface CheckInLog {
 
 export default function ProfileViewV2() {
   const { profile: storeProfile, setProfile, updateProfile, loading: storeLoading } = useUserStore();
+  const { logout } = useAuthStore();
   const { goBack } = useNavigation();
 
   // Local safety loader and session indicator
@@ -446,12 +448,22 @@ export default function ProfileViewV2() {
 
       {/* Luxury Sticky Top Navigation Bar */}
       <div className="sticky top-0 z-40 bg-[#F8FAFC]/80 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b border-slate-100/35">
-        <button 
-          onClick={goBack}
-          className="bg-white/90 p-2.5 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.02)] border border-slate-200/50 text-slate-400 hover:text-slate-800 active:scale-95 transition-all cursor-pointer"
-        >
-          <ArrowLeft size={16} strokeWidth={3} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={goBack}
+            className="bg-white/90 p-2.5 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.02)] border border-slate-200/50 text-slate-400 hover:text-slate-800 active:scale-95 transition-all cursor-pointer"
+            title="Voltar"
+          >
+            <ArrowLeft size={16} strokeWidth={3} />
+          </button>
+          <button 
+            onClick={logout}
+            className="bg-white/90 p-2.5 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.02)] border border-slate-200/50 text-slate-400 hover:text-red-500 active:scale-95 transition-all cursor-pointer"
+            title="Sair da conta"
+          >
+            <LogOut size={16} strokeWidth={2.5} />
+          </button>
+        </div>
         <div className="flex flex-col items-center">
           <span className="text-[10px] font-black tracking-[0.25em] text-slate-800 uppercase leading-none">Athlete Profile</span>
           <span className="text-[7.5px] font-bold text-slate-400 tracking-wider uppercase mt-1">Rubi Engine V4.0</span>
