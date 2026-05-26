@@ -11,22 +11,22 @@ export function ProgressStats() {
       label: 'Treinos', 
       value: profile?.workouts_completed || 0, 
       icon: Award,
-      color: 'text-blue-500',
-      bg: 'bg-blue-50'
+      color: 'text-[#7BA7FF]',
+      bg: 'bg-[#7BA7FF]/10'
     },
     { 
       label: 'Streak', 
       value: profile?.workout_streak || 0, 
       icon: Zap,
-      color: 'text-orange-500',
-      bg: 'bg-orange-50'
+      color: 'text-[#818CF8]',
+      bg: 'bg-[#818CF8]/10'
     },
     { 
       label: 'Minutos', 
       value: profile?.total_minutes || 0, 
       icon: Clock,
-      color: 'text-purple-500',
-      bg: 'bg-purple-50'
+      color: 'text-[#A5C8FF]',
+      bg: 'bg-[#A5C8FF]/10'
     }
   ];
 

@@ -67,8 +67,8 @@ export function EvolutionTimeline() {
         desc: 'Mantendo o ritmo ativo sob disciplina exemplar.',
         date: 'Ativo',
         icon: Flame,
-        color: 'text-orange-500',
-        bg: 'bg-orange-50'
+        color: 'text-[#818CF8]',
+        bg: 'bg-[#818CF8]/10'
       });
     }
 

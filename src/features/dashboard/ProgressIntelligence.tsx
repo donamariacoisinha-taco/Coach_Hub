@@ -31,11 +31,14 @@ import {
   Clock, 
   Undo,
   Fingerprint,
-  Info
+  Info,
+  Camera
 } from 'lucide-react';
 import { WorkoutHistory, UserProfile, WorkoutCategory } from '../../types';
 import { athleteMemoryEngine } from '../../services/athleteMemoryEngine';
 import { authApi } from '../../lib/api/authApi';
+import { mediaApi } from '../../lib/api/mediaApi';
+import { useNavigation } from '../../App';
 
 
 interface ProgressIntelligenceProps {
@@ -49,22 +52,33 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
   profile,
   workouts
 }) => {
+  const { navigate } = useNavigation();
   const [isAdvanced, setIsAdvanced] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'heatmap'>('overview');
   const [heatmapView, setHeatmapView] = useState<'front' | 'back'>('front');
   const [athleteMemory, setAthleteMemory] = useState<any>(null);
+  const [latestPhoto, setLatestPhoto] = useState<any>(null);
+  const [recentPhotosCount, setRecentPhotosCount] = useState<number>(0);
 
   React.useEffect(() => {
-    async function loadMem() {
+    async function loadMemAndPhotos() {
       try {
         const u = await authApi.getUser();
         if (u) {
           const m = await athleteMemoryEngine.getMemory(u.id);
           setAthleteMemory(m);
+          
+          const photos = await mediaApi.getPhotos(u.id);
+          if (photos && photos.length > 0) {
+            setLatestPhoto(photos[0]);
+            setRecentPhotosCount(photos.length);
+          }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error("Erro ao carregar telemetria:", e);
+      }
     }
-    loadMem();
+    loadMemAndPhotos();
   }, [history]);
 
 
@@ -388,196 +402,284 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
     ];
   }, []);
 
+  const springTransition = {
+    type: "spring",
+    stiffness: 180,
+    damping: 22,
+    mass: 0.8
+  };
+
   return (
-    <div className="space-y-6">
-      {/* 1. TOP SELECTOR: BEGINNER VS ADVANCED */}
-      <div className="flex items-center justify-between bg-white border border-slate-100 rounded-3xl p-3.5 shadow-sm">
-        <div className="flex flex-col">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
-            Visão de Métricas
-          </p>
-          <p className="text-xs font-bold text-slate-800 tracking-tight mt-1 leading-none">
-            {isAdvanced ? "Modo Avançado (Mecânica/Volume)" : "Modo Iniciante (Consistência)"}
-          </p>
+    <div className="relative min-h-screen bg-[#F8FAFC] py-4 px-1 sm:px-4 md:px-6 overflow-hidden space-y-10">
+      {/* ATMOSPHERIC RADIAL GLOWS */}
+      <div className="absolute top-0 left-1/4 w-[450px] h-[450px] rounded-full pointer-events-none blur-3xl opacity-[0.05] bg-[#7BA7FF]" />
+      <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] rounded-full pointer-events-none blur-3xl opacity-[0.04] bg-[#818CF8]" />
+      <div className="absolute bottom-1/4 left-1/3 w-[350px] h-[350px] rounded-full pointer-events-none blur-3xl opacity-[0.05] bg-[#A5C8FF]" />
+
+      {/* 1. TOP SELECTOR: BEGINNER VS ADVANCED (Editorial minimalist header container) */}
+      <div className="relative z-10 flex items-center justify-between bg-white/60 backdrop-blur-2xl border border-white/40 rounded-[2.5rem] p-5 shadow-sm">
+        <div className="flex flex-col pl-2">
+          <span className="uppercase tracking-[0.22em] text-[10px] font-semibold text-slate-400 leading-none">
+            CENTRO DE TELEMETRIA
+          </span>
+          <span className="text-sm font-light text-slate-800 tracking-tight mt-1.5 leading-none">
+            {isAdvanced ? "Análise de Volume & Mecânica" : "Análise de Consistência Geral"}
+          </span>
         </div>
         
-        <div className="inline-flex bg-slate-100/80 p-0.5 rounded-2xl border border-slate-200/50">
+        <div className="inline-flex bg-slate-100/60 p-0.5 rounded-2xl border border-slate-200/20">
           <button 
+            type="button"
             onClick={() => { setIsAdvanced(false); if ('vibrate' in navigator) navigator.vibrate(3); }}
-            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition ${!isAdvanced ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
+            className={`px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all ${!isAdvanced ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
           >
             Básico
           </button>
           <button 
+            type="button"
             onClick={() => { setIsAdvanced(true); if ('vibrate' in navigator) navigator.vibrate(3); }}
-            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition ${isAdvanced ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
+            className={`px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all ${isAdvanced ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
           >
             Avançado
           </button>
         </div>
       </div>
 
-      {/* 2. HERO READINESS PANEL */}
+      {/* 2. BIOLOGICAL READINESS HERO */}
       <motion.div 
-        layoutId="readiness-card"
-        className="relative bg-gradient-to-tr from-slate-905 to-slate-900 text-white rounded-[2.5rem] p-6 shadow-2xl overflow-hidden border border-slate-800"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springTransition}
+        className="relative z-10 bg-white/70 backdrop-blur-2xl px-8 py-8 rounded-[2.5rem] border border-white/40 shadow-[0_10px_40px_rgba(15,23,42,0.05)] overflow-hidden"
       >
-        <div className="absolute top-0 right-0 w-48 h-48 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-36 h-36 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+        {/* Ambient Glow behind Gauge */}
+        <div className={`absolute -top-12 -right-12 w-64 h-64 rounded-full pointer-events-none blur-3xl opacity-[0.08] transition-all duration-1000 ${
+          readiness > 80 ? 'bg-amber-500' : readiness > 65 ? 'bg-[#7BA7FF]' : 'bg-[#818CF8]'
+        }`} />
 
-        <div className="flex items-start justify-between relative z-10">
-          <div className="space-y-1">
-            <span className="inline-flex items-center gap-1.5 bg-violet-500/10 border border-violet-500/20 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-violet-300">
-              <Activity size={10} className="animate-pulse" /> Readiness Index
-            </span>
-            <h3 className="text-lg font-[1000] text-slate-100 tracking-tight leading-snug mt-3">
-              Prontidão do Organismo
-            </h3>
-            <p className="text-[10px] font-semibold text-slate-400 leading-relaxed max-w-[190px]">
-              Sua recuperação está calculada em {readiness}%. {readiness > 80 ? 'Ideal para bater carga.' : 'Considere volume moderado.'}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+          {/* Left side */}
+          <div className="flex-1 space-y-4">
+            <div className="space-y-1">
+              <span className="uppercase tracking-[0.22em] text-[11px] font-semibold text-slate-400 block">
+                ÍNDICE DE PRONTIDÃO
+              </span>
+              <span className="text-5xl font-light tracking-tight text-slate-900 inline-block mt-1">
+                {readiness}%
+              </span>
+            </div>
+            <p className="text-sm leading-relaxed text-slate-500 max-w-sm">
+              {readiness > 80 
+                ? "Seu corpo demonstra excelente capacidade adaptativa hoje. Momento ideal para buscar quebras de marcas pessoais (PRs)." 
+                : readiness > 65
+                  ? "Seu corpo demonstra boa recuperação geral hoje. Uma excelente janela para manter o volume programado."
+                  : "Nível de fadiga acumulado sugere atenção. Considere focar em mobilidade, carga moderada, ou um descanso ativo."}
             </p>
           </div>
 
-          <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
-            {/* Animated SVG Ring for readiness score */}
+          {/* Right side (inspired Oura gauge) */}
+          <div className="relative w-36 h-36 flex items-center justify-center shrink-0 mx-auto md:mx-0">
             <svg className="w-full h-full transform -rotate-90">
               <circle 
-                cx="56" cy="56" r="42" 
-                className="stroke-slate-800" strokeWidth="8" fill="transparent" 
+                cx="72" cy="72" r="54" 
+                className="stroke-slate-100/50" strokeWidth="4" fill="transparent" 
               />
               <motion.circle 
-                cx="56" cy="56" r="42" 
-                className="stroke-violet-500" strokeWidth="8" fill="transparent"
-                strokeDasharray={2 * Math.PI * 42}
-                initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
-                animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - readiness / 100) }}
+                cx="72" cy="72" r="54" 
+                className="stroke-[#7BA7FF]" strokeWidth="4" fill="transparent"
+                strokeDasharray={2 * Math.PI * 54}
+                initial={{ strokeDashoffset: 2 * Math.PI * 54 }}
+                animate={{ strokeDashoffset: 2 * Math.PI * 54 * (1 - readiness / 100) }}
                 transition={{ duration: 1.5, ease: 'easeOut' }}
                 strokeLinecap="round"
               />
             </svg>
+            
+            {/* Center indicator */}
             <div className="absolute flex flex-col items-center">
-              <span className="text-2xl font-black text-white leading-none tracking-tighter tabular-nums">
+              <span className="text-3xl font-light text-slate-800 tracking-tighter tabular-nums leading-none">
                 {readiness}
               </span>
-              <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest leading-none mt-1">
+              <span className="uppercase tracking-[0.15em] text-[8px] font-semibold text-slate-400 mt-1 leading-none">
                 Score
               </span>
             </div>
+
+            {/* Soft pulsing core */}
+            <div className="absolute w-3 h-3 rounded-full bg-[#7BA7FF] animate-ping opacity-25" />
           </div>
         </div>
 
-        <div className="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between relative z-10">
-          <div className="flex items-center gap-1.5">
-            <Flame size={14} className="text-indigo-400 animate-pulse fill-indigo-400" />
-            <span className="text-[10px] font-bold text-slate-300">
-              Sequência ativa: <strong className="text-white">{profile?.workout_streak || 0} dias</strong>
+        {/* Bottom Row - Contextual advice */}
+        <div className="mt-8 pt-6 border-t border-slate-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-slate-500">
+          <div className="flex items-center gap-2">
+            <Flame size={14} className="text-[#818CF8]" />
+            <span>
+              Frequência semanal ativa: <strong className="text-slate-800 font-semibold">{profile?.workout_streak || 0} dias seguidos</strong>
             </span>
           </div>
-          <span className="text-[8.5px] text-violet-400 font-extrabold uppercase tracking-widest flex items-center gap-1">
-            Ver detalhes <ArrowUpRight size={10} />
-          </span>
+          <div className="text-[11px] font-semibold text-slate-400">
+            {readiness > 70 
+              ? "Sua recuperação subiu no ciclo atual." 
+              : "Atenção ao tempo de intervalo entre séries."}
+          </div>
         </div>
       </motion.div>
 
-      {/* 3. DYNAMIC AI INSIGHTS CARD */}
-      <div className="bg-violet-50/50 border border-violet-100 rounded-3xl p-5 flex items-start gap-4">
-        <div className="w-10 h-10 bg-white border border-violet-200 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
-          <Brain size={18} className="text-violet-600" />
+      {/* 3. AI INSIGHT SYSTEM */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springTransition}
+        className="relative z-10 bg-white/55 backdrop-blur-2xl border border-white/30 rounded-[2.5rem] p-8 shadow-sm"
+      >
+        <div className="flex items-start gap-5">
+          <div className="w-12 h-12 rounded-2xl bg-[#7BA7FF]/10 flex items-center justify-center text-[#7BA7FF] shrink-0">
+            <Brain size={22} className="animate-pulse" />
+          </div>
+          <div className="space-y-2 flex-1">
+            <span className="uppercase tracking-[0.22em] text-[10px] font-semibold text-[#818CF8] block">
+              COACH RUBI OBSERVAÇÕES
+            </span>
+            <p className="text-base text-slate-700 font-light leading-relaxed italic pr-4">
+              "{aiInsight.text}"
+            </p>
+          </div>
         </div>
+      </motion.div>
+
+      {/* 4. EVOLUTION PHOTO EXPERIENCE */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springTransition}
+        className="relative z-10 bg-white/65 backdrop-blur-2xl border border-white/40 rounded-[2.5rem] shadow-[0_10px_40px_rgba(15,23,42,0.05)] overflow-hidden"
+      >
+        {/* Atmospheric Depth Glow Behind Section */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#7BA7FF12,transparent_60%)] pointer-events-none blur-3xl" />
+
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between p-8 sm:p-10 gap-8">
+          {/* Leftside Editorial Content */}
+          <div className="flex-1 space-y-4 text-center md:text-left">
+            <div className="space-y-1">
+              <span className="uppercase tracking-[0.22em] text-[10px] font-semibold text-slate-400 block">
+                MEMÓRIA VISUAL
+              </span>
+              <h4 className="text-2xl font-light tracking-tight text-slate-900 mt-1">
+                Sua evolução física
+              </h4>
+            </div>
+            <p className="text-sm leading-relaxed text-slate-500 max-w-sm">
+              Registre sua transformação corporal ao longo do tempo de forma privada, mantendo um arquivo vivo da sua dedicação biológica.
+            </p>
+            <div className="pt-2">
+              {recentPhotosCount > 0 ? (
+                <span className="inline-flex items-center gap-1.5 bg-slate-100/40 border border-slate-200/20 px-3 py-1 rounded-full text-[10px] font-medium text-slate-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Sincronização ativa • {recentPhotosCount} {recentPhotosCount === 1 ? 'registro' : 'registros'} no ciclo
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 bg-slate-100/40 border border-slate-200/20 px-3 py-1 rounded-full text-[10px] font-medium text-slate-400">
+                  Nenhum arquivo no ciclo atual • Toque para sincronizar
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Rightside: Cinematic Photo Preview Box & Floating Action Button */}
+          <div className="relative flex items-center justify-center shrink-0 w-full md:w-auto">
+            <div className="relative w-40 h-28 sm:w-48 sm:h-32 rounded-3xl overflow-hidden bg-slate-50 border border-slate-100 flex items-center justify-center shadow-inner group">
+              {latestPhoto ? (
+                <div className="absolute inset-0">
+                  <img 
+                    src={latestPhoto.photo_url} 
+                    className="w-full h-full object-cover opacity-80" 
+                    alt="Evolução Corporal" 
+                    referrerPolicy="no-referrer"
+                  />
+                  {/* Subtle Cinematic Crop Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-white/30" />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center text-slate-350 space-y-1.5 p-4">
+                  <Camera size={18} className="text-[#7BA7FF]/50" />
+                  <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">Sem Registro</span>
+                </div>
+              )}
+              
+              {/* Overlay Glass with Floating White Translucent Action Button */}
+              <div className="absolute inset-0 bg-black/[0.03] flex items-center justify-center">
+                <motion.button 
+                  type="button"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 180, damping: 22 }}
+                  onClick={() => { navigate('history', { tab: 'visual' }); if ('vibrate' in navigator) navigator.vibrate(5); }}
+                  className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-xl border border-white/50 shadow-[0_8px_30px_rgba(123,167,255,0.18)] flex items-center justify-center text-[#7BA7FF] cursor-pointer hover:bg-white transition-colors"
+                  title="Acessar Galeria de Fotos"
+                >
+                  <Camera size={20} />
+                </motion.button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 5. ATHLETE DNA SYSTEM */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springTransition}
+        className="relative z-10 bg-white/70 backdrop-blur-2xl px-8 py-8 rounded-[2.5rem] border border-white/40 shadow-[0_10px_40px_rgba(15,23,42,0.05)] space-y-8"
+      >
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-black text-violet-700 uppercase tracking-widest bg-violet-100 px-2 py-0.5 rounded-md">
-              AI Coach {aiInsight.tag}
+          <span className="uppercase tracking-[0.22em] text-[11px] font-semibold text-slate-400 block">
+            BIOLOGICAL PROFILE
+          </span>
+          <h4 className="text-2xl font-light tracking-tight text-slate-900">
+            DNA do Atleta
+          </h4>
+        </div>
+
+        {/* Continuous Editorial Information Rows */}
+        <div className="divide-y divide-slate-100/80">
+          <div className="py-4 flex items-center justify-between text-sm">
+            <span className="text-slate-400 font-medium">Tolerância Biológica a Volume</span>
+            <span className="text-slate-800 font-semibold uppercase tracking-wider text-xs">
+              {athleteMemory?.volume_tolerance || "MODERADA"}
             </span>
           </div>
-          <p className="text-xs text-slate-600 font-bold leading-relaxed pr-1.5">
-            "{aiInsight.text}"
-          </p>
+
+          <div className="py-4 flex items-center justify-between text-sm">
+            <span className="text-slate-400 font-medium">Janela de Pico de Força</span>
+            <span className="text-slate-800 font-semibold uppercase tracking-wider text-xs">
+              {athleteMemory?.preferred_training_time || "TARDE / NOITE"}
+            </span>
+          </div>
+
+          <div className="py-4 flex items-center justify-between text-sm">
+            <span className="text-slate-400 font-medium">Intervalo de Descanso Estimado</span>
+            <span className="text-slate-800 font-semibold uppercase tracking-wider text-xs">
+              {athleteMemory?.average_rest_time || 90} segundos
+            </span>
+          </div>
+
+          <div className="py-4 flex items-center justify-between text-sm">
+            <span className="text-slate-400 font-medium">Frequência e Consistência</span>
+            <span className="text-slate-800 font-semibold text-xs tabular-nums">
+              {athleteMemory?.consistency_score || 59}% aderência estável
+            </span>
+          </div>
+
+          <div className="py-4 flex items-center justify-between text-sm">
+            <span className="text-slate-400 font-medium">Estilo Biomecânico de Treino</span>
+            <span className="text-slate-800 font-semibold uppercase tracking-wider text-xs">
+              {athleteMemory?.training_personality || "CONSISTENTE PROGRESSIVO"}
+            </span>
+          </div>
         </div>
-      </div>
-
-      {/* ATHLETE IDENTITY CARD (Whoop / Oura inspired memory profile) */}
-      {athleteMemory && (
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="border border-slate-100 bg-white rounded-[2.5rem] p-6 space-y-5 shadow-sm"
-        >
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-slate-900 rounded-full flex items-center justify-center text-white">
-                <Fingerprint size={16} />
-              </div>
-              <div>
-                <h4 className="text-xs font-[1000] text-slate-900 uppercase tracking-tighter">Identidade de Treino</h4>
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">
-                  Perfil de Memória do Atleta
-                </p>
-              </div>
-            </div>
-            {athleteMemory.training_personality && (
-              <span className="px-3 py-1 bg-slate-900 text-white rounded-full text-[8.5px] font-black uppercase tracking-widest">
-                {athleteMemory.training_personality}
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-slate-50 flex items-center gap-3.5">
-              <div className="w-8 h-8 rounded-2xl bg-violet-50 flex items-center justify-center text-violet-500 shrink-0">
-                <Award size={15} />
-              </div>
-              <div>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Scoring Consistência</p>
-                <p className="text-sm font-black text-slate-900 mt-1 leading-none">{athleteMemory.consistency_score}%</p>
-              </div>
-            </div>
-
-            <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-slate-50 flex items-center gap-3.5">
-              <div className="w-8 h-8 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 shrink-0">
-                <Clock size={15} />
-              </div>
-              <div>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Horário Preferido</p>
-                <p className="text-sm font-black text-slate-900 mt-1 leading-none uppercase">{athleteMemory.preferred_training_time || 'Noite'}</p>
-              </div>
-            </div>
-
-            <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-slate-50 flex items-center gap-3.5">
-              <div className="w-8 h-8 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500 shrink-0">
-                <Target size={15} />
-              </div>
-              <div>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Descanso Médio</p>
-                <p className="text-sm font-black text-slate-900 mt-1 leading-none">{athleteMemory.average_rest_time || 90}s</p>
-              </div>
-            </div>
-
-            <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-slate-50 flex items-center gap-3.5">
-              <div className="w-8 h-8 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
-                <TrendingUp size={15} />
-              </div>
-              <div>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Tolerância Volume</p>
-                <p className="text-sm font-black text-slate-900 mt-1 leading-none uppercase">{athleteMemory.volume_tolerance || 'MODERADO'}</p>
-              </div>
-            </div>
-          </div>
-
-          {athleteMemory.favorite_exercises && athleteMemory.favorite_exercises.length > 0 && (
-            <div className="pt-2">
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-3">Exercícios de Assinatura</p>
-              <div className="flex flex-wrap gap-2">
-                {athleteMemory.favorite_exercises.slice(0, 3).map((exName: string, i: number) => (
-                  <span key={i} className="px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[9px] font-black text-slate-600 uppercase tracking-widest shadow-sm">
-                    {exName}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </motion.div>
-      )}
+      </motion.div>
 
 
       {/* 4. SUB-TABS SECTION AND CONTENT */}
@@ -636,7 +738,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                         key={dIdx}
                         initial={{ scale: 0.8 }}
                         animate={{ scale: 1 }}
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center text-[8.5px] font-[1000] cursor-pointer transition ${isWorked ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/20' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border border-slate-200/40'}`}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center text-[8.5px] font-[1000] cursor-pointer transition ${isWorked ? 'bg-[#7BA7FF] text-white shadow-sm shadow-[#7BA7FF]/25' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border border-slate-200/40'}`}
                         title={day.raw}
                       >
                         {day.date.getDate()}
@@ -650,41 +752,41 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                     <div className="w-2.5 h-2.5 rounded-sm bg-slate-100 border border-slate-200" /> Sem treino
                   </span>
                   <span className="flex items-center gap-1">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-violet-500" /> Sessão Realizada
+                    <div className="w-2.5 h-2.5 rounded-sm bg-[#7BA7FF]" /> Sessão Realizada
                   </span>
                 </div>
               </div>
 
               {/* STATS DE TONELADAS (SÉRIES, RPE, DENSIDADE) */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm space-y-1">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/70 backdrop-blur-2xl border border-white/40 rounded-[2.2rem] p-6 shadow-[0_10px_40px_rgba(15,23,42,0.03)] space-y-2">
+                  <span className="text-[10px] font-semibold text-slate-450 uppercase tracking-[0.22em] block leading-none">
                     {isAdvanced ? "Tonelagem Total" : "Volume Estimado"}
                   </span>
-                  <h3 className="text-2xl font-black text-slate-900 leading-tight tabular-nums mt-1">
+                  <p className="text-3xl font-light text-slate-900 tracking-tight leading-none mt-2.5 tabular-nums">
                     {isAdvanced 
                       ? `${(calculatedStats.totalVolumeKgs / 1000).toFixed(1)}t` 
                       : `${calculatedStats.totalVolumeKgs.toLocaleString('pt-BR')}kg`}
-                  </h3>
+                  </p>
                   <div className="flex items-center gap-1.5 mt-2">
                     <TrendingUp size={11} className={calculatedStats.volChangePercent >= 0 ? "text-emerald-500" : "text-rose-500"} />
-                    <span className={`text-[9px] font-extrabold ${calculatedStats.volChangePercent >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    <span className={`text-[10px] font-semibold ${calculatedStats.volChangePercent >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                       {calculatedStats.volChangePercent >= 0 ? '+' : ''}{calculatedStats.volChangePercent}% esta sem.
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm space-y-1">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                <div className="bg-white/70 backdrop-blur-2xl border border-white/40 rounded-[2.2rem] p-6 shadow-[0_10px_40px_rgba(15,23,42,0.03)] space-y-2">
+                  <span className="text-[10px] font-semibold text-slate-450 uppercase tracking-[0.22em] block leading-none">
                     {isAdvanced ? "RPE Médio (Esforço)" : "Total de Séries"}
                   </span>
-                  <h3 className="text-2xl font-black text-slate-900 leading-tight tabular-nums mt-1">
+                  <p className="text-3xl font-light text-slate-900 tracking-tight leading-none mt-2.5 tabular-nums">
                     {isAdvanced 
                       ? "8.2 / 10" 
                       : `${calculatedStats.setsCompleted} sets`}
-                  </h3>
-                  <p className="text-[8.5px] text-slate-400 font-extrabold uppercase mt-2 tracking-wider">
-                    {calculatedStats.setsCompleted > 20 ? 'Densidade recomendada' : 'Nivel de treino inicial'}
+                  </p>
+                  <p className="text-[10px] text-slate-450 mt-2 font-medium tracking-wide">
+                    {calculatedStats.setsCompleted > 20 ? 'Densidade recomendada' : 'Nível de treino inicial'}
                   </p>
                 </div>
               </div>
@@ -713,7 +815,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                         <ul className="space-y-1 pl-1">
                           {item.changes.map((change, chIdx) => (
                             <li key={chIdx} className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
-                              <span className="text-violet-500 font-bold">&bull;</span> {change}
+                              <span className="text-[#7BA7FF] font-bold">&bull;</span> {change}
                             </li>
                           ))}
                         </ul>

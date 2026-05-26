@@ -341,47 +341,46 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             <Calendar size={12} className="text-slate-400" />
             {localizedDateStr}
           </p>
-
-          {/* EDITORIAL CALENDAR STRIP PILLS (Gentle Streak / Oura style) */}
-          <div className="flex items-center justify-between gap-1.5 bg-white/70 backdrop-blur-md p-2 rounded-2xl border border-slate-200/50 mb-6 overflow-x-auto no-scrollbar">
+                    {/* EDITORIAL CALENDAR STRIP PILLS (Gentle Streak / Oura style) */}
+          <div className="flex items-center justify-between gap-1.5 bg-white/70 backdrop-blur-xl p-2 rounded-[1.8rem] border border-white/50 mb-6 overflow-x-auto no-scrollbar">
             {calendarDays.map((day) => (
               <div 
                 key={day.id} 
                 className={`flex-1 flex flex-col items-center py-2.5 rounded-xl border relative transition-all min-w-[42px] ${
                   day.isToday 
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10' 
+                    ? 'bg-[#7BA7FF] border-[#7BA7FF] text-white shadow-lg shadow-[#7BA7FF]/20' 
                     : 'bg-white/40 border-transparent text-slate-400 hover:bg-white/90 hover:text-slate-700'
                 }`}
               >
                 <span className="text-[8px] font-black tracking-widest leading-none mb-1.5">{day.dayName}</span>
-                <span className={`text-sm font-black tracking-tighter leading-none ${day.isToday ? 'text-white' : 'text-slate-800'}`}>{day.dayNum}</span>
+                <span className={`text-sm font-black tracking-tighter leading-none ${day.isToday ? 'text-white' : 'text-slate-855'}`}>{day.dayNum}</span>
                 {day.isToday && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-400" />
+                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-white/50" />
                 )}
               </div>
             ))}
           </div>
 
-          {/* QUICK READINESS & SEQUENCY CARDS (Oorange dominance REMOVED) */}
+          {/* QUICK READINESS & SEQUENCY CARDS (Orange dominance REMOVED) */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white/80 backdrop-blur-md rounded-2.5xl p-4 border border-white shadow-[0_8px_24px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[104px] hover:shadow-[0_12px_30px_rgba(0,0,0,0.04)] transition-all">
+            <div className="bg-white/70 backdrop-blur-xl rounded-[1.8rem] p-4 border border-white/40 shadow-[0_10px_40px_rgba(15,23,42,0.04)] flex flex-col justify-between min-h-[104px] hover:shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all">
               <div>
-                <span className="block text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Score Prontidão</span>
+                <span className="block text-[8px] font-black text-slate-450 uppercase tracking-[0.2em] mb-1">Score Prontidão</span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-black tracking-tight text-indigo-500 tabular-nums">{readinessValue}%</span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase select-none">neuro</span>
+                  <span className="text-2xl font-black tracking-tight text-[#7BA7FF] tabular-nums">{readinessValue}%</span>
+                  <span className="text-[9px] font-semibold text-slate-400 uppercase select-none">neuro</span>
                 </div>
               </div>
-              <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden mt-2">
-                <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${readinessValue}%` }} />
+              <div className="w-full bg-slate-100/50 h-1 rounded-full overflow-hidden mt-2">
+                <div className="h-full bg-gradient-to-r from-[#7BA7FF] to-[#A5C8FF] rounded-full" style={{ width: `${readinessValue}%` }} />
               </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-md rounded-2.5xl p-4 border border-white shadow-[0_8px_24px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[104px] hover:shadow-[0_12px_30px_rgba(0,0,0,0.04)] transition-all">
+            <div className="bg-white/70 backdrop-blur-xl rounded-[1.8rem] p-4 border border-white/40 shadow-[0_10px_40px_rgba(15,23,42,0.04)] flex flex-col justify-between min-h-[104px] hover:shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all">
               <div>
-                <span className="block text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Consistência</span>
+                <span className="block text-[8px] font-black text-slate-450 uppercase tracking-[0.2em] mb-1">Consistência</span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-black tracking-tight text-slate-900 tabular-nums">{profile?.workout_streak || 0}</span>
+                  <span className="text-2xl font-black tracking-tight text-[#818CF8] tabular-nums">{profile?.workout_streak || 0}</span>
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider select-none">dias seguidos</span>
                 </div>
               </div>
@@ -397,19 +396,19 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         </header>
         
         {/* NAVIGATION TAB CONTROLS */}
-        <div className="flex bg-slate-100 p-1.5 rounded-2.5xl mb-8 border border-slate-200/35 shadow-inner">
+        <div className="flex bg-white/50 backdrop-blur-md p-1 rounded-[2rem] border border-white/70 mb-8 shadow-inner">
           <button 
             onClick={() => { setActiveTab('protocols'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 py-3.5 rounded-2xl text-[10px] font-[1000] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === 'protocols' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex-1 py-3.5 rounded-[1.6rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === 'protocols' ? 'bg-white text-[#7BA7FF] shadow-sm font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <Dumbbell size={13} className="text-slate-500" />
+            <Dumbbell size={13} className={activeTab === 'protocols' ? 'text-[#7BA7FF]' : 'text-slate-400'} />
             Protocolos
           </button>
           <button 
             onClick={() => { setActiveTab('evolution'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 py-3.5 rounded-2xl text-[10px] font-[1000] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === 'evolution' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex-1 py-3.5 rounded-[1.6rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === 'evolution' ? 'bg-[#7BA7FF] text-white shadow-md shadow-[#7BA7FF]/15 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <Activity size={13} className="text-indigo-400 animate-pulse" />
+            <Activity size={13} className={activeTab === 'evolution' ? 'text-white animate-pulse' : 'text-slate-400'} />
             Evolução
           </button>
         </div>

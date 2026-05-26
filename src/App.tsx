@@ -24,13 +24,14 @@ import { usePrefetch } from './hooks/usePrefetch';
 import { imagePrefetcher } from './lib/utils/imagePrefetcher';
 import { cacheStore } from './lib/cache/cacheStore';
 import { useWorkoutStore } from './app/store/workoutStore';
-import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt, Flame } from 'lucide-react';
+import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt, Flame, Apple } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { NavItem } from './components/ui/NavItem';
 import { isAdmin } from './lib/utils/auth';
 import { ekeService } from './domain/eke/ekeService';
+import { MinhaDieta } from './features/dashboard/MinhaDieta';
 
-type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'preparation' | 'editor' | 'history' | 'admin' | 'profile' | 'library';
+type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'preparation' | 'editor' | 'history' | 'admin' | 'profile' | 'library' | 'dieta';
 type Theme = 'classic' | 'light' | 'aggressive' | 'bloom' | 'neon-strike';
 
 interface NavigationState { view: View; params: any; }
@@ -60,6 +61,7 @@ const getPathFromState = (view: View, params: any) => {
     case 'profile': return '/profile';
     case 'history': return '/history';
     case 'library': return '/library';
+    case 'dieta': return '/dieta';
     case 'admin': return '/admin';
     case 'auth': return '/auth';
     case 'onboarding': return '/onboarding';
@@ -73,7 +75,7 @@ const getStateFromUrl = (): NavigationState => {
   if (parts.length === 0) return { view: 'landing', params: {} };
   const view = parts[0] as View;
   const id = parts[1];
-  const validViews: View[] = ['auth', 'onboarding', 'dashboard', 'workout', 'preparation', 'editor', 'history', 'admin', 'profile', 'library'];
+  const validViews: View[] = ['auth', 'onboarding', 'dashboard', 'workout', 'preparation', 'editor', 'history', 'admin', 'profile', 'library', 'dieta'];
   if (validViews.includes(view)) return { view, params: id ? { id } : {} };
   return { view: 'landing', params: {} };
 };
@@ -266,30 +268,60 @@ const App: React.FC = () => {
   };
 
   if (loading) return (
-    <div className="h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-10 h-10 border-4 border-black border-t-transparent rounded-full animate-spin mb-6"></div>
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em]">Carregando...</p>
+    <div className="h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+      {/* Light atmospheric glow */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[450px] h-[450px] rounded-full blur-[100px] bg-[#7BA7FF]/5 animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[450px] h-[450px] rounded-full blur-[100px] bg-[#818CF8]/5" />
+      </div>
+      <div className="relative z-10 flex flex-col items-center">
+        <div className="w-10 h-10 border-4 border-[#7BA7FF] border-t-transparent rounded-full animate-spin mb-6" />
+        <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em]">Carregando Seu OS de Alta Performance...</p>
+      </div>
     </div>
   );
 
   const isImmersive = ['workout', 'preparation', 'onboarding', 'editor', 'landing', 'auth'].includes(navState.view);
 
+  const streakValue = profile?.workout_streak || 0;
+  const readiness = Math.min(98, 78 + Math.min(streakValue * 2, 12));
+  let primaryGlow = "from-[#7BA7FF]/8"; 
+  let secondaryGlow = "to-[#818CF8]/6"; 
+  
+  if (readiness >= 90) {
+    primaryGlow = "from-[#FBBF24]/8";
+    secondaryGlow = "to-[#7BA7FF]/6";
+  } else if (readiness > 70 && readiness < 90) {
+    primaryGlow = "from-[#60A5FA]/8";
+    secondaryGlow = "to-[#A5C8FF]/6";
+  } else {
+    primaryGlow = "from-[#818CF8]/8";
+    secondaryGlow = "to-[#C084FC]/6";
+  }
+
   return (
     <ErrorProvider>
       <NavigationContext.Provider value={{ current: navState, navigate, goBack, theme, toggleTheme, profile }}>
-        <div className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden text-gray-900">
+        <div className="h-screen flex flex-col lg:flex-row bg-[#F8FAFC] overflow-hidden text-slate-900 relative">
+          
+          {/* Dynamic Living Background Engine - Atmospheric subtle glows */}
+          <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden select-none">
+            <div className={`absolute top-[-15%] left-[-10%] w-[550px] h-[550px] rounded-full blur-[130px] mix-blend-multiply living-blur-1 bg-gradient-to-tr ${primaryGlow}`} />
+            <div className={`absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[120px] mix-blend-screen living-blur-2 bg-gradient-to-br ${secondaryGlow}`} />
+          </div>
+
           {!isImmersive && session && (
-            <aside className="hidden lg:flex w-20 bg-white border-r border-gray-100 flex-col items-center shrink-0">
-               <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white mt-8 mb-12 shadow-lg shadow-black/20"><Bolt size={20} /></div>
+            <aside className="hidden lg:flex w-24 bg-white/70 backdrop-blur-xl border-r border-slate-200/40 flex-col items-center shrink-0 justify-between py-10 shadow-[4px_0_30px_rgba(15,23,42,0.02)] z-30">
+               <div className="w-11 h-11 bg-gradient-to-tr from-[#7BA7FF] to-[#A5C8FF] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/10"><Bolt size={20} className="stroke-[2.5]" /></div>
                
                {profile?.workout_streak && profile.workout_streak > 0 && (
-                 <div className="flex flex-col items-center gap-1 mb-10">
-                   <Flame size={20} className="text-orange-500 fill-orange-500" />
-                   <span className="text-[10px] font-black text-orange-600 tabular-nums">{profile.workout_streak}</span>
+                 <div className="flex flex-col items-center gap-1.5 my-6">
+                   <Flame size={20} className="text-[#818CF8] fill-[#818CF8]/20 animate-pulse" />
+                   <span className="text-[10px] font-extrabold text-[#818CF8] tracking-widest uppercase">{profile.workout_streak}d</span>
                  </div>
                )}
 
-                <div className="flex flex-col items-center gap-6 w-full py-4">
+                <div className="flex flex-col items-center gap-7 w-full py-4">
                   <NavItem 
                     id="dashboard"
                     icon={Home}
@@ -317,6 +349,13 @@ const App: React.FC = () => {
                       ]);
                       return { exercises, muscleGroups, favorites: new Set(favorites), isAdmin: isAdminUser };
                     })}
+                  />
+                  
+                  <NavItem 
+                    id="dieta"
+                    icon={Apple}
+                    isActive={navState.view === 'dieta'}
+                    onClick={() => navigate('dieta')}
                   />
                   
                   <NavItem 
@@ -354,14 +393,14 @@ const App: React.FC = () => {
               </aside>
             )}
 
-          <main className="flex-1 overflow-y-auto no-scrollbar relative">
-            <AnimatePresence>
+          <main className="flex-1 overflow-y-auto no-scrollbar relative z-10 bg-transparent">
+            <AnimatePresence mode="wait">
               <motion.div
                 key={navState.view + (navState.params.id || '')}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+                initial={{ opacity: 0, scale: 0.995, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.995, y: -10 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                 className="min-h-full"
               >
                 {navState.view === 'landing' && <LandingPage onStart={() => navigate('auth')} onLogin={() => navigate('auth')} />}
@@ -373,6 +412,7 @@ const App: React.FC = () => {
                 {navState.view === 'editor' && <WorkoutEditor workoutId={navState.params.id} />}
                 {navState.view === 'history' && <HistoryView />}
                 {navState.view === 'library' && <ExerciseLibrary />}
+                {navState.view === 'dieta' && <MinhaDieta />}
                 {navState.view === 'profile' && <ProfileViewV2 />}
                 {navState.view === 'admin' && (
                   isAdmin(profile) ? <AdminPanelV2 onBack={goBack} /> : <Dashboard />
@@ -382,50 +422,53 @@ const App: React.FC = () => {
           </main>
 
           {!isImmersive && session && navState.view !== 'admin' && (
-            <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-2xl border-t border-slate-50 px-6 flex items-center justify-around z-50 pb-safe">
-              {[
-                { id: 'dashboard', icon: Home, label: 'Início' },
-                { id: 'library', icon: Dumbbell, label: 'Biblioteca' },
-                { id: 'admin', icon: Shield, label: 'Admin', adminOnly: true, badge: 'Pro' },
-                { id: 'history', icon: HistoryIcon, label: 'Histórico' },
-                { id: 'profile', icon: User, label: 'Perfil' }
-              ].filter(item => !item.adminOnly || isAdmin(profile)).map((item) => (
-                <NavItem 
-                  key={item.id}
-                  id={item.id}
-                  icon={item.icon}
-                  label={item.label}
-                  isActive={navState.view === item.id}
-                  onClick={() => navigate(item.id as View)}
-                  badge={item.badge}
-                  onMouseEnter={() => {
-                    if (item.id === 'dashboard') prefetch('dashboard_data', async () => {
-                      const sess = await authApi.getSession();
-                      return sess?.user ? workoutApi.getDashboardData(sess.user.id) : null;
-                    });
-                    if (item.id === 'library') prefetch('exercise_library', async () => {
-                      const user = await authApi.getUser();
-                      if (!user) return null;
-                      const [exercises, muscleGroups, favorites, isAdminUser] = await Promise.all([
-                        exerciseApi.getExercises(),
-                        exerciseApi.getMuscleGroups(),
-                        exerciseApi.getFavorites(user.id),
-                        exerciseApi.isAdmin(user.id)
-                      ]);
-                      return { exercises, muscleGroups, favorites: new Set(favorites), isAdmin: isAdminUser };
-                    });
-                    if (item.id === 'history') prefetch('history_data', async () => {
-                      const user = await authApi.getUser();
-                      return user ? workoutApi.getWorkoutHistory(user.id) : null;
-                    });
-                    if (item.id === 'profile') prefetch('profile_data', async () => {
-                      const user = await authApi.getUser();
-                      return user ? profileApi.getProfile(user.id) : null;
-                    });
-                  }}
-                />
-              ))}
-            </nav>
+            <div className="lg:hidden fixed bottom-5 left-4 right-4 z-50">
+              <nav className="h-16 bg-white/70 backdrop-blur-xl border border-white/40 px-6 flex items-center justify-around rounded-[1.8rem] shadow-[0_10px_40px_rgba(15,23,42,0.06)]">
+                {[
+                  { id: 'dashboard', icon: Home, label: 'Início' },
+                  { id: 'library', icon: Dumbbell, label: 'Biblioteca' },
+                  { id: 'dieta', icon: Apple, label: 'Dieta' },
+                  { id: 'admin', icon: Shield, label: 'Admin', adminOnly: true, badge: 'Pro' },
+                  { id: 'history', icon: HistoryIcon, label: 'Histórico' },
+                  { id: 'profile', icon: User, label: 'Perfil' }
+                ].filter(item => !item.adminOnly || isAdmin(profile)).map((item) => (
+                  <NavItem 
+                    key={item.id}
+                    id={item.id}
+                    icon={item.icon}
+                    label={item.label}
+                    isActive={navState.view === item.id}
+                    onClick={() => navigate(item.id as View)}
+                    badge={item.badge}
+                    onMouseEnter={() => {
+                      if (item.id === 'dashboard') prefetch('dashboard_data', async () => {
+                        const sess = await authApi.getSession();
+                        return sess?.user ? workoutApi.getDashboardData(sess.user.id) : null;
+                      });
+                      if (item.id === 'library') prefetch('exercise_library', async () => {
+                        const user = await authApi.getUser();
+                        if (!user) return null;
+                        const [exercises, muscleGroups, favorites, isAdminUser] = await Promise.all([
+                          exerciseApi.getExercises(),
+                          exerciseApi.getMuscleGroups(),
+                          exerciseApi.getFavorites(user.id),
+                          exerciseApi.isAdmin(user.id)
+                        ]);
+                        return { exercises, muscleGroups, favorites: new Set(favorites), isAdmin: isAdminUser };
+                      });
+                      if (item.id === 'history') prefetch('history_data', async () => {
+                        const user = await authApi.getUser();
+                        return user ? workoutApi.getWorkoutHistory(user.id) : null;
+                      });
+                      if (item.id === 'profile') prefetch('profile_data', async () => {
+                        const user = await authApi.getUser();
+                        return user ? profileApi.getProfile(user.id) : null;
+                      });
+                    }}
+                  />
+                ))}
+              </nav>
+            </div>
           )}
         </div>
       </NavigationContext.Provider>

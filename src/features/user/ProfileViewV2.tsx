@@ -51,6 +51,60 @@ export default function ProfileViewV2() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarSize, setAvatarSize] = useState<number>(() => {
+    const saved = localStorage.getItem('rubi_avatar_size');
+    return saved ? parseInt(saved, 10) : 88;
+  });
+  const [avatarPosX, setAvatarPosX] = useState<number>(() => {
+    const saved = localStorage.getItem('rubi_avatar_pos_x');
+    return saved ? parseInt(saved, 10) : 50;
+  });
+  const [avatarPosY, setAvatarPosY] = useState<number>(() => {
+    const saved = localStorage.getItem('rubi_avatar_pos_y');
+    return saved ? parseInt(saved, 10) : 50;
+  });
+  const [showAvatarSizeSlider, setShowAvatarSizeSlider] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number; posX: number; posY: number }>({ x: 0, y: 0, posX: 50, posY: 50 });
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (uploadingAvatar) return;
+    if (e.button !== 0 && e.nativeEvent instanceof MouseEvent) return;
+    
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: avatarPosX,
+      posY: avatarPosY
+    };
+    
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    
+    const deltaX = e.clientX - dragStartRef.current.x;
+    const deltaY = e.clientY - dragStartRef.current.y;
+    
+    // Custom dragging sensitivity mapping (80 works optimally)
+    const sensitivity = 85;
+    const newX = Math.max(0, Math.min(100, Math.round(dragStartRef.current.posX - (deltaX / avatarSize) * sensitivity)));
+    const newY = Math.max(0, Math.min(100, Math.round(dragStartRef.current.posY - (deltaY / avatarSize) * sensitivity)));
+    
+    setAvatarPosX(newX);
+    setAvatarPosY(newY);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      setIsDragging(false);
+      localStorage.setItem('rubi_avatar_pos_x', avatarPosX.toString());
+      localStorage.setItem('rubi_avatar_pos_y', avatarPosY.toString());
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  };
 
   // Let's have a fallback profile in case the server is offline or slow
   const getFallbackProfile = (): any => {
@@ -430,27 +484,51 @@ export default function ProfileViewV2() {
         {/* SECTION 1: ATHLETE IDENTITY HEADER (TOP FOCUS) */}
         <div className="flex flex-col items-center text-center space-y-4 pt-4">
           
-          {/* Picture Circle with floating upload button (88x88 px, white ring & soft glow) */}
-          <div className="relative w-22 h-22 group">
+          {/* Picture Circle with floating upload button (adjustable, white ring & soft glow) */}
+          <div className="relative group transition-all duration-300 ease-out" style={{ width: `${avatarSize}px`, height: `${avatarSize}px` }}>
             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500 via-indigo-600 to-emerald-500 opacity-30 blur-[4px] scale-105" />
             
-            <div className="w-22 h-22 rounded-full overflow-hidden border-2 border-white shadow-2xl relative z-10 bg-slate-50 flex items-center justify-center">
+            <div 
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              className={`rounded-full overflow-hidden border-2 border-white shadow-2xl relative z-10 bg-slate-50 flex items-center justify-center w-full h-full select-none touch-none ${
+                isDragging ? 'cursor-grabbing scale-105 ring-4 ring-indigo-500/20' : 'cursor-grab hover:scale-[1.02]'
+              } transition-all duration-200`}
+              title="Clique e arraste diretamente para reposicionar"
+            >
               {uploadingAvatar ? (
-                <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin pointer-events-none" />
               ) : (
                 <img 
                   src={avatarUrl || profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (name || 'Rubi')} 
                   alt="Athlete avatar" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full object-cover pointer-events-none select-none"
+                  style={{ objectPosition: `${avatarPosX}% ${avatarPosY}%` }}
                   referrerPolicy="no-referrer"
                   id="athlete-avatar-img"
+                  draggable={false}
                 />
               )}
             </div>
 
+            {/* Scale Slider Trigger Button (Top/Side depending on size) */}
+            <button 
+              onClick={() => setShowAvatarSizeSlider(!showAvatarSizeSlider)}
+              className={`absolute top-0 right-[-4px] ${
+                showAvatarSizeSlider ? 'bg-indigo-600 border-indigo-720 text-white' : 'bg-white border border-slate-200 text-slate-500'
+              } p-2 rounded-full shadow-md hover:scale-110 active:scale-95 transition-all z-20 cursor-pointer`}
+              title="Ajustar tamanho da foto"
+              id="resize-avatar-trigger"
+            >
+              <Scale size={11} strokeWidth={2.5} />
+            </button>
+
+            {/* Camera Upload Button */}
             <button 
               onClick={() => fileInputRef.current?.click()}
-              className="absolute bottom-0 right-[-3px] bg-slate-900 border border-slate-800 text-white p-2 rounded-full shadow-md hover:scale-110 active:scale-90 transition-all z-20 cursor-pointer"
+              className="absolute bottom-0 right-[-4px] bg-slate-900 border border-slate-800 text-white p-2 rounded-full shadow-md hover:scale-110 active:scale-95 transition-all z-20 cursor-pointer"
               title="Mudar Foto"
               id="upload-avatar-trigger"
             >
@@ -464,6 +542,103 @@ export default function ProfileViewV2() {
               onChange={handleAvatarUpload}
             />
           </div>
+
+          {/* Collapsible premium-grade framing sliders */}
+          <AnimatePresence>
+            {showAvatarSizeSlider && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0, y: -6 }}
+                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -6 }}
+                className="w-full max-w-[220px] bg-white/95 backdrop-blur-md rounded-2.5xl border border-slate-200/65 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.08)] flex flex-col items-center gap-3.5 relative z-25 overflow-hidden"
+              >
+                <div className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-100 pb-1.5 w-full text-center select-none">
+                  Ajustar Enquadramento
+                </div>
+
+                {/* ZOOM SLIDER */}
+                <div className="w-full flex flex-col gap-1">
+                  <div className="flex justify-between w-full px-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                    <span>Zoom/Tamanho</span>
+                    <span className="text-indigo-650 font-black">{avatarSize}px</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="64" 
+                    max="160" 
+                    value={avatarSize} 
+                    onChange={(e) => {
+                      const size = parseInt(e.target.value, 10);
+                      setAvatarSize(size);
+                      localStorage.setItem('rubi_avatar_size', size.toString());
+                    }}
+                    className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none transition-all"
+                  />
+                </div>
+
+                {/* X ALIGN SLIDER */}
+                <div className="w-full flex flex-col gap-1">
+                  <div className="flex justify-between w-full px-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                    <span>Posição Horizontal</span>
+                    <span className="text-indigo-650 font-black">{avatarPosX}%</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    value={avatarPosX} 
+                    onChange={(e) => {
+                      const x = parseInt(e.target.value, 10);
+                      setAvatarPosX(x);
+                      localStorage.setItem('rubi_avatar_pos_x', x.toString());
+                    }}
+                    className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none transition-all"
+                  />
+                </div>
+
+                {/* Y ALIGN SLIDER */}
+                <div className="w-full flex flex-col gap-1">
+                  <div className="flex justify-between w-full px-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                    <span>Posição Vertical</span>
+                    <span className="text-indigo-650 font-black">{avatarPosY}%</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    value={avatarPosY} 
+                    onChange={(e) => {
+                      const y = parseInt(e.target.value, 10);
+                      setAvatarPosY(y);
+                      localStorage.setItem('rubi_avatar_pos_y', y.toString());
+                    }}
+                    className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none transition-all"
+                  />
+                </div>
+
+                {/* Direct drag tip */}
+                <div className="text-[8px] font-medium text-slate-500/80 leading-normal bg-indigo-50/40 p-1.5 rounded-lg text-center border border-indigo-100/30 w-full select-none">
+                  💡 Você também pode <strong>clicar e arrastar</strong> a foto acima diretamente para ajustar o enquadramento.
+                </div>
+
+                {/* Reset Button */}
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setAvatarSize(88);
+                    setAvatarPosX(50);
+                    setAvatarPosY(50);
+                    localStorage.setItem('rubi_avatar_size', '88');
+                    localStorage.setItem('rubi_avatar_pos_x', '50');
+                    localStorage.setItem('rubi_avatar_pos_y', '50');
+                  }}
+                  className="text-[8px] font-black text-indigo-500 hover:text-indigo-600 uppercase tracking-widest pt-1 active:scale-95 transition-all cursor-pointer bg-transparent border-none"
+                >
+                  Redefinir
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Inline Editable Name & Subtitles */}
           <div className="space-y-1 w-full px-2">

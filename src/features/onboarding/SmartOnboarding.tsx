@@ -193,10 +193,10 @@ function NameStep({ value, onChange, onNext }: { value: string, onChange: (v: st
 
 function GoalStep({ value, onChange }: { value: string | null, onChange: (v: string) => void }) {
   const options = [
-    { id: Goal.HYPERTROPHY, label: 'Ganhar Músculos', desc: 'Foco em hipertrofia e volume', icon: Zap, color: 'text-orange-500', bg: 'bg-orange-50' },
-    { id: Goal.WEIGHT_LOSS, label: 'Emagrecer', desc: 'Queima calórica e definição', icon: Target, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { id: Goal.STRENGTH, label: 'Ficar Forte', desc: 'Powerlifting e força máxima', icon: Trophy, color: 'text-purple-500', bg: 'bg-purple-50' },
-    { id: Goal.ENDURANCE, label: 'Resistência', desc: 'Condicionamento físico geral', icon: Sparkles, color: 'text-emerald-500', bg: 'bg-emerald-50' }
+    { id: Goal.HYPERTROPHY, label: 'Ganhar Músculos', desc: 'Foco em hipertrofia e volume', icon: Zap, color: 'text-[#7BA7FF]', bg: 'bg-[#7BA7FF]/10' },
+    { id: Goal.WEIGHT_LOSS, label: 'Emagrecer', desc: 'Queima calórica e definição', icon: Target, color: 'text-[#818CF8]', bg: 'bg-[#818CF8]/10' },
+    { id: Goal.STRENGTH, label: 'Ficar Forte', desc: 'Powerlifting e força máxima', icon: Trophy, color: 'text-[#A5C8FF]', bg: 'bg-[#A5C8FF]/10' },
+    { id: Goal.ENDURANCE, label: 'Resistência', desc: 'Condicionamento físico geral', icon: Sparkles, color: 'text-[#34D399]', bg: 'bg-[#34D399]/10' }
   ];
 
   return (

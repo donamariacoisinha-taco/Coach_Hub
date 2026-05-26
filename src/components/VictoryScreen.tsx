@@ -122,10 +122,10 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="mt-8 flex items-center gap-3 px-6 py-3 bg-orange-50 rounded-full border border-orange-100"
+          className="mt-8 flex items-center gap-3 px-6 py-3 bg-[#818CF8]/10 rounded-full border border-[#818CF8]/20"
         >
-          <Flame size={18} className="text-orange-500 fill-orange-500" />
-          <span className="text-sm font-black text-orange-600 tabular-nums">{streak} dias seguidos</span>
+          <Flame size={18} className="text-[#818CF8] fill-[#818CF8]/30" />
+          <span className="text-sm font-black text-[#818CF8] tabular-nums">{streak} dias seguidos</span>
         </motion.div>
       )}
 

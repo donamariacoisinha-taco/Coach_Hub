@@ -14,12 +14,20 @@ import { ScreenState } from './ui/ScreenState';
 import { WorkoutSkeleton } from './ui/Skeleton';
 import { useAsyncState } from '../hooks/useAsyncState';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useNavigation } from '../App';
 
 type TabType = 'sessions' | 'charts' | 'visual' | 'bio';
 
 const HistoryView: React.FC = () => {
   const { showError } = useErrorHandler();
-  const [activeTab, setActiveTab] = useState<TabType>('sessions');
+  const { current } = useNavigation();
+  const [activeTab, setActiveTab] = useState<TabType>(current.params?.tab || 'sessions');
+
+  useEffect(() => {
+    if (current.params?.tab) {
+      setActiveTab(current.params.tab);
+    }
+  }, [current.params?.tab]);
   const historyState = useAsyncState<WorkoutHistory[]>([]);
   const exerciseListState = useAsyncState<{id: string, name: string}[]>([]);
   

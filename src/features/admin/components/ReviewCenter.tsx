@@ -22,7 +22,7 @@ import { Exercise } from '../../../types';
 
 const columns = [
   { id: 'draft', title: 'Inbox / New', desc: 'Needs initial evaluation', color: 'bg-slate-100/50' },
-  { id: 'improvable', title: 'Critical Refinement', desc: 'AI detected major gaps', color: 'bg-orange-50/50' },
+  { id: 'improvable', title: 'Critical Refinement', desc: 'AI detected major gaps', color: 'bg-[#818CF8]/5 shadow-sm' },
   { id: 'review', title: 'Human Review', desc: 'Awaiting expert sign-off', color: 'bg-blue-50/50' },
   { id: 'good', title: 'Ready / Approved', desc: 'Passed all tests', color: 'bg-emerald-50/50' },
   { id: 'premium', title: 'Premium Assets', desc: 'Elite library content', color: 'bg-indigo-50/50' }
@@ -215,7 +215,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ exercise, onClick }) => {
           
           <div className="flex items-center justify-between pt-4 border-t border-slate-50">
              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${score > 70 ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                <div className={`w-2 h-2 rounded-full ${score > 70 ? 'bg-emerald-500' : 'bg-[#818CF8]'}`} />
                 <span className="text-[10px] font-black text-slate-900 uppercase">Score: {score}%</span>
              </div>
              
@@ -233,12 +233,12 @@ function ReviewMetric({ icon, label, value, error, warning }: { icon: React.Reac
   return (
     <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${error ? 'bg-red-100 text-red-600' : warning ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+          <div className={`p-2 rounded-lg ${error ? 'bg-red-100 text-red-600' : warning ? 'bg-[#818CF8]/10 text-[#818CF8]' : 'bg-blue-100 text-blue-600'}`}>
              {icon}
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{label}</span>
        </div>
-       <span className={`text-[10px] font-black uppercase tracking-widest ${error ? 'text-red-600' : warning ? 'text-orange-600' : 'text-slate-900'}`}>{value}</span>
+       <span className={`text-[10px] font-black uppercase tracking-widest ${error ? 'text-red-600' : warning ? 'text-[#818CF8]' : 'text-slate-900'}`}>{value}</span>
     </div>
   );
 }

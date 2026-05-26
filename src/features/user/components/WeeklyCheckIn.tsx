@@ -248,7 +248,7 @@ export function WeeklyCheckIn() {
                         onClick={() => setRecovery(lvl)}
                         className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm transition-all ${
                           recovery === lvl 
-                            ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20 scale-105' 
+                            ? 'bg-[#7BA7FF] text-white shadow-md shadow-[#7BA7FF]/20 scale-105' 
                             : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                         }`}
                       >

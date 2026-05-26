@@ -146,10 +146,10 @@ const SetCard = ({
           : isPast && !isCurrent ? 0.96 : 0.98,
         height: "auto",
         marginTop: (idx === 0 ? 0 : 12),
-        borderColor: isPending ? '#cbd5e1' : (isCurrent ? (showPR ? '#a5b4fc' : '#6366f1') : (focusedIdx === idx && isCompleted ? '#94a3b8' : 'rgba(241, 245, 249, 0.5)')),
+        borderColor: isPending ? '#cbd5e1' : (isCurrent ? (showPR ? '#A5C8FF' : '#7BA7FF') : (focusedIdx === idx && isCompleted ? '#94a3b8' : 'rgba(241, 245, 249, 0.5)')),
         boxShadow: isCurrent && !isPending
-          ? (showPR ? '0 20px 40px -5px rgba(99, 102, 241, 0.25)' : (intensity === 'HIGH' ? '0 15px 35px -5px rgba(99, 102, 241, 0.15)' : '0 10px 25px -5px rgba(99, 102, 241, 0.05)')) 
-          : (focusedIdx === idx && isCompleted ? '0 4px 12px rgba(0,0,0,0.05)' : '0 0px 0px 0px rgba(0,0,0,0)'),
+          ? (showPR ? '0 20px 40px -5px rgba(123, 167, 255, 0.25)' : (intensity === 'HIGH' ? '0 15px 35px -5px rgba(123, 167, 255, 0.15)' : '0 10px 25px -5px rgba(123, 167, 255, 0.05)')) 
+          : (focusedIdx === idx && isCompleted ? '0 4px 12px rgba(15,23,42,0.04)' : '0 0px 0px 0px rgba(0,0,0,0)'),
       }}
       style={{ overflow: "visible" }}
       onClick={isCompleted ? () => {
@@ -165,13 +165,13 @@ const SetCard = ({
         isCompleted ? "bg-slate-50/50 cursor-pointer hover:bg-slate-100" : 
         isPending ? "bg-slate-50 border-dashed animate-pulse cursor-wait" :
         "bg-white"
-      } ${isCurrent && intensity === 'HIGH' && !isPending ? 'border-indigo-400 ring-4 ring-indigo-500/10' : ''}`}
+      } ${isCurrent && intensity === 'HIGH' && !isPending ? 'border-[#7BA7FF] ring-4 ring-[#7BA7FF]/10' : ''}`}
     >
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-4">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
             isCompleted ? "bg-emerald-500 text-white" : 
-            isCurrent ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/15" : 
+            isCurrent ? "bg-[#7BA7FF] text-white shadow-md shadow-[#7BA7FF]/15" : 
             "bg-slate-200 text-slate-400"
           }`}>
             {isCompleted ? <Check size={16} strokeWidth={4} /> : idx + 1}
@@ -190,7 +190,7 @@ const SetCard = ({
                   }}
                   onBlur={commitWeight}
                   onKeyDown={(e) => handleKeyDown(e, commitWeight)}
-                  whileFocus={{ scale: 1.15, color: "#6366f1" }}
+                  whileFocus={{ scale: 1.15, color: "#7BA7FF" }}
                   className={`text-xl font-black w-20 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
                     isCurrent ? "text-slate-900" : "text-slate-400"
                   }`}
@@ -231,7 +231,7 @@ const SetCard = ({
                   }}
                   onBlur={commitReps}
                   onKeyDown={(e) => handleKeyDown(e, commitReps)}
-                  whileFocus={{ scale: 1.15, color: "#6366f1" }}
+                  whileFocus={{ scale: 1.15, color: "#7BA7FF" }}
                   className={`text-xl font-black w-14 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
                     isCurrent ? "text-slate-900" : "text-slate-400"
                   }`}
@@ -1701,9 +1701,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               </div>
               <div className="flex gap-4 items-center">
                 {streak > 0 && !momentum && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 rounded-full border border-orange-100 hidden sm:flex">
-                    <Flame size={12} className="text-orange-500 fill-orange-500" />
-                    <span className="text-[10px] font-black text-orange-600 tabular-nums">{streak}</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#818CF8]/10 rounded-full border border-[#818CF8]/20 hidden sm:flex">
+                    <Flame size={12} className="text-[#818CF8] fill-[#818CF8]/30" />
+                    <span className="text-[10px] font-black text-[#818CF8] tabular-nums">{streak}</span>
                   </div>
                 )}
                 <div className="flex flex-col items-end">
@@ -1825,7 +1825,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     setActiveSetsData(prev => [...prev, { ...lastData }]);
                     // O auto-scroll lidará com o foco se for a próxima série
                   }}
-                  className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-orange-200 hover:text-orange-500 transition-all flex items-center justify-center gap-2 mt-4 hover:bg-orange-50/30 h-[56px]"
+                  className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-[#7BA7FF]/30 hover:text-[#7BA7FF] transition-all flex items-center justify-center gap-2 mt-4 hover:bg-[#7BA7FF]/5 h-[56px]"
                 >
                   <Plus size={14} /> Adicionar Série
                 </button>
@@ -1878,7 +1878,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     className="px-4 mb-4"
                   >
                     <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] flex items-start gap-4 shadow-xl">
-                      <Zap size={20} className="text-orange-500 fill-orange-500 mt-1 flex-shrink-0" />
+                      <Zap size={20} className="text-[#7BA7FF] fill-[#7BA7FF]/35 mt-1 flex-shrink-0" />
                       <p className="text-sm font-bold text-slate-100 leading-relaxed">
                         {feedback || memoryLoadSuggestion?.message || preHint}
                       </p>
@@ -1919,7 +1919,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 scale: (isResting && timeLeft <= 0) ? 1.03 : 1
               }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className={`fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl ${isResting && timeLeft <= 5 && timeLeft > 0 ? 'ring-2 ring-orange-500/20' : ''}`}
+              className={`fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl ${isResting && timeLeft <= 5 && timeLeft > 0 ? 'ring-2 ring-[#7BA7FF]/20' : ''}`}
             >
               
               {/* PR / FEEDBACK / SUGGESTION OVERLAY */}
@@ -1951,7 +1951,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       )}
 
                       {isResting && restOvertime > 15 && (
-                        <div className="flex items-center gap-2 text-orange-400 animate-pulse font-bold text-[10px] uppercase tracking-widest">
+                        <div className="flex items-center gap-2 text-[#7BA7FF] animate-pulse font-bold text-[10px] uppercase tracking-widest">
                           Vamos para a próxima?
                         </div>
                       )}
@@ -1980,7 +1980,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     key={isResting ? 'active' : 'idle'}
                     animate={isResting && timeLeft <= 5 ? {
                       scale: [1, 1.2, 1],
-                      color: timeLeft <= 0 ? '#10b981' : '#ef4444'
+                      color: timeLeft <= 0 ? '#10b981' : '#7BA7FF'
                     } : {
                       scale: 1,
                       opacity: isResting ? 1 : 0.4,
@@ -2015,13 +2015,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.02 }}
                 animate={isResting && timeLeft <= 0 ? {
-                  backgroundColor: '#f97316',
-                  boxShadow: '0 20px 25px -5px rgba(249, 115, 22, 0.4)'
+                  backgroundColor: '#7BA7FF',
+                  boxShadow: '0 20px 25px -5px rgba(123, 167, 255, 0.4)'
                 } : {}}
                 className={`w-full h-16 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl ${
                   isResting 
-                    ? (timeLeft <= 0 ? "bg-orange-500 text-white" : "bg-slate-900 text-white") 
-                    : "bg-orange-500 text-white shadow-orange-500/30"
+                    ? (timeLeft <= 0 ? "bg-[#7BA7FF] text-white" : "bg-slate-900 text-white") 
+                    : "bg-[#7BA7FF] text-white shadow-lg shadow-[#7BA7FF]/25"
                 }`}
               >
                 {saving ? (
@@ -2102,8 +2102,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl relative z-10 border border-slate-50 overflow-hidden"
             >
               <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-6">
-                  <Target size={32} className="text-orange-500" />
+                <div className="w-16 h-16 bg-[#7BA7FF]/10 rounded-full flex items-center justify-center mb-6">
+                  <Target size={32} className="text-[#7BA7FF]" />
                 </div>
                 <h3 className="text-xl font-[1000] text-slate-900 uppercase tracking-tighter mb-2">Interromper Treino?</h3>
                 <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
@@ -2114,7 +2114,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <button 
                     onClick={() => finishWorkout(true)} 
                     disabled={finishing}
-                    className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-4 bg-[#7BA7FF] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-[#7BA7FF]/25 active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
                     {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar e Sair"}
                   </button>

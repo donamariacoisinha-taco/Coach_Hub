@@ -32,7 +32,7 @@ import { Exercise } from '../../../types';
 
 const columns = [
   { id: 'draft', title: 'Draft / Novo', color: 'bg-slate-100/50' },
-  { id: 'improvable', title: 'A Melhorar', color: 'bg-orange-50/50' },
+  { id: 'improvable', title: 'A Melhorar', color: 'bg-[#818CF8]/5 shadow-sm' },
   { id: 'review', title: 'Em Revisão', color: 'bg-blue-50/50' },
   { id: 'good', title: 'Aprovado (Bom)', color: 'bg-emerald-50/50' },
   { id: 'premium', title: 'Publicado (Premium)', color: 'bg-indigo-50/50' },
@@ -74,7 +74,7 @@ const ReviewBoard: React.FC = () => {
                       col.id === 'premium' ? 'bg-indigo-500' : 
                       col.id === 'good' ? 'bg-emerald-500' :
                       col.id === 'review' ? 'bg-blue-500' :
-                      col.id === 'improvable' ? 'bg-orange-500' : 'bg-slate-400'
+                      col.id === 'improvable' ? 'bg-[#818CF8]' : 'bg-slate-400'
                     }`} />
                     <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">{col.title}</h3>
                  </div>

@@ -370,7 +370,7 @@ interface RowProps {
                 <div 
                    className={`h-full rounded-full transition-all duration-1000 ${
                      exercise.quality_score && exercise.quality_score > 80 ? 'bg-emerald-500' :
-                     exercise.quality_score && exercise.quality_score > 60 ? 'bg-blue-500' : 'bg-orange-500'
+                     exercise.quality_score && exercise.quality_score > 60 ? 'bg-blue-500' : 'bg-[#818CF8]'
                    }`} 
                    style={{ width: `${exercise.quality_score || 0}%` }} 
                 />
@@ -530,7 +530,7 @@ interface GridCardProps {
                   isLoading={isUpdating}
                 />
                 <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
-                   <div className={`h-full ${exercise.quality_score || 0 > 70 ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${exercise.quality_score || 0}%` }} />
+                   <div className={`h-full ${exercise.quality_score || 0 > 70 ? 'bg-emerald-500' : 'bg-[#818CF8]'}`} style={{ width: `${exercise.quality_score || 0}%` }} />
                 </div>
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{exercise.quality_score || 0}%</span>
              </div>
@@ -572,7 +572,7 @@ function StatusChip({ status, active, rankingStatus, compact }: { status: string
     premium: 'bg-emerald-50 text-emerald-600 border-emerald-100',
     good: 'bg-blue-50 text-blue-600 border-blue-100',
     critical: 'bg-red-50 text-red-600 border-red-100',
-    improvable: 'bg-orange-50 text-orange-600 border-orange-100',
+    improvable: 'bg-[#818CF8]/10 text-[#818CF8] border-[#818CF8]/20',
   };
 
   const labels = {
