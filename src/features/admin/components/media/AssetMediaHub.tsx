@@ -156,7 +156,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
         {/* Main Image */}
         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center justify-between">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Imagem Principal (1:1)</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Imagem Principal (1509 x 1042)</h4>
             <div className="flex items-center gap-2">
               {localData.image_url && (
                 <button 
@@ -178,7 +178,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
             </div>
           </div>
           
-          <div className="aspect-square bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 overflow-hidden relative group">
+          <div className="aspect-[1509/1042] bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 overflow-hidden relative group">
             {localData.image_url ? (
               <img 
                 src={localData.image_url} 
@@ -309,7 +309,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
             image={adjustingImage.src}
             onClose={() => setAdjustingImage(null)}
             onConfirm={handleCropConfirm}
-            aspect={adjustingImage.field === 'image_url' ? 1 : 1}
+            aspect={adjustingImage.field === 'image_url' ? 1509 / 1042 : 1}
           />
         )}
       </AnimatePresence>
