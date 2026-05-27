@@ -87,7 +87,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 50 : 1,
+    zIndex: isDragging ? 200 : (activeMenuId === ex.id ? 150 : 1),
   };
 
   const [isNotesExpanded, setIsNotesExpanded] = useState<boolean>(false);
