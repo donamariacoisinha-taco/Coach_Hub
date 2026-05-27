@@ -155,17 +155,12 @@ const SetCard = ({
           : (focusedIdx === idx && isCompleted ? '0 4px 12px rgba(15,23,42,0.04)' : '0 0px 0px 0px rgba(0,0,0,0)'),
       }}
       style={{ overflow: "visible" }}
-      onClick={isCompleted ? () => {
-        // Focus the input of the completed set for editing
-        const input = (setInputRef as any)?.current;
-        if (input) input.focus();
-      } : undefined}
       transition={isCurrent && intensity === 'LOW' ? {
         scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
         default: transitionConfig
       } : transitionConfig}
       className={`flex flex-col items-stretch ${isAdvanced ? 'p-3' : 'p-4'} rounded-2xl transition-all duration-300 border-2 ${
-        isCompleted ? "bg-slate-50/50 cursor-pointer hover:bg-slate-100" : 
+        isCompleted ? "bg-slate-50/50" : 
         isPending ? "bg-slate-50 border-dashed animate-pulse cursor-wait" :
         "bg-white"
       } ${isCurrent && intensity === 'HIGH' && !isPending ? 'border-[#7BA7FF] ring-4 ring-[#7BA7FF]/10' : ''}`}
@@ -1073,7 +1068,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }, isAdvanced ? 150 : 400); 
   };
 
-  // Scroll and focus handler
+  // Scroll handler
   useEffect(() => {
     const activeIdx = currentSet - 1;
     const activeRef = setRefs.current[activeIdx];
@@ -1082,15 +1077,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       // Use requestAnimationFrame for a jitter-free scroll after layout paint
       requestAnimationFrame(() => {
         activeRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
-        // Auto-focus input with stable delay
-        const input = inputRefs.current[activeIdx];
-        if (input) {
-          setTimeout(() => {
-            input.focus();
-            try { input.select(); } catch(e) {}
-          }, 120); // 120ms for stability
-        }
       });
     }
   }, [currentSet, currentIndex, isResting]);
