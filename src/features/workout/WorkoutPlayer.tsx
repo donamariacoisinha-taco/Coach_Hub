@@ -3,6 +3,9 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  List,
   Plus,
   Minus,
   X,
@@ -401,6 +404,107 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [finishing, setFinishing] = useState(false);
   const [pendingSetToComplete, setPendingSetToComplete] = useState<number | null>(null);
   const [completedSetIndices, setCompletedSetIndices] = useState<Set<number>>(new Set());
+  const [isHydrating, setIsHydrating] = useState(false);
+  const [completedSetsByExercise, setCompletedSetsByExercise] = useState<Record<number, Set<number>>>({});
+
+  // Sync completedSetIndices with completedSetsByExercise
+  useEffect(() => {
+    if (!isHydrating) {
+      setCompletedSetsByExercise(prev => ({
+        ...prev,
+        [currentIndex]: completedSetIndices
+      }));
+    }
+  }, [completedSetIndices, currentIndex, isHydrating]);
+
+  // Load completedSetIndices for the new currentIndex
+  const lastIndexForCompletionRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (lastIndexForCompletionRef.current !== currentIndex && !isHydrating) {
+      const savedCompleted = completedSetsByExercise[currentIndex];
+      if (savedCompleted) {
+        setCompletedSetIndices(savedCompleted);
+      } else {
+        // Fallback: check if we have workoutPerformance logs already completed
+        if (workoutPerformance[currentIndex] && workoutPerformance[currentIndex].length > 0) {
+          const defaultCompleted = new Set<number>();
+          workoutPerformance[currentIndex].forEach((_, sIdx) => defaultCompleted.add(sIdx));
+          setCompletedSetIndices(defaultCompleted);
+        } else {
+          setCompletedSetIndices(new Set());
+        }
+      }
+      lastIndexForCompletionRef.current = currentIndex;
+    }
+  }, [currentIndex, completedSetsByExercise, isHydrating, workoutPerformance]);
+
+  const moveExercise = (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= exercises.length) return;
+
+    // 1. Swap exercises
+    const updatedExercises = [...exercises];
+    const tempEx = updatedExercises[index];
+    updatedExercises[index] = updatedExercises[newIndex];
+    updatedExercises[newIndex] = tempEx;
+
+    // 2. Swap workoutPerformance
+    setWorkoutPerformance(prev => {
+      const next = { ...prev };
+      const valIndex = next[index];
+      const valNewIndex = next[newIndex];
+      
+      if (valIndex !== undefined) {
+        next[newIndex] = valIndex;
+      } else {
+        delete next[newIndex];
+      }
+      
+      if (valNewIndex !== undefined) {
+        next[index] = valNewIndex;
+      } else {
+        delete next[index];
+      }
+      return next;
+    });
+
+    // 3. Swap completedSetsByExercise
+    setCompletedSetsByExercise(prev => {
+      const next = { ...prev };
+      const valIndex = next[index];
+      const valNewIndex = next[newIndex];
+      
+      if (valIndex !== undefined) {
+        next[newIndex] = valIndex;
+      } else {
+        delete next[newIndex];
+      }
+      
+      if (valNewIndex !== undefined) {
+        next[index] = valNewIndex;
+      } else {
+        delete next[index];
+      }
+      return next;
+    });
+
+    // 4. Update currentIndex if we are moving the active exercise
+    let newCurrentIdx = currentIndex;
+    if (currentIndex === index) {
+      newCurrentIdx = newIndex;
+    } else if (currentIndex === newIndex) {
+      newCurrentIdx = index;
+    }
+
+    // 5. Update Zustand store
+    useWorkoutStore.setState({
+      exercises: updatedExercises,
+      currentIndex: newCurrentIdx
+    } as any);
+
+    playSensoryTone('click');
+    playHapticFeedback('light');
+  };
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [focusedIdx, setFocusedIdx] = useState<number | null>(null);
   const isAdvancingRef = useRef(false);
@@ -409,7 +513,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [streak, setStreak] = useState(0);
   const [fatigueDetected, setFatigueDetected] = useState(false);
   const [anomalyDetected, setAnomalyDetected] = useState(false);
-  const [isHydrating, setIsHydrating] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [historicalSets, setHistoricalSets] = useState<{weight_achieved: number, reps_achieved: number, set_number: number}[]>([]);
   const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
@@ -425,6 +528,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         const logs = await workoutApi.getWorkoutLogsSimple(historyId);
         if (logs && logs.length > 0) {
            const newPerf: Record<number, {weight: number, reps: number, rpe: number}[]> = {};
+           const newCompletedByEx: Record<number, Set<number>> = {};
            logs.forEach(l => {
               const exIdx = exercises.findIndex(ex => ex.exercise_id === l.exercise_id);
               if (exIdx === -1) return;
@@ -434,16 +538,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 reps: l.reps_achieved,
                 rpe: l.rpe || 8
               };
+              if (!newCompletedByEx[exIdx]) newCompletedByEx[exIdx] = new Set();
+              newCompletedByEx[exIdx].add(l.set_number - 1);
            });
            setWorkoutPerformance(newPerf);
+           setCompletedSetsByExercise(newCompletedByEx);
            
            // Populate completed sets for current exercise
-           const currentExLogs = logs.filter(l => l.exercise_id === exercises[currentIndex]?.exercise_id);
-           if (currentExLogs.length > 0) {
-             const completed = new Set<number>();
-             currentExLogs.forEach(l => completed.add(l.set_number - 1));
-             setCompletedSetIndices(completed);
-           }
+           const currentCompleted = newCompletedByEx[currentIndex] || new Set<number>();
+           setCompletedSetIndices(currentCompleted);
         }
       } catch (err) {
         console.error("Failed to hydrate session", err);
@@ -1699,7 +1802,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-4 items-center">
+              <div className="flex gap-3 items-center">
+                <button 
+                  onClick={() => setShowExercisesList(true)}
+                  className="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-150/80 rounded-xl flex items-center gap-1.5 active:scale-95 transition-all text-slate-500 hover:text-slate-800 h-[28px] shrink-0"
+                  title="Visualizar todos os exercícios da ficha"
+                  id="header-ficha-list-btn"
+                >
+                  <List size={13} strokeWidth={3} className="text-slate-400" />
+                  <span className="text-[9px] font-[1000] uppercase tracking-wider">Ficha</span>
+                </button>
                 {streak > 0 && !momentum && (
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#818CF8]/10 rounded-full border border-[#818CF8]/20 hidden sm:flex">
                     <Flame size={12} className="text-[#818CF8] fill-[#818CF8]/30" />
@@ -1782,6 +1894,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <Plus size={12} /> Nota
                 </button>
               </div>
+
+              {/* RETORNAR AO ANTERIOR JÁ EXECUTADO */}
+              {currentIndex > 0 && (
+                <div className="px-4 mb-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <button 
+                    onClick={() => {
+                      setCurrentIndex(currentIndex - 1);
+                      setCurrentSet(1);
+                    }}
+                    className="w-full bg-slate-50 hover:bg-slate-100 active:scale-98 transition-all border border-slate-200/50 rounded-xl py-2 px-3 text-[10px] font-black tracking-[0.05em] text-slate-500 hover:text-slate-800 uppercase flex items-center justify-center gap-1.5 h-[38px] shadow-sm"
+                  >
+                    <ChevronLeft size={14} strokeWidth={4} /> Voltar ao anterior: {exercises[currentIndex - 1]?.exercise_name}
+                  </button>
+                </div>
+              )}
 
               {/* SERIES LIST (CORE) */}
               <div className={`px-4 ${isAdvanced ? 'space-y-2' : 'space-y-3'} pb-8 overflow-hidden`}>
@@ -2058,25 +2185,78 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
                 className="mt-auto bg-white rounded-t-[3rem] p-8 shadow-2xl relative z-10 max-w-md mx-auto w-full pb-12"
               >
-                 <div className="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-8" />
-                 <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Ordem do Treino</h3>
-                 <div className="space-y-4">
+                 <div className="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-6" />
+                 <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Ordem do Treino</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg">{exercises.length} Exs</p>
+                 </div>
+                 <div className="space-y-3 max-h-[60vh] overflow-y-auto no-scrollbar pr-1">
                     {exercises.map((ex, i) => (
-                      <button 
-                        key={ex.exercise_id}
-                        onClick={() => { setCurrentIndex(i); setCurrentSet(1); setShowExercisesList(false); }}
-                        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${
-                          i === currentIndex ? "bg-slate-900 text-white shadow-xl translate-x-2" : "hover:bg-slate-50 text-slate-600"
+                      <div 
+                        key={ex.exercise_id || i}
+                        className={`w-full flex items-center justify-between p-3 px-4 rounded-2xl border transition-all ${
+                          i === currentIndex 
+                            ? "bg-slate-900 text-white border-slate-950 shadow-xl" 
+                            : "bg-white text-slate-600 border-slate-150 border-slate-100 hover:bg-slate-50"
                         }`}
                       >
-                         <span className={`text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center ${
-                           i === currentIndex ? "bg-white/20" : "bg-slate-100"
-                         }`}>
-                           {i + 1}
-                         </span>
-                         <span className="flex-1 text-left font-bold text-sm truncate">{ex.exercise_name}</span>
-                         {i < currentIndex && <Check size={14} className="text-emerald-500" />}
-                      </button>
+                         {/* Seleção do Exercício */}
+                         <button
+                           onClick={() => { 
+                             setCurrentIndex(i); 
+                             setCurrentSet(1); 
+                             setShowExercisesList(false); 
+                           }}
+                           className="flex-1 flex items-center gap-4 text-left min-w-0"
+                         >
+                           <span className={`text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center ${
+                             i === currentIndex ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                           }`}>
+                             {i + 1}
+                           </span>
+                           <div className="flex-1 min-w-0">
+                             <span className="font-bold text-sm truncate block">{ex.exercise_name}</span>
+                             <span className={`text-[9px] font-bold block uppercase tracking-wider ${i === currentIndex ? 'text-blue-300' : 'text-slate-400'}`}>
+                               {ex.muscle_group}
+                             </span>
+                           </div>
+                           {i < currentIndex && <Check size={14} className="text-emerald-500 shrink-0" />}
+                         </button>
+
+                         {/* Setas de Reordenação */}
+                         <div className={`flex items-center gap-1 pl-2 border-l ${i === currentIndex ? 'border-white/10' : 'border-slate-100'}`}>
+                           <button
+                             disabled={i === 0}
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               moveExercise(i, 'up');
+                             }}
+                             className={`p-1.5 rounded-lg transition-all ${
+                               i === 0 
+                                 ? "opacity-20 cursor-not-allowed" 
+                                 : (i === currentIndex ? "hover:bg-white/10 text-white" : "hover:bg-slate-100 text-slate-400 hover:text-slate-800")
+                             }`}
+                             title="Mover para cima"
+                           >
+                             <ChevronUp size={16} strokeWidth={3} />
+                           </button>
+                           <button
+                             disabled={i === exercises.length - 1}
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               moveExercise(i, 'down');
+                             }}
+                             className={`p-1.5 rounded-lg transition-all ${
+                               i === exercises.length - 1 
+                                 ? "opacity-20 cursor-not-allowed" 
+                                 : (i === currentIndex ? "hover:bg-white/10 text-white" : "hover:bg-slate-100 text-slate-400 hover:text-slate-800")
+                             }`}
+                             title="Mover para baixo"
+                           >
+                             <ChevronDown size={16} strokeWidth={3} />
+                           </button>
+                         </div>
+                      </div>
                     ))}
                  </div>
               </motion.div>
