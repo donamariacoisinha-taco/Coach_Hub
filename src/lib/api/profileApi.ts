@@ -8,7 +8,20 @@ export const profileApi = {
     return fetchWithRetry(async () => {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
       if (error) throw error;
-      return data as UserProfile | null;
+      
+      const profileData = data as UserProfile | null;
+      if (profileData) {
+        // Hydrate preferred_training_days from local storage since it is not a DB column
+        const stored = localStorage.getItem(`rubi_preferred_training_days_${userId}`);
+        if (stored) {
+          try {
+            profileData.preferred_training_days = JSON.parse(stored);
+          } catch (e) {
+            console.error('[PROFILE_API] Error hydrating preferred_training_days', e);
+          }
+        }
+      }
+      return profileData;
     });
   },
 
@@ -28,10 +41,18 @@ export const profileApi = {
 
   async updateProfile(userId: string, payload: Partial<UserProfile>) {
     return fetchWithRetry(async () => {
+      // Save preferred training days safely to localStorage to protect column constraints and maintain offline sync
+      if (payload.preferred_training_days) {
+        localStorage.setItem(`rubi_preferred_training_days_${userId}`, JSON.stringify(payload.preferred_training_days));
+      }
+
+      // Strip preferred_training_days before pushing to the profiles table
+      const { preferred_training_days, ...cleanPayload } = payload as any;
+
       // We use upsert to ensure it works even if the profile was not yet created
       const { error } = await supabase
         .from('profiles')
-        .upsert({ ...payload, id: userId });
+        .upsert({ ...cleanPayload, id: userId });
       if (error) throw error;
     });
   },
