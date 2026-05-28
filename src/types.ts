@@ -63,6 +63,8 @@ export interface UserProfile {
   workouts_completed?: number;
   workout_streak?: number;
   total_minutes?: number;
+  preferred_training_days?: string[];
+  training_adherence_score?: number;
 }
 
 export interface PersonalBest {

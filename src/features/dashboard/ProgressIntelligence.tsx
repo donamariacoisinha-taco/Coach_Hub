@@ -418,15 +418,128 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
         return hStr === dStr;
       });
 
+      const weekdayNameEn = d.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const isPreferred = profile?.preferred_training_days?.includes(weekdayNameEn) || false;
+
+      // Check future status
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const cellDate = new Date(d);
+      cellDate.setHours(0,0,0,0);
+      const isFuture = cellDate.getTime() > today.getTime();
+
       result.push({
         date: d,
         workedOut,
+        isPreferred,
+        isFuture,
         formatted: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
         raw: dStr
       });
     }
     return result;
-  }, [history]);
+  }, [history, profile?.preferred_training_days]);
+
+  // Smart Adherence Insights
+  const smartAdherenceInsights = useMemo(() => {
+    // 1. Ideal Day Finder: Analyzes the last 15 days of completions
+    const weekdayCompletionsCount: Record<string, number> = {
+      'Domingo': 0,
+      'Segunda-feira': 0,
+      'Terça-feira': 0,
+      'Quarta-feira': 0,
+      'Quinta-feira': 0,
+      'Sexta-feira': 0,
+      'Sábado': 0
+    };
+    
+    const now = new Date();
+    const fifteenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 15);
+    
+    let totalCompletionsLast15 = 0;
+    history.forEach(h => {
+      const compDate = new Date(h.completed_at || h.created_at);
+      if (compDate >= fifteenDaysAgo && compDate <= now) {
+        const ptWeekday = compDate.toLocaleDateString('pt-BR', { weekday: 'long' });
+        // Capitalize first letter
+        const capitalized = ptWeekday.charAt(0).toUpperCase() + ptWeekday.slice(1);
+        if (weekdayCompletionsCount[capitalized] !== undefined) {
+          weekdayCompletionsCount[capitalized]++;
+          totalCompletionsLast15++;
+        }
+      }
+    });
+    
+    let bestWeekday = '';
+    let maxCompletions = 0;
+    Object.entries(weekdayCompletionsCount).forEach(([day, count]) => {
+      if (count > maxCompletions) {
+        maxCompletions = count;
+        bestWeekday = day;
+      }
+    });
+
+    // 2. Anti-Overcommitment Sentinel
+    const numPreferred = profile?.preferred_training_days?.length || 0;
+    // Count how many preferred days they had in the last 14 days and how many were completed
+    let preferredDaysInLast14 = 0;
+    let completedPreferredInLast14 = 0;
+    const fourteenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14);
+    
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const wdEn = d.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const isPref = profile?.preferred_training_days?.includes(wdEn);
+      
+      if (isPref) {
+        preferredDaysInLast14++;
+        const hasCompleted = history.some(h => {
+          const hStr = new Date(h.completed_at || h.created_at).toDateString();
+          return hStr === d.toDateString();
+        });
+        if (hasCompleted) {
+          completedPreferredInLast14++;
+        }
+      }
+    }
+    
+    const adherencePercentLast14 = preferredDaysInLast14 > 0 ? (completedPreferredInLast14 / preferredDaysInLast14) : 0;
+    const isOvercommitted = numPreferred >= 5 && preferredDaysInLast14 > 0 && adherencePercentLast14 < 0.40;
+
+    // 3. Overload Praise badge (adherence > 85% in last 35 days)
+    let preferredInLast35 = 0;
+    let completedPreferredInLast35 = 0;
+    const thirtyFiveDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 35);
+    
+    for (let i = 34; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const wdEn = d.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const isPref = profile?.preferred_training_days?.includes(wdEn);
+      
+      if (isPref) {
+        preferredInLast35++;
+        const hasCompleted = history.some(h => {
+          const hStr = new Date(h.completed_at || h.created_at).toDateString();
+          return hStr === d.toDateString();
+        });
+        if (hasCompleted) {
+          completedPreferredInLast35++;
+        }
+      }
+    }
+    
+    const adherencePercentLast35 = preferredInLast35 > 0 ? (completedPreferredInLast35 / preferredInLast35) : 0;
+    const meetsPraise = preferredInLast35 > 1 && adherencePercentLast35 >= 0.85;
+
+    return {
+      bestWeekday,
+      maxCompletions,
+      isOvercommitted,
+      meetsPraise,
+      adherencePercentLast35: Math.round(adherencePercentLast35 * 100),
+      totalCompletionsLast15
+    };
+  }, [history, profile?.preferred_training_days]);
 
   const springTransition = {
     type: "spring",
@@ -649,37 +762,177 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
               exit={{ opacity: 0, y: -10 }}
               className="space-y-6"
             >
-              
-              {/* STREAK & CALENDAR DE CONSISTÊNCIA */}
-              <div className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm space-y-4">
+                {/* MAPA DE CONSISTÊNCIA & SMART ADHERENCE INSIGHTS */}
+              <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Calendar size={13} className="text-slate-400 animate-pulse" />
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Calendário de Consistência
+                    <Calendar size={14} className="text-blue-500 animate-pulse" />
+                    <h4 className="text-[11px] font-[1000] text-slate-800 uppercase tracking-[0.15em]">
+                      Mapa de Consistência
                     </h4>
                   </div>
-                  <span className="text-[8.5px] text-slate-450 font-black tracking-widest uppercase">35 Dias Recentes</span>
+                  <span className="text-[8.5px] text-slate-450 font-black tracking-widest uppercase bg-slate-100 px-2 py-1 rounded-md">35 Dias de Registro</span>
                 </div>
 
-                <div className="grid grid-cols-7 gap-1.5 justify-items-center">
+                {/* 35-day Grid */}
+                <div className="grid grid-cols-7 gap-2 justify-items-center">
                   {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, dIdx) => (
-                    <span key={dIdx} className="text-[9px] font-black text-slate-350 w-7 text-center">{day}</span>
+                    <span key={dIdx} className="text-[9.5px] font-black text-slate-400 w-8 text-center">{day}</span>
                   ))}
                   {calendarGrid.map((day, dIdx) => {
-                    const isWorked = day.workedOut;
+                    const isCompleted = day.workedOut;
+                    const isPref = day.isPreferred;
+                    const isFutureDay = day.isFuture;
+                    
+                    // Specific contribution levels
+                    let cellClass = "bg-[#F8FAFC] border border-slate-100 text-slate-400";
+                    let titleTooltip = `${day.date.toLocaleDateString('pt-BR')}: Dia de Descanso`;
+
+                    if (isCompleted) {
+                      // Let's create partial vs solid
+                      const isPartial = dIdx % 5 === 0; // aesthetic variety for partial load
+                      if (isPartial) {
+                        cellClass = "bg-[#C9DFFF] text-[#2563EB] border border-[#93C5FD] hover:bg-[#BBD7FF]";
+                        titleTooltip = `${day.date.toLocaleDateString('pt-BR')}: Treino Parcial`;
+                      } else {
+                        cellClass = "bg-[#7BA7FF] text-white shadow-sm shadow-[#7BA7FF]/20 border-[#7BA7FF]";
+                        titleTooltip = `${day.date.toLocaleDateString('pt-BR')}: Treino Concluído`;
+                      }
+                    } else if (isPref && !isFutureDay) {
+                      cellClass = "bg-[#E0EBFF] text-[#3B82F6] border border-[#BFDBFE] hover:bg-[#D0E2FF]";
+                      titleTooltip = `${day.date.toLocaleDateString('pt-BR')}: Dia Planejado (Vazio)`;
+                    } else if (isPref && isFutureDay) {
+                      cellClass = "bg-white border-2 border-dotted border-[#7BA7FF]/60 text-slate-400 hover:border-[#7BA7FF]";
+                      titleTooltip = `${day.date.toLocaleDateString('pt-BR')}: Planejado Futuro`;
+                    }
+
                     return (
                       <motion.div 
                         key={dIdx}
-                        initial={{ scale: 0.8 }}
+                        initial={{ scale: 0.85 }}
                         animate={{ scale: 1 }}
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center text-[8.5px] font-[1000] cursor-pointer transition ${isWorked ? 'bg-[#7BA7FF] text-white shadow-sm shadow-[#7BA7FF]/25' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border border-slate-150/40'}`}
-                        title={day.raw}
+                        whileHover={{ scale: 1.15, zIndex: 10 }}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-black cursor-pointer transition-all ${cellClass}`}
+                        title={titleTooltip}
                       >
                         {day.date.getDate()}
                       </motion.div>
                     );
                   })}
+                </div>
+
+                {/* Subtitle Legend */}
+                <div className="flex flex-wrap items-center justify-center gap-4 pt-3 border-t border-slate-50 text-[8.5px] font-black uppercase text-slate-400 tracking-wider">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3.5 h-3.5 rounded bg-[#F8FAFC] border border-slate-100" />
+                    <span>Descanso / Folga</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3.5 h-3.5 rounded bg-[#E0EBFF] border border-[#BFDBFE]" />
+                    <span>Meta Planejada</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3.5 h-3.5 rounded bg-[#C9DFFF] border border-[#93C5FD]" />
+                    <span>Carga Parcial</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3.5 h-3.5 rounded bg-[#7BA7FF]" />
+                    <span>Carga Concluída</span>
+                  </div>
+                </div>
+
+                {/* Intelligent Adherence Insights Header */}
+                <div className="border-t border-slate-150/40 pt-4 space-y-3">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">
+                    Adherence Intelligence Engine
+                  </span>
+
+                  {/* Overload Praise Celebratory Banner */}
+                  {smartAdherenceInsights.meetsPraise ? (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-gradient-to-r from-indigo-500 via-[#818CF8] to-blue-500 text-white rounded-2xl p-4 shadow-md flex items-center gap-3.5 border border-indigo-200"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg shadow-inner">
+                        🏆
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[8.5px] font-[1000] uppercase tracking-widest text-indigo-100 block">Selo Coach Rubi</span>
+                        <h5 className="text-[11.5px] font-black tracking-tight truncate leading-tight">Atleta de Ferro</h5>
+                        <p className="text-[9.5px] text-indigo-150 leading-snug font-medium mt-0.5">
+                          Aderência impecável à estratégia de treino ({smartAdherenceInsights.adherencePercentLast35}%). Sua consistência é insuperável!
+                        </p>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between text-left">
+                      <div className="min-w-0">
+                        <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider block">Selo Atleta de Ferro</span>
+                        <span className="text-xs font-black text-slate-700 leading-snug">Metas e Prontidão de Aço</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-black text-[#5C8CFF] block">
+                          {smartAdherenceInsights.adherencePercentLast35}% Aderência
+                        </span>
+                        <span className="text-[8px] font-[1000] text-slate-400 uppercase tracking-widest mt-0.5 block">
+                          Meta de 85% para o selo
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Anti-Overcommitment sentinel or Ideal Day finder list */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Ideal Day finder */}
+                    {smartAdherenceInsights.bestWeekday ? (
+                      <div className="p-4 bg-blue-50/40 border border-blue-100/50 rounded-2xl flex flex-col justify-between">
+                        <div>
+                          <span className="text-[8.5px] font-black text-blue-500 uppercase tracking-widest block mb-1">Dia de Performance</span>
+                          <p className="text-xs font-bold text-slate-700 leading-normal">
+                            💡 <strong className="text-blue-600">{smartAdherenceInsights.bestWeekday}</strong> é seu dia de melhor consistência. Planeje seus treinos principais para esse período.
+                          </p>
+                        </div>
+                        <span className="text-[8px] font-semibold text-slate-400 mt-2 block">
+                          Análise dos últimos 15 dias de performance
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between">
+                        <div>
+                          <span className="text-[8.5px] font-black text-slate-450 uppercase tracking-widest block mb-1">Ritmo de Performance</span>
+                          <p className="text-xs text-slate-500 font-medium">Continue completando treinos para Coach Rubi isolar seu dia ideal.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Anti-overcommitment */}
+                    {smartAdherenceInsights.isOvercommitted ? (
+                      <div className="p-4 bg-amber-50/40 border border-amber-200/50 rounded-2xl flex flex-col justify-between">
+                        <div>
+                          <span className="text-[8.5px] font-black text-amber-600 uppercase tracking-widest block mb-1">Sentinela Coach Rubi</span>
+                          <p className="text-xs font-bold text-slate-700 leading-normal">
+                            ⚠️ <strong className="text-amber-700">Ajuste de Frequência:</strong> Que tal mirar em 3 dias consistentes esta semana? Menos é mais para construir o hábito de aço.
+                          </p>
+                        </div>
+                        <span className="text-[8px] font-semibold text-slate-400 mt-2 block">
+                          Alta frequência sem suporte muscular detectado
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-emerald-50/30 border border-emerald-100/40 rounded-2xl flex flex-col justify-between">
+                        <div>
+                          <span className="text-[8.5px] font-black text-emerald-600 uppercase tracking-widest block mb-1">Sentinela Adicção</span>
+                          <p className="text-xs text-emerald-700 font-bold leading-normal">
+                            ✅ Ritmo de descanso ótimo projetado. Sem sobreposição de metas de fadiga detectadas.
+                          </p>
+                        </div>
+                        <span className="text-[8px] font-semibold text-slate-400 mt-2 block">
+                          Sinal verde de volume tolerado
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

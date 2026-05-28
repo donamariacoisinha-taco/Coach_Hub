@@ -48,6 +48,17 @@ export default function ProfileViewV2() {
   const [weight, setWeight] = useState<number | ''>('');
   const [height, setHeight] = useState<number | ''>('');
   const [targetWeight, setTargetWeight] = useState<number | ''>('');
+  const [preferredTrainingDays, setPreferredTrainingDays] = useState<string[]>([]);
+
+  const WEEKDAYS = [
+    { key: 'monday', label: 'Seg' },
+    { key: 'tuesday', label: 'Ter' },
+    { key: 'wednesday', label: 'Qua' },
+    { key: 'thursday', label: 'Qui' },
+    { key: 'friday', label: 'Sex' },
+    { key: 'saturday', label: 'Sáb' },
+    { key: 'sunday', label: 'Dom' }
+  ];
 
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -221,6 +232,7 @@ export default function ProfileViewV2() {
       setHeight(profile.height || '');
       setTargetWeight(profile.target_weight || '');
       setAvatarUrl(profile.avatar_url || '');
+      setPreferredTrainingDays(profile.preferred_training_days || []);
     }
   }, [storeProfile]);
 
@@ -243,7 +255,8 @@ export default function ProfileViewV2() {
     (weight === '' ? '' : Number(weight)) !== (profile.weight || '') ||
     (height === '' ? '' : Number(height)) !== (profile.height || '') ||
     (targetWeight === '' ? '' : Number(targetWeight)) !== (profile.target_weight || '') ||
-    avatarUrl !== (profile.avatar_url || '')
+    avatarUrl !== (profile.avatar_url || '') ||
+    JSON.stringify(preferredTrainingDays) !== JSON.stringify(profile.preferred_training_days || [])
   );
 
   const handleSaveAll = async () => {
@@ -262,7 +275,8 @@ export default function ProfileViewV2() {
         weight: weight !== '' ? parseFloat(weight.toString()) : null,
         height: height !== '' ? parseInt(height.toString()) : null,
         target_weight: targetWeight !== '' ? parseFloat(targetWeight.toString()) : null,
-        avatar_url: avatarUrl || null
+        avatar_url: avatarUrl || null,
+        preferred_training_days: preferredTrainingDays
       };
 
       // Cache locally
@@ -745,6 +759,52 @@ export default function ProfileViewV2() {
                   <option value="5">5x por semana</option>
                   <option value="7">Diário (Consistente)</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Preferred Training Days Selector */}
+            <div className="space-y-4 pt-4 border-t border-slate-100/30 mt-2 text-center">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-800">Dias Preferidos de Treino</span>
+                <span className="text-[8.5px] font-semibold text-slate-400 mt-1 uppercase tracking-wider">Configure seus dias planejados para que Coach Rubi monitore sua consistência</span>
+              </div>
+              
+              <div className="flex flex-wrap gap-2 justify-center py-2">
+                {WEEKDAYS.map((day) => {
+                  const isSelected = preferredTrainingDays.includes(day.key);
+                  return (
+                    <motion.button
+                      key={day.key}
+                      type="button"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.93 }}
+                      transition={{ type: "spring", stiffness: 450, damping: 20 }}
+                      onClick={() => {
+                        if ('vibrate' in navigator) navigator.vibrate(4);
+                        setPreferredTrainingDays(prev => 
+                          prev.includes(day.key) 
+                            ? prev.filter(x => x !== day.key) 
+                            : [...prev, day.key]
+                        );
+                      }}
+                      className={`px-4.5 py-3 rounded-full text-[10.5px] font-black uppercase tracking-wider transition-all shadow-sm relative ${
+                        isSelected 
+                          ? 'bg-gradient-to-r from-[#7BA7FF] to-[#A5C8FF] text-white shadow-md shadow-[#7BA7FF]/20 overflow-hidden' 
+                          : 'bg-white/60 text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-md'
+                      }`}
+                      id={`preferred-day-btn-${day.key}`}
+                    >
+                      {isSelected && (
+                        <motion.span 
+                          layoutId="activeGlow" 
+                          className="absolute inset-0 bg-white/10 mix-blend-overlay animate-pulse" 
+                          transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
+                        />
+                      )}
+                      <span className="relative z-10">{day.label}</span>
+                    </motion.button>
+                  );
+                })}
               </div>
             </div>
           </div>
