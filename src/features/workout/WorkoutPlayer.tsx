@@ -22,8 +22,18 @@ import {
   Flame,
   Award,
   Sparkles,
-  Dumbbell
+  Dumbbell,
+  Search,
+  Heart,
+  History,
+  Filter,
+  Trash2,
+  MoreVertical,
+  GripVertical,
+  LayoutList,
+  Info
 } from "lucide-react";
+import { exerciseApi } from "../../lib/api/exerciseApi";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "../../lib/api/supabase";
 import { authApi } from "../../lib/api/authApi";
@@ -70,11 +80,12 @@ const SetCard = ({
   setRowRef, 
   setInputRef, 
   focusedIdx,
-  userLevel = 'BEGINNER' 
+  userLevel = 'BEGINNER',
+  focusMode = false
 }: any) => {
   const [localWeight, setLocalWeight] = useState(setData.weight.toString());
   const [localReps, setLocalReps] = useState(setData.reps.toString());
-
+ 
   // Level attributes
   const isBeginner = userLevel === 'BEGINNER';
   const isAdvanced = userLevel === 'ADVANCED';
@@ -83,23 +94,23 @@ const SetCard = ({
   const transitionConfig = isAdvanced 
     ? { type: "tween", duration: 0.15 } 
     : { type: "spring", stiffness: isBeginner ? 200 : 300, damping: isBeginner ? 30 : 25 };
-
+ 
   // Use refs to track if user is currently typing to avoid overwriting from global state
   const isEditing = useRef(false);
-
+ 
   // Sync local state with global state when global state changes from outside (e.g. auto-progression)
   useEffect(() => {
     if (!isEditing.current) {
       setLocalWeight(setData.weight.toString());
     }
   }, [setData.weight]);
-
+ 
   useEffect(() => {
     if (!isEditing.current) {
       setLocalReps(setData.reps.toString());
     }
   }, [setData.reps]);
-
+ 
   const commitWeight = () => {
     isEditing.current = false;
     updateSetData(idx, 'weight', localWeight);
@@ -107,7 +118,7 @@ const SetCard = ({
     setIsInputFocused(false);
     playSensoryTone('click');
     playHapticFeedback('light');
-
+ 
     // Track if load was reduced
     try {
       const parsedVal = parseFloat(localWeight.replace(',', '.'));
@@ -119,7 +130,7 @@ const SetCard = ({
       }
     } catch (e) {}
   };
-
+ 
   const commitReps = () => {
     isEditing.current = false;
     updateSetData(idx, 'reps', localReps);
@@ -128,28 +139,36 @@ const SetCard = ({
     playSensoryTone('click');
     playHapticFeedback('light');
   };
-
-
+ 
+ 
   const handleKeyDown = (e: React.KeyboardEvent, commitFn: () => void) => {
     if (e.key === 'Enter') {
       commitFn();
       (e.target as HTMLInputElement).blur();
     }
   };
-
+ 
   return (
     <motion.div 
       layout
       ref={setRowRef}
       initial={false}
       animate={{
-        opacity: isCompleted ? (focusedIdx === idx ? 0.85 : 0.45) : 1,
+        opacity: isCompleted 
+          ? (focusedIdx === idx ? 0.85 : (focusMode ? 0.35 : 0.45)) 
+          : (focusMode && !isCurrent ? 0.45 : 1),
         scale: isCurrent 
           ? (showPR ? 1.02 : (intensity === 'LOW' ? [1, 1.01, 1] : (focusedIdx === idx ? 1.02 : 1))) 
           : isPast && !isCurrent ? 0.96 : 0.98,
         height: "auto",
         marginTop: (idx === 0 ? 0 : 12),
-        borderColor: isPending ? '#cbd5e1' : (isCurrent ? (showPR ? '#A5C8FF' : '#7BA7FF') : (focusedIdx === idx && isCompleted ? '#94a3b8' : 'rgba(241, 245, 249, 0.5)')),
+        borderColor: isPending 
+          ? '#cbd5e1' 
+          : (isCurrent 
+              ? (showPR ? '#A5C8FF' : '#7BA7FF') 
+              : (focusedIdx === idx && isCompleted 
+                  ? (focusMode ? '#475569' : '#94a3b8') 
+                  : (focusMode ? 'rgba(30, 41, 59, 0.4)' : 'rgba(241, 245, 249, 0.5)'))),
         boxShadow: isCurrent && !isPending
           ? (showPR ? '0 20px 40px -5px rgba(123, 167, 255, 0.25)' : (intensity === 'HIGH' ? '0 15px 35px -5px rgba(123, 167, 255, 0.15)' : '0 10px 25px -5px rgba(123, 167, 255, 0.05)')) 
           : (focusedIdx === idx && isCompleted ? '0 4px 12px rgba(15,23,42,0.04)' : '0 0px 0px 0px rgba(0,0,0,0)'),
@@ -160,10 +179,10 @@ const SetCard = ({
         default: transitionConfig
       } : transitionConfig}
       className={`flex flex-col items-stretch ${isAdvanced ? 'p-3' : 'p-4'} rounded-2xl transition-all duration-300 border-2 ${
-        isCompleted ? "bg-slate-50/50" : 
+        isCompleted ? (focusMode ? "bg-slate-900/30 border-slate-900/60" : "bg-slate-50/50") : 
         isPending ? "bg-slate-50 border-dashed animate-pulse cursor-wait" :
-        "bg-white"
-      } ${isCurrent && intensity === 'HIGH' && !isPending ? 'border-[#7BA7FF] ring-4 ring-[#7BA7FF]/10' : ''}`}
+        (focusMode ? "bg-slate-900 border-slate-900/60" : "bg-white")
+      } ${isCurrent && intensity === 'HIGH' && !isPending ? (focusMode ? 'border-[#7BA7FF] ring-4 ring-[#7BA7FF]/25 shadow-[0_0_30px_rgba(123,167,255,0.2)]' : 'border-[#7BA7FF] ring-4 ring-[#7BA7FF]/10') : ''}`}
     >
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-4">
@@ -190,7 +209,7 @@ const SetCard = ({
                   onKeyDown={(e) => handleKeyDown(e, commitWeight)}
                   whileFocus={{ scale: 1.15, color: "#7BA7FF" }}
                   className={`text-xl font-black w-20 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
-                    isCurrent ? "text-slate-900" : "text-slate-400"
+                    isCurrent ? (focusMode ? "text-white" : "text-slate-900") : (focusMode ? "text-slate-500" : "text-slate-400")
                   }`}
                   onFocus={(e) => {
                     e.target.select();
@@ -199,7 +218,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">
+                <p className={`text-[8px] font-black tracking-widest mt-0.5 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
                   {isBeginner ? 'Peso' : 'Kg'}
                 </p>
                 
@@ -231,7 +250,7 @@ const SetCard = ({
                   onKeyDown={(e) => handleKeyDown(e, commitReps)}
                   whileFocus={{ scale: 1.15, color: "#7BA7FF" }}
                   className={`text-xl font-black w-14 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
-                    isCurrent ? "text-slate-900" : "text-slate-400"
+                    isCurrent ? (focusMode ? "text-white" : "text-slate-900") : (focusMode ? "text-slate-500" : "text-slate-400")
                   }`}
                   onFocus={(e) => {
                     e.target.select();
@@ -240,7 +259,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className="text-[8px] font-black text-slate-300 tracking-widest mt-0.5 uppercase">
+                <p className={`text-[8px] font-black tracking-widest mt-0.5 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
                   {isBeginner ? 'Repetições' : 'Reps'}
                 </p>
                 
@@ -396,6 +415,312 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [isSavedSuccessfully, setIsSavedSuccessfully] = useState(false);
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [showExercisesList, setShowExercisesList] = useState(false);
+  
+  // Adaptive Protocol Management States
+  const [allAvailableExercises, setAllAvailableExercises] = useState<any[]>([]);
+  const [loadingExercisesDetail, setLoadingExercisesDetail] = useState(false);
+  const [exerciseSelectorMode, setExerciseSelectorMode] = useState<'add' | 'replace' | null>(null);
+  const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string>('Tudo');
+  const [selectedEquipment, setSelectedEquipment] = useState<string>('Todos');
+  const [favoritesList, setFavoritesList] = useState<string[]>([]);
+  const [contextMenuIndex, setContextMenuIndex] = useState<number | null>(null);
+  const [editingSeriesLoad, setEditingSeriesLoad] = useState<number>(0);
+  const [editingSeriesCount, setEditingSeriesCount] = useState<number>(3);
+
+  // Fetch all exercises and favorites for smart replacement/selector
+  useEffect(() => {
+    async function loadAllExercisesData() {
+      setLoadingExercisesDetail(true);
+      try {
+        const list = await exerciseApi.getExercises();
+        setAllAvailableExercises(list || []);
+        
+        const u = await authApi.getUser();
+        if (u) {
+          const favs = await exerciseApi.getFavorites(u.id);
+          setFavoritesList(favs || []);
+        }
+      } catch (err) {
+        console.error("Failed to load exercises for adaptive planner in player", err);
+      } finally {
+        setLoadingExercisesDetail(false);
+      }
+    }
+    loadAllExercisesData();
+  }, []);
+
+  const handleAddExerciseToSession = (ex: any) => {
+    // Construct a beautiful new WorkoutExercise object conforming to state definitions
+    const newEx: WorkoutExercise = {
+      id: "ex-live-" + Math.random().toString(36).substring(2, 9),
+      category_id: workoutId,
+      exercise_id: ex.id,
+      order: exercises.length,
+      sets: 3,
+      reps: "10",
+      weight: 0,
+      rest_time: 60,
+      sets_json: Array.from({ length: 3 }).map(() => ({
+        reps: "10",
+        weight: 0,
+        rest_time: 60,
+        type: SetType.NORMAL
+      })),
+      exercise_name: ex.name,
+      muscle_group: ex.muscle_group || "Outros",
+      exercise_image: ex.image_url || undefined,
+      exercise_name_snapshot: ex.name
+    };
+
+    const updatedExercises = [...exercises, newEx];
+    useWorkoutStore.setState({ exercises: updatedExercises } as any);
+    
+    // Auto-update live tracker performance map
+    setWorkoutPerformance(prev => {
+      const nextIdx = updatedExercises.length - 1;
+      return {
+        ...prev,
+        [nextIdx]: Array.from({ length: 3 }).map(() => ({
+          weight: 0, reps: 10, rpe: 8
+        }))
+      };
+    });
+
+    showSuccess(`Adicionado: ${ex.name}`);
+    setExerciseSelectorMode(null);
+    setSearchQuery('');
+    playSensoryTone('success');
+    playHapticFeedback('success');
+  };
+
+  const handleReplaceExerciseInSession = (ex: any) => {
+    if (replaceIndex === null) return;
+
+    const target = exercises[replaceIndex];
+    if (!target) return;
+
+    const updatedExercises = [...exercises];
+    updatedExercises[replaceIndex] = {
+      ...target,
+      exercise_id: ex.id,
+      exercise_name: ex.name,
+      muscle_group: ex.muscle_group || target.muscle_group,
+      exercise_image: ex.image_url || target.exercise_image,
+      exercise_name_snapshot: ex.name
+    };
+
+    useWorkoutStore.setState({ exercises: updatedExercises } as any);
+
+    // If we're replacing the CURRENT ACTIVE exercise, synchronize UI inputs
+    if (replaceIndex === currentIndex) {
+      const numSets = target.sets_json?.length || target.sets || 3;
+      const defaultSets = Array.from({ length: numSets }).map(() => ({
+        weight: target.weight || 0,
+        reps: parseInt(target.reps) || 10,
+        rpe: 8
+      }));
+      setActiveSetsData(defaultSets);
+      setCurrentSet(1);
+      setCompletedSetIndices(new Set());
+      setLastSet(null); // Invalidate cache to refetch history for new ID
+    }
+
+    showSuccess(`Substituído por: ${ex.name}`);
+    setExerciseSelectorMode(null);
+    setReplaceIndex(null);
+    setSearchQuery('');
+    playSensoryTone('success');
+    playHapticFeedback('success');
+  };
+
+  const handleRemoveExerciseFromSession = (index: number) => {
+    if (exercises.length <= 1) {
+      showError(new Error("O protocolo exige no mínimo 1 exercício ativo."));
+      return;
+    }
+
+    const exName = exercises[index]?.exercise_name || "Exercício";
+    const updatedExercises = exercises.filter((_, i) => i !== index);
+
+    // Dynamic index adjustment
+    let newCurrentIdx = currentIndex;
+    if (currentIndex === index) {
+      newCurrentIdx = Math.min(index, updatedExercises.length - 1);
+    } else if (currentIndex > index) {
+      newCurrentIdx = currentIndex - 1;
+    }
+
+    // Dynamic state logs map shifting to prevent indices misalignment
+    setWorkoutPerformance(prev => {
+      const next: Record<number, any> = {};
+      Object.entries(prev).forEach(([key, val]) => {
+        const kInt = parseInt(key);
+        if (kInt < index) {
+          next[kInt] = val;
+        } else if (kInt > index) {
+          next[kInt - 1] = val;
+        }
+      });
+      return next;
+    });
+
+    setCompletedSetsByExercise(prev => {
+      const next: Record<number, any> = {};
+      Object.entries(prev).forEach(([key, val]) => {
+        const kInt = parseInt(key);
+        if (kInt < index) {
+          next[kInt] = val;
+        } else if (kInt > index) {
+          next[kInt - 1] = val;
+        }
+      });
+      return next;
+    });
+
+    useWorkoutStore.setState({
+      exercises: updatedExercises,
+      currentIndex: newCurrentIdx,
+      currentSet: 1
+    } as any);
+
+    if (newCurrentIdx === currentIndex) {
+      const savedCompleted = completedSetsByExercise[newCurrentIdx] || new Set();
+      setCompletedSetIndices(savedCompleted);
+    }
+
+    showSuccess(`Removido do protocolo: ${exName}`);
+    playSensoryTone('warning');
+    playHapticFeedback('medium');
+    setContextMenuIndex(null);
+  };
+
+  const handleAdjustExerciseWeight = (index: number, newWeight: number) => {
+    const target = exercises[index];
+    if (!target) return;
+
+    const updatedExercises = [...exercises];
+    updatedExercises[index] = {
+      ...target,
+      weight: newWeight
+    };
+    useWorkoutStore.setState({ exercises: updatedExercises } as any);
+
+    // If adjusting current exercise, synchronize active performance loads state
+    if (index === currentIndex) {
+      setActiveSetsData(prev => prev.map(s => ({ ...s, weight: newWeight })));
+    }
+
+    setWorkoutPerformance(prev => {
+      const existing = prev[index] || [];
+      const nextSets = existing.map(s => ({ ...s, weight: newWeight }));
+      return { ...prev, [index]: nextSets };
+    });
+
+    showSuccess(`Carga padrão ajustada para ${newWeight}kg`);
+    setContextMenuIndex(null);
+    playSensoryTone('click');
+  };
+
+  const handleAdjustExerciseSets = (index: number, newSetsCount: number) => {
+    if (newSetsCount < 1 || newSetsCount > 10) return;
+    const target = exercises[index];
+    if (!target) return;
+
+    const updatedExercises = [...exercises];
+    const currentSetsCount = target.sets_json?.length || target.sets || 3;
+    let nextSetsJson = [...(target.sets_json || [])];
+
+    if (newSetsCount > currentSetsCount) {
+      const lastSet = nextSetsJson[nextSetsJson.length - 1] || { reps: "10", weight: target.weight || 0, rest_time: target.rest_time || 60, type: SetType.NORMAL };
+      for (let i = currentSetsCount; i < newSetsCount; i++) {
+        nextSetsJson.push({ ...lastSet });
+      }
+    } else {
+      nextSetsJson = nextSetsJson.slice(0, newSetsCount);
+    }
+
+    updatedExercises[index] = {
+      ...target,
+      sets: newSetsCount,
+      sets_json: nextSetsJson
+    };
+
+    useWorkoutStore.setState({ exercises: updatedExercises } as any);
+
+    if (index === currentIndex) {
+      setActiveSetsData(prev => {
+        let next = [...prev];
+        if (newSetsCount > prev.length) {
+          const last = prev[prev.length - 1] || { weight: target.weight || 0, reps: 10, rpe: 8 };
+          for (let i = prev.length; i < newSetsCount; i++) {
+            next.push({ ...last });
+          }
+        } else {
+          next = next.slice(0, newSetsCount);
+        }
+        return next;
+      });
+
+      if (currentSet > newSetsCount) {
+        setCurrentSet(newSetsCount);
+      }
+    }
+
+    showSuccess(`Total de séries ajustado para ${newSetsCount}`);
+    setContextMenuIndex(null);
+    playSensoryTone('click');
+  };
+
+  const getSmartSelectorContext = () => {
+    const currentEx = exercises[currentIndex];
+    const currentMc = currentEx?.muscle_group || "Peito";
+    const advices = [];
+    if (currentMc === "Peito" || currentMc.includes("Peito") || currentMc.includes("Peito")) {
+      advices.push({
+        title: "Academia cheia?",
+        desc: "Substitua Supino Máquina por Supino Inclinado com Halteres.",
+        badge: "Adaptativo",
+        searchPreset: "Halteres"
+      });
+      advices.push({
+        title: "Consistência Neuromuscular",
+        desc: "Substituir por Cross Over mantém a mesma ativação de polia alta.",
+        badge: "Biomecânica",
+        searchPreset: "Cross"
+      });
+    } else if (currentMc.includes("Perna") || currentMc.includes("Quadríceps") || currentMc.includes("Glúteo") || currentMc.includes("Pernas")) {
+      advices.push({
+        title: "Equipamento ocupado?",
+        desc: "Trocar o Leg Press por agachamento búlgaro com halteres mantém alto estímulo tônico.",
+        badge: "Halteres",
+        searchPreset: "Búlgaro"
+      });
+    } else {
+      advices.push({
+        title: "Alternate Inteligente",
+        desc: "Substitutos com Polia reduzem o estresse articular tardio nesta série.",
+        badge: "Fisiológico",
+        searchPreset: "Polia"
+      });
+    }
+    return advices;
+  };
+
+  const filteredSelectorExercises = useMemo(() => {
+    if (!allAvailableExercises) return [];
+    return allAvailableExercises.filter(ex => {
+      const nameMatches = (ex.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (ex.description && ex.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                          (ex.equipment && ex.equipment.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const muscleMatches = !selectedMuscleGroup || selectedMuscleGroup === 'Tudo' || ex.muscle_group === selectedMuscleGroup || (selectedMuscleGroup === 'Cardio' && (ex.muscle_group || "").toLowerCase().includes('cardio'));
+      
+      return nameMatches && muscleMatches;
+    });
+  }, [allAvailableExercises, searchQuery, selectedMuscleGroup]);
+
   const [finishing, setFinishing] = useState(false);
   const [pendingSetToComplete, setPendingSetToComplete] = useState<number | null>(null);
   const [completedSetIndices, setCompletedSetIndices] = useState<Set<number>>(new Set());
@@ -507,6 +832,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [isWorkoutComplete, setIsWorkoutComplete] = useState(false);
   const [streak, setStreak] = useState(0);
   const [fatigueDetected, setFatigueDetected] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [anomalyDetected, setAnomalyDetected] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [historicalSets, setHistoricalSets] = useState<{weight_achieved: number, reps_achieved: number, set_number: number}[]>([]);
@@ -857,6 +1183,51 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const currentEx = useMemo(() => (exercises && exercises[currentIndex]) || null, [exercises, currentIndex]);
   const nextEx = useMemo(() => (exercises && exercises[currentIndex + 1]) || null, [exercises, currentIndex]);
+
+  const biologicalState = useMemo(() => {
+    const currentSetsHighRpe = activeSetsData.some((s: any) => s.rpe >= 9);
+    const completedWithLowReps = Array.from(completedSetIndices).some((idx) => {
+      const perf = activeSetsData[idx];
+      const targetReps = parseInt(currentEx?.sets_json?.[idx]?.reps as string) || 10;
+      return perf ? perf.reps < targetReps - 2 : false;
+    });
+
+    if (anomalyDetected || completedWithLowReps) {
+      return "OVERREACH";
+    }
+    if (fatigueDetected || currentSetsHighRpe || workoutDuration > 1500) {
+      return "FATIGUE";
+    }
+    return "RECOVERY";
+  }, [fatigueDetected, anomalyDetected, activeSetsData, completedSetIndices, currentEx, workoutDuration]);
+
+  const liveTelemetry = useMemo(() => {
+    let totalVolume = 0;
+    let completedSetsCount = 0;
+    let rpeSum = 0;
+    let highestWeight = 0;
+
+    Object.entries(workoutPerformance).forEach(([exIdx, sets]: [string, any]) => {
+      if (Array.isArray(sets)) {
+        sets.forEach((set: any) => {
+          if (set.weight && set.reps) {
+            totalVolume += set.weight * set.reps;
+            completedSetsCount++;
+            rpeSum += set.rpe || 8;
+            if (set.weight > highestWeight) highestWeight = set.weight;
+          }
+        });
+      }
+    });
+
+    const averageRpe = completedSetsCount > 0 ? (rpeSum / completedSetsCount).toFixed(1) : "0.0";
+    return {
+      volume: totalVolume,
+      avgRpe: averageRpe,
+      completedCount: completedSetsCount,
+      overload: highestWeight > 0 ? "+2.5%" : "Estável"
+    };
+  }, [workoutPerformance]);
 
   const sessionDiff = useMemo(() => {
     if (!originalExercises || originalExercises.length === 0 || !exercises || exercises.length === 0) {
@@ -1789,15 +2160,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </div>
               </div>
               <div className="flex gap-3 items-center">
-                <button 
+                <motion.button 
                   onClick={() => setShowExercisesList(true)}
-                  className="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-150/80 rounded-xl flex items-center gap-1.5 active:scale-95 transition-all text-slate-500 hover:text-slate-800 h-[28px] shrink-0"
-                  title="Visualizar todos os exercícios da ficha"
+                  whileTap={{ scale: 0.92 }}
+                  transition={{ type: "spring", stiffness: 450, damping: 25 }}
+                  className="w-10 h-10 bg-white/70 backdrop-blur-xl border border-white/40 rounded-full shadow-[0_8px_30px_rgba(15,23,42,0.08)] flex items-center justify-center text-slate-600 hover:text-slate-900 shrink-0 select-none outline-none focus:outline-none"
+                  title="Painel de Protocolo Adaptativo"
                   id="header-ficha-list-btn"
                 >
-                  <List size={13} strokeWidth={3} className="text-slate-400" />
-                  <span className="text-[9px] font-[1000] uppercase tracking-wider">Ficha</span>
-                </button>
+                  <LayoutList size={18} strokeWidth={2.5} />
+                </motion.button>
                 {streak > 0 && !momentum && (
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#818CF8]/10 rounded-full border border-[#818CF8]/20 hidden sm:flex">
                     <Flame size={12} className="text-[#818CF8] fill-[#818CF8]/30" />
@@ -1813,12 +2185,74 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
             {/* 2. CONTEÚDO SCROLLABLE */}
             <div 
-              className="flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-300"
+
+              className={`flex-1 overflow-y-auto transition-all duration-500 ${
+                focusMode ? "bg-slate-950 text-slate-100" : "bg-[#F8FAFC] text-slate-900"
+              }`}
               onScroll={handleScroll}
               onClick={() => setIsFooterVisible(true)}
               style={{ paddingBottom: `calc(${footerHeight + 120}px + env(safe-area-inset-bottom))` }}
             >
               
+              {/* KYRON OS BIOLOGICAL STATE CONTROL CENTER */}
+              <div className="p-4 pb-1 shrink-0">
+                <div className={`p-4 rounded-[1.6rem] transition-all duration-500 border ${
+                  focusMode 
+                    ? "bg-slate-900/40 border-slate-800/80 shadow-[0_4px_30px_rgba(0,0,0,0.2)]" 
+                    : "bg-white border-slate-100 shadow-[0_8px_30px_rgba(15,23,42,0.04)]"
+                }`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${
+                        biologicalState === 'RECOVERY' ? 'bg-indigo-400 shadow-[0_0_12px_#818cf8]' :
+                        biologicalState === 'FATIGUE' ? 'bg-purple-500 shadow-[0_0_12px_#a855f7]' :
+                        'bg-amber-500 shadow-[0_0_12px_#f59e0b]'
+                      }`} />
+                      <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${focusMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                        ESTADO BIOMÉTRICO
+                      </span>
+                    </div>
+                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                      biologicalState === 'RECOVERY' ? 'bg-indigo-50 text-indigo-500 dark:bg-indigo-950/40 dark:text-indigo-400' :
+                      biologicalState === 'FATIGUE' ? 'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400' :
+                      'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
+                    }`}>
+                      {biologicalState === 'RECOVERY' ? 'Prontidão Estável' :
+                       biologicalState === 'FATIGUE' ? 'Fadiga Acumulada' :
+                       'Alerta de Sobrecarga'}
+                    </span>
+                  </div>
+
+                  {/* MINI TELEMETRY LAYOUT */}
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className={`p-2 rounded-xl ${focusMode ? 'bg-slate-950/50' : 'bg-slate-50'}`}>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Volume</p>
+                      <p className={`text-sm font-black tabular-nums ${focusMode ? 'text-white' : 'text-slate-800'}`}>{liveTelemetry.volume} kg</p>
+                    </div>
+                    <div className={`p-2 rounded-xl ${focusMode ? 'bg-slate-950/50' : 'bg-slate-50'}`}>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Esforço Médio</p>
+                      <p className={`text-sm font-black tabular-nums ${focusMode ? 'text-white' : 'text-slate-800'}`}>RPE {liveTelemetry.avgRpe}</p>
+                    </div>
+                    <div className={`p-2 rounded-xl ${focusMode ? 'bg-slate-950/50' : 'bg-slate-50'}`}>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Progressão</p>
+                      <p className="text-sm font-black text-[#7BA7FF]">{liveTelemetry.overload}</p>
+                    </div>
+                  </div>
+
+                  {/* AI COACH REALTIME INSIGHT */}
+                  <div className={`mt-3 pt-3 border-t text-[10.5px] font-medium leading-relaxed flex gap-2 ${
+                    focusMode ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-500'
+                  }`}>
+                    <Sparkles size={14} className="text-[#7BA7FF] shrink-0 mt-0.5" />
+                    <span>
+                      {biologicalState === 'RECOVERY' && "Sinalização tônica ideal. Você está performando consistentemente em relação ao seu volume de base."}
+                      {biologicalState === 'FATIGUE' && "Fadiga neuromuscular detectada. Considere estender o intervalo de descanso para 120s nesta fase."}
+                      {biologicalState === 'OVERREACH' && "Alerta de estresse tônico limitante. Aconselhamos redução preventiva de 5-10% na carga para manter ativação limpa."}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* COMPACT EXERCISE HEADER (DYNAMIC COMPRESSION) */}
               <AnimatePresence>
                 {!momentum && (
@@ -1826,7 +2260,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     initial={{ height: "auto", opacity: 1 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0, padding: 0 }}
-                    className="p-4 flex gap-4 items-center bg-white mb-2 overflow-hidden"
+                    className={`p-4 flex gap-4 items-center mb-2 overflow-hidden transition-all duration-500 ${
+                      focusMode 
+                        ? 'bg-slate-900/40 border-y border-slate-900/30 text-white' 
+                        : 'bg-white text-slate-900 border-b border-slate-100'
+                    }`}
                   >
                     <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden shadow-sm flex-shrink-0 border border-slate-50">
                       {currentEx?.image_url ? (
@@ -1845,18 +2283,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
-                        <h1 className="text-base font-bold text-slate-900 leading-tight">
+                        <h1 className="text-base font-bold leading-tight">
                           {currentEx?.exercise_name}
                         </h1>
-                        <span className="text-[10px] font-black text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg tabular-nums">
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg tabular-nums ${
+                          focusMode ? 'text-slate-300 bg-slate-800' : 'text-slate-400 bg-slate-50 border border-slate-100'
+                        }`}>
                           {currentSet}/{activeSetsData.length}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5 line-clamp-1">
+                      <p className="text-[10px] text-slate-404 font-medium uppercase tracking-wider mt-0.5 line-clamp-1">
                         {currentEx?.muscle_group} • {currentEx?.equipment || 'Sem equipamento'}
                       </p>
                       {!isAdvanced && (
-                        <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                        <p className={`text-xs line-clamp-1 mt-0.5 ${focusMode ? 'text-slate-400' : 'text-slate-500'}`}>
                           Foco na amplitude e contração lenta.
                         </p>
                       )}
@@ -1869,15 +2309,24 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               <div className={`flex gap-2 px-4 transition-all duration-500 ${momentum ? "mb-2 mt-2" : "mb-4"}`}>
                 <button 
                   onClick={() => setShowExercisesList(true)}
-                  className="flex-1 bg-white border border-slate-100 rounded-xl py-2.5 shadow-sm text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-all h-[44px]"
+                  className={`flex-1 rounded-xl py-2.5 shadow-sm text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all h-[44px] ${
+                    focusMode ? 'bg-slate-900 text-slate-300 border border-slate-800' : 'bg-white border border-slate-100 text-slate-500 hover:bg-slate-50'
+                  }`}
                 >
                   <RefreshCw size={12} /> Substituir
                 </button>
                 <button 
-                  onClick={() => showSuccess("Nota adicionada ao exercício!")}
-                  className="flex-1 bg-white border border-slate-100 rounded-xl py-2.5 shadow-sm text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-all h-[44px]"
+                  onClick={() => {
+                    setFocusMode(!focusMode);
+                    playSensoryTone(focusMode ? 'click' : 'focus');
+                    if ('vibrate' in navigator) navigator.vibrate(30);
+                  }}
+                  className={`flex-1 rounded-xl py-2.5 shadow-sm text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all h-[44px] ${
+                    focusMode ? 'bg-indigo-950 border border-indigo-900 text-indigo-400 animate-pulse' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
                 >
-                  <Plus size={12} /> Nota
+                  <Target size={12} className={focusMode ? "animate-pulse text-[#7BA7FF]" : ""} />
+                  {focusMode ? "Foco Ativo" : "Modo Foco"}
                 </button>
               </div>
 
@@ -2153,100 +2602,523 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         </motion.div>
       </ScreenState>
 
-      {/* OVERLAY DE LISTA DE EXERCÍCIOS */}
+      {/* OVERLAY DE LISTA DE EXERCÍCIOS / PAINEL DE PROTOCOLO ADAPTATIVO */}
       <AnimatePresence>
         {showExercisesList && (
-           <div className="fixed inset-0 z-[200] flex flex-col">
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowExercisesList(false)}
-                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-              />
-              <motion.div 
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="mt-auto bg-white rounded-t-[3rem] p-8 shadow-2xl relative z-10 max-w-md mx-auto w-full pb-12"
-              >
-                 <div className="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-6" />
-                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Ordem do Treino</h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg">{exercises.length} Exs</p>
-                 </div>
-                 <div className="space-y-3 max-h-[60vh] overflow-y-auto no-scrollbar pr-1">
-                    {exercises.map((ex, i) => (
-                      <div 
-                        key={ex.exercise_id || i}
-                        className={`w-full flex items-center justify-between p-3 px-4 rounded-2xl border transition-all ${
-                          i === currentIndex 
-                            ? "bg-slate-900 text-white border-slate-950 shadow-xl" 
-                            : "bg-white text-slate-600 border-slate-150 border-slate-100 hover:bg-slate-50"
-                        }`}
-                      >
-                         {/* Seleção do Exercício */}
-                         <button
-                           onClick={() => { 
-                             setCurrentIndex(i); 
-                             setCurrentSet(1); 
-                             setShowExercisesList(false); 
-                           }}
-                           className="flex-1 flex items-center gap-4 text-left min-w-0"
-                         >
-                           <span className={`text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center ${
-                             i === currentIndex ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
-                           }`}>
-                             {i + 1}
-                           </span>
-                           <div className="flex-1 min-w-0">
-                             <span className="font-bold text-sm truncate block">{ex.exercise_name}</span>
-                             <span className={`text-[9px] font-bold block uppercase tracking-wider ${i === currentIndex ? 'text-blue-300' : 'text-slate-400'}`}>
-                               {ex.muscle_group}
-                             </span>
-                           </div>
-                           {i < currentIndex && <Check size={14} className="text-emerald-500 shrink-0" />}
-                         </button>
+          <div className="fixed inset-0 z-[200] flex flex-col justify-end">
+            {/* Background Blur Overlay */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (exerciseSelectorMode) {
+                  setExerciseSelectorMode(null);
+                } else {
+                  setShowExercisesList(false);
+                  setContextMenuIndex(null);
+                }
+              }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
 
-                         {/* Setas de Reordenação */}
-                         <div className={`flex items-center gap-1 pl-2 border-l ${i === currentIndex ? 'border-white/10' : 'border-slate-100'}`}>
-                           <button
-                             disabled={i === 0}
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               moveExercise(i, 'up');
-                             }}
-                             className={`p-1.5 rounded-lg transition-all ${
-                               i === 0 
-                                 ? "opacity-20 cursor-not-allowed" 
-                                 : (i === currentIndex ? "hover:bg-white/10 text-white" : "hover:bg-slate-100 text-slate-400 hover:text-slate-800")
-                             }`}
-                             title="Mover para cima"
-                           >
-                             <ChevronUp size={16} strokeWidth={3} />
-                           </button>
-                           <button
-                             disabled={i === exercises.length - 1}
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               moveExercise(i, 'down');
-                             }}
-                             className={`p-1.5 rounded-lg transition-all ${
-                               i === exercises.length - 1 
-                                 ? "opacity-20 cursor-not-allowed" 
-                                 : (i === currentIndex ? "hover:bg-white/10 text-white" : "hover:bg-slate-100 text-slate-400 hover:text-slate-800")
-                             }`}
-                             title="Mover para baixo"
-                           >
-                             <ChevronDown size={16} strokeWidth={3} />
-                           </button>
-                         </div>
-                      </div>
+            {/* Float Full-Height Sheet */}
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 220 }}
+              className="mt-auto bg-white/95 backdrop-blur-3xl rounded-t-[3rem] p-6 shadow-2xl relative z-10 max-w-md mx-auto w-full max-h-[92vh] overflow-hidden flex flex-col border border-white/40"
+            >
+              {/* Drag Handle Indicator */}
+              <div className="w-12 h-1 bg-slate-200/80 rounded-full mx-auto mb-5 shrink-0" />
+
+              {exerciseSelectorMode !== null ? (
+                /* ================= PREMIUM EXERCISE SELECTOR ================= */
+                <div className="flex-1 flex flex-col min-h-0">
+                  {/* Selector Header */}
+                  <div className="flex items-center gap-3 mb-4 shrink-0">
+                    <button 
+                      onClick={() => setExerciseSelectorMode(null)}
+                      className="p-2 -ml-2 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-50 transition-colors"
+                    >
+                      <ChevronLeft size={20} strokeWidth={3} />
+                    </button>
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-[0.1em] text-slate-800 leading-none">
+                        {exerciseSelectorMode === 'add' ? "Adicionar Exercício" : "Substituir Exercício"}
+                      </h3>
+                      <p className="text-[10px] font-bold text-slate-404 mt-1 uppercase tracking-wider">
+                        {exerciseSelectorMode === 'replace' && replaceIndex !== null && exercises[replaceIndex]
+                          ? `Substituindo: ${exercises[replaceIndex].exercise_name}` 
+                          : "Explore a Biblioteca KYRON"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Selector Search Input */}
+                  <div className="relative mb-4 shrink-0">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input 
+                      type="text"
+                      placeholder="Pesquisar por nome, equipamento, músculo..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-11 pr-10 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-semibold placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7BA7FF]/30 focus:border-[#7BA7FF] transition-all"
+                    />
+                    {searchQuery && (
+                      <button 
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-700 bg-slate-200/50 hover:bg-slate-200 rounded-full transition-colors"
+                      >
+                        <X size={12} strokeWidth={3} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Horizontal Scroll Filter Pills */}
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3 mb-4 shrink-0">
+                    {/* Muscle Groups Pills */}
+                    {['Tudo', 'Peito', 'Costas', 'Quadríceps', 'Glúteo', 'Ombro', 'Bíceps', 'Tríceps', 'Cardio'].map((cat) => {
+                      const isActive = selectedMuscleGroup === cat;
+                      return (
+                        <button
+                          key={cat}
+                          onClick={() => {
+                            setSelectedMuscleGroup(cat);
+                            playHapticFeedback('light');
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap border ${
+                            isActive 
+                              ? "bg-slate-900 text-white border-slate-950" 
+                              : "bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* KYRON SMART BIOLOGICAL CONTEXT ADVICES */}
+                  <div className="space-y-2 mb-4 shrink-0">
+                    {getSmartSelectorContext().map((adv, idx) => (
+                      <motion.div 
+                        key={idx}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setSearchQuery(adv.searchPreset);
+                          playHapticFeedback('light');
+                        }}
+                        className="bg-blue-50/50 border border-blue-100/55 rounded-2xl p-3 flex items-start gap-3 cursor-pointer hover:bg-blue-50 transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-blue-100/60 flex items-center justify-center text-blue-500 shrink-0">
+                          <Sparkles size={14} className="fill-blue-500/20" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-blue-500">{adv.badge}</span>
+                            <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest leading-none bg-white px-1.5 py-0.5 rounded border">Auto</span>
+                          </div>
+                          <p className="text-[10px] font-bold text-slate-800 leading-tight mt-0.5">{adv.title}</p>
+                          <p className="text-[9px] text-slate-500 leading-snug mt-0.2">{adv.desc}</p>
+                        </div>
+                      </motion.div>
                     ))}
-                 </div>
-              </motion.div>
-           </div>
+                  </div>
+
+                  {/* Exercises Selector Results View */}
+                  <div className="flex-1 overflow-y-auto pr-1 space-y-2 select-none no-scrollbar">
+                    {loadingExercisesDetail ? (
+                      <div className="flex flex-col items-center justify-center py-10 gap-3">
+                        <Loader2 className="w-8 h-8 text-[#7BA7FF] animate-spin" />
+                        <p className="text-xs font-bold text-slate-400 tracking-wider uppercase">KYRON OS sintonizando...</p>
+                      </div>
+                    ) : filteredSelectorExercises.length === 0 ? (
+                      <div className="text-center py-10">
+                        <p className="text-xs font-semibold text-slate-400">Nenhum exercício científico correspondente.</p>
+                      </div>
+                    ) : (
+                      filteredSelectorExercises.map((ex) => {
+                        const isFav = favoritesList.includes(ex.id);
+                        return (
+                          <motion.div 
+                            key={ex.id}
+                            whileHover={{ x: 3 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => {
+                              if (exerciseSelectorMode === 'add') {
+                                handleAddExerciseToSession(ex);
+                              } else if (exerciseSelectorMode === 'replace') {
+                                handleReplaceExerciseInSession(ex);
+                              }
+                            }}
+                            className="bg-slate-50 hover:bg-[#7BA7FF]/5 border border-slate-100 hover:border-[#7BA7FF]/20 rounded-2xl p-3 flex items-center justify-between transition-all cursor-pointer group"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 flex items-center justify-center relative">
+                                {ex.image_url ? (
+                                  <img src={ex.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <Dumbbell size={16} className="text-slate-400" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-bold text-xs text-slate-800 block truncate group-hover:text-slate-900 transition-colors">{ex.name}</span>
+                                <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wide mt-0.5">
+                                  {ex.muscle_group} • {ex.equipment || 'Livre'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 pl-2">
+                              {isFav && <Heart size={12} className="text-rose-500 fill-rose-500" />}
+                              <div className="w-6 h-6 rounded-full bg-white/80 border border-slate-150 flex items-center justify-center text-[#7BA7FF] shadow-sm">
+                                <Plus size={12} strokeWidth={3} />
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* ================= ADAPTIVE LAYER MANAGER PANEL ================= */
+                <div className="flex-1 flex flex-col min-h-0">
+                  {/* Panel Header */}
+                  <div className="flex justify-between items-center mb-6 shrink-0">
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400 leading-none">Protocolo Adaptativo</h3>
+                      <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-wider">Ajuste de performance em tempo real</p>
+                    </div>
+                    <p className="text-[10px] font-black text-[#7BA7FF] uppercase tracking-widest bg-[#7BA7FF]/15 border border-[#7BA7FF]/30 px-3 py-1 rounded-full">{exercises.length} EXS</p>
+                  </div>
+
+                  {/* Exercises Segment Tracker */}
+                  <div className="flex-1 overflow-y-auto pr-1 space-y-5 no-scrollbar">
+                    
+                    {/* 1. COMPLETED BLOCK */}
+                    {exercises.filter((_, idx) => idx < currentIndex).length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 px-1">
+                          <CheckCircle2 size={12} className="text-emerald-500" strokeWidth={3} />
+                          <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Segmento Concluído</h4>
+                        </div>
+                        <div className="space-y-2">
+                          {exercises.map((ex, idx) => {
+                            if (idx >= currentIndex) return null;
+                            return (
+                              <div 
+                                key={ex.exercise_id || idx}
+                                className="bg-slate-50/50 border border-slate-100 rounded-2xl p-3 flex items-center justify-between opacity-50 select-none animate-fadeIn"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <span className="text-[9px] font-black w-6 h-6 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-150">
+                                    {idx + 1}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <span className="font-bold text-xs text-slate-500 block truncate line-through">{ex.exercise_name}</span>
+                                    <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">{ex.muscle_group}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[8px] font-bold uppercase tracking-wider text-emerald-500 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">Ok</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. ACTIVE EXERCISE (Pulse / Biological glow) */}
+                    {exercises[currentIndex] && (
+                      <div className="space-y-2 animate-fadeIn">
+                        <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.15em] px-1 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse animate-duration-1000" />
+                          Protocolo em execução
+                        </h4>
+                        <div 
+                          className="bg-white border-2 border-[#7BA7FF]/80 shadow-[0_12px_32px_rgba(123,167,255,0.18)] rounded-3xl p-4 relative overflow-hidden transition-all duration-300"
+                        >
+                          {/* Inner soft blue glow overlay */}
+                          <div className="absolute right-0 top-0 w-24 h-24 bg-[#7BA7FF]/5 blur-xl pointer-events-none rounded-full" />
+                          
+                          <div className="flex items-center justify-between relative z-10">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="text-[10px] font-black w-7 h-7 rounded-full bg-[#7BA7FF] text-white flex items-center justify-center shadow-md shadow-[#7BA7FF]/20">
+                                {currentIndex + 1}
+                              </span>
+                              <div className="min-w-0">
+                                <span className="font-black text-sm text-slate-900 block truncate leading-tight">{exercises[currentIndex]?.exercise_name}</span>
+                                <span className="text-[9px] font-extrabold text-[#7BA7FF] uppercase tracking-wider mt-1 block">
+                                  {exercises[currentIndex]?.sets_json?.length || exercises[currentIndex]?.sets || 3} Séries • {exercises[currentIndex]?.weight || 0}kg
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Actions Group */}
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setContextMenuIndex(contextMenuIndex === currentIndex ? null : currentIndex);
+                                  playHapticFeedback('light');
+                                }}
+                                className={`p-2 rounded-xl transition-all ${
+                                  contextMenuIndex === currentIndex 
+                                    ? "bg-slate-900 text-white" 
+                                    : "bg-slate-100 text-slate-500 hover:text-slate-850"
+                                }`}
+                              >
+                                <MoreVertical size={14} strokeWidth={2.5} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* CONTEXTUAL TRAY ROW */}
+                          <AnimatePresence>
+                            {contextMenuIndex === currentIndex && (
+                              <motion.div 
+                                initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                                animate={{ height: "auto", opacity: 1, marginTop: 12 }}
+                                exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                                className="overflow-hidden border-t border-slate-100 pt-3 relative z-10"
+                              >
+                                <div className="grid grid-cols-2 gap-2">
+                                  {/* Replace standard biomechanic */ }
+                                  <button 
+                                    onClick={() => {
+                                      setReplaceIndex(currentIndex);
+                                      setExerciseSelectorMode('replace');
+                                    }}
+                                    className="p-2.5 bg-slate-50 hover:bg-slate-100 text-[10px] font-black uppercase text-slate-600 rounded-xl flex items-center justify-center gap-1.5 transition-colors border"
+                                  >
+                                    <RefreshCw size={12} /> Substituir
+                                  </button>
+                                  
+                                  {/* Carga Standard */}
+                                  <button 
+                                    onClick={() => {
+                                      const currentWt = exercises[currentIndex]?.weight || 0;
+                                      const delta = prompt("Ajustar carga básica do protocolo (kg):", currentWt.toString());
+                                      if (delta !== null) {
+                                        const parsed = parseFloat(delta);
+                                        if (!isNaN(parsed)) handleAdjustExerciseWeight(currentIndex, parsed);
+                                      }
+                                    }}
+                                    className="p-2.5 bg-slate-50 hover:bg-slate-100 text-[10px] font-black uppercase text-slate-600 rounded-xl flex items-center justify-center gap-1.5 transition-colors border"
+                                  >
+                                    <Dumbbell size={12} /> Carga ({exercises[currentIndex]?.weight || 0}kg)
+                                  </button>
+
+                                  {/* Sets edits */}
+                                  <button 
+                                    onClick={() => {
+                                      const curSets = exercises[currentIndex]?.sets_json?.length || exercises[currentIndex]?.sets || 3;
+                                      const setsStr = prompt("Total de séries (1-10):", curSets.toString());
+                                      if (setsStr !== null) {
+                                        const parsed = parseInt(setsStr);
+                                        if (!isNaN(parsed) && parsed >= 1 && parsed <= 10) {
+                                          handleAdjustExerciseSets(currentIndex, parsed);
+                                        }
+                                      }
+                                    }}
+                                    className="p-2.5 bg-slate-50 hover:bg-slate-100 text-[10px] font-black uppercase text-slate-600 rounded-xl flex items-center justify-center gap-1.5 transition-colors border"
+                                  >
+                                    <Plus size={12} /> Séries ({exercises[currentIndex]?.sets_json?.length || exercises[currentIndex]?.sets || 3}s)
+                                  </button>
+
+                                  {/* Remove option directly */}
+                                  <button 
+                                    onClick={() => {
+                                      if (confirm(`Remover ${exercises[currentIndex]?.exercise_name} do treino?`)) {
+                                        handleRemoveExerciseFromSession(currentIndex);
+                                      }
+                                    }}
+                                    className="p-2.5 bg-rose-50 hover:bg-rose-100 text-[10px] font-black uppercase text-rose-500 rounded-xl flex items-center justify-center gap-1.5 transition-colors border border-rose-100"
+                                  >
+                                    <Trash2 size={12} /> Excluir
+                                  </button>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. FUTURE/UPCOMING BLOCK */}
+                    {exercises.filter((_, idx) => idx > currentIndex).length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] px-1">Próximos Protocolos</h4>
+                        <div className="space-y-2">
+                          {exercises.map((ex, idx) => {
+                            if (idx <= currentIndex) return null;
+                            const isMenuOpened = contextMenuIndex === idx;
+                            return (
+                              <motion.div 
+                                key={ex.exercise_id || idx}
+                                layout
+                                className="bg-slate-50/70 backdrop-blur-md border border-slate-100 rounded-2xl p-3 flex flex-col transition-all hover:bg-slate-100"
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <span className="text-[9px] font-black w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center border border-slate-300">
+                                      {idx + 1}
+                                    </span>
+                                    <div className="min-w-0">
+                                      <span className="font-bold text-xs text-slate-800 block truncate">{ex.exercise_name}</span>
+                                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mt-0.5">
+                                        {ex.sets_json?.length || ex.sets || 3}s • {ex.weight || 0}kg • {ex.muscle_group}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1">
+                                    {/* Action trigger menu */}
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setContextMenuIndex(isMenuOpened ? null : idx);
+                                        playHapticFeedback('light');
+                                      }}
+                                      className={`p-1.5 rounded-lg transition-all ${
+                                        isMenuOpened 
+                                          ? "bg-slate-900 text-white" 
+                                          : "bg-slate-200/50 text-slate-500 hover:text-slate-800"
+                                      }`}
+                                    >
+                                      <MoreVertical size={12} strokeWidth={2.5} />
+                                    </button>
+
+                                    {/* Reorder Buttons */}
+                                    <div className="flex items-center gap-0.5 ml-1 pl-1.5 border-l border-slate-200/60">
+                                      <button
+                                        disabled={idx === currentIndex + 1}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          moveExercise(idx, 'up');
+                                        }}
+                                        className={`p-1 text-slate-400 hover:text-slate-900 transition-colors ${
+                                          idx === currentIndex + 1 ? "opacity-20 cursor-not-allowed" : ""
+                                        }`}
+                                        title="Subir na fila"
+                                      >
+                                        <ChevronUp size={14} strokeWidth={3} />
+                                      </button>
+                                      <button
+                                        disabled={idx === exercises.length - 1}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          moveExercise(idx, 'down');
+                                        }}
+                                        className={`p-1 text-slate-400 hover:text-slate-900 transition-colors ${
+                                          idx === exercises.length - 1 ? "opacity-20 cursor-not-allowed" : ""
+                                        }`}
+                                        title="Descer na fila"
+                                      >
+                                        <ChevronDown size={14} strokeWidth={3} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Context Menu Options Tray for Future Exercise */}
+                                <AnimatePresence>
+                                  {isMenuOpened && (
+                                    <motion.div 
+                                      initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                                      animate={{ height: "auto", opacity: 1, marginTop: 10 }}
+                                      exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                                      className="overflow-hidden border-t border-slate-200/60 pt-2.5 mt-2"
+                                    >
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {/* Substituir */}
+                                        <button 
+                                          onClick={() => {
+                                            setReplaceIndex(idx);
+                                            setExerciseSelectorMode('replace');
+                                          }}
+                                          className="p-2 bg-white hover:bg-slate-50 text-[9px] font-black uppercase text-slate-500 rounded-lg flex items-center justify-center gap-1 border transition-all"
+                                        >
+                                          <RefreshCw size={11} /> Substituir
+                                        </button>
+                                        
+                                        {/* Ajustar Carga */}
+                                        <button 
+                                          onClick={() => {
+                                            const currentWt = exercises[idx]?.weight || 0;
+                                            const loadVal = prompt(`Carga base para ${ex.exercise_name} (kg):`, currentWt.toString());
+                                            if (loadVal !== null) {
+                                              const parsed = parseFloat(loadVal);
+                                              if (!isNaN(parsed)) handleAdjustExerciseWeight(idx, parsed);
+                                            }
+                                          }}
+                                          className="p-2 bg-white hover:bg-slate-50 text-[9px] font-black uppercase text-slate-500 rounded-lg flex items-center justify-center gap-1 border transition-all"
+                                        >
+                                          <Dumbbell size={11} /> Carga ({ex.weight || 0}kg)
+                                        </button>
+
+                                        {/* Editar Séries */}
+                                        <button 
+                                          onClick={() => {
+                                            const curSets = exercises[idx]?.sets_json?.length || exercises[idx]?.sets || 3;
+                                            const setsStr = prompt("Total de séries (1-10):", curSets.toString());
+                                            if (setsStr !== null) {
+                                              const parsed = parseInt(setsStr);
+                                              if (!isNaN(parsed) && parsed >= 1 && parsed <= 10) {
+                                                handleAdjustExerciseSets(idx, parsed);
+                                              }
+                                            }
+                                          }}
+                                          className="p-2 bg-white hover:bg-slate-50 text-[9px] font-black uppercase text-slate-500 rounded-lg flex items-center justify-center gap-1 border transition-all"
+                                        >
+                                          <Plus size={11} /> Séries ({ex.sets_json?.length || ex.sets || 3}s)
+                                        </button>
+
+                                        {/* Excluir Exercício */}
+                                        <button 
+                                          onClick={() => {
+                                            if (confirm(`Remover ${ex.exercise_name} do treino?`)) {
+                                              handleRemoveExerciseFromSession(idx);
+                                            }
+                                          }}
+                                          className="p-2 bg-rose-50 hover:bg-rose-100 text-[9px] font-black uppercase text-rose-500 rounded-lg flex items-center justify-center gap-1 border border-rose-100 transition-all"
+                                        >
+                                          <Trash2 size={11} /> Remover
+                                        </button>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* BOTTOM FLOATING ACTIONS WORKOUT AREA */}
+                  <div className="pt-4 border-t border-slate-100 shrink-0">
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => {
+                        setExerciseSelectorMode('add');
+                        playHapticFeedback('light');
+                      }}
+                      className="w-full h-14 rounded-2xl bg-[#7BA7FF] hover:bg-[#6c9bf0] text-white font-extrabold uppercase text-xs tracking-widest shadow-[0_12px_30px_rgba(123,167,255,0.35)] flex items-center justify-center gap-2 border-none transition-all active:translate-y-0.5 shrink-0"
+                    >
+                      <Plus size={16} strokeWidth={3} />
+                      Adicionar exercício
+                    </motion.button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
