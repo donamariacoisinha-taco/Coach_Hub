@@ -68,7 +68,7 @@ export const NutritionInsightEngine: React.FC<NutritionInsightEngineProps> = ({ 
           <div className="space-y-2 flex-1">
             <div className="flex flex-wrap gap-2 items-center">
               <span className="uppercase tracking-[0.2em] text-[9.5px] font-bold text-[#818CF8]">
-                INSIGHT DO COACH RUBI
+                RUBI INTELLIGENCE INSIGHT
               </span>
               <span className="text-[9px] font-bold tracking-tight bg-[#7BA7FF]/10 text-[#7BA7FF] px-2 py-0.5 rounded-full">
                 {insight.tag}

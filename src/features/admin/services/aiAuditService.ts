@@ -3,7 +3,7 @@ import { geminiService } from "../../../services/geminiService";
 
 export const auditExercise = async (exercise: Exercise) => {
   const prompt = `
-    Audit the following exercise for quality and completeness according to "Coach Rubi Premium" standards.
+    Audit the following exercise for quality and completeness according to "KYRON OS Premium" standards.
     Exercise Data: ${JSON.stringify(exercise)}
 
     Check for:

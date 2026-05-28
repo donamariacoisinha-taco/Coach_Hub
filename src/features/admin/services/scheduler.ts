@@ -3,11 +3,11 @@ import { auditExercise } from "./aiAuditService";
 import { applyAiFix } from "./aiFixService";
 
 /**
- * Coach Rubi Maintenance Scheduler
+ * KYRON OS Maintenance Scheduler
  * Runs periodic maintenance tasks for the exercise library.
  */
 export const runMaintenance = async () => {
-  console.log("RUBI MAINTENANCE: Starting scheduled audit...");
+  console.log("KYRON OS MAINTENANCE: Starting scheduled audit...");
   
   // 1. Daily Audit: New items without audit
   const queue = await autoFixApi.getAuditQueue();
@@ -19,5 +19,5 @@ export const runMaintenance = async () => {
     }
   }
 
-  console.log("RUBI MAINTENANCE: Audit completed.");
+  console.log("KYRON OS MAINTENANCE: Audit completed.");
 };

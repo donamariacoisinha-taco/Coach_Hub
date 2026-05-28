@@ -219,7 +219,7 @@ export const MinhaDieta: React.FC = () => {
               METABOLIC INTELLIGENCE ENGINE
             </span>
             <span className="text-sm font-light text-slate-800 tracking-tight block">
-              Rubi Assistente de Alto Rendimento
+              Rubi Intelligence • Metabolic Assistant
             </span>
           </div>
         </div>

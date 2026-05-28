@@ -1,6 +1,6 @@
 {
-  "name": "Coach hub 2.0",
-  "description": "Inteligência artificial aplicada ao treino de força com estimativa de 1RM, RPE e progressão de carga dinâmica.",
+  "name": "KYRON OS",
+  "description": "Human Performance Operating System powered by Rubi Intelligence - Biometria profunda, suporte metabólico autorregulável e protocolos adaptativos baseados em inteligência artificial.",
   "requestFramePermissions": [
     "microphone",
     "camera"

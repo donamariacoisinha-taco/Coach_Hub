@@ -325,6 +325,8 @@ const App: React.FC = () => {
                   <NavItem 
                     id="dashboard"
                     icon={Home}
+                    label="Feed"
+                    showLabel={true}
                     isActive={navState.view === 'dashboard'}
                     onClick={() => navigate('dashboard')}
                     onMouseEnter={() => prefetch('dashboard_data', async () => {
@@ -336,6 +338,8 @@ const App: React.FC = () => {
                   <NavItem 
                     id="library"
                     icon={Dumbbell}
+                    label="Protocols"
+                    showLabel={true}
                     isActive={navState.view === 'library'}
                     onClick={() => navigate('library')}
                     onMouseEnter={() => prefetch('exercise_library', async () => {
@@ -354,6 +358,8 @@ const App: React.FC = () => {
                   <NavItem 
                     id="dieta"
                     icon={Apple}
+                    label="Nutrition"
+                    showLabel={true}
                     isActive={navState.view === 'dieta'}
                     onClick={() => navigate('dieta')}
                   />
@@ -361,6 +367,8 @@ const App: React.FC = () => {
                   <NavItem 
                     id="history"
                     icon={HistoryIcon}
+                    label="Evolution"
+                    showLabel={true}
                     isActive={navState.view === 'history'}
                     onClick={() => navigate('history')}
                     onMouseEnter={() => prefetch('history_data', async () => {
@@ -373,6 +381,8 @@ const App: React.FC = () => {
                     <NavItem 
                       id="admin"
                       icon={Shield}
+                      label="Admin"
+                      showLabel={true}
                       isActive={navState.view === 'admin'}
                       onClick={() => navigate('admin')}
                       badge="Pro"
@@ -382,6 +392,8 @@ const App: React.FC = () => {
                   <NavItem 
                     id="profile"
                     icon={User}
+                    label="Identity"
+                    showLabel={true}
                     isActive={navState.view === 'profile'}
                     onClick={() => navigate('profile')}
                     onMouseEnter={() => prefetch('profile_data', async () => {
@@ -423,20 +435,21 @@ const App: React.FC = () => {
 
           {!isImmersive && session && navState.view !== 'admin' && (
             <div className="lg:hidden fixed bottom-5 left-4 right-4 z-50">
-              <nav className="h-16 bg-white/70 backdrop-blur-xl border border-white/40 px-6 flex items-center justify-around rounded-[1.8rem] shadow-[0_10px_40px_rgba(15,23,42,0.06)]">
+              <nav className="h-[4.5rem] bg-white/75 backdrop-blur-xl border border-white/40 px-4 flex items-center justify-around rounded-[1.80rem] shadow-[0_12px_45px_rgba(15,23,42,0.08)]">
                 {[
-                  { id: 'dashboard', icon: Home, label: 'Início' },
-                  { id: 'library', icon: Dumbbell, label: 'Biblioteca' },
-                  { id: 'dieta', icon: Apple, label: 'Dieta' },
+                  { id: 'dashboard', icon: Home, label: 'Feed' },
+                  { id: 'library', icon: Dumbbell, label: 'Library' },
+                  { id: 'dieta', icon: Apple, label: 'Nutrition' },
                   { id: 'admin', icon: Shield, label: 'Admin', adminOnly: true, badge: 'Pro' },
-                  { id: 'history', icon: HistoryIcon, label: 'Histórico' },
-                  { id: 'profile', icon: User, label: 'Perfil' }
+                  { id: 'history', icon: HistoryIcon, label: 'Evolution' },
+                  { id: 'profile', icon: User, label: 'Identity' }
                 ].filter(item => !item.adminOnly || isAdmin(profile)).map((item) => (
                   <NavItem 
                     key={item.id}
                     id={item.id}
                     icon={item.icon}
                     label={item.label}
+                    showLabel={true}
                     isActive={navState.view === item.id}
                     onClick={() => navigate(item.id as View)}
                     badge={item.badge}

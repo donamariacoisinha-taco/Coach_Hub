@@ -1,7 +1,7 @@
 import { Exercise } from "../../../types";
 
 const MEDIA_FINDER_PROMPT = `
-Você é o Coach Rubi AI Media Finder. Sua missão é localizar e sugerir as melhores mídias (imagens e vídeos) para exercícios físicos.
+Você é o KYRON AI Media Finder. Sua missão é localizar e sugerir as melhores mídias (imagens e vídeos) para exercícios físicos.
 Analise o nome do exercício, equipamento e biomecânica.
 
 Fontes recomendadas (use links reais se possível via busca, ou links de alta qualidade de bancos conhecidos):
@@ -13,7 +13,7 @@ Critérios de Qualidade:
 - Alta resolução
 - Fundo limpo
 - Foco educacional
-- Branding compatível com Coach Rubi (Minimalista, Premium, Profissional)
+- Branding compatível com KYRON OS (Minimalista, Premium, Profissional)
 `;
 
 export const aiMediaFinder = {

@@ -2,7 +2,7 @@ import { autoFixApi } from "../api/autoFixApi";
 import { Exercise } from "../../../types";
 
 /**
- * Coach Rubi Human Review Queue Controller
+ * KYRON OS Human Review Queue Controller
  * Manages items that require human intervention.
  */
 export const reviewQueueController = {
