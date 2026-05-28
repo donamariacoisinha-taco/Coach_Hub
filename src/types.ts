@@ -169,7 +169,7 @@ export interface Exercise {
   ai_review_notes?: string[];
   version_history?: { date: string, author: string, changes: string }[];
 
-  // Coach Rubi Quality Score V3 + Performance Brain Fields
+  // KYRON OS Quality Score V3 + Performance Brain Fields
   quality_score_v3?: number;
   editorial_score?: number;
   structural_score?: number;

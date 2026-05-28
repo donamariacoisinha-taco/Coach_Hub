@@ -131,7 +131,7 @@ export const nutritionEngine = {
     };
   },
 
-  // 4. Generate highly emotional, biological Coach Rubi Insights
+  // 4. Generate highly emotional, biological KYRON OS Insights
   generateNutritionInsight(plan: NutritionPlan, profile: Partial<UserProfile>, performanceTrend: 'up' | 'stable' | 'down' = 'stable'): { title: string; text: string; tag: string } {
     const goalLower = String(profile.goal || '').toLowerCase();
     const streak = profile.workout_streak || 0;

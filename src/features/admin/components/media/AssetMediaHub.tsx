@@ -41,7 +41,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
     // Simula uma análise biomecânica rápida antes de informar sobre a quota ou chat
     setTimeout(() => {
       setIsGenerating(false);
-      showSuccess("Análise Concluída", "Minha quota de geração direta via API está temporariamente esgotada. Por favor, peça ao Coach Rubi no chat principal para gerar a imagem de: " + exercise.name + ". Ele poderá te fornecer um link de alta qualidade imediatamente!");
+      showSuccess("Análise Concluída", "Minha quota de geração direta via API está temporariamente esgotada. Por favor, peça à Rubi Intelligence no chat principal para gerar a imagem de: " + exercise.name + ". Ela poderá te fornecer um link de alta qualidade imediatamente!");
     }, 1500);
   };
 

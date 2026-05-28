@@ -494,7 +494,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 🤝
               </div>
               <div className="space-y-1">
-                <h5 className="text-[11px] font-black text-blue-600 uppercase tracking-widest leading-none">Reinício de Aço • Coach Rubi</h5>
+                <h5 className="text-[11px] font-black text-blue-600 uppercase tracking-widest leading-none">Reinício de Aço • KYRON OS</h5>
                 <p className="text-[11.5px] font-bold leading-relaxed text-slate-700">
                   Sem pressão. Reiniciar é parte natural do processo biológico de adaptação. O seu próximo treino é o único passo que importa agora.
                 </p>
@@ -994,7 +994,7 @@ const MagicBuildModal: React.FC<{
                                 <Sparkles size={32} />
                             </div>
                             <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Exercise Knowledge Engine</h3>
-                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">O AI Coach montará o treino ideal agora</p>
+                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">A Rubi Intelligence montará o protocolo ideal agora</p>
                         </div>
 
                         <div className="space-y-8">

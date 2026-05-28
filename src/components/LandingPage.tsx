@@ -98,10 +98,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
   };
 
   const tabsInfo = [
-    { id: 'workout' as TabType, label: 'Treinamento Player', icon: Dumbbell, desc: 'Interface de execução imersiva com autogestão de fadiga' },
-    { id: 'metabolism' as TabType, label: 'Metabolismo OS', icon: Apple, desc: 'Algoritmo nutricional autocorretivo baseado em esforço real' },
-    { id: 'coach' as TabType, label: 'Memória do Coach', icon: Brain, desc: 'Interação cognitiva adaptativa e bio-feedback contínuo' },
-    { id: 'evolution' as TabType, label: 'Mapeamento Humano', icon: LineChart, desc: 'Evolução de tonelagem, 1RM estimada e mapas de fadiga' },
+    { id: 'workout' as TabType, label: 'Workout Player', icon: Dumbbell, desc: 'Interface de execução imersiva com autogestão de fadiga' },
+    { id: 'metabolism' as TabType, label: 'KYRON Nutrition', icon: Apple, desc: 'Algoritmo nutricional autocorretivo baseado em esforço real' },
+    { id: 'coach' as TabType, label: 'Athlete Memory Engine', icon: Brain, desc: 'Interação cognitiva adaptativa e bio-feedback contínuo' },
+    { id: 'evolution' as TabType, label: 'Performance Intelligence', icon: LineChart, desc: 'Evolução de tonelagem, 1RM estimada e mapas de fadiga' },
   ];
 
   const floatingInsights = [
@@ -149,8 +149,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             <Sparkles size={16} className="text-[#7BA7FF]" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-black uppercase tracking-[0.28em] text-slate-900 leading-none">Coach Rubi</span>
-            <span className="text-[7px] font-bold text-slate-400 tracking-widest uppercase mt-0.5">HUMAN PERFORMANCE SYSTEM</span>
+            <span className="text-sm font-black uppercase tracking-[0.28em] text-slate-900 leading-none">KYRON OS</span>
+            <span className="text-[7px] font-bold text-slate-400 tracking-widest uppercase mt-0.5">Powered by Rubi Intelligence</span>
           </div>
         </div>
 
@@ -166,7 +166,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             onClick={onStart}
             className="hidden sm:inline-flex bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10.5px] tracking-[0.18em] uppercase py-3 px-6 rounded-2xl border border-slate-950 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
-            Experimentar
+            Acessar Sistema
           </button>
         </div>
       </nav>
@@ -184,7 +184,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
           >
             <span className="w-1.5 h-1.5 bg-[#7BA7FF] rounded-full animate-ping"></span>
             <span className="text-[9.5px] font-bold uppercase tracking-[0.25em] text-slate-500">
-              SISTEMA DE DESEMPENHO HUMANO ADAPTATIVO
+              Adaptive Human Performance OS • Powered by Rubi Intelligence
             </span>
           </motion.div>
           
@@ -195,8 +195,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             transition={{ type: "spring", delay: 0.1, duration: 1 }}
             className="text-4xl sm:text-6xl md:text-[5rem] font-light tracking-tight leading-[1.02] text-[#0F172A]"
           >
-            Você já treina seu corpo.<br/>
-            Treine com o <strong className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-slate-950 via-slate-800 to-[#7BA7FF]">sistema</strong> que o compreende.
+            Built Around Your Biology.<br/>
+            <strong className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-slate-950 via-slate-800 to-[#7BA7FF]">Human Performance,</strong> Intelligently Adaptive.
           </motion.h1>
           
           {/* Subheadline Description */}
@@ -206,7 +206,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             transition={{ type: "spring", delay: 0.2, duration: 1.2 }}
             className="text-base sm:text-[1.25rem] text-slate-500 font-light max-w-3xl mx-auto leading-relaxed"
           >
-            Acompanhamento de força, inteligência metabólica autocorretiva, recuperação baseada em marcadores latentes e suporte cognitivo integrados sob uma única linguagem biológica refinada.
+            Biometria profunda, suporte metabólico autorregulável, prevenção de estafa e protocolos adaptativos baseados em inteligência artificial contínua. Sem artifícios mecânicos, apenas o ecossistema perfeito para o seu desenvolvimento biológico.
           </motion.p>
           
           {/* Action buttons */}
@@ -562,7 +562,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                       </div>
                       <div>
                         <span className="text-[9px] uppercase tracking-widest text-slate-500 font-bold block leading-none">MEMÓRIA ATIVA</span>
-                        <span className="text-xs font-semibold text-white tracking-tight">Coach Rubi Cognitiva</span>
+                        <span className="text-xs font-semibold text-white tracking-tight">Rubi Intelligence</span>
                       </div>
                     </div>
 
@@ -686,7 +686,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
               Uma conversa inteligente com a sua própria fisiologia.
             </h2>
             <p className="text-slate-500 font-light text-base leading-relaxed">
-              O Coach Rubi decodifica e cruza continuamente as suas informações de treino e dieta para apresentar reports de inteligência que evoluem conforme você evolui.
+              O KYRON OS decodifica e cruza continuamente as suas informações de treino e dieta para apresentar reports de inteligência que evoluem conforme você evolui.
             </p>
           </div>
 
@@ -724,7 +724,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                    <span>COACH RUBI LOG</span>
+                    <span>KYRON OS LOG</span>
                     <span>AUTOMÁTICO</span>
                   </div>
                 </motion.div>
@@ -851,7 +851,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             </h2>
             
             <p className="text-slate-500 font-light text-base leading-relaxed">
-              Esqueça contagens estáticas e genéricas. O módulo **Minha Dieta** atua como uma central adaptativa metabólica. Ele sincroniza suas calorias, proteínas, carboidratos e de hidratação automaticamente de acordo com o ritmo esportivo real do seu estilo de vida.
+              Esqueça contagens estáticas e genéricas. O módulo **KYRON Nutrition** atua como uma central adaptativa metabólica. Ele sincroniza suas calorias, proteínas, carboidratos e de hidratação automaticamente de acordo com o ritmo esportivo real do seu estilo de vida.
             </p>
 
             <div className="space-y-4 pt-1">
@@ -954,7 +954,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             Você está forjando uma identidade.
           </h2>
           <p className="text-slate-500 font-light text-base max-w-2xl mx-auto leading-relaxed">
-            Consistência real não ocorre por impulsividade. O Coach Rubi registra seus comportamentos biomecânicos e atitudinais criando uma biologia única de atleta ao longo do tempo.
+            Consistência real não ocorre por impulsividade. O KYRON OS registra seus comportamentos biomecânicos e atitudinais criando uma biologia única de atleta ao longo do tempo.
           </p>
         </div>
 
@@ -966,7 +966,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             </div>
             <h4 className="text-sm font-bold uppercase tracking-wide text-slate-800 pt-1">Identidade Unificada</h4>
             <p className="text-xs text-slate-500 font-light leading-relaxed">
-              Seu Coach centraliza absolutamente tudo: peso, estatura, histórico de lesões, volumes semanais e de carboidratos em um único profile biográfico sutil e integrado.
+              O sistema centraliza absolutamente tudo: peso, estatura, histórico de lesões, volumes semanais e de carboidratos em um único profile biográfico sutil e integrado.
             </p>
           </div>
 
@@ -1000,7 +1000,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                 role: "Nutricionista Clínico & Atleta de Endurance"
               },
               {
-                quote: "Coach Rubi eliminou a papelada chata e as planilhas feias. Parece mais um WHOOP de bolso do que um monitor comum de musculação.",
+                quote: "O KYRON OS eliminou a papelada chata e as planilhas feias. Parece mais um WHOOP de bolso do que um monitor comum de musculação.",
                 author: "Beatriz M. Castilho",
                 role: "Atleta Profissional de Powerlifting"
               },
@@ -1042,7 +1042,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             </h2>
             
             <p className="text-slate-400 text-sm sm:text-base font-light max-w-xl mx-auto leading-relaxed">
-              Deixe que a biologia atue a seu favor. Instale o ecossistema Coach Rubi gratuitamente em segundos.
+              Deixe que a biologia atue a seu favor. Instale o ecossistema KYRON OS gratuitamente em segundos.
             </p>
 
             <button 
@@ -1063,7 +1063,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
               <Sparkles size={13} className="text-[#7BA7FF]" />
             </div>
-            <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Coach Rubi OS © 2026</span>
+            <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">KYRON OS © 2026</span>
           </div>
 
           <div className="flex gap-8 text-[10.5px] font-bold uppercase tracking-wider text-slate-400">

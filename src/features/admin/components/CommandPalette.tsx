@@ -132,7 +132,7 @@ const CommandPalette: React.FC = () => {
                 <HelperItem label="↑↓" desc="Navigate" />
                 <HelperItem label="Esc" desc="Close" />
              </div>
-             <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">Coach Rubi Admin OS</p>
+             <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">KYRON OS Admin Core</p>
           </div>
        </motion.div>
     </div>

@@ -247,7 +247,7 @@ const ProgressPhotos: React.FC = () => {
             Upload das Fotos do Antes & Depois
           </h2>
           <p className="text-xs font-medium text-slate-500 leading-relaxed max-w-md">
-            Envie as imagens de sua evolução (Frente, Lado ou Costas) para usar no comparador interativo. O Coach Rubi calcula sua evolução de definição neuromuscular automaticamente.
+            Envie as imagens de sua evolução (Frente, Lado ou Costas) para usar no comparador interativo. O KYRON OS calcula sua evolução de definição neuromuscular automaticamente.
           </p>
         </div>
         

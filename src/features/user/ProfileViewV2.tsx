@@ -766,7 +766,7 @@ export default function ProfileViewV2() {
             <div className="space-y-4 pt-4 border-t border-slate-100/30 mt-2 text-center">
               <div className="flex flex-col items-center">
                 <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-800">Dias Preferidos de Treino</span>
-                <span className="text-[8.5px] font-semibold text-slate-400 mt-1 uppercase tracking-wider">Configure seus dias planejados para que Coach Rubi monitore sua consistência</span>
+                <span className="text-[8.5px] font-semibold text-slate-400 mt-1 uppercase tracking-wider">Configure seus dias planejados para que KYRON OS monitore sua consistência</span>
               </div>
               
               <div className="flex flex-wrap gap-2 justify-center py-2">

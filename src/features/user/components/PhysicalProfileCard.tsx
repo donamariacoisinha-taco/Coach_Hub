@@ -316,7 +316,7 @@ export function PhysicalProfileCard() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Avaliação de Saúde</h3>
-                  <h2 className="text-xl font-bold tracking-tight text-white font-sans">Seus Índices do Coach</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-white font-sans">Seus Índices Biométricos</h2>
                 </div>
                 {imcInfo && (
                   <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest text-white decoration-none ${imcInfo.color} shadow-lg shadow-black/10`}>

@@ -131,7 +131,7 @@ export const AIMediaFinderModal: React.FC<Props> = ({ exercise, isOpen, onClose,
                    </div>
                 </div>
                 <div className="text-center space-y-2">
-                   <h3 className="text-lg font-black text-slate-900">Coach Rubi analisando biomecânica...</h3>
+                   <h3 className="text-lg font-black text-slate-900">Rubi Intelligence analisando biomecânica...</h3>
                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Localizando as melhores fontes visuais</p>
                 </div>
              </div>

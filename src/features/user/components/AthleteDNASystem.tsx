@@ -82,7 +82,7 @@ export function AthleteDNASystem() {
       <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex items-start gap-3">
         <Lightbulb size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
         <p className="text-[10px] font-bold text-amber-700 leading-relaxed">
-          O Coach Rubi adapta a ordem, intensidade padrão RPE e volume das séries das suas fichas com base nessa assinatura.
+          O KYRON OS adapta a ordem, intensidade padrão RPE e volume das séries de performance com base nessa assinatura.
         </p>
       </div>
     </motion.div>

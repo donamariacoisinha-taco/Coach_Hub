@@ -201,7 +201,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
   const progressiveOverloadInsight = useMemo(() => {
     if (parsedHistory.length === 0) {
       return {
-        text: "Inicie seu primeiro treino para destravar o Motor de Sobrecarga Progressiva do Coach Rubi.",
+        text: "Inicie seu primeiro treino para destravar o Motor de Sobrecarga Progressiva do KYRON OS.",
         status: "INITIAL",
         title: "Calibrando Sistema"
       };
@@ -562,7 +562,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
             Métricas de Sobrecarga
           </span>
           <span className="text-sm font-black text-slate-800 tracking-tight mt-1.5 leading-none">
-            Evolução Inteligente
+            Performance Intelligence
           </span>
         </div>
         
@@ -858,7 +858,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                         🏆
                       </div>
                       <div className="flex-1 min-w-0">
-                        <span className="text-[8.5px] font-[1000] uppercase tracking-widest text-indigo-100 block">Selo Coach Rubi</span>
+                        <span className="text-[8.5px] font-[1000] uppercase tracking-widest text-indigo-100 block">KYRON OS Badge</span>
                         <h5 className="text-[11.5px] font-black tracking-tight truncate leading-tight">Atleta de Ferro</h5>
                         <p className="text-[9.5px] text-indigo-150 leading-snug font-medium mt-0.5">
                           Aderência impecável à estratégia de treino ({smartAdherenceInsights.adherencePercentLast35}%). Sua consistência é insuperável!
@@ -901,7 +901,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                       <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between">
                         <div>
                           <span className="text-[8.5px] font-black text-slate-450 uppercase tracking-widest block mb-1">Ritmo de Performance</span>
-                          <p className="text-xs text-slate-500 font-medium">Continue completando treinos para Coach Rubi isolar seu dia ideal.</p>
+                          <p className="text-xs text-slate-500 font-medium">Continue completando treinos para KYRON OS isolar seu dia ideal.</p>
                         </div>
                       </div>
                     )}
@@ -910,7 +910,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                     {smartAdherenceInsights.isOvercommitted ? (
                       <div className="p-4 bg-amber-50/40 border border-amber-200/50 rounded-2xl flex flex-col justify-between">
                         <div>
-                          <span className="text-[8.5px] font-black text-amber-600 uppercase tracking-widest block mb-1">Sentinela Coach Rubi</span>
+                          <span className="text-[8.5px] font-black text-amber-600 uppercase tracking-widest block mb-1">Sentinela KYRON OS</span>
                           <p className="text-xs font-bold text-slate-700 leading-normal">
                             ⚠️ <strong className="text-amber-700">Ajuste de Frequência:</strong> Que tal mirar em 3 dias consistentes esta semana? Menos é mais para construir o hábito de aço.
                           </p>

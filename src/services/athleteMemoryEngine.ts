@@ -522,7 +522,7 @@ export const athleteMemoryEngine = {
   generateContextualInsights(memory: AthleteMemory, history: WorkoutHistory[]): string[] {
     const insights: string[] = [];
     if (!history || history.length === 0) {
-      return ["Seja bem-vindo ao Coach Rubi. Seu ritmo e biologia serão lembrados a partir de hoje."];
+      return ["Seja bem-vindo ao KYRON OS. Seu ritmo e biologia serão lembrados a partir de hoje."];
     }
 
     // 1. Consistency / Streak Observation
@@ -535,7 +535,7 @@ export const athleteMemoryEngine = {
 
     // 2. Dropout Risk Warning
     if (memory.dropout_risk_score > 40) {
-      insights.push(`Detectamos fadiga ou quebra de ritmo recente. Coach Rubi sugere focar em consistência hoje, ignorando recordes.`);
+      insights.push(`Detectamos fadiga ou quebra de ritmo recente. O sistema adaptativo sugere focar em consistência hoje, ignorando recordes.`);
     }
 
     // 3. Muscle Fatigue Overlap warning

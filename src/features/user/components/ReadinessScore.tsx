@@ -182,7 +182,7 @@ export function ReadinessScore() {
         <div className="mt-5 bg-white/[0.03] rounded-2xl p-3 border border-white/[0.05] flex items-center gap-2.5">
           <HelpCircle size={14} className="text-slate-400 flex-shrink-0" />
           <p className="text-[10px] text-slate-400 font-semibold leading-snug">
-            Realize o <strong className="text-slate-200 uppercase tracking-wider text-[9px]">Check-in da Semana</strong> acima para sintonizar a inteligência corporal do Coach de forma precisa.
+            Realize o <strong className="text-slate-200 uppercase tracking-wider text-[9px]">Check-in da Semana</strong> acima para sintonizar a inteligência corporal do KYRON OS de forma precisa.
           </p>
         </div>
       )}

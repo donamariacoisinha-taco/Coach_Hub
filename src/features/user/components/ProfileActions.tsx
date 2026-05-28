@@ -56,7 +56,7 @@ export function ProfileActions() {
       </div>
 
       <div className="text-center pt-4">
-        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-300">Coach Rubi • v2.5.0</p>
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-300">KYRON OS • v2.5.0</p>
       </div>
     </motion.div>
   );

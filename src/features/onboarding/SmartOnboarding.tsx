@@ -58,7 +58,7 @@ export default function SmartOnboarding() {
         setProfile(fullProfile);
       }
       
-      showSuccess('Perfil Configurado!', 'Bem-vindo ao Coach Rubi.');
+      showSuccess('Perfil Configurado!', 'Bem-vindo ao KYRON OS.');
       reset(); // Clear onboarding draft
       navigate('dashboard');
     } catch (err: any) {
@@ -142,10 +142,10 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
       
       <div className="space-y-3">
         <h1 className="text-4xl font-[1000] tracking-tighter text-slate-900 leading-none">
-          Bem-vindo ao<br />Coach Rubi
+          Bem-vindo ao<br />KYRON OS
         </h1>
         <p className="text-slate-500 text-lg font-medium">
-          Vamos configurar sua jornada fitness inteligente em poucos segundos.
+          Configure seu ecossistema adaptivo de performance humana em poucos segundos.
         </p>
       </div>
 

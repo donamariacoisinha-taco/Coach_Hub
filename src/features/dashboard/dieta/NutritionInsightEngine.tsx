@@ -9,7 +9,7 @@ interface NutritionInsightEngineProps {
 }
 
 export const NutritionInsightEngine: React.FC<NutritionInsightEngineProps> = ({ profile, state }) => {
-  // Generate highly emotional, biological Coach Rubi Insights on the fly
+  // Generate highly emotional, biological Rubi Intelligence Insights on the fly
   const loadDynamicInsight = (): { title: string; desc: string; tag: string } => {
     const goalLower = String(profile.goal).toLowerCase();
     
