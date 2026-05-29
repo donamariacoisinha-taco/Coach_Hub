@@ -152,14 +152,9 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
         >
           {/* LINE 1: Exercise Title */}
           <div className="flex items-start gap-1.5 justify-between">
-            <h4 className="font-extrabold text-[14px] text-slate-900 group-hover:text-blue-600 transition-colors leading-snug line-clamp-2 break-words">
+            <h4 className="font-extrabold text-[14px] text-slate-900 group-hover:text-blue-600 transition-colors leading-snug line-clamp-2 break-words flex-1">
               {ex.exercise_name}
             </h4>
-            {ex.notes !== undefined && (
-              <span className="shrink-0 mt-0.5" title={isNotesExpanded ? "Ocultar Nota" : "Mostrar Nota"}>
-                <FileText size={12} className={`transition-colors ${isNotesExpanded ? 'text-amber-500' : 'text-slate-300 group-hover:text-amber-400'}`} />
-              </span>
-            )}
           </div>
 
           {/* LINE 2: Primary muscle group */}
