@@ -585,7 +585,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
       </div>
 
       {/* HERO METRICS CONTAINER (Whoop/Apple Health/Oura Style) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
         
         {/* HERO 1: TOTAL TRAINING LOAD */}
         <motion.div 
@@ -701,6 +701,65 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg shrink-0">
               {profile?.workout_streak || 0}d seguidos
             </span>
+          </div>
+        </motion.div>
+
+        {/* HERO 3: PHYSIOLOGICAL EFFORT & AVERAGE RPE (KYRON BIOMETRIC CONTROL) */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={springTransition}
+          className="bg-white/70 backdrop-blur-2xl px-6 py-7 rounded-[2.5rem] border border-white/40 shadow-[0_20px_60px_rgba(15,23,42,0.06)] flex flex-col justify-between overflow-hidden relative min-h-[220px]"
+          id="hero-rpe-status-block"
+        >
+          <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-emerald-400/5 rounded-full blur-2xl" />
+          
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="space-y-4 flex-1">
+              <span className="uppercase tracking-[0.2em] text-[9.5px] font-black text-slate-400 block">
+                Esforço Fisiológico
+              </span>
+              <div className="space-y-1">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-5xl font-black tracking-tight text-slate-900">
+                    {latestSession?.avg_rpe ? latestSession.avg_rpe.toFixed(1) : "8.0"}
+                  </span>
+                  <span className="text-lg font-extrabold text-slate-400">RPE</span>
+                </div>
+                <span className="text-xs font-bold text-slate-400 block uppercase tracking-widest mt-1">
+                  Média do Último Treino
+                </span>
+              </div>
+            </div>
+
+            <div className="w-12 h-12 bg-[#7BA7FF]/10 text-[#7BA7FF] rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
+              <Activity size={24} className="animate-pulse" />
+            </div>
+          </div>
+
+          <div className="relative z-10 pt-4 flex flex-col gap-2 mt-4">
+            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden relative">
+              <div 
+                className="h-full rounded-full transition-all duration-500" 
+                style={{
+                  width: `${((latestSession?.avg_rpe || 8.0) / 10) * 100}%`,
+                  backgroundColor: (latestSession?.avg_rpe || 8.0) >= 9.0 ? '#FB7185' : (latestSession?.avg_rpe || 8.0) >= 8.0 ? '#F59E0B' : (latestSession?.avg_rpe || 8.0) >= 6.0 ? '#7BA7FF' : '#34D399'
+                }}
+              />
+            </div>
+
+            <div className="flex justify-between items-center border-t border-slate-100/60 pt-3 mt-1">
+              <span className="text-[10px] text-slate-500 font-bold leading-none truncate pr-2">
+                {(latestSession?.avg_rpe || 8.0) >= 9.0 
+                  ? "Alerta de Sobrecarga Neuromuscular" 
+                  : (latestSession?.avg_rpe || 8.0) >= 8.0
+                    ? "Esforço Consolidado Ativo (Ideal)"
+                    : "Volume Regenerativo / Ativação"}
+              </span>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg shrink-0">
+                Alvo: 7.5 - 8.5
+              </span>
+            </div>
           </div>
         </motion.div>
       </div>
@@ -1079,7 +1138,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-4"
+              className="space-y-6"
             >
               {/* WORKOUT LOAD EVOLUTION CHART */}
               <div className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm space-y-4">
@@ -1114,6 +1173,42 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
 
                 <div className="text-[9px] text-slate-400 italic text-center pt-2 leading-none">
                   * Volume calculado em KG acumulado (peso de cada série x repetições) por treino.
+                </div>
+              </div>
+
+              {/* RPE & FATIGUE EVOLUTION CHART */}
+              <div className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      Evolução de Fadiga • RPE
+                    </span>
+                    <h4 className="text-sm font-black text-slate-800 leading-none">Curva de Esforço Fisiológico</h4>
+                  </div>
+                  <span className="text-[9px] font-black text-amber-600 bg-amber-50/50 px-2 py-0.5 rounded-lg uppercase tracking-wider">
+                    Fatigue Trend
+                  </span>
+                </div>
+
+                <div className="h-48 w-full mt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartsData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                      <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 'bold', fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <YAxis domain={[5, 10]} ticks={[6, 7, 8, 9, 10]} tick={{ fontSize: 9, fontWeight: 'bold', fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.06)', fontSize: '10px', fontWeight: 'bold' }} />
+                      <defs>
+                        <linearGradient id="rpeGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.25}/>
+                          <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <Area type="monotone" dataKey="rpe" stroke="#F59E0B" fill="url(#rpeGrad)" strokeWidth={3.5} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="text-[9px] text-slate-400 italic text-center pt-2 leading-none">
+                  * Variação do índice de percepção de esforço (RPE) ideal entre 7.0 e 8.5 para hipertrofia sem sobrecarga muscular.
                 </div>
               </div>
             </motion.div>

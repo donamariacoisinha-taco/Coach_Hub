@@ -295,26 +295,58 @@ const SetCard = ({
           )}
         </div>
 
-        {!isBeginner && (
-          <div className="flex flex-col items-center">
-             <div className="flex gap-1">
-                {[8, 9, 10].map(v => (
-                  <button 
-                    key={v}
-                    onClick={() => updateSetData(idx, 'rpe', v)}
-                    className={`w-7 h-7 rounded-lg text-[9px] font-black transition-all ${
-                      setData.rpe === v 
-                        ? (isCurrent ? "bg-slate-900 text-white shadow-md scale-110" : "bg-slate-400 text-white")
-                        : "bg-slate-50 text-slate-300 hover:text-slate-400 font-bold"
-                    }`}
-                  >
-                    {v}
-                  </button>
-                ))}
+        <div className={`flex flex-col items-center p-1 px-1.5 transition-all duration-300 rounded-[14px] w-[110px] select-none shrink-0 ${
+          focusMode 
+            ? "bg-slate-900/60 backdrop-blur-md border border-slate-800/80" 
+            : "bg-white/65 backdrop-blur-md border border-slate-200/50 shadow-sm"
+        }`}>
+           <div className="relative w-full overflow-hidden flex items-center justify-center">
+             {/* Gradient visual fades indicating scrollable area */}
+             <div className={`absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r pointer-events-none z-10 ${
+               focusMode ? "from-slate-900 to-transparent" : "from-white to-transparent"
+             }`} />
+             
+             {/* Super-compact Horizontally scrollable track */}
+             <div className="w-full overflow-x-auto no-scrollbar scroll-smooth flex gap-1 py-0.5 px-1.5 items-center snap-x snap-mandatory">
+                {[5, 6, 7, 8, 9, 10].map(v => {
+                  const isSelected = setData.rpe === v;
+                  let activeBg = 'bg-[#7BA7FF]';
+                  if (v === 8) activeBg = 'bg-[#34D399]';
+                  if (v === 9) activeBg = 'bg-[#F59E0B]';
+                  if (v === 10) activeBg = 'bg-[#FB7185]';
+
+                  return (
+                    <motion.button 
+                      key={v}
+                      whileTap={{ scale: 0.85 }}
+                      whileHover={{ scale: 1.05 }}
+                      onClick={() => {
+                        updateSetData(idx, 'rpe', v);
+                        playSensoryTone('click');
+                        if ('vibrate' in navigator) navigator.vibrate(10);
+                      }}
+                      className={`w-6 h-6 rounded-lg text-[10px] font-black transition-all flex items-center justify-center shrink-0 snap-center ${
+                        isSelected 
+                          ? `${activeBg} text-white shadow-sm scale-110`
+                          : focusMode 
+                            ? "text-slate-500 hover:bg-slate-800/40 hover:text-slate-300" 
+                            : "text-slate-400 bg-slate-50/60 hover:bg-slate-100 hover:text-slate-600"
+                      }`}
+                    >
+                      {v}
+                    </motion.button>
+                  );
+                })}
              </div>
-             <p className="text-[8px] font-black text-slate-300 mt-1 tracking-widest uppercase">RPE</p>
-          </div>
-        )}
+
+             <div className={`absolute right-0 top-0 bottom-0 w-3 bg-gradient-to-l pointer-events-none z-10 ${
+               focusMode ? "from-slate-900 to-transparent" : "from-white to-transparent"
+             }`} />
+           </div>
+           <p className={`text-[7px] font-black tracking-widest mt-1 uppercase leading-none ${
+             focusMode ? 'text-slate-500' : 'text-slate-400/80'
+           }`}>RPE (Rolar ↔)</p>
+        </div>
       </div>
 
       {/* BEGINNER HELPER TEXT */}

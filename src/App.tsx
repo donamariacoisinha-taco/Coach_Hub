@@ -434,8 +434,8 @@ const App: React.FC = () => {
           </main>
 
           {!isImmersive && session && navState.view !== 'admin' && (
-            <div className="lg:hidden fixed bottom-5 left-4 right-4 z-50">
-              <nav className="h-[4.5rem] bg-white/75 backdrop-blur-xl border border-white/40 px-4 flex items-center justify-around rounded-[1.80rem] shadow-[0_12px_45px_rgba(15,23,42,0.08)]">
+            <div className="lg:hidden fixed bottom-5 left-2 right-2 min-[370px]:left-4 min-[370px]:right-4 z-50">
+              <nav className="h-[4.5rem] bg-white/75 backdrop-blur-xl border border-white/40 px-1 min-[370px]:px-3 flex items-center justify-around rounded-[1.80rem] shadow-[0_12px_45px_rgba(15,23,42,0.08)]">
                 {[
                   { id: 'dashboard', icon: Home, label: 'Feed' },
                   { id: 'library', icon: Dumbbell, label: 'Library' },
