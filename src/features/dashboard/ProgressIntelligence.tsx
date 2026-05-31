@@ -34,6 +34,7 @@ import { authApi } from '../../lib/api/authApi';
 import { mediaApi } from '../../lib/api/mediaApi';
 import { useNavigation } from '../../App';
 import { supabase } from '../../lib/api/supabase';
+import { BodyProjectionModule } from './BodyProjectionModule';
 
 interface ProgressIntelligenceProps {
   history: WorkoutHistory[];
@@ -821,7 +822,14 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
               exit={{ opacity: 0, y: -10 }}
               className="space-y-6"
             >
-                {/* MAPA DE CONSISTÊNCIA & SMART ADHERENCE INSIGHTS */}
+              {/* BRAND NEW PREMIUM BODY COMPOSITION PROJECTION MODULE */}
+              <BodyProjectionModule 
+                profile={profile} 
+                history={history} 
+                volChangePercent={volChangePercent} 
+              />
+
+              {/* MAPA DE CONSISTÊNCIA & SMART ADHERENCE INSIGHTS */}
               <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
