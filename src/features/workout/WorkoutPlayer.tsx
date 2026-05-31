@@ -31,7 +31,8 @@ import {
   MoreVertical,
   GripVertical,
   LayoutList,
-  Info
+  Info,
+  TrendingUp
 } from "lucide-react";
 import { exerciseApi } from "../../lib/api/exerciseApi";
 import { motion, AnimatePresence } from "motion/react";
@@ -295,23 +296,16 @@ const SetCard = ({
           )}
         </div>
 
-        <div className={`flex flex-col items-center p-1 px-1.5 transition-all duration-300 rounded-[14px] w-[110px] select-none shrink-0 ${
+        <div className={`flex flex-col items-center p-1 px-1.5 transition-all duration-300 rounded-[14px] w-[95px] sm:w-[105px] select-none shrink-0 ${
           focusMode 
             ? "bg-slate-900/60 backdrop-blur-md border border-slate-800/80" 
             : "bg-white/65 backdrop-blur-md border border-slate-200/50 shadow-sm"
         }`}>
-           <div className="relative w-full overflow-hidden flex items-center justify-center">
-             {/* Gradient visual fades indicating scrollable area */}
-             <div className={`absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r pointer-events-none z-10 ${
-               focusMode ? "from-slate-900 to-transparent" : "from-white to-transparent"
-             }`} />
-             
-             {/* Super-compact Horizontally scrollable track */}
-             <div className="w-full overflow-x-auto no-scrollbar scroll-smooth flex gap-1 py-0.5 px-1.5 items-center snap-x snap-mandatory">
-                {[5, 6, 7, 8, 9, 10].map(v => {
+           <div className="relative w-full flex items-center justify-center">
+             <div className="flex gap-1 py-0.5 px-1 items-center justify-center">
+                {[8, 9, 10].map(v => {
                   const isSelected = setData.rpe === v;
-                  let activeBg = 'bg-[#7BA7FF]';
-                  if (v === 8) activeBg = 'bg-[#34D399]';
+                  let activeBg = 'bg-[#34D399]';
                   if (v === 9) activeBg = 'bg-[#F59E0B]';
                   if (v === 10) activeBg = 'bg-[#FB7185]';
 
@@ -325,7 +319,7 @@ const SetCard = ({
                         playSensoryTone('click');
                         if ('vibrate' in navigator) navigator.vibrate(10);
                       }}
-                      className={`w-6 h-6 rounded-lg text-[10px] font-black transition-all flex items-center justify-center shrink-0 snap-center ${
+                      className={`w-6 h-6 rounded-lg text-[10px] font-black transition-all flex items-center justify-center shrink-0 ${
                         isSelected 
                           ? `${activeBg} text-white shadow-sm scale-110`
                           : focusMode 
@@ -338,14 +332,10 @@ const SetCard = ({
                   );
                 })}
              </div>
-
-             <div className={`absolute right-0 top-0 bottom-0 w-3 bg-gradient-to-l pointer-events-none z-10 ${
-               focusMode ? "from-slate-900 to-transparent" : "from-white to-transparent"
-             }`} />
            </div>
            <p className={`text-[7px] font-black tracking-widest mt-1 uppercase leading-none ${
              focusMode ? 'text-slate-500' : 'text-slate-400/80'
-           }`}>RPE (Rolar ↔)</p>
+           }`}>RPE • Esforço</p>
         </div>
       </div>
 
@@ -2169,7 +2159,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <X size={24} strokeWidth={3} />
                 </button>
                 <div className={`flex flex-col transition-all duration-500 ${momentum ? "scale-90 origin-left" : ""}`}>
-                  <span className="text-sm font-[1000] text-slate-900 truncate max-w-[150px] uppercase tracking-tighter">
+                  <span className="text-sm font-[1000] text-slate-900 truncate max-w-[120px] min-[370px]:max-w-[150px] uppercase tracking-tighter">
                     {currentEx?.exercise_name || 'Carregando...'}
                   </span>
                   <div className="flex items-center gap-1">
@@ -2188,6 +2178,24 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         </motion.span>
                       )}
                     </AnimatePresence>
+                  </div>
+                </div>
+
+                {/* VOLUME DYNAMIC TELEMETRY BADGE */}
+                <div 
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-[14px] shadow-[inset_0_1px_2px_rgba(255,255,255,0.8),_0_1px_2px_rgba(0,0,0,0.03)] shrink-0 select-none cursor-help transition-all duration-300"
+                  title="Volume de carga acumulado ativo neste exercício"
+                  id="header-volume-telemetry-badge"
+                  style={{ width: '81.0278px', height: '35.2083px', borderStyle: 'none', backgroundColor: '#ffffff' }}
+                >
+                  <div className="w-5 h-5 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-500/10 shadow-inner">
+                    <TrendingUp size={11} className="stroke-[2.5]" />
+                  </div>
+                  <div className="flex flex-col text-left justify-center">
+                    <span className="text-[6px] font-[1000] text-slate-400 uppercase tracking-widest leading-none mb-0.5">VOLUME</span>
+                    <span className="text-[10px] font-black tabular-nums text-slate-800 leading-none">
+                      {liveTelemetry.volume}<span className="text-[8px] font-extrabold text-slate-400 ml-0.5">kg</span>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -2226,65 +2234,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               style={{ paddingBottom: `calc(${footerHeight + 120}px + env(safe-area-inset-bottom))` }}
             >
               
-              {/* KYRON OS BIOLOGICAL STATE CONTROL CENTER */}
-              <div className="p-4 pb-1 shrink-0">
-                <div className={`p-4 rounded-[1.6rem] transition-all duration-500 border ${
-                  focusMode 
-                    ? "bg-slate-900/40 border-slate-800/80 shadow-[0_4px_30px_rgba(0,0,0,0.2)]" 
-                    : "bg-white border-slate-100 shadow-[0_8px_30px_rgba(15,23,42,0.04)]"
-                }`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${
-                        biologicalState === 'RECOVERY' ? 'bg-indigo-400 shadow-[0_0_12px_#818cf8]' :
-                        biologicalState === 'FATIGUE' ? 'bg-purple-500 shadow-[0_0_12px_#a855f7]' :
-                        'bg-amber-500 shadow-[0_0_12px_#f59e0b]'
-                      }`} />
-                      <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${focusMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                        ESTADO BIOMÉTRICO
-                      </span>
-                    </div>
-                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
-                      biologicalState === 'RECOVERY' ? 'bg-indigo-50 text-indigo-500 dark:bg-indigo-950/40 dark:text-indigo-400' :
-                      biologicalState === 'FATIGUE' ? 'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400' :
-                      'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
-                    }`}>
-                      {biologicalState === 'RECOVERY' ? 'Prontidão Estável' :
-                       biologicalState === 'FATIGUE' ? 'Fadiga Acumulada' :
-                       'Alerta de Sobrecarga'}
-                    </span>
-                  </div>
-
-                  {/* MINI TELEMETRY LAYOUT */}
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className={`p-2 rounded-xl ${focusMode ? 'bg-slate-950/50' : 'bg-slate-50'}`}>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Volume</p>
-                      <p className={`text-sm font-black tabular-nums ${focusMode ? 'text-white' : 'text-slate-800'}`}>{liveTelemetry.volume} kg</p>
-                    </div>
-                    <div className={`p-2 rounded-xl ${focusMode ? 'bg-slate-950/50' : 'bg-slate-50'}`}>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Esforço Médio</p>
-                      <p className={`text-sm font-black tabular-nums ${focusMode ? 'text-white' : 'text-slate-800'}`}>RPE {liveTelemetry.avgRpe}</p>
-                    </div>
-                    <div className={`p-2 rounded-xl ${focusMode ? 'bg-slate-950/50' : 'bg-slate-50'}`}>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Progressão</p>
-                      <p className="text-sm font-black text-[#7BA7FF]">{liveTelemetry.overload}</p>
-                    </div>
-                  </div>
-
-                  {/* AI COACH REALTIME INSIGHT */}
-                  <div className={`mt-3 pt-3 border-t text-[10.5px] font-medium leading-relaxed flex gap-2 ${
-                    focusMode ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-500'
-                  }`}>
-                    <Sparkles size={14} className="text-[#7BA7FF] shrink-0 mt-0.5" />
-                    <span>
-                      {biologicalState === 'RECOVERY' && "Sinalização tônica ideal. Você está performando consistentemente em relação ao seu volume de base."}
-                      {biologicalState === 'FATIGUE' && "Fadiga neuromuscular detectada. Considere estender o intervalo de descanso para 120s nesta fase."}
-                      {biologicalState === 'OVERREACH' && "Alerta de estresse tônico limitante. Aconselhamos redução preventiva de 5-10% na carga para manter ativação limpa."}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
               {/* COMPACT EXERCISE HEADER (DYNAMIC COMPRESSION) */}
               <AnimatePresence>
                 {!momentum && (
