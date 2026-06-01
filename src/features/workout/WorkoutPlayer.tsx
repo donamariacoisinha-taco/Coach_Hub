@@ -3015,6 +3015,28 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                       className="overflow-hidden border-t border-slate-200/60 pt-2.5 mt-2"
                                     >
                                       <div className="grid grid-cols-2 gap-2">
+                                        {/* Executar Agora */}
+                                        <button 
+                                          onClick={() => {
+                                            if (confirm(`Começar a executar "${ex.exercise_name}" agora em substituição ao atual?`)) {
+                                              setCurrentIndex(idx);
+                                              setCurrentSet(1);
+                                              setIsResting(false);
+                                              const savedCompleted = completedSetsByExercise[idx] || new Set();
+                                              setCompletedSetIndices(savedCompleted);
+                                              setLastSet(null);
+                                              setContextMenuIndex(null);
+                                              setShowExercisesList(false);
+                                              playSensoryTone('success');
+                                              playHapticFeedback('success');
+                                              showSuccess(`Iniciando execução de: ${ex.exercise_name}`);
+                                            }
+                                          }}
+                                          className="col-span-2 p-2.5 bg-indigo-50 hover:bg-indigo-100 text-[9.5px] font-[1000] uppercase text-indigo-600 rounded-lg flex items-center justify-center gap-1.5 border border-indigo-100/60 transition-all shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)]"
+                                        >
+                                          <Play size={11} className="fill-indigo-600" /> Executar agora
+                                        </button>
+
                                         {/* Substituir */}
                                         <button 
                                           onClick={() => {
