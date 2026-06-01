@@ -1420,7 +1420,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           reps: String(s.reps),
           weight: Number(s.weight),
           rest_time: Number(exObj.rest_time || 60),
-          type: 'NORMAL' as any
+          type: 'NORMAL' as any,
+          rpe: Number(s.rpe || 8)
         }));
 
         // 1. Save to database workout_exercises
@@ -1617,8 +1618,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       nextSets = workoutPerformance[currentIndex];
     } else if (currentEx.sets_json && currentEx.sets_json.length > 0) {
       nextSets = currentEx.sets_json.map((s, idx) => {
-        // Auto-progression Memory: use lastSet for the first set if session is new
-        if (idx === 0 && lastSet) {
+        const fallbackRpe = s.rpe || currentEx.default_rpe || 8;
+        // Auto-progression Memory: use lastSet for the first set if session is new and s.rpe is not defined
+        if (idx === 0 && lastSet && !s.rpe) {
           return {
             weight: lastSet.weight,
             reps: lastSet.reps,
@@ -1628,7 +1630,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         return {
           weight: typeof s.weight === 'number' ? s.weight : 0,
           reps: parseInt(s.reps as string) || 10,
-          rpe: 8
+          rpe: fallbackRpe
         };
       });
     } else {

@@ -264,6 +264,7 @@ export interface SetConfig {
   weight: number;
   rest_time: number;
   type?: SetType;
+  rpe?: number;
 }
 
 export interface WorkoutExercise {
