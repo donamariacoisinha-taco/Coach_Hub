@@ -1405,6 +1405,62 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     } catch (e) { /* Ignore audio errors */ }
   };
 
+  // HELPER TO SAVE EXERCISE DATA FOR THE NEXT WORKOUT SESSION
+  const promptAndSaveExerciseData = async (exObj: any, setsData: any[]) => {
+    if (!exObj || !setsData || setsData.length === 0) return;
+    
+    const confirmSave = window.confirm(
+      `Deseja salvar os dados atuais de "${exObj.exercise_name}" (carga, repetição, esforço e tempo de descanso) como padrão para o próximo treino?`
+    );
+    
+    if (confirmSave) {
+      try {
+        const firstSet = setsData[0] || { weight: exObj.weight || 0, reps: parseInt(exObj.reps) || 10, rpe: exObj.default_rpe || 8 };
+        const setsJsonList = setsData.map((s) => ({
+          reps: String(s.reps),
+          weight: Number(s.weight),
+          rest_time: Number(exObj.rest_time || 60),
+          type: 'NORMAL' as any
+        }));
+
+        // 1. Save to database workout_exercises
+        const { error } = await supabase.from('workout_exercises').update({
+          sets_json: setsJsonList,
+          weight: Number(firstSet.weight),
+          reps: String(firstSet.reps),
+          sets: setsData.length,
+          rest_time: Number(exObj.rest_time || 60),
+          default_rpe: Number(firstSet.rpe || 8)
+        }).eq('id', exObj.id);
+
+        if (error) throw error;
+
+        // 2. State Sync: Update current in-memory store so it keeps updated
+        const updatedExercises = exercises.map(ex => {
+          if (ex.id === exObj.id) {
+            return {
+              ...ex,
+              sets: setsData.length,
+              weight: Number(firstSet.weight),
+              reps: String(firstSet.reps),
+              rest_time: Number(exObj.rest_time || 60),
+              default_rpe: Number(firstSet.rpe || 8),
+              sets_json: setsJsonList
+            };
+          }
+          return ex;
+        });
+        useWorkoutStore.setState({ exercises: updatedExercises } as any);
+
+        showSuccess(`Os novos padrões de "${exObj.exercise_name}" foram salvos com sucesso!`);
+        playSensoryTone('success');
+      } catch (err: any) {
+        console.error("Error saving exercise default data:", err);
+        showError(`Erro ao salvar dados padrão do exercício: ${err?.message || err}`);
+      }
+    }
+  };
+
   // CENTRALIZED PROGRESSION LOGIC
   const advanceWorkout = async (completedIdx: number) => {
     if (!currentEx || !historyId || isTransitioning || isAdvancingRef.current || isWorkoutComplete) return;
@@ -1434,6 +1490,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const isLastSet = currentSet >= setsTarget;
 
     if (isLastSet) {
+      // Ask user if they wish to keep current exercise settings for next sessions
+      await promptAndSaveExerciseData(currentEx, activeSetsData);
+
       if (currentIndex < exercises.length - 1) {
         log("[ADVANCE_WORKOUT] Next Exercise");
         showSuccess(`Excelente! ${currentEx.exercise_name} concluído.`);
@@ -2767,12 +2826,24 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 /* ================= ADAPTIVE LAYER MANAGER PANEL ================= */
                 <div className="flex-1 flex flex-col min-h-0">
                   {/* Panel Header */}
-                  <div className="flex justify-between items-center mb-6 shrink-0">
+                  <div className="flex justify-between items-start mb-6 shrink-0">
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400 leading-none">Protocolo Adaptativo</h3>
                       <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-wider">Ajuste de performance em tempo real</p>
                     </div>
-                    <p className="text-[10px] font-black text-[#7BA7FF] uppercase tracking-widest bg-[#7BA7FF]/15 border border-[#7BA7FF]/30 px-3 py-1 rounded-full">{exercises.length} EXS</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] font-black text-[#7BA7FF] uppercase tracking-widest bg-[#7BA7FF]/15 border border-[#7BA7FF]/30 px-3 py-1.5 rounded-full">{exercises.length} EXS</p>
+                      <button
+                        onClick={() => {
+                          setShowExercisesList(false);
+                          setContextMenuIndex(null);
+                        }}
+                        className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm cursor-pointer border border-slate-150-none"
+                        title="Sair"
+                      >
+                        Sair <X size={12} strokeWidth={3} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Exercises Segment Tracker */}
