@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Command as CommandIcon,
   Sparkles,
-  Zap
+  Zap,
+  Folder
 } from 'lucide-react';
 import { useAdminStore } from '../../store/adminStore';
 import ExecutiveDashboard from './components/ExecutiveDashboard';
@@ -30,6 +31,7 @@ import AutoFixDashboard from './components/AutoFixDashboard';
 import AutoFixQueue from './components/AutoFixQueue';
 import PerformanceDashboard from './components/PerformanceDashboard';
 import RubiIntelligenceModal from './components/RubiIntelligenceModal';
+import { GlobalTemplatesManager } from './components/GlobalTemplatesManager';
 
 interface AdminPanelV2Props {
   onBack: () => void;
@@ -67,6 +69,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
   const tabs = [
     { id: 'dashboard', label: 'Executive', icon: LayoutDashboard, desc: 'Overview & KPIs' },
     { id: 'library', label: 'Library OS', icon: Library, desc: 'Asset Management' },
+    { id: 'templates', label: 'Templates Globais', icon: Folder, desc: 'Template Editor' },
     { id: 'performance', label: 'Performance', icon: BrainCircuit, desc: 'Adaptive Learning' },
     { id: 'autofix', label: 'Auto Fix', icon: Zap, desc: 'Self-Healing Engine' },
     { id: 'review', label: 'Review Hub', icon: ListTodo, desc: 'Quality Control' },
@@ -218,6 +221,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
               >
                   {activeTab === 'dashboard' && <ExecutiveDashboard />}
                   {activeTab === 'library' && <LibraryOSV25 />}
+                  {activeTab === 'templates' && <GlobalTemplatesManager />}
                   {activeTab === 'performance' && <PerformanceDashboard />}
                   {activeTab === 'autofix' && (
                     <div className="space-y-12">

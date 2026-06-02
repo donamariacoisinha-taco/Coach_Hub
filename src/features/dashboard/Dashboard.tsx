@@ -20,6 +20,8 @@ import { useUserStore } from '../../store/userStore';
 import { Goal, ExperienceLevel, MuscleGroup } from '../../types';
 import { Sparkles, Loader2, Clock, CheckCircle2, Shield, Star, Activity } from 'lucide-react';
 import { ProgressIntelligence } from './ProgressIntelligence';
+import { ProtocolEvolutionDashboard } from './components/ProtocolEvolutionDashboard';
+import { systemTemplatesApi } from '../../lib/api/systemTemplatesApi';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
@@ -41,6 +43,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     level: ExperienceLevel.BEGINNER,
     focusMuscles: [] as string[]
   });
+  const [outdatedFolderIds, setOutdatedFolderIds] = useState<string[]>([]);
 
   const dashboardQuery = useSmartQuery('dashboard_data', async () => {
     const session = await authApi.getSession();
@@ -61,6 +64,22 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const stats = data?.stats || { sessions: 0 };
 
   const { nextAction } = usePredictive(profile || null, history, workouts);
+
+  // Check which user folders contain outdated protocols compared to templates published globally
+  useEffect(() => {
+    async function checkUpdates() {
+      try {
+        const u = await authApi.getUser();
+        if (u && folders.length > 0) {
+          const detected = await systemTemplatesApi.detectUpdates(u.id, folders);
+          setOutdatedFolderIds(detected.map(up => up.folderId));
+        }
+      } catch (e) {
+        console.warn('Error checking system template updates:', e);
+      }
+    }
+    checkUpdates();
+  }, [folders]);
 
   const filteredWorkouts = useMemo(() => {
     if (activeFolderId === null) return workouts;
@@ -701,6 +720,9 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                       }`}
                     >
                       <span>{folder.name}</span>
+                      {outdatedFolderIds.includes(folder.id) && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse shrink-0" title="Melhorias do protocolo disponíveis" />
+                      )}
                       {activeFolderId === folder.id && (
                         <span 
                           onClick={(e) => {
@@ -851,11 +873,17 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             </section>
           </>
         ) : (
-          <ProgressIntelligence 
-            history={history}
-            profile={profile || null}
-            workouts={workouts}
-          />
+          <div className="space-y-8">
+            <ProtocolEvolutionDashboard 
+              folders={folders} 
+              onRefresh={refresh} 
+            />
+            <ProgressIntelligence 
+              history={history}
+              profile={profile || null}
+              workouts={workouts}
+            />
+          </div>
         )}
 
         <MagicBuildModal 
