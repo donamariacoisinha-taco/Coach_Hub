@@ -268,7 +268,11 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
 
                    {visibleColumns.includes('actions') && (
                     <td className="px-6 py-6 text-right sticky right-0 z-30 bg-inherit border-l border-slate-100">
-                       <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity bg-inherit">
+                       <div className={`flex items-center justify-end gap-2 transition-opacity bg-inherit ${
+                         menuOpenId === ex.id 
+                           ? 'opacity-100 sm:opacity-100' 
+                           : 'opacity-100 sm:opacity-0 group-hover:opacity-100'
+                       }`}>
                           <button 
                             onClick={() => openEditor(ex)}
                             className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"
