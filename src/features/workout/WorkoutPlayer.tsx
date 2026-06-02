@@ -432,6 +432,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const [showExitModal, setShowExitModal] = useState(false);
   const [showEvolutionModal, setShowEvolutionModal] = useState(false);
+  const [savePrompt, setSavePrompt] = useState<{
+    exObj: any;
+    firstSet: any;
+    setsJson: any[];
+    resolve: (value: boolean) => void;
+  } | null>(null);
   const [originalExercises, setOriginalExercises] = useState<WorkoutExercise[]>([]);
   const [isFinished, setIsFinished] = useState(false);
   const [isSavedSuccessfully, setIsSavedSuccessfully] = useState(false);
@@ -1409,9 +1415,22 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const promptAndSaveExerciseData = async (exObj: any, setsData: any[]) => {
     if (!exObj || !setsData || setsData.length === 0) return;
     
-    const confirmSave = window.confirm(
-      `Deseja salvar os dados atuais de "${exObj.exercise_name}" (carga, repetição, esforço e tempo de descanso) como padrão para o próximo treino?`
-    );
+    const confirmSave = await new Promise<boolean>((resolve) => {
+      const firstSet = setsData[0] || { weight: exObj.weight || 0, reps: parseInt(exObj.reps) || 10, rpe: exObj.default_rpe || 8 };
+      const setsJsonList = setsData.map((s) => ({
+        reps: String(s.reps),
+        weight: Number(s.weight),
+        rest_time: Number(exObj.rest_time || 60),
+        type: 'NORMAL' as any,
+        rpe: Number(s.rpe || 8)
+      }));
+      setSavePrompt({
+        exObj,
+        firstSet,
+        setsJson: setsJsonList,
+        resolve
+      });
+    });
     
     if (confirmSave) {
       try {
@@ -3325,6 +3344,95 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     className="w-full py-4 bg-white border border-slate-100 hover:bg-slate-50 text-slate-400 hover:text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center"
                   >
                     Manter apenas hoje
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL PARA SALVAR PADRÕES DE EXERCÍCIO */}
+      <AnimatePresence>
+        {savePrompt && (
+          <div className="fixed inset-0 z-[1500] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => savePrompt.resolve(false)} 
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.9, opacity: 0, y: 20 }} 
+              className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl relative z-10 border border-slate-100/50 overflow-hidden text-center"
+            >
+              <div className="flex flex-col items-center">
+                <div className="w-16 h-16 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center mb-6 shadow-inner relative">
+                  <Dumbbell size={28} className="text-blue-600" strokeWidth={3} />
+                  <span className="absolute -top-1 -right-1 bg-amber-500 text-[8px] font-black uppercase text-white px-2 py-0.5 rounded-full tracking-wider animate-bounce">
+                    Salvar
+                  </span>
+                </div>
+                
+                <h3 className="text-xl font-[1000] text-slate-800 tracking-tight leading-6 mb-2">
+                  Salvar novo padrão?
+                </h3>
+                
+                <p className="text-xs text-slate-505 font-medium leading-relaxed mb-6">
+                  Deseja atualizar as informações padrão de <span className="text-blue-600 font-extrabold">"{savePrompt.exObj?.exercise_name}"</span> para as suas próximas sessões?
+                </p>
+
+                {/* Box de Resumo de Mudanças */}
+                <div className="w-full bg-slate-50 border border-slate-200/55 rounded-3xl p-5 mb-8 text-left space-y-3.5 max-h-[220px] overflow-y-auto no-scrollbar">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 justify-start">
+                    <CheckCircle2 size={12} className="text-blue-600" strokeWidth={3} /> Novos dados sugeridos:
+                  </p>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-xs font-bold text-slate-700">
+                    <div className="bg-white p-3 rounded-2xl border border-slate-100">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Séries</p>
+                      <p className="text-sm font-black text-slate-800">{savePrompt.setsJson.length} séries</p>
+                    </div>
+                    
+                    <div className="bg-white p-3 rounded-2xl border border-slate-100">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Descanso</p>
+                      <p className="text-sm font-black text-slate-800">{savePrompt.exObj?.rest_time || 60}s</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1.5 border-t border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Detalhamento por Série:</p>
+                    {savePrompt.setsJson.map((s, sIdx) => (
+                      <div key={sIdx} className="flex justify-between items-center text-xs font-bold text-slate-755 bg-white/60 px-3 py-1.5 rounded-xl border border-slate-100/30">
+                        <span className="text-slate-400 text-[10px] font-extrabold font-mono">SÉRIE {sIdx + 1}</span>
+                        <span className="text-slate-800 font-extrabold">{s.weight}kg × {s.reps}</span>
+                        <span className="text-amber-600 font-extrabold text-[10px]">RPE {s.rpe}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="w-full space-y-3">
+                  <button 
+                    onClick={() => {
+                      savePrompt.resolve(true);
+                      setSavePrompt(null);
+                    }} 
+                    className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 border border-blue-700/10"
+                  >
+                    Sim, Atualizar Padrão
+                  </button>
+                  <button 
+                    onClick={() => {
+                      savePrompt.resolve(false);
+                      setSavePrompt(null);
+                    }} 
+                    className="w-full py-4 bg-white border border-slate-100 hover:bg-slate-50 text-slate-400 hover:text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center"
+                  >
+                    Não, Próximo Exercício
                   </button>
                 </div>
               </div>

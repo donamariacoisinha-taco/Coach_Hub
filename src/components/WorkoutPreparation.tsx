@@ -206,7 +206,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
             <div className="px-3.5 py-2 bg-amber-50/50 border border-amber-100 rounded-xl flex items-start gap-2 focus-within:border-amber-300 focus-within:bg-white transition-all">
               <FileText size={12} className="text-amber-500 mt-1 shrink-0" />
               <textarea
-                value={ex.notes}
+                value={ex.notes || ''}
                 onChange={(e) => onUpdateNote(idx, e.target.value)}
                 placeholder="Ex Focar na descida controlada..."
                 className="flex-1 text-[11px] font-semibold text-slate-750 bg-transparent border-none focus:outline-none focus:ring-0 p-0 resize-none h-10 no-scrollbar leading-relaxed"
