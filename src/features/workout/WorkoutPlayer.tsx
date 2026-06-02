@@ -1436,6 +1436,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
         if (error) throw error;
 
+        // Clear query caches to ensure fresh data loads on next workout / editor run
+        cacheStore.clear(`workout_init_${workoutId}`);
+        cacheStore.clear(`editor_init_${workoutId}`);
+
         // 2. State Sync: Update current in-memory store so it keeps updated
         const updatedExercises = exercises.map(ex => {
           if (ex.id === exObj.id) {
@@ -2210,77 +2214,71 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className={`sticky top-0 z-50 bg-white transition-all duration-500 overflow-hidden ${
-              momentum ? "h-12 border-b-0 shadow-sm" : "h-16 border-b"
+              momentum ? "h-14 border-b-0 shadow-sm" : "h-16 border-b border-slate-100"
             } px-4 flex items-center justify-between`}>
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setShowExitModal(true)}
-                  className="p-1 -ml-1 text-slate-400 hover:text-slate-900 active:scale-90 transition-all font-bold"
+                  className="p-1 -ml-1 text-slate-400 hover:text-slate-900 active:scale-90 transition-all font-bold flex items-center justify-center shrink-0"
                 >
                   <X size={24} strokeWidth={3} />
                 </button>
-                <div className={`flex flex-col transition-all duration-500 ${momentum ? "scale-90 origin-left" : ""}`}>
-                  <span className="text-sm font-[1000] text-slate-900 truncate max-w-[120px] min-[370px]:max-w-[150px] uppercase tracking-tighter">
-                    {currentEx?.exercise_name || 'Carregando...'}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <span className={`text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-0.5 ${momentum ? "hidden" : ""}`}>
-                      EX {currentIndex + 1}/{exercises.length} • SÉRIE {currentSet}/{activeSetsData.length}
-                    </span>
-                    <AnimatePresence>
-                      {isSavedSuccessfully && (
-                        <motion.span 
-                          initial={{ opacity: 0, x: -10 }} 
-                          animate={{ opacity: 1, x: 0 }} 
-                          exit={{ opacity: 0 }}
-                          className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1"
-                        >
-                          <Check size={8} strokeWidth={4} /> Salvo
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
 
                 {/* VOLUME DYNAMIC TELEMETRY BADGE */}
                 <div 
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-[14px] shadow-[inset_0_1px_2px_rgba(255,255,255,0.8),_0_1px_2px_rgba(0,0,0,0.03)] shrink-0 select-none cursor-help transition-all duration-300"
+                  className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-100 rounded-2xl shadow-sm shrink-0 select-none cursor-help transition-all duration-300"
                   title="Volume de carga acumulado ativo neste exercício"
                   id="header-volume-telemetry-badge"
-                  style={{ width: '81.0278px', height: '35.2083px', borderStyle: 'none', backgroundColor: '#ffffff' }}
                 >
-                  <div className="w-5 h-5 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-500/10 shadow-inner">
-                    <TrendingUp size={11} className="stroke-[2.5]" />
+                  <div className="w-5 h-5 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 shadow-inner">
+                    <TrendingUp size={12} className="stroke-[2.5]" />
                   </div>
                   <div className="flex flex-col text-left justify-center">
-                    <span className="text-[6px] font-[1000] text-slate-400 uppercase tracking-widest leading-none mb-0.5">VOLUME</span>
-                    <span className="text-[10px] font-black tabular-nums text-slate-800 leading-none">
+                    <span className="text-[6px] font-[1000] text-slate-400 uppercase tracking-widest leading-none mb-0.5 animate-pulse">VOLUME</span>
+                    <span className="text-[11px] font-black tabular-nums text-slate-800 leading-none">
                       {liveTelemetry.volume}<span className="text-[8px] font-extrabold text-slate-400 ml-0.5">kg</span>
                     </span>
                   </div>
                 </div>
+
+                <AnimatePresence>
+                  {isSavedSuccessfully && (
+                    <motion.span 
+                      initial={{ opacity: 0, x: -10 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      exit={{ opacity: 0 }}
+                      className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Salvo
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </div>
-              <div className="flex gap-3 items-center">
+
+              <div className="flex gap-4 items-center">
+                {streak > 0 && !momentum && (
+                  <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 border border-orange-100 rounded-lg shrink-0">
+                    <Flame size={12} className="text-orange-500 fill-orange-500/20 animate-bounce" />
+                    <span className="text-[10px] font-black text-orange-600 tabular-nums">{streak}</span>
+                  </div>
+                )}
+                
+                <div className="flex flex-col items-end text-right shrink-0">
+                   <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Tempo</p>
+                   <p className="text-xs font-black tabular-nums text-slate-800 leading-none">{formatTime(workoutDuration)}</p>
+                </div>
+
                 <motion.button 
                   onClick={() => setShowExercisesList(true)}
                   whileTap={{ scale: 0.92 }}
                   transition={{ type: "spring", stiffness: 450, damping: 25 }}
-                  className="w-10 h-10 bg-white/70 backdrop-blur-xl border border-white/40 rounded-full shadow-[0_8px_30px_rgba(15,23,42,0.08)] flex items-center justify-center text-slate-600 hover:text-slate-900 shrink-0 select-none outline-none focus:outline-none"
+                  className="w-11 h-11 bg-slate-900 border border-slate-800 rounded-full shadow-[0_4px_12px_rgba(15,23,42,0.15)] flex items-center justify-center text-white hover:bg-slate-800 shrink-0 select-none outline-none focus:outline-none"
                   title="Painel de Protocolo Adaptativo"
                   id="header-ficha-list-btn"
                 >
-                  <LayoutList size={18} strokeWidth={2.5} />
+                  <LayoutList size={21} strokeWidth={2.3} />
                 </motion.button>
-                {streak > 0 && !momentum && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#818CF8]/10 rounded-full border border-[#818CF8]/20 hidden sm:flex">
-                    <Flame size={12} className="text-[#818CF8] fill-[#818CF8]/30" />
-                    <span className="text-[10px] font-black text-[#818CF8] tabular-nums">{streak}</span>
-                  </div>
-                )}
-                <div className="flex flex-col items-end">
-                   <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Tempo</p>
-                   <p className="text-xs font-bold tabular-nums text-slate-900">{formatTime(workoutDuration)}</p>
-                </div>
               </div>
             </motion.header>
 
@@ -2324,21 +2322,26 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start">
-                        <h1 className="text-base font-bold leading-tight">
-                          {currentEx?.exercise_name}
-                        </h1>
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg tabular-nums ${
-                          focusMode ? 'text-slate-300 bg-slate-800' : 'text-slate-400 bg-slate-50 border border-slate-100'
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+                            EXERCÍCIO {currentIndex + 1} DE {exercises.length}
+                          </span>
+                          <h1 className="text-base font-bold leading-tight truncate">
+                            {currentEx?.exercise_name}
+                          </h1>
+                        </div>
+                        <span className={`text-[10px] font-black px-2 py-1 rounded-xl tabular-nums shrink-0 ${
+                          focusMode ? 'text-slate-300 bg-slate-800' : 'text-slate-500 bg-slate-100'
                         }`}>
-                          {currentSet}/{activeSetsData.length}
+                          SÉRIE {currentSet}/{activeSetsData.length}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-404 font-medium uppercase tracking-wider mt-0.5 line-clamp-1">
+                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-1.5 line-clamp-1">
                         {currentEx?.muscle_group} • {currentEx?.equipment || 'Sem equipamento'}
                       </p>
                       {!isAdvanced && (
-                        <p className={`text-xs line-clamp-1 mt-0.5 ${focusMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <p className={`text-xs line-clamp-1 mt-1 ${focusMode ? 'text-slate-400' : 'text-slate-500'}`}>
                           Foco na amplitude e contração lenta.
                         </p>
                       )}
