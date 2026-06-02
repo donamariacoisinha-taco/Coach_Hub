@@ -159,48 +159,48 @@ const ExerciseLibrary: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] pb-32">
-      <header className="px-6 pt-12 pb-10 flex items-center justify-between">
+      <header className="px-6 pt-12 pb-8 flex items-center justify-between">
         <div>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Enciclopédia</p>
-          <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Exercícios</h2>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase leading-none">Exercícios</h2>
         </div>
         {isAdmin && (
           <button 
             onClick={() => navigate('admin', { initialTab: 'anatomy' })} 
-            className="w-12 h-12 flex items-center justify-center text-slate-300 active:text-slate-900 active:scale-90 transition-all"
+            className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-slate-900 active:scale-90 transition-all bg-white border border-slate-100 rounded-2xl shadow-sm"
           >
-            <Settings size={24} />
+            <Settings size={20} />
           </button>
         )}
       </header>
 
-      <div className="px-6 space-y-12">
+      <div className="px-6 space-y-8">
         <div className="relative">
-          <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" />
+          <Search size={16} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" />
           <input 
-            type="text" placeholder="BUSCAR..." value={searchQuery} 
+            type="text" placeholder="BUSCAR EXERCÍCIO..." value={searchQuery} 
             onChange={e => setSearchQuery(e.target.value)} 
-            className="w-full pl-14 pr-6 py-5 bg-white border border-slate-50 rounded-3xl text-slate-900 font-black text-sm outline-none focus:border-slate-900 transition-all uppercase tracking-widest shadow-sm" 
+            className="w-full pl-14 pr-6 py-4.5 bg-white border border-slate-100 rounded-2xl text-slate-900 font-extrabold text-xs outline-none focus:border-slate-900 transition-all uppercase tracking-widest shadow-sm" 
           />
         </div>
 
-        <div className="space-y-10">
-          <div className="flex gap-10 overflow-x-auto no-scrollbar border-b border-slate-100">
+        <div className="space-y-5">
+          <div className="bg-slate-200/50 p-1 rounded-2xl flex items-center justify-between w-full border border-slate-200/20 shadow-inner">
             {['all', 'front', 'back'].map(side => (
               <button 
                 key={side} 
                 onClick={() => { setSelectedSide(side as any); setSelectedMuscle('Todos'); }} 
-                className={`text-[10px] font-black uppercase tracking-widest pb-4 border-b-2 transition-all whitespace-nowrap ${selectedSide === side ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'}`}
+                className={`flex-1 text-[9px] font-black uppercase tracking-wider py-3 rounded-xl transition-all whitespace-nowrap text-center ${selectedSide === side ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 {side === 'all' ? 'Tudo' : side === 'front' ? 'Anterior' : 'Posterior'}
               </button>
             ))}
           </div>
 
-          <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-6 px-6">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-6 px-6">
             <button 
               onClick={() => setSelectedMuscle('Todos')} 
-              className={`px-8 py-5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${selectedMuscle === 'Todos' ? 'bg-slate-900 border-slate-900 text-white shadow-2xl' : 'bg-white border-slate-100 text-slate-400'}`}
+              className={`px-5 py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-wider whitespace-nowrap transition-all border ${selectedMuscle === 'Todos' ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-white border-slate-100 text-slate-500 hover:text-slate-800'}`}
             >
               Todos
             </button>
@@ -208,7 +208,7 @@ const ExerciseLibrary: React.FC = () => {
               <button 
                 key={mg.id} 
                 onClick={() => setSelectedMuscle(mg.name)} 
-                className={`px-8 py-5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${selectedMuscle === mg.name ? 'bg-slate-900 border-slate-900 text-white shadow-2xl' : 'bg-white border-slate-100 text-slate-400'}`}
+                className={`px-5 py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-wider whitespace-nowrap transition-all border ${selectedMuscle === mg.name ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-white border-slate-100 text-slate-500 hover:text-slate-800'}`}
               >
                 {mg.name}
               </button>
@@ -228,41 +228,41 @@ const ExerciseLibrary: React.FC = () => {
                 <div 
                   onClick={() => handleOpenDetail(ex)}
                   onMouseEnter={() => handlePrefetchProgress(ex.id)}
-                  className={`flex items-center justify-between py-8 active:bg-slate-50 transition-colors cursor-pointer ${idx !== filteredExercises.length - 1 ? 'border-b border-slate-100' : ''} ${!ex.is_active ? 'opacity-40' : ''}`}
+                  className={`bg-white hover:bg-slate-50/50 active:bg-slate-100/50 transition-all cursor-pointer p-4 rounded-3xl border border-slate-100 mb-3 shadow-[0_4px_16px_rgba(15,23,42,0.015)] flex items-center justify-between ${!ex.is_active ? 'opacity-40' : ''}`}
                 >
-                  <div className="flex items-center gap-6 flex-1 min-w-0">
-                    <div className="w-16 h-16 bg-white border border-slate-50 rounded-2xl overflow-hidden flex items-center justify-center p-3 shrink-0 shadow-sm">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="w-14 h-14 bg-slate-50/50 border border-slate-100 rounded-2xl overflow-hidden flex items-center justify-center p-2 shrink-0 shadow-inner">
                       <img 
                         src={ex.image_url || ex.static_frame_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
                         className="w-full h-full object-contain" 
                         referrerPolicy="no-referrer"
                       />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter truncate pr-4">{ex.name}</h4>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <div className="flex items-center flex-wrap gap-1.5 mb-1">
+                        <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight truncate leading-tight">{ex.name}</h4>
                         {ex.quality_status === 'premium' && (
-                          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 rounded text-[7px] font-black text-blue-600 uppercase tracking-widest shrink-0">
-                            <Shield size={8} fill="currentColor" /> Premium
+                          <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 border border-blue-100/30 rounded text-[6.5px] font-[1000] text-blue-600 uppercase tracking-widest shrink-0">
+                            <Shield size={6} fill="currentColor" /> Premium
                           </div>
                         )}
                         {(ex.performance_score || 0) > 85 && (
-                           <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 rounded text-[7px] font-black text-amber-600 uppercase tracking-widest shrink-0">
-                            <Star size={8} fill="currentColor" /> Top
+                          <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 border border-amber-100/30 rounded text-[6.5px] font-[1000] text-amber-600 uppercase tracking-widest shrink-0">
+                            <Star size={6} fill="currentColor" /> Top
                           </div>
                         )}
                       </div>
-                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1.5">{ex.muscle_group}</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{ex.muscle_group}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 grow-0 shrink-0">
                     <button 
                       onClick={(e) => toggleFavorite(e, ex.id)} 
-                      className={`w-12 h-12 flex items-center justify-center transition-all active:scale-90 ${favoriteExerciseIds.has(ex.id) ? 'text-amber-500' : 'text-slate-200'}`}
+                      className={`w-10 h-10 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-slate-100 flex items-center justify-center transition-all active:scale-90 ${favoriteExerciseIds.has(ex.id) ? 'text-amber-500 bg-amber-50/30' : 'text-slate-300'}`}
                     >
-                      <Heart size={18} fill={favoriteExerciseIds.has(ex.id) ? "currentColor" : "none"} />
+                      <Heart size={14} fill={favoriteExerciseIds.has(ex.id) ? "currentColor" : "none"} />
                     </button>
-                    <ChevronRight size={14} className="text-slate-200" />
+                    <ChevronRight size={14} className="text-slate-300 mr-0.5" />
                   </div>
                 </div>
               </div>

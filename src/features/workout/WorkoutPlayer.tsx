@@ -2673,7 +2673,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 220 }}
-              className="mt-auto bg-white/95 backdrop-blur-3xl rounded-t-[3rem] p-6 shadow-2xl relative z-10 max-w-md mx-auto w-full max-h-[92vh] overflow-hidden flex flex-col border border-white/40"
+              className="mt-auto bg-white/95 backdrop-blur-3xl rounded-t-[1.5rem] p-6 shadow-2xl relative z-10 max-w-md mx-auto w-full max-h-[92vh] overflow-hidden flex flex-col border border-white/40"
             >
               {/* Drag Handle Indicator */}
               <div className="w-12 h-1 bg-slate-200/80 rounded-full mx-auto mb-5 shrink-0" />
@@ -2831,24 +2831,28 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 /* ================= ADAPTIVE LAYER MANAGER PANEL ================= */
                 <div className="flex-1 flex flex-col min-h-0">
                   {/* Panel Header */}
-                  <div className="flex justify-between items-start mb-6 shrink-0">
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400 leading-none">Protocolo Adaptativo</h3>
-                      <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-wider">Ajuste de performance em tempo real</p>
+                  <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100 shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-slate-900 text-amber-400 flex items-center justify-center shadow-lg shadow-slate-900/10">
+                        <Zap size={18} className="fill-current stroke-current" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-[1000] uppercase tracking-wider text-slate-900 leading-none">Protocolo Adaptativo</h3>
+                        <p className="text-[9px] font-black text-[#7BA7FF] uppercase tracking-widest mt-1">
+                          {exercises.length} EXERCÍCIOS ATIVOS
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[10px] font-black text-[#7BA7FF] uppercase tracking-widest bg-[#7BA7FF]/15 border border-[#7BA7FF]/30 px-3 py-1.5 rounded-full">{exercises.length} EXS</p>
-                      <button
-                        onClick={() => {
-                          setShowExercisesList(false);
-                          setContextMenuIndex(null);
-                        }}
-                        className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm cursor-pointer border border-slate-150-none"
-                        title="Sair"
-                      >
-                        Sair <X size={12} strokeWidth={3} />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        setShowExercisesList(false);
+                        setContextMenuIndex(null);
+                      }}
+                      className="h-9 px-4 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer"
+                      title="Sair"
+                    >
+                      Sair <X size={12} strokeWidth={3} />
+                    </button>
                   </div>
 
                   {/* Exercises Segment Tracker */}
