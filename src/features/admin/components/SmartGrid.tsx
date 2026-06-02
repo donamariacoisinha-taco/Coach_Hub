@@ -31,10 +31,20 @@ interface SmartGridProps {
 }
 
 const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) => {
-  const { exercises, searchQuery, selectedMuscleFilter, openEditor, updateExercise, updateExerciseStatus } = useAdminStore();
+  const { 
+    exercises, 
+    searchQuery, 
+    selectedMuscleFilter, 
+    openEditor, 
+    updateExercise, 
+    updateExerciseStatus, 
+    deleteExercise, 
+    duplicateExercise 
+  } = useAdminStore();
   const { visibleColumns, viewMode } = useLibraryStore();
   const { showSuccess, showError } = useErrorHandler();
   const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     let result = exercises;
@@ -256,18 +266,135 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                     </td>
                   )}
 
-                  {visibleColumns.includes('actions') && (
-                    <td className="px-6 py-6 text-right sticky right-0 z-10 bg-inherit border-l border-slate-100">
+                   {visibleColumns.includes('actions') && (
+                    <td className="px-6 py-6 text-right sticky right-0 z-30 bg-inherit border-l border-slate-100">
                        <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity bg-inherit">
                           <button 
                             onClick={() => openEditor(ex)}
                             className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"
+                            title="Editar Exercício"
                           >
                              <Edit3 size={16} />
                           </button>
-                          <button className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-300 hover:text-slate-950 transition-all shadow-sm">
-                             <MoreHorizontal size={16} />
-                          </button>
+                          
+                          <div className="relative inline-block text-left">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setMenuOpenId(menuOpenId === ex.id ? null : ex.id);
+                              }}
+                              className={`p-2.5 rounded-xl bg-white border transition-all shadow-sm flex items-center justify-center ${
+                                menuOpenId === ex.id 
+                                  ? 'border-slate-400 text-slate-950 bg-slate-50' 
+                                  : 'border-slate-200 text-slate-300 hover:text-slate-950 hover:border-slate-400'
+                              }`}
+                              title="Mais Opções"
+                            >
+                               <MoreHorizontal size={16} />
+                            </button>
+
+                            <AnimatePresence>
+                              {menuOpenId === ex.id && (
+                                <>
+                                  <div 
+                                    className="fixed inset-0 z-40 bg-transparent" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      setMenuOpenId(null);
+                                    }}
+                                  />
+                                  <motion.div
+                                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                                    transition={{ duration: 0.12 }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="absolute right-0 mt-2 w-52 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 py-2 focus:outline-none origin-top-right overflow-hidden text-left"
+                                  >
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setMenuOpenId(null);
+                                        openEditor(ex);
+                                      }}
+                                      className="w-full px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 transition-all text-left"
+                                    >
+                                      <Edit3 size={14} className="text-slate-400" />
+                                      Editar
+                                    </button>
+
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setMenuOpenId(null);
+                                        try {
+                                          await duplicateExercise(ex);
+                                          showSuccess('Duplicado', 'Exercício duplicado como rascunho.');
+                                        } catch (err: any) {
+                                          showError('Erro ao duplicar', err.message || 'Erro inesperado');
+                                        }
+                                      }}
+                                      className="w-full px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 transition-all text-left"
+                                    >
+                                      <Zap size={14} className="text-yellow-500 fill-yellow-500/10" />
+                                      Duplicar
+                                    </button>
+
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setMenuOpenId(null);
+                                        try {
+                                          const nextStatus = !ex.is_active;
+                                          await updateExerciseStatus(ex.id, nextStatus);
+                                          showSuccess(
+                                            nextStatus ? '🚀 Publicado' : '🚫 Ocultado', 
+                                            `${ex.name} agora está ${nextStatus ? 'visível' : 'oculto'}.`
+                                          );
+                                        } catch (err: any) {
+                                          showError('Erro ao alterar status', err.message || 'Erro inesperado');
+                                        }
+                                      }}
+                                      className="w-full px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 transition-all border-b border-slate-100 pb-3 mb-1 text-left"
+                                    >
+                                      {ex.is_active ? (
+                                        <>
+                                          <EyeOff size={14} className="text-slate-400" />
+                                          Ocultar da App
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Eye size={14} className="text-slate-400" />
+                                          Publicar na App
+                                        </>
+                                      )}
+                                    </button>
+
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setMenuOpenId(null);
+                                        if (window.confirm(`Tem certeza de que deseja excluir permanentemente o exercício "${ex.name}"? Esta ação não pode ser desfeita.`)) {
+                                          try {
+                                            await deleteExercise(ex.id);
+                                            showSuccess('Removido', 'Exercício excluído com sucesso.');
+                                          } catch (err: any) {
+                                            showError('Erro ao deletar', err.message || 'Erro inesperado');
+                                          }
+                                        }
+                                      }}
+                                      className="w-full px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-all text-left font-black"
+                                    >
+                                      <Trash2 size={14} className="text-red-500" />
+                                      Excluir Exercício
+                                    </button>
+                                  </motion.div>
+                                </>
+                              )}
+                            </AnimatePresence>
+                          </div>
                        </div>
                     </td>
                   )}
