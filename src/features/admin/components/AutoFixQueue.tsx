@@ -58,7 +58,7 @@ const AutoFixQueue: React.FC = () => {
                 <tr key={ex.id} className="group hover:bg-slate-50/50 transition-colors">
                    <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
-                         <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0">
+                         <div className="w-18 h-12 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0">
                             {ex.image_url ? (
                               <img src={ex.image_url} alt={ex.name} className="w-full h-full object-cover" />
                             ) : (

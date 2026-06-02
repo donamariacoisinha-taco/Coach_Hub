@@ -132,7 +132,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
         </div>
 
         {/* Thumbnail Image: 56px size */}
-        <div className="w-14 h-14 bg-slate-50 border border-slate-100/80 rounded-xl overflow-hidden shrink-0 flex items-center justify-center p-0.5 shadow-sm">
+        <div className="w-[84px] h-14 bg-slate-50 border border-slate-100/80 rounded-xl overflow-hidden shrink-0 flex items-center justify-center p-0.5 shadow-sm">
           <img
             src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'}
             alt={ex.exercise_name}

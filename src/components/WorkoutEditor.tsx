@@ -140,7 +140,7 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
           }}
         >
           {/* EXERCISE IMAGE */}
-          <div className="w-12 h-12 bg-slate-50 rounded-lg overflow-hidden shrink-0 flex items-center justify-center p-1.5 border border-slate-100 pointer-events-none">
+          <div className="w-[72px] h-12 bg-slate-50 rounded-lg overflow-hidden shrink-0 flex items-center justify-center p-1.5 border border-slate-100 pointer-events-none">
             <img 
               src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
               className="w-full h-full object-contain mix-blend-multiply" 
@@ -847,7 +847,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                       onClick={() => handleAddOrReplaceExercise(ex)}
                       className="shrink-0 w-40 bg-slate-50 rounded-2xl p-4 text-left space-y-3 active:scale-95 transition-all border border-transparent hover:border-blue-100"
                     >
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-sm relative">
+                      <div className="w-[60px] h-10 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-sm relative">
                         <img src={ex.image_url} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
                         {ex.quality_status === 'premium' && (
                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white border-2 border-white">

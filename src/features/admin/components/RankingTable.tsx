@@ -36,7 +36,7 @@ const RankingTable: React.FC = () => {
                <tr key={ex.id} className="group hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300">
+                        <div className="w-12 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300">
                            {ex.image_url ? (
                              <img src={ex.image_url} alt={ex.name} className="w-full h-full object-cover rounded-xl" />
                            ) : (

@@ -15,7 +15,7 @@ export const MediaReviewCompare: React.FC<Props> = ({ original, suggested }) => 
            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold">1</div>
            <h4 className="text-[10px] font-black uppercase tracking-widest">Estado Atual</h4>
         </div>
-        <div className="aspect-video bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center p-8 text-center overflow-hidden">
+        <div className="aspect-[3/2] bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center p-8 text-center overflow-hidden">
           {original.image_url ? (
             <img src={original.image_url} alt="" className="w-full h-full object-cover opacity-50 grayscale" referrerPolicy="no-referrer" />
           ) : (
@@ -32,7 +32,7 @@ export const MediaReviewCompare: React.FC<Props> = ({ original, suggested }) => 
            <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center text-[10px] font-bold">2</div>
            <h4 className="text-[10px] font-black uppercase tracking-widest">Nova Proposta IA</h4>
         </div>
-        <div className="aspect-video bg-indigo-50 rounded-[2.5rem] border-2 border-indigo-200 flex flex-col items-center justify-center overflow-hidden relative shadow-2xl shadow-indigo-200/50">
+        <div className="aspect-[3/2] bg-indigo-50 rounded-[2.5rem] border-2 border-indigo-200 flex flex-col items-center justify-center overflow-hidden relative shadow-2xl shadow-indigo-200/50">
           {suggested.image_url ? (
             <img src={suggested.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
           ) : (

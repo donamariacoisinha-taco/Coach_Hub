@@ -151,7 +151,7 @@ export const AIMediaFinderModal: React.FC<Props> = ({ exercise, isOpen, onClose,
                              <motion.div 
                                 key={idx}
                                 whileHover={{ scale: 1.05 }}
-                                className="flex-shrink-0 w-48 aspect-video bg-slate-50 rounded-2xl overflow-hidden relative cursor-pointer border-2 border-transparent hover:border-indigo-500"
+                                className="flex-shrink-0 w-48 aspect-[3/2] bg-slate-50 rounded-2xl overflow-hidden relative cursor-pointer border-2 border-transparent hover:border-indigo-500"
                                 onClick={() => setSelectedAssets({ ...selectedAssets, image_url: e.image_url, video_url: e.video_url })}
                              >
                                 <img src={e.image_url} alt="" className="w-full h-full object-cover" />

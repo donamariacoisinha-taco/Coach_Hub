@@ -340,7 +340,7 @@ interface RowProps {
        </td>
        <td className="px-6 py-6 font-black uppercase text-xs tracking-tight text-slate-900">
           <div className="flex items-center gap-4">
-             <div className="w-14 h-14 rounded-2xl bg-slate-100 p-2 overflow-hidden border border-slate-200/50 shadow-sm relative group-hover:scale-105 transition-transform">
+             <div className="w-[84px] h-14 rounded-2xl bg-slate-100 p-2 overflow-hidden border border-slate-200/50 shadow-sm relative group-hover:scale-105 transition-transform">
                 {exercise.image_url || exercise.static_frame_url ? (
                   <img 
                     src={exercise.image_url || exercise.static_frame_url} 
@@ -488,7 +488,7 @@ interface GridCardProps {
           </button>
        </div>
 
-       <div className="h-40 bg-slate-50/50 rounded-[2rem] border border-slate-100 mb-6 p-4 flex items-center justify-center relative overflow-hidden group/thumb">
+       <div className="w-full aspect-[3/2] bg-slate-50/50 rounded-[2rem] border border-slate-100 mb-6 p-4 flex items-center justify-center relative overflow-hidden group/thumb">
           {exercise.image_url || exercise.static_frame_url ? (
             <img 
               src={exercise.image_url || exercise.static_frame_url} 

@@ -18,6 +18,7 @@ import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserStore } from '../../store/userStore';
 import { profileApi } from '../../lib/api/profileApi';
 import { authApi } from '../../lib/api/authApi';
+import { systemTemplatesApi } from '../../lib/api/systemTemplatesApi';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { Goal, ExperienceLevel, EquipmentPreference, UserProfile } from '../../types';
 import { useNavigation } from '../../App';
@@ -56,6 +57,13 @@ export default function SmartOnboarding() {
       const fullProfile = await profileApi.getProfile(user.id);
       if (fullProfile) {
         setProfile(fullProfile);
+      }
+
+      // Copy default system template to user private registry
+      try {
+        await systemTemplatesApi.copyTemplateToUser(user.id, 'iniciante');
+      } catch (e) {
+        console.error('[Onboarding] System template automatic copy failed:', e);
       }
       
       showSuccess('Perfil Configurado!', 'Bem-vindo ao KYRON OS.');

@@ -121,7 +121,7 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
                         onClick={() => onSelect(ex)}
                         className="shrink-0 w-44 bg-slate-50 rounded-3xl p-5 text-left space-y-4 active:scale-95 transition-all border border-transparent hover:border-blue-100 shadow-sm"
                       >
-                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center p-2 shadow-sm">
+                        <div className="w-[72px] h-12 bg-white rounded-2xl flex items-center justify-center p-2 shadow-sm">
                           <img src={ex.image_url} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
                         </div>
                         <div>

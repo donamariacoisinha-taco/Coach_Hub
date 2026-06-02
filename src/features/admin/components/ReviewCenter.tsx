@@ -186,7 +186,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ exercise, onClick }) => {
       className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 cursor-pointer group"
     >
        <div className="flex items-start justify-between mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center p-2">
+          <div className="w-24 h-16 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center p-2">
              {exercise.image_url || exercise.static_frame_url ? (
                <img 
                 src={exercise.image_url || exercise.static_frame_url} 

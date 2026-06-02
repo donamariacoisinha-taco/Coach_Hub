@@ -76,7 +76,7 @@ const ExerciseLibrary: React.FC = () => {
                     className="group hover:bg-[#F8FAFC] cursor-pointer transition-all duration-300"
                   >
                     <td className="px-8 py-6">
-                      <div className="w-14 h-14 rounded-2xl bg-slate-50 overflow-hidden border border-slate-100 flex items-center justify-center p-2 group-hover:scale-105 transition-transform">
+                      <div className="w-[84px] h-14 rounded-2xl bg-slate-50 overflow-hidden border border-slate-100 flex items-center justify-center p-2 group-hover:scale-105 transition-transform">
                         {ex.image_url ? (
                           <img src={ex.image_url} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                         ) : (
@@ -131,9 +131,9 @@ const ExerciseLibrary: React.FC = () => {
               onClick={() => openEditor(ex)}
               className="group bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
             >
-              <div className="h-48 bg-slate-50 relative group-hover:h-52 transition-all">
+              <div className="w-full aspect-[3/2] bg-slate-50 relative overflow-hidden">
                  {ex.image_url ? (
-                    <img src={ex.image_url} alt="" className="w-full h-full object-cover" />
+                    <img src={ex.image_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                  ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-200">
                        <Dumbbell size={48} />

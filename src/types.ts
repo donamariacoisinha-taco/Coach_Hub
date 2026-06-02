@@ -477,5 +477,41 @@ export function getVirtualAnatomicalCut(mg: string, name: string): string | unde
   return undefined;
 }
 
+export interface SystemTemplateExercise {
+  exercise_id: string;
+  exercise_name: string;
+  sets: number;
+  reps: string;
+  weight: number;
+  rest_time: number;
+  sets_json: SetConfig[];
+  notes?: string;
+  sort_order: number;
+}
 
+export interface SystemTemplateWorkout {
+  id: string;
+  name: string;
+  description?: string;
+  exercises: SystemTemplateExercise[];
+}
 
+export interface SystemTemplate {
+  id: string;
+  name: string;
+  description: string;
+  version: number;
+  is_default: boolean;
+  updated_at: string;
+  updated_by: string;
+  created_at: string;
+  created_by: 'system' | 'admin' | 'rubi_ai';
+  folders: { id: string; name: string }[];
+  workouts: SystemTemplateWorkout[];
+  version_history?: {
+    version: number;
+    updated_at: string;
+    updated_by: string;
+    changes: string[];
+  }[];
+}

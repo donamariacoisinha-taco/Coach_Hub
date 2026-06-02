@@ -164,7 +164,7 @@ const SortableItem: React.FC<{
         <GripVertical size={20} />
       </button>
 
-      <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-50 shrink-0 border border-slate-50">
+      <div className="w-24 h-16 rounded-2xl overflow-hidden bg-slate-50 shrink-0 border border-slate-50">
         <img src={item.url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
       </div>
 

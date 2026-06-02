@@ -33,7 +33,7 @@ export const MediaSuggestionsGrid: React.FC<Props> = ({ title, suggestions, sele
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
               className={cn(
-                "group relative aspect-video rounded-2xl overflow-hidden cursor-pointer transition-all border-2",
+                "group relative aspect-[3/2] rounded-2xl overflow-hidden cursor-pointer transition-all border-2",
                 isSelected ? "border-slate-900 ring-4 ring-slate-900/10 shadow-xl" : "border-transparent hover:border-slate-200"
               )}
               onClick={() => onSelect(item.url)}

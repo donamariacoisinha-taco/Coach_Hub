@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Zap, 
@@ -45,6 +45,19 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
   const { showSuccess, showError } = useErrorHandler();
   const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuOpenId && menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpenId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuOpenId]);
 
   const filtered = useMemo(() => {
     let result = exercises;
@@ -116,7 +129,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                    className="w-5 h-5 rounded-lg border-2 border-slate-200 cursor-pointer"
                  />
               </div>
-              <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-sm overflow-hidden relative">
+              <div className="w-24 h-16 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-sm overflow-hidden relative">
                  {ex.image_url || ex.static_frame_url ? (
                   <img 
                     src={ex.image_url || ex.static_frame_url} 
@@ -184,7 +197,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                   </td>
                   {visibleColumns.includes('thumb') && (
                     <td className="px-6 py-6">
-                       <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 shadow-inner overflow-hidden border border-slate-100">
+                       <div className="w-[72px] h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 shadow-inner overflow-hidden border border-slate-100">
                           {(ex.image_url || ex.static_frame_url) ? (
                             <img 
                               src={ex.image_url || ex.static_frame_url} 
@@ -281,7 +294,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                              <Edit3 size={16} />
                           </button>
                           
-                          <div className="relative inline-block text-left">
+                          <div className="relative inline-block text-left" ref={menuOpenId === ex.id ? menuRef : null}>
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -300,23 +313,14 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
 
                             <AnimatePresence>
                               {menuOpenId === ex.id && (
-                                <>
-                                  <div 
-                                    className="fixed inset-0 z-40 bg-transparent" 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      setMenuOpenId(null);
-                                    }}
-                                  />
-                                  <motion.div
-                                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                                    transition={{ duration: 0.12 }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="absolute right-0 mt-2 w-52 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 py-2 focus:outline-none origin-top-right overflow-hidden text-left"
-                                  >
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                                  exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                                  transition={{ duration: 0.12 }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="absolute right-0 mt-2 w-52 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 py-2 focus:outline-none origin-top-right overflow-hidden text-left"
+                                >
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -395,7 +399,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                                       Excluir Exercício
                                     </button>
                                   </motion.div>
-                                </>
+
                               )}
                             </AnimatePresence>
                           </div>

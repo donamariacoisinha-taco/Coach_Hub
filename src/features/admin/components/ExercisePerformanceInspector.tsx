@@ -42,7 +42,7 @@ const ExercisePerformanceInspector: React.FC<InspectorProps> = ({ exercise, onCl
         {/* Header */}
         <div className="px-12 py-8 bg-white border-b border-slate-100 flex items-center justify-between">
            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center shadow-inner overflow-hidden">
+              <div className="w-24 h-16 bg-slate-50 rounded-2xl flex items-center justify-center shadow-inner overflow-hidden">
                 {exercise.image_url || exercise.static_frame_url ? (
                   <img 
                     src={exercise.image_url || exercise.static_frame_url} 
