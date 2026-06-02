@@ -833,40 +833,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
               </SortableContext>
             </DndContext>
 
-            {/* INLINE SUGGESTIONS */}
-            {suggestions.length > 0 && (
-              <div className="mt-8 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Sparkles size={14} className="text-blue-500" />
-                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Sugeridos para você</span>
-                </div>
-                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-                  {suggestions.map((ex) => (
-                    <button 
-                      key={ex.id}
-                      onClick={() => handleAddOrReplaceExercise(ex)}
-                      className="shrink-0 w-40 bg-slate-50 rounded-2xl p-4 text-left space-y-3 active:scale-95 transition-all border border-transparent hover:border-blue-100"
-                    >
-                      <div className="w-[60px] h-10 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-sm relative">
-                        <img src={ex.image_url} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
-                        {ex.quality_status === 'premium' && (
-                           <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white border-2 border-white">
-                             <Shield size={6} fill="currentColor" />
-                           </div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1">
-                          <h5 className="text-[11px] font-bold text-slate-900 leading-tight line-clamp-2">{ex.name}</h5>
-                          {(ex.performance_score || 0) > 85 && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
-                        </div>
-                        <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest mt-1">{ex.muscle_group}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+
 
             <button 
               onClick={() => { setReplacingIndex(null); setShowExerciseSelector(true); }} 

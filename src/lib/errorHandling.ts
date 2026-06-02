@@ -1,4 +1,6 @@
 
+import { supabase } from './api/supabase';
+
 export type AppErrorType =
   | 'network'
   | 'auth'
@@ -47,9 +49,7 @@ export function mapError(error: any): AppError {
         console.warn(`[Error Handling] Limpando chave de auth corrompida: ${k}`);
       });
       // Sair silenciosamente do supabase para normalizar o estado local/global
-      import('./api/supabase').then(({ supabase }) => {
-        supabase.auth.signOut().catch(() => {});
-      }).catch(() => {});
+      supabase.auth.signOut().catch(() => {});
     } catch (err) {
       console.error("[Error Handling] Erro ao limpar armazenamento de sessão:", err);
     }
