@@ -1,0 +1,586 @@
+import { supabase } from './supabase';
+import { workoutApi } from './workoutApi';
+import { SetConfig, WorkoutFolder, Exercise } from '../../types';
+
+export interface PremiumTemplateExercise {
+  exercise_id: string; // fallback
+  exercise_name: string;
+  sets: number;
+  reps: string;
+  weight: number;
+  rest_time: number;
+  sets_json: SetConfig[];
+  sort_order: number;
+  notes?: string;
+}
+
+export interface PremiumTemplateWorkout {
+  id: string;
+  name: string;
+  description?: string;
+  exercises: PremiumTemplateExercise[];
+}
+
+export interface PremiumProtocol {
+  id: string;
+  name: string;
+  description: string;
+  version: number;
+  premium: boolean; // Is it premium or free?
+  goal: string; // hypertrophy, weight_loss, strength, performance, glutes, recovery
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  duration_weeks: number;
+  frequency: number; // days per week
+  created_by: 'rubi_ai' | 'admin' | 'coach_kyron' | 'certified_personal';
+  rating: number;
+  featured?: boolean;
+  athletes_count: number;
+  completion_rate: number; // e.g. 87
+  strength_increase_pct: number; // e.g. 18
+  created_at: string;
+  updated_at: string;
+  updated_by: string;
+  workouts: PremiumTemplateWorkout[];
+  version_history: {
+    version: number;
+    updated_at: string;
+    updated_by: string;
+    changes: string[];
+  }[];
+}
+
+// Initial seed premium protocols
+export const INITIAL_PREMIUM_PROTOCOLS: PremiumProtocol[] = [
+  {
+    id: 'hipertrofia-estrategica',
+    name: 'Hipertrofia Estratégica',
+    description: 'Protocolo de alta intensidade focado no estímulo mecânico e metabólico ideal, maximizando hipertrofia miofibrilar com progressão de tensão planejada pela inteligência de comportamento da Rubi.',
+    version: 2,
+    premium: true,
+    goal: 'hypertrophy',
+    difficulty: 'intermediate',
+    duration_weeks: 12,
+    frequency: 5,
+    created_by: 'rubi_ai',
+    rating: 4.9,
+    featured: true,
+    athletes_count: 2314,
+    completion_rate: 87,
+    strength_increase_pct: 18,
+    created_at: '2026-06-01T10:00:00Z',
+    updated_at: '2026-06-02T15:30:00Z',
+    updated_by: 'Rubi Intelligence',
+    workouts: [
+      {
+        id: 'he_w_a',
+        name: 'Treino A - Peito & Ombros',
+        description: 'Tensão mecânica no plano transversal superior.',
+        exercises: [
+          {
+            exercise_id: 'ex_he_1',
+            exercise_name: 'Supino Reto com Barra',
+            sets: 4,
+            reps: '8-10',
+            weight: 30,
+            rest_time: 90,
+            sort_order: 1,
+            sets_json: [
+              { reps: '8', weight: 30, rest_time: 90 },
+              { reps: '8', weight: 30, rest_time: 90 },
+              { reps: '8', weight: 30, rest_time: 90 },
+              { reps: '8', weight: 30, rest_time: 90 }
+            ]
+          },
+          {
+            exercise_id: 'ex_he_2',
+            exercise_name: 'Desenvolvimento com Halteres',
+            sets: 3,
+            reps: '10',
+            weight: 14,
+            rest_time: 75,
+            sort_order: 2,
+            sets_json: [
+              { reps: '10', weight: 14, rest_time: 75 },
+              { reps: '10', weight: 14, rest_time: 75 },
+              { reps: '10', weight: 14, rest_time: 75 }
+            ]
+          },
+          {
+            exercise_id: 'ex_he_3',
+            exercise_name: 'Elevação Lateral',
+            sets: 4,
+            reps: '12',
+            weight: 8,
+            rest_time: 60,
+            sort_order: 3,
+            sets_json: [
+              { reps: '12', weight: 8, rest_time: 60 },
+              { reps: '12', weight: 8, rest_time: 60 },
+              { reps: '12', weight: 8, rest_time: 60 },
+              { reps: '12', weight: 8, rest_time: 60 }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'he_w_b',
+        name: 'Treino B - Costas & Bíceps',
+        description: 'Foco na amplitude do plano sagital/puxar.',
+        exercises: [
+          {
+            exercise_id: 'ex_he_4',
+            exercise_name: 'Remada Curvada com Barra',
+            sets: 4,
+            reps: '10',
+            weight: 25,
+            rest_time: 90,
+            sort_order: 1,
+            sets_json: [
+              { reps: '10', weight: 25, rest_time: 90 },
+              { reps: '10', weight: 25, rest_time: 90 },
+              { reps: '10', weight: 25, rest_time: 90 },
+              { reps: '10', weight: 25, rest_time: 90 }
+            ]
+          },
+          {
+            exercise_id: 'ex_he_5',
+            exercise_name: 'Puxada Triângulo',
+            sets: 3,
+            reps: '10',
+            weight: 35,
+            rest_time: 75,
+            sort_order: 2,
+            sets_json: [
+              { reps: '10', weight: 35, rest_time: 75 },
+              { reps: '10', weight: 35, rest_time: 75 },
+              { reps: '10', weight: 35, rest_time: 75 }
+            ]
+          },
+          {
+            exercise_id: 'ex_he_6',
+            exercise_name: 'Rosca Direta com Barra W',
+            sets: 3,
+            reps: '12',
+            weight: 10,
+            rest_time: 60,
+            sort_order: 3,
+            sets_json: [
+              { reps: '12', weight: 10, rest_time: 60 },
+              { reps: '12', weight: 10, rest_time: 60 },
+              { reps: '12', weight: 10, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-01T10:00:00Z',
+        updated_by: 'Rubi Admin',
+        changes: ['Versão inicial do protocolo adaptativo.']
+      },
+      {
+        version: 2,
+        updated_at: '2026-06-02T15:30:00Z',
+        updated_by: 'Rubi Intelligence',
+        changes: ['Substituída Remada Cavalinho por Remada Curvada livre para ampliação da ativação de estabilizadores lombar.', 'Reduzido intervalo de descanso nas laterais para 60s.']
+      }
+    ]
+  },
+  {
+    id: 'upper-lower-5x',
+    name: 'Upper Lower 5x (Alta Frequência)',
+    description: 'Estratégia avançada de distribuição de volume em base de 5 sessões semanais alternando extremidades. Otimiza a frequência de estímulos por grupamento muscular para atletas consistentes.',
+    version: 1,
+    premium: true,
+    goal: 'hypertrophy',
+    difficulty: 'advanced',
+    duration_weeks: 10,
+    frequency: 5,
+    created_by: 'admin',
+    rating: 4.8,
+    featured: false,
+    athletes_count: 1450,
+    completion_rate: 81,
+    strength_increase_pct: 22,
+    created_at: '2026-06-01T12:00:00Z',
+    updated_at: '2026-06-01T12:00:00Z',
+    updated_by: 'Equipe Médica',
+    workouts: [
+      {
+        id: 'ul_w_a',
+        name: 'Treino A - Upper Power',
+        description: 'Tensão progressiva com exercícios básicos multiarticulares de empurrar e puxar.',
+        exercises: [
+          {
+            exercise_id: 'ex_ul_1',
+            exercise_name: 'Supino Inclinado com Halteres',
+            sets: 4,
+            reps: '6-8',
+            weight: 22,
+            rest_time: 90,
+            sort_order: 1,
+            sets_json: [
+              { reps: '6', weight: 22, rest_time: 90 },
+              { reps: '6', weight: 22, rest_time: 90 },
+              { reps: '6', weight: 22, rest_time: 90 },
+              { reps: '6', weight: 22, rest_time: 90 }
+            ]
+          },
+          {
+            exercise_id: 'ex_ul_2',
+            exercise_name: 'Puxador Frente Pronado',
+            sets: 4,
+            reps: '8',
+            weight: 45,
+            rest_time: 90,
+            sort_order: 2,
+            sets_json: [
+              { reps: '8', weight: 45, rest_time: 90 },
+              { reps: '8', weight: 45, rest_time: 90 },
+              { reps: '8', weight: 45, rest_time: 90 },
+              { reps: '8', weight: 45, rest_time: 90 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-01T12:00:00Z',
+        updated_by: 'Equipe Médica',
+        changes: ['Publicação inicial do modelo de divisão científica de base 5 dias.']
+      }
+    ]
+  },
+  {
+    id: 'powerbuilding-fusion',
+    name: 'Powerbuilding Fusion',
+    description: 'Protocolo de força máxima combinado com trabalho acessório estético. Desenvolva força bruta nos 3 levantamentos básicos ao passo que preserva a simetria e linhas de definição muscular.',
+    version: 1,
+    premium: true,
+    goal: 'strength',
+    difficulty: 'advanced',
+    duration_weeks: 8,
+    frequency: 4,
+    created_by: 'coach_kyron',
+    rating: 4.95,
+    featured: true,
+    athletes_count: 984,
+    completion_rate: 91,
+    strength_increase_pct: 29,
+    created_at: '2026-06-02T11:00:00Z',
+    updated_at: '2026-06-02T11:00:00Z',
+    updated_by: 'Equipe KYRON',
+    workouts: [
+      {
+        id: 'pb_w_a',
+        name: 'Treino A - Agachamento de Força',
+        description: 'Treino primário para a articulação do joelho e quadril, sobrecarga axial progressiva.',
+        exercises: [
+          {
+            exercise_id: 'ex_pb_1',
+            exercise_name: 'Agachamento Livre',
+            sets: 5,
+            reps: '5',
+            weight: 60,
+            rest_time: 120,
+            sort_order: 1,
+            sets_json: [
+              { reps: '5', weight: 60, rest_time: 120 },
+              { reps: '5', weight: 60, rest_time: 120 },
+              { reps: '5', weight: 60, rest_time: 120 },
+              { reps: '5', weight: 60, rest_time: 120 },
+              { reps: '5', weight: 60, rest_time: 120 }
+            ]
+          },
+          {
+            exercise_id: 'ex_pb_2',
+            exercise_name: 'Leg Press 45',
+            sets: 3,
+            reps: '10',
+            weight: 120,
+            rest_time: 90,
+            sort_order: 2,
+            sets_json: [
+              { reps: '10', weight: 120, rest_time: 90 },
+              { reps: '10', weight: 120, rest_time: 90 },
+              { reps: '10', weight: 120, rest_time: 90 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-02T11:00:00Z',
+        updated_by: 'Equipe KYRON',
+        changes: ['Blueprint inicial concebido por treinadores certificados Kyron com testes de esforço integrados.']
+      }
+    ]
+  },
+  {
+    id: 'gluteos-premium-os',
+    name: 'Glúteos Premium & Linhas',
+    description: 'Protocolo estético especializado focado na fita muscular posterior superior, minimizando sobrecarga desnecessária na musculatura do quadríceps frontal.',
+    version: 1,
+    premium: true,
+    goal: 'glutes',
+    difficulty: 'intermediate',
+    duration_weeks: 8,
+    frequency: 4,
+    created_by: 'certified_personal',
+    rating: 4.88,
+    featured: false,
+    athletes_count: 1823,
+    completion_rate: 89,
+    strength_increase_pct: 16,
+    created_at: '2026-06-02T13:00:00Z',
+    updated_at: '2026-06-02T13:00:00Z',
+    updated_by: 'Personal Trainer Certificado',
+    workouts: [
+      {
+        id: 'gp_w_a',
+        name: 'Treino A - Ênfase Glúteos & Isquiotibiais',
+        description: 'Isolação seletiva para a fita posterior.',
+        exercises: [
+          {
+            exercise_id: 'ex_gp_1',
+            exercise_name: 'Elevação Pélvica na Máquina',
+            sets: 4,
+            reps: '12',
+            weight: 40,
+            rest_time: 75,
+            sort_order: 1,
+            sets_json: [
+              { reps: '12', weight: 40, rest_time: 75 },
+              { reps: '12', weight: 40, rest_time: 75 },
+              { reps: '12', weight: 40, rest_time: 75 },
+              { reps: '12', weight: 40, rest_time: 75 }
+            ]
+          },
+          {
+            exercise_id: 'ex_gp_2',
+            exercise_name: 'Stiff Unilateral com Halteres',
+            sets: 3,
+            reps: '10',
+            weight: 12,
+            rest_time: 60,
+            sort_order: 2,
+            sets_json: [
+              { reps: '10', weight: 12, rest_time: 60 },
+              { reps: '10', weight: 12, rest_time: 60 },
+              { reps: '10', weight: 12, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-02T13:00:00Z',
+        updated_by: 'Personal Trainer Certificado',
+        changes: ['Modelo inicial focado em biomecânica seletiva de glúteos e isquios.']
+      }
+    ]
+  },
+  {
+    id: 'academia-lotada',
+    name: 'Academia Lotada OS',
+    description: 'Manual de adaptação inteligente para treinar no pico do horário de pico. Protocolo inteligente baseado em aparelhos intercambiáveis, halteres e bi-sets que não prendem máquinas concorridas.',
+    version: 1,
+    premium: true,
+    goal: 'performance',
+    difficulty: 'beginner',
+    duration_weeks: 8,
+    frequency: 3,
+    created_by: 'rubi_ai',
+    rating: 4.79,
+    featured: false,
+    athletes_count: 3200,
+    completion_rate: 93,
+    strength_increase_pct: 12,
+    created_at: '2026-06-03T08:00:00Z',
+    updated_at: '2026-06-03T08:00:00Z',
+    updated_by: 'Rubi Intelligence',
+    workouts: [
+      {
+        id: 'al_w_a',
+        name: 'Ficha A - Haltéres & Polias Unilaterais',
+        description: 'Sem bloquear aparelhos populares.',
+        exercises: [
+          {
+            exercise_id: 'ex_al_1',
+            exercise_name: 'Taça Squat com Halter',
+            sets: 4,
+            reps: '12',
+            weight: 20,
+            rest_time: 60,
+            sort_order: 1,
+            sets_json: [
+              { reps: '12', weight: 20, rest_time: 60 },
+              { reps: '12', weight: 20, rest_time: 60 },
+              { reps: '12', weight: 20, rest_time: 60 },
+              { reps: '12', weight: 20, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-03T08:00:00Z',
+        updated_by: 'Rubi Intelligence',
+        changes: ['Versão gerada pela Rubi AI para resolver problemas de filas em academias comerciais.']
+      }
+    ]
+  }
+];
+
+class PremiumProtocolsApi {
+  private getLocalProtocols(): PremiumProtocol[] {
+    const raw = localStorage.getItem('rubi_premium_protocols');
+    if (!raw) {
+      localStorage.setItem('rubi_premium_protocols', JSON.stringify(INITIAL_PREMIUM_PROTOCOLS));
+      return INITIAL_PREMIUM_PROTOCOLS;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return INITIAL_PREMIUM_PROTOCOLS;
+    }
+  }
+
+  private saveLocalProtocols(protocols: PremiumProtocol[]) {
+    localStorage.setItem('rubi_premium_protocols', JSON.stringify(protocols));
+  }
+
+  async getProtocols(): Promise<PremiumProtocol[]> {
+    try {
+      const { data, error } = await supabase.from('premium_protocols').select('*');
+      if (!error && data && data.length > 0) {
+        return data as PremiumProtocol[];
+      }
+    } catch (e) {
+      console.warn('[PremiumProtocolsApi] DB query failed or table not available. Using local space.', e);
+    }
+    return this.getLocalProtocols();
+  }
+
+  async getProtocolById(id: string): Promise<PremiumProtocol | null> {
+    const list = await this.getProtocols();
+    return list.find(p => p.id === id) || null;
+  }
+
+  async createOrUpdateProtocol(protocol: PremiumProtocol): Promise<PremiumProtocol> {
+    try {
+      const { data, error } = await supabase.from('premium_protocols').upsert(protocol).select().single();
+      if (!error && data) {
+        const local = this.getLocalProtocols();
+        const index = local.findIndex(p => p.id === protocol.id);
+        if (index > -1) local[index] = data as PremiumProtocol;
+        else local.push(data as PremiumProtocol);
+        this.saveLocalProtocols(local);
+        return data as PremiumProtocol;
+      }
+    } catch {}
+
+    const local = this.getLocalProtocols();
+    const index = local.findIndex(p => p.id === protocol.id);
+    if (index > -1) {
+      local[index] = protocol;
+    } else {
+      local.push(protocol);
+    }
+    this.saveLocalProtocols(local);
+    return protocol;
+  }
+
+  async archiveProtocol(id: string): Promise<boolean> {
+    try {
+      await supabase.from('premium_protocols').delete().eq('id', id);
+    } catch {}
+    const local = this.getLocalProtocols();
+    const filtered = local.filter(p => p.id !== id);
+    this.saveLocalProtocols(filtered);
+    return true;
+  }
+
+  // Check Subscription State
+  isPremiumAthlete(): boolean {
+    const premiumStatus = localStorage.getItem('kyron_premium_subscription_active');
+    return premiumStatus === 'true';
+  }
+
+  setPremiumAthleteStatus(active: boolean) {
+    localStorage.setItem('kyron_premium_subscription_active', active ? 'true' : 'false');
+  }
+
+  // Clone Premium Protocol into Athlete Private Folder ("Meus Protocolos")
+  async cloneToUser(userId: string, protocolId: string): Promise<WorkoutFolder> {
+    const protocol = await this.getProtocolById(protocolId);
+    if (!protocol) throw new Error('Protocolo Premium não encontrado.');
+
+    // 1. Fetch available exercises to map names to actual UUIDs
+    let exerciseMap = new Map<string, string>();
+    try {
+      const { data } = await supabase.from('exercises').select('id, name');
+      if (data) {
+        data.forEach(ex => exerciseMap.set(ex.name.toLowerCase().trim(), ex.id));
+      }
+    } catch {}
+
+    // 2. Create standard folder of user
+    const folderName = `${protocol.name}`;
+    const newFolder = await workoutApi.createFolder(userId, folderName);
+
+    // 3. For each workout template, create a category and inject exercises
+    for (const tw of protocol.workouts) {
+      const categoryPayload = {
+        user_id: userId,
+        folder_id: newFolder.id,
+        name: tw.name,
+        description: tw.description || ''
+      };
+
+      const newCategory = await workoutApi.createCategory(categoryPayload);
+
+      const workoutExercisesPayload = tw.exercises.map((te, idx) => {
+        const matchedUuid = exerciseMap.get(te.exercise_name.toLowerCase().trim()) || te.exercise_id;
+        
+        return {
+          category_id: newCategory.id,
+          exercise_id: matchedUuid,
+          exercise_name_snapshot: te.exercise_name,
+          sets: te.sets,
+          reps: te.reps,
+          weight: te.weight,
+          rest_time: te.rest_time,
+          sort_order: te.sort_order || (idx + 1),
+          sets_json: te.sets_json || []
+        };
+      });
+
+      if (workoutExercisesPayload.length > 0) {
+        await workoutApi.insertWorkoutExercises(workoutExercisesPayload);
+      }
+    }
+
+    // 4. Record version tracking so updates from template origin also work for cloned premium protocols!
+    const systemTemplatesTrackingStoredStr = localStorage.getItem(`rubi_user_template_tracking_${userId}`) || '{}';
+    try {
+      const tracking = JSON.parse(systemTemplatesTrackingStoredStr);
+      tracking[newFolder.id] = { templateId: protocol.id, version: protocol.version };
+      localStorage.setItem(`rubi_user_template_tracking_${userId}`, JSON.stringify(tracking));
+    } catch {}
+
+    return newFolder;
+  }
+}
+
+export const premiumProtocolsApi = new PremiumProtocolsApi();

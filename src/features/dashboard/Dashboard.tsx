@@ -22,6 +22,8 @@ import { Sparkles, Loader2, Clock, CheckCircle2, Shield, Star, Activity } from '
 import { ProgressIntelligence } from './ProgressIntelligence';
 import { ProtocolEvolutionDashboard } from './components/ProtocolEvolutionDashboard';
 import { systemTemplatesApi } from '../../lib/api/systemTemplatesApi';
+import { PremiumLibraryComponent } from './components/PremiumLibraryComponent';
+import { Crown } from 'lucide-react';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
@@ -29,7 +31,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const prefetch = usePrefetch();
   
   const [activeFolderId, setActiveFolderId] = useState<string | null>(initialFolderId || null);
-  const [activeTab, setActiveTab] = useState<'protocols' | 'evolution'>('protocols');
+  const [activeTab, setActiveTab] = useState<'protocols' | 'evolution' | 'premium'>('protocols');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [showMagicModal, setShowMagicModal] = useState(false);
   const [magicLoading, setMagicLoading] = useState(false);
@@ -578,6 +580,13 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             Protocolos
           </button>
           <button 
+            onClick={() => { setActiveTab('premium'); if ('vibrate' in navigator) navigator.vibrate(5); }}
+            className={`flex-1 py-3.5 rounded-[1.6rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === 'premium' ? 'bg-slate-950 text-[#818CF8] bg-gradient-to-r from-slate-900 to-slate-950 shadow-sm font-extrabold border border-indigo-500/10' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <Crown size={12} className={activeTab === 'premium' ? 'text-amber-400' : 'text-slate-400'} />
+            Biblioteca Premium
+          </button>
+          <button 
             onClick={() => { setActiveTab('evolution'); if ('vibrate' in navigator) navigator.vibrate(5); }}
             className={`flex-1 py-3.5 rounded-[1.6rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === 'evolution' ? 'bg-[#7BA7FF] text-white shadow-md shadow-[#7BA7FF]/15 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
@@ -586,7 +595,13 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           </button>
         </div>
 
-        {activeTab === 'protocols' ? (
+        {activeTab === 'premium' ? (
+          <PremiumLibraryComponent 
+            profile={profile || null} 
+            onRefreshDashboard={refresh} 
+            onTabChange={(tab) => setActiveTab(tab)} 
+          />
+        ) : activeTab === 'protocols' ? (
           <>
             {/* FEATURED ADAPTIVE ACTION CARD - PREDICTIVE ACTION (Apple Health & Oura Inspired Premium Style) */}
             <AnimatePresence>
