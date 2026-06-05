@@ -31,7 +31,7 @@ import { useErrorHandler } from '../../../hooks/useErrorHandler';
 const ExerciseEditorV2: React.FC = () => {
   const { isEditorOpen, closeEditor, selectedExercise, updateExercise, createExercise, loading: storeLoading } = useAdminStore();
   const { showSuccess, showError } = useErrorHandler();
-  const [activeTab, setActiveTab] = useState<'basic' | 'technique' | 'ai' | 'media' | 'seo' | 'history'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'technique' | 'media'>('basic');
   const [form, setForm] = useState<Partial<Exercise>>({});
   const [saving, setSaving] = useState(false);
 
@@ -86,10 +86,7 @@ const ExerciseEditorV2: React.FC = () => {
   const tabs = [
     { id: 'basic', label: 'Básico', icon: Layers },
     { id: 'technique', label: 'Técnica', icon: Activity },
-    { id: 'ai', label: 'Rubi AI', icon: Brain },
-    { id: 'seo', label: 'SEO / Search', icon: Hash },
     { id: 'media', label: 'Conteúdo', icon: ImageIcon },
-    { id: 'history', label: 'Timeline', icon: History },
   ] as const;
 
   return (
@@ -291,39 +288,6 @@ const ExerciseEditorV2: React.FC = () => {
                          </motion.div>
                       )}
 
-                      {activeTab === 'ai' && (
-                         <motion.div key="ai" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12">
-                            <SectionHeader title="Rubi Intelligence Engine" desc="Optimize asset metadata using advanced neural orchestration." />
-                            <div className="bg-slate-950 rounded-[3rem] p-12 text-white shadow-2xl shadow-slate-950/30">
-                               <div className="flex items-center gap-4 mb-8">
-                                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-blue-400">
-                                     <Zap size={22} fill="currentColor" />
-                                  </div>
-                                  <div>
-                                     <h4 className="text-xl font-black uppercase tracking-tight italic">Rubi Generator v4</h4>
-                                     <p className="text-white/40 text-[9px] font-black uppercase tracking-widest">Enterprise Content Orchestration</p>
-                                  </div>
-                               </div>
-                               
-                               <div className="space-y-4">
-                                  <AIAction icon={<Wand2 size={16} />} label="Enhance Description" />
-                                  <AIAction icon={<Sparkles size={16} />} label="Standardize Technical Tone" />
-                                  <AIAction icon={<Layers size={16} />} label="Deep SEO Extraction" />
-                               </div>
-                            </div>
-
-                            <div className="space-y-3">
-                               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">AI Context Prompt</label>
-                               <textarea 
-                                  value={form.technical_prompt || ''}
-                                  onChange={(e) => setForm({...form, technical_prompt: e.target.value})}
-                                  placeholder="Instruções específicas para o modelo de linguagem sobre este exercício..."
-                                  className="w-full h-44 bg-white border border-slate-200 rounded-3xl p-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all resize-none leading-relaxed"
-                               />
-                            </div>
-                         </motion.div>
-                      )}
-
                       {activeTab === 'media' && (
                          <motion.div key="media" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 h-full flex flex-col">
                             <SectionHeader title="Asset Media Hub" desc="Management of visual performance guides and biomechanical cuts." />
@@ -355,8 +319,7 @@ const ExerciseEditorV2: React.FC = () => {
                          </motion.div>
                       )}
                       
-                      {activeTab === 'seo' && <ModuleProgress tab="Internal SEO & Discovery" />}
-                      {activeTab === 'history' && <ModuleProgress tab="Version Control & Timeline" />}
+
                    </AnimatePresence>
                 </div>
              </main>
