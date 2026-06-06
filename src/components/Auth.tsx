@@ -48,6 +48,22 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
     }
   };
 
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    try {
+      await authApi.signInAsGuest();
+      showSuccess('Modo Convidado Ativado', 'Carregando interface de alta performance offline...');
+      // Force instant navigation to ensure UI handles state refresh
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (err: any) {
+      setError('Erro ao iniciar modo convidado.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F8FA] p-6 flex flex-col justify-center max-w-md mx-auto relative">
       {onBack && (
@@ -60,7 +76,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
       <div className="text-center mb-10">
         <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-6 shadow-xl shadow-blue-600/20">
            <i className="fas fa-gem text-2xl"></i>
-        </div>
+         </div>
         <h2 className="text-4xl font-black text-slate-900 mb-2 uppercase tracking-tighter">
            {isSignUp ? 'Criar Perfil' : 'Bem-vindo'}
         </h2>
@@ -115,6 +131,14 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
           className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] hover:text-blue-600 transition-colors"
         >
           {isSignUp ? 'Já possuo uma conta' : 'Não possuo cadastro'}
+        </button>
+
+        <button
+          onClick={handleGuestLogin}
+          type="button"
+          className="text-blue-600 text-[10px] font-black uppercase tracking-[0.2em] hover:text-blue-800 transition-colors border border-dashed border-blue-600/30 rounded-2xl py-4 hover:border-blue-600/60 mt-2"
+        >
+          Entrar como Convidado (Modo Offline)
         </button>
       </div>
     </div>

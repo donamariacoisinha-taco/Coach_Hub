@@ -57,6 +57,15 @@ function isGracefulError(err: any): boolean {
 
 export const authApi = {
   async getUser() {
+    const hasGuest = localStorage.getItem('kyron_guest_session');
+    if (hasGuest) {
+      try {
+        const sess = JSON.parse(hasGuest);
+        return sess?.user || null;
+      } catch (e) {
+        console.warn('Error reading guest user from local state', e);
+      }
+    }
     try {
       const { data: { user }, error } = await fetchWithRetry(() => supabase.auth.getUser());
       if (error) {
@@ -85,6 +94,14 @@ export const authApi = {
   },
 
   async getSession() {
+    const hasGuest = localStorage.getItem('kyron_guest_session');
+    if (hasGuest) {
+      try {
+        return JSON.parse(hasGuest);
+      } catch (e) {
+        console.warn('Error reading guest session from local state', e);
+      }
+    }
     try {
       const { data: { session }, error } = await fetchWithRetry(() => supabase.auth.getSession());
       if (error) {
@@ -113,7 +130,28 @@ export const authApi = {
     if (error) throw error;
   },
 
+  async signInAsGuest() {
+    const guestUser = {
+      id: "guest-user-id",
+      email: "guest@kyron.os",
+      role: "authenticated",
+      user_metadata: { name: "Atleta Convidado" }
+    };
+    const guestSession = {
+      access_token: "guest-token",
+      token_type: "bearer",
+      expires_in: 3600,
+      refresh_token: "guest-refresh",
+      user: guestUser
+    };
+    localStorage.setItem('kyron_guest_session', JSON.stringify(guestSession));
+    localStorage.setItem('coach_rubi_user_id', 'guest-user-id');
+    // Ensure standard user ID item is set too
+    return guestSession;
+  },
+
   async signOut() {
+    localStorage.removeItem('kyron_guest_session');
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {

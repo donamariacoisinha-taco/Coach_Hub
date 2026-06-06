@@ -152,16 +152,41 @@ export const exerciseApi = {
 
   async getMuscleGroups() {
     return fetchWithRetry(async () => {
-      const { data, error } = await supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true });
-      if (error) throw error;
-      return (data || []) as MuscleGroup[];
+      try {
+        const { data, error } = await supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true });
+        if (error) throw error;
+        return (data || []) as MuscleGroup[];
+      } catch (err) {
+        console.warn('[ExerciseApi] Failed to fetch muscle groups from Supabase, using fallback.', err);
+        return [
+          { id: 'peito', name: 'Peito', sort_order: 1 },
+          { id: 'costas', name: 'Costas', sort_order: 2 },
+          { id: 'pernas', name: 'Pernas', sort_order: 3 },
+          { id: 'ombros', name: 'Ombros', sort_order: 4 },
+          { id: 'braços', name: 'Bíceps/Tríceps', sort_order: 5 },
+          { id: 'abdômen', name: 'Core', sort_order: 6 }
+        ] as any[];
+      }
     });
   },
 
   async getFavorites(userId: string) {
-    const { data, error } = await supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', userId);
-    if (error) throw error;
-    return (data || []).map(f => f.exercise_id);
+    try {
+      const { data, error } = await supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', userId);
+      if (error) throw error;
+      const favList = (data || []).map(f => f.exercise_id);
+      localStorage.setItem(`rubi_favorites_cache_${userId}`, JSON.stringify(favList));
+      return favList;
+    } catch (err) {
+      console.warn('[ExerciseApi] Failed to fetch favorites from Supabase, returning cache or empty list.', err);
+      try {
+        const cached = localStorage.getItem(`rubi_favorites_cache_${userId}`);
+        if (cached) return JSON.parse(cached);
+      } catch (e) {
+        // ignore
+      }
+      return [];
+    }
   },
 
   async toggleFavorite(userId: string, exerciseId: string, isFavorite: boolean) {

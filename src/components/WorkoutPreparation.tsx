@@ -190,35 +190,30 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
           : '0 8px 30px rgba(15,23,42,0.05)',
       }}
       transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-      className={`relative pl-8 pr-4 py-3 transition-all border border-white/50 backdrop-blur-xl rounded-3xl flex flex-col gap-2 hover:scale-[1.01] ${
+      className={`relative pl-[29px] pr-[14px] pt-[10px] pb-[10px] mb-[12px] transition-all border border-white/50 backdrop-blur-xl rounded-3xl flex flex-col gap-2 hover:scale-[1.01] ${
         isCurrent ? 'ring-1 ring-[#7BA7FF]/35' : ''
       }`}
     >
       <div className="flex items-center gap-4 w-full min-h-[96px]">
-        {/* Subtle, minimalist drag handle */}
+        {/* Left column: Draggable Exercise Image serving as the main drag handle */}
         <div
           {...attributes}
           {...listeners}
           style={{ touchAction: 'none' }}
-          className="absolute left-1.5 top-0 bottom-0 flex items-center justify-center text-slate-300 hover:text-slate-500 transition cursor-grab active:cursor-grabbing w-5 shrink-0"
-          title="Arraste para reordenar"
+          className="flex flex-col items-center shrink-0 cursor-grab active:cursor-grabbing hover:scale-[1.02] transition duration-200"
+          title="Arraste a imagem para reordenar"
         >
-          <GripVertical size={13} />
-        </div>
-
-        {/* Left column: Exercise Image: Size w-24 h-24 (96x96), Rounded-2xl, background slate-100 */}
-        <div className="flex flex-col items-center shrink-0">
-          <div className="w-24 h-24 bg-slate-100/90 rounded-2xl overflow-hidden relative flex items-center justify-center p-2 shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)]">
+          <div className="w-[91px] h-[61px] bg-slate-100/90 rounded-2xl overflow-hidden relative flex items-center justify-center p-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)]">
             <img
               src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'}
               alt={ex.exercise_name}
-              className="w-full h-full object-contain mix-blend-multiply"
+              className="w-[80px] h-full object-contain mix-blend-multiply"
               referrerPolicy="no-referrer"
             />
           </div>
 
           {/* Mini Performance Tags right below the image */}
-          <div className="flex flex-row gap-1 mt-1 justify-center w-full max-w-[96px] overflow-hidden">
+          <div className="flex flex-row gap-1 mt-1 justify-center w-full max-w-[91px] overflow-hidden">
             <span className="text-[9px] scale-[0.95] font-black text-[#7BA7FF] bg-[#7BA7FF]/10 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
               RPE {ex.rpe || (8 + (idx % 2))}
             </span>
@@ -238,7 +233,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
           }}
         >
           {/* Muscle Focus Label: uppercase, tracking-[0.18em], text-[10px], text-slate-400, bold */}
-          <p className="uppercase tracking-[0.18em] text-[10px] text-slate-400 font-bold leading-none mb-1">
+          <p className="uppercase tracking-[0.18em] text-[10px] text-slate-400 font-bold leading-none mb-1 w-[199px]">
             {getMuscleFocus(ex.muscle_group || 'Geral', ex.exercise_name).toUpperCase()}
           </p>
 
@@ -246,7 +241,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
             {isCurrent && (
               <span className="w-2.5 h-2.5 bg-[#7BA7FF] rounded-full shrink-0 animate-pulse" title="Exercício Ativo" />
             )}
-            <h4 className="font-semibold text-[17px] text-[#0F172A] tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight">
+            <h4 className="font-semibold text-[17px] text-[#0F172A] tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight w-[195px]">
               {ex.exercise_name}
             </h4>
           </div>
@@ -265,7 +260,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
           </div>
 
           {/* KYRON Insight: Subtle, micro 1-liner secondary intelligence line. Maximum 2 lines. */}
-          <p className="text-[10px] text-slate-400 mt-1.5 italic font-medium leading-relaxed line-clamp-2">
+          <p className="text-[10px] text-slate-400 mt-1.5 italic font-medium leading-relaxed line-clamp-2 w-[199px]">
             {getKyronInsight(idx, ex.exercise_name)}
           </p>
         </div>

@@ -393,6 +393,54 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const isBeginner = userLevel === 'BEGINNER';
   const isIntermediate = userLevel === 'INTERMEDIATE';
   const isAdvanced = userLevel === 'ADVANCED';
+
+  type DockState = 'minimized' | 'compact' | 'expanded';
+  const [dockState, setDockState] = useState<DockState>('minimized');
+  const userExpandedRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (isResting) {
+      setDockState('compact');
+    }
+  }, [isResting]);
+
+  useEffect(() => {
+    if (!isResting && !userExpandedRef.current) {
+      const timer = setTimeout(() => {
+        setDockState('minimized');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isResting]);
+
+  const activeDockMode = isResting ? (dockState === 'expanded' ? 'expanded' : 'compact') : dockState;
+
+  const getDockHeight = () => {
+    if (activeDockMode === 'minimized') return '96px';
+    if (activeDockMode === 'compact') return '215px';
+    return '74vh';
+  };
+
+  const handleDragEnd = (event: any, info: any) => {
+    const isSwipeUp = info.offset.y < -35 || info.velocity.y < -150;
+    const isSwipeDown = info.offset.y > 35 || info.velocity.y > 150;
+
+    if (isSwipeUp) {
+      if (dockState === 'minimized') {
+        setDockState('compact');
+      } else if (dockState === 'compact') {
+        setDockState('expanded');
+        userExpandedRef.current = true;
+      }
+    } else if (isSwipeDown) {
+      if (dockState === 'expanded') {
+        setDockState('compact');
+        userExpandedRef.current = false;
+      } else if (dockState === 'compact') {
+        setDockState('minimized');
+      }
+    }
+  };
   
   // Momentum & Compression
   const momentum = currentSet >= 3 || userLevel === 'ADVANCED';
@@ -2326,9 +2374,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     }`}
                   >
                     <div className="w-24 h-16 bg-slate-100 rounded-xl overflow-hidden shadow-sm flex-shrink-0 border border-slate-50">
-                      {currentEx?.image_url ? (
+                      {(currentEx?.exercise_image || currentEx?.image_url) ? (
                         <img 
-                          src={currentEx.image_url} 
+                          src={currentEx.exercise_image || currentEx.image_url} 
                           alt="" 
                           className="w-full h-full object-cover" 
                           referrerPolicy="no-referrer"
@@ -2466,8 +2514,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     <p className="text-[7px] font-[1000] text-slate-400 uppercase tracking-[0.25em] mb-3 text-center">Prepare-se: Próximo Exercício</p>
                     <div className="flex items-center gap-4 bg-white/40 backdrop-blur-sm rounded-[2rem] p-4 border border-slate-100 shadow-sm">
                       <div className="w-[72px] h-12 bg-slate-100 rounded-2xl overflow-hidden flex-shrink-0 border border-white shadow-inner">
-                        {nextEx.image_url ? (
-                          <img src={nextEx.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        {(nextEx?.exercise_image || nextEx?.image_url) ? (
+                          <img src={nextEx.exercise_image || nextEx.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-slate-50">
                             <Play size={18} className="text-slate-200 fill-slate-200" />
@@ -2535,31 +2583,51 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
             </div>
 
-            {/* 3. FOOTER FIXO */}
-            <motion.footer 
-              ref={footerRef}
-              initial={{ y: 0, opacity: 1 }}
+            {/* 3. ADAPTIVE GESTURE-DRIVEN WORKOUT DOCK */}
+            <motion.div 
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={0.16}
+              onDragEnd={handleDragEnd}
+              style={{
+                height: getDockHeight(),
+              }}
               animate={{ 
                 y: (isFooterVisible || isResting || isInputFocused) ? 0 : '100%',
                 opacity: (isFooterVisible || isResting || isInputFocused) ? 1 : 0,
-                scale: (isResting && timeLeft <= 0) ? 1.03 : 1
               }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className={`fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t p-4 pb-10 max-w-md mx-auto shadow-[0_-20px_50px_rgba(0,0,0,0.06)] rounded-t-2xl ${isResting && timeLeft <= 5 && timeLeft > 0 ? 'ring-2 ring-[#7BA7FF]/20' : ''}`}
+              transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              className={`fixed bottom-0 left-0 right-0 z-50 ${activeDockMode === 'expanded' ? 'bg-white/95 backdrop-blur-3xl' : 'bg-white/85 backdrop-blur-xl'} shadow-[0_-12px_45px_rgba(15,23,42,0.12)] border-t border-white/50 px-5 pt-2 pb-8 max-w-md mx-auto rounded-t-[2.2rem] transition-colors duration-300 ${
+                isResting && timeLeft <= 5 && timeLeft > 0 ? 'ring-2 ring-[#7BA7FF]/30' : ''
+              }`}
             >
-              
+              {/* Apple style drag handle block */}
+              <div 
+                onClick={() => {
+                  playSensoryTone?.('click');
+                  playHapticFeedback?.('light');
+                  setDockState(current => 
+                    current === 'minimized' ? 'compact' : 
+                    current === 'compact' ? 'expanded' : 'minimized'
+                  );
+                }}
+                className="w-full py-1.5 flex items-center justify-center cursor-pointer group shrink-0"
+              >
+                <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-slate-400 group-active:scale-x-110 transition-all shadow-inner" />
+              </div>
+
               {/* PR / FEEDBACK / SUGGESTION OVERLAY */}
               <AnimatePresence>
-                {(feedback || suggestion || anomalyDetected || fatigueDetected || (isResting && restOvertime > 15)) && (
+                {(feedback || suggestion || anomalyDetected || fatigueDetected || (isResting && restOvertime > 15)) && activeDockMode !== 'expanded' && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-[90%] max-w-[320px] pointer-events-none z-50"
+                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-[90%] max-w-[320px] pointer-events-none z-55"
                   >
                     <div className="bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex flex-col gap-2 border border-slate-800 backdrop-blur-md bg-opacity-95 items-center text-center">
                       {suggestion && (
-                         <div className="flex items-center gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest">
+                         <div className="flex items-center gap-2 text-[#7BA7FF] font-black text-[10px] uppercase tracking-widest">
                            <Target size={12} /> {suggestion}
                          </div>
                       )}
@@ -2572,19 +2640,19 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                       {anomalyDetected && (
                          <div className="flex items-center gap-2 text-yellow-400 font-bold text-[10px] uppercase tracking-widest">
-                           Progressão incomum detectada — verifique a carga
+                           Progressão incomum detectada
                          </div>
                       )}
 
                       {isResting && restOvertime > 15 && (
-                        <div className="flex items-center gap-2 text-[#7BA7FF] animate-pulse font-bold text-[10px] uppercase tracking-widest">
-                          Vamos para a próxima?
-                        </div>
+                         <div className="flex items-center gap-2 text-[#7BA7FF] animate-pulse font-bold text-[10px] uppercase tracking-widest">
+                           Vamos para a próxima?
+                         </div>
                       )}
 
                       {fatigueDetected && (
                          <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest">
-                           Fadiga detectada — mantenha a carga
+                           Fadiga detectada
                          </div>
                       )}
                     </div>
@@ -2592,76 +2660,513 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 )}
               </AnimatePresence>
 
-              {/* COMPACT TIMER BAR (CENTERED CONTROL BAR) */}
-              <div className="flex items-center justify-between bg-slate-50/50 rounded-2xl p-2 mb-4 border border-slate-100">
-                <button 
-                  onClick={() => handleAdjustTimer(-10)}
-                  className="w-14 h-10 bg-white text-slate-400 rounded-xl flex items-center justify-center active:scale-95 transition-all font-black text-[10px] tracking-widest shadow-sm border border-slate-100"
-                >
-                  -10S
-                </button>
+              {/* STATE 1 — MINIMIZED */}
+              {activeDockMode === 'minimized' && (
+                <div className="flex items-center justify-between h-[64px] px-1 gap-4">
+                  <div className="flex flex-col items-start shrink-0">
+                    <span className="text-[7px] font-black uppercase tracking-[0.25em] text-slate-400">SÉRIE</span>
+                    <span className="text-xs font-black text-slate-700 tracking-tighter">
+                      {currentSet} DE {activeSetsData.length}
+                    </span>
+                  </div>
 
-                <div className="flex flex-col items-center">
-                  <motion.span 
-                    key={isResting ? 'active' : 'idle'}
-                    animate={isResting && timeLeft <= 5 ? {
-                      scale: [1, 1.2, 1],
-                      color: timeLeft <= 0 ? '#10b981' : '#7BA7FF'
-                    } : {
-                      scale: 1,
-                      opacity: isResting ? 1 : 0.4,
-                      color: isResting ? '#0f172a' : '#94a3b8'
-                    }}
-                    transition={isResting && timeLeft <= 5 ? {
-                      duration: 1,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    } : { duration: 0.3 }}
-                    className="text-2xl font-black tabular-nums transition-all tracking-tighter"
+                  <button
+                    onClick={isResting ? () => { 
+                      log("[REST_SKIPPED] Manual skip");
+                      if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
+                    } : handleCompleteSet}
+                    disabled={saving || isTransitioning}
+                    className="flex-1 h-11 bg-[#7BA7FF] hover:bg-[#6b97ee] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md shadow-[#7BA7FF]/20"
                   >
-                    {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
-                  </motion.span>
-                  <p className="text-[7px] font-[1000] text-slate-400/60 uppercase tracking-[0.2em] -mt-1">Descanso</p>
+                    {saving ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        {isResting 
+                          ? (timeLeft <= 0 ? "PRÓXIMA SÉRIE" : "PULAR DESCANSO") 
+                          : (isWorkoutTerminal ? "FINALIZAR TREINO" : "CONCLUIR SÉRIE")}
+                        {!isResting && (isWorkoutTerminal ? <CheckCircle2 size={12} strokeWidth={4} /> : <ArrowRight size={12} strokeWidth={4} />)}
+                      </>
+                    )}
+                  </button>
+
+                  <div className="flex flex-col items-end shrink-0 cursor-pointer" onClick={() => setDockState('compact')}>
+                    <span className="text-[7px] font-black uppercase tracking-[0.25em] text-slate-400 font-sans">DESCANSO</span>
+                    <span className={`text-xs font-black tracking-tight font-mono ${isResting ? 'text-[#7BA7FF] animate-pulse' : 'text-slate-400'}`}>
+                      {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
+                    </span>
+                  </div>
                 </div>
+              )}
 
-                <button 
-                  onClick={() => handleAdjustTimer(10)}
-                  className="w-14 h-10 bg-white text-slate-400 rounded-xl flex items-center justify-center active:scale-95 transition-all font-black text-[10px] tracking-widest shadow-sm border border-slate-100"
-                >
-                  +10S
-                </button>
-              </div>
+              {/* STATE 2 — COMPACT */}
+              {activeDockMode === 'compact' && (
+                <div className="flex flex-col gap-3.5 pt-1.5 pb-4">
+                  {/* 1. Timer Block */}
+                  <div className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-xl p-1 shadow-sm">
+                    <button 
+                      onClick={() => handleAdjustTimer(-10)}
+                      className="w-12 h-8 bg-white hover:bg-slate-50 text-slate-400 font-extrabold text-[9px] tracking-widest rounded-lg border border-slate-100 shadow-sm active:scale-95 transition-all flex items-center justify-center"
+                    >
+                      -10S
+                    </button>
 
-              <motion.button
-                onClick={isResting ? () => { 
-                  log("[REST_SKIPPED] Manual skip");
-                  if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
-                } : handleCompleteSet}
-                disabled={saving || isTransitioning}
-                whileTap={{ scale: 0.95 }}
-                whileHover={{ scale: 1.02 }}
-                animate={isResting && timeLeft <= 0 ? {
-                  backgroundColor: '#7BA7FF',
-                  boxShadow: '0 20px 25px -5px rgba(123, 167, 255, 0.4)'
-                } : {}}
-                className={`w-full h-16 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl ${
-                  isResting 
-                    ? (timeLeft <= 0 ? "bg-[#7BA7FF] text-white" : "bg-slate-900 text-white") 
-                    : "bg-[#7BA7FF] text-white shadow-lg shadow-[#7BA7FF]/25"
-                }`}
-              >
-                {saving ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : (
-                  <>
-                    {isResting 
-                      ? (timeLeft <= 0 ? "Próxima série" : "Pular Descanso") 
-                      : (isWorkoutTerminal ? "Finalizar Treino" : "Concluir Série")}
-                    {!isResting && (isWorkoutTerminal ? <CheckCircle2 size={18} strokeWidth={4} /> : <ArrowRight size={18} strokeWidth={4} />)}
-                  </>
-                )}
-              </motion.button>
-            </motion.footer>
+                    <div className="flex flex-col items-center">
+                      <span className={`text-xl font-black tracking-tight font-mono leading-none ${isResting ? 'text-[#7BA7FF]' : 'text-slate-500'}`}>
+                        {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
+                      </span>
+                      <span className="text-[6.5px] font-[1000] text-slate-400 uppercase tracking-[0.2em] mt-0.5">DESCANSO</span>
+                    </div>
+
+                    <button 
+                      onClick={() => handleAdjustTimer(10)}
+                      className="w-12 h-8 bg-white hover:bg-slate-50 text-slate-400 font-extrabold text-[9px] tracking-widest rounded-lg border border-slate-100 shadow-sm active:scale-95 transition-all flex items-center justify-center"
+                    >
+                      +10S
+                    </button>
+                  </div>
+
+                  {/* 2. PESO | REPS | RPE quick adjusting rows */}
+                  <div className="grid grid-cols-3 gap-2 items-center text-center">
+                    {/* PESO */}
+                    <div className="flex flex-col items-center">
+                      <span className="text-[7px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">Peso</span>
+                      <div className="flex items-center gap-1 bg-slate-50/80 py-0.5 px-1 rounded-xl border border-slate-100">
+                        <button 
+                          onClick={() => {
+                            const currentVal = activeSetsData[currentSet - 1]?.weight || 0;
+                            updateSetData(currentSet - 1, 'weight', Math.max(0, currentVal - 2));
+                          }}
+                          className="w-6 h-6 rounded-md bg-white border border-slate-100 shadow-sm font-bold text-slate-500 flex items-center justify-center hover:bg-slate-50"
+                        >
+                          -
+                        </button>
+                        <span className="w-10 text-xs font-black text-slate-700 tracking-tight font-mono text-center">
+                          {activeSetsData[currentSet - 1]?.weight || 0}k
+                        </span>
+                        <button 
+                          onClick={() => {
+                            const currentVal = activeSetsData[currentSet - 1]?.weight || 0;
+                            updateSetData(currentSet - 1, 'weight', currentVal + 2);
+                          }}
+                          className="w-6 h-6 rounded-md bg-white border border-slate-100 shadow-sm font-bold text-slate-500 flex items-center justify-center hover:bg-slate-50"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* REPS */}
+                    <div className="flex flex-col items-center">
+                      <span className="text-[7px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">Reps</span>
+                      <div className="flex items-center gap-1 bg-slate-50/80 py-0.5 px-1 rounded-xl border border-slate-100">
+                        <button 
+                          onClick={() => {
+                            const currentVal = activeSetsData[currentSet - 1]?.reps || 10;
+                            updateSetData(currentSet - 1, 'reps', Math.max(1, currentVal - 1));
+                          }}
+                          className="w-6 h-6 rounded-md bg-white border border-slate-100 shadow-sm font-bold text-slate-500 flex items-center justify-center hover:bg-slate-50"
+                        >
+                          -
+                        </button>
+                        <span className="w-8 text-xs font-black text-slate-700 tracking-tight font-mono text-center">
+                          {activeSetsData[currentSet - 1]?.reps || 10}
+                        </span>
+                        <button 
+                          onClick={() => {
+                            const currentVal = activeSetsData[currentSet - 1]?.reps || 10;
+                            updateSetData(currentSet - 1, 'reps', currentVal + 1);
+                          }}
+                          className="w-6 h-6 rounded-md bg-white border border-slate-100 shadow-sm font-bold text-slate-500 flex items-center justify-center hover:bg-slate-50"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* RPE */}
+                    <div className="flex flex-col items-center">
+                      <span className="text-[7px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">Esforço RPE</span>
+                      <div className="flex gap-0.5 bg-slate-50 p-0.5 rounded-xl border border-slate-100">
+                        {[8, 9, 10].map(rpeVal => {
+                          const active = (activeSetsData[currentSet - 1]?.rpe || 8) === rpeVal;
+                          return (
+                            <button
+                              key={rpeVal}
+                              onClick={() => {
+                                updateSetData(currentSet - 1, 'rpe', rpeVal);
+                                playSensoryTone?.('click');
+                                playHapticFeedback?.('light');
+                              }}
+                              className={`w-6 h-6 rounded-md text-[9px] font-black leading-none transition-all ${
+                                active 
+                                  ? "bg-[#7BA7FF] text-white shadow-sm" 
+                                  : "text-slate-400 hover:text-slate-600"
+                              }`}
+                            >
+                              {rpeVal}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. Concluir button */}
+                  <button
+                    onClick={isResting ? () => { 
+                      log("[REST_SKIPPED] Manual skip");
+                      if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
+                    } : handleCompleteSet}
+                    disabled={saving || isTransitioning}
+                    className="w-full h-11 bg-[#7BA7FF] hover:bg-[#6b97ee] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md shadow-[#7BA7FF]/25"
+                  >
+                    {saving ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        {isResting 
+                          ? (timeLeft <= 0 ? "PRÓXIMA SÉRIE" : "PULAR DESCANSO") 
+                          : (isWorkoutTerminal ? "FINALIZAR TREINO" : "CONCLUIR SÉRIE")}
+                        {!isResting && (isWorkoutTerminal ? <CheckCircle2 size={12} strokeWidth={4} /> : <ArrowRight size={12} strokeWidth={4} />)}
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* STATE 3 — EXPANDED */}
+              {activeDockMode === 'expanded' && (
+                <div className="flex flex-col gap-4 overflow-y-auto max-h-[calc(72vh-50px)] pb-12 pr-1 pt-1 scrollbar-none">
+                  
+                  {/* 1. Active Exercise Header with slide-fade transition */}
+                  <AnimatePresence mode="wait">
+                    <motion.div 
+                      key={currentIndex}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                      className="flex items-center gap-4 bg-slate-50/50 p-3 rounded-2xl border border-slate-100"
+                    >
+                      <div className="w-[100px] h-[66px] bg-slate-100 rounded-xl overflow-hidden border border-slate-100 shadow-sm shrink-0">
+                        {(currentEx?.exercise_image || currentEx?.image_url) ? (
+                          <img 
+                            src={currentEx.exercise_image || currentEx.image_url} 
+                            alt="" 
+                            className="w-full h-full object-cover" 
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                            <Dumbbell size={20} className="text-slate-300" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[8px] font-black text-[#7BA7FF] uppercase tracking-[0.25em]">EXERCÍCIO ATUAL</span>
+                        <h3 className="text-base font-[1000] text-slate-800 tracking-tight truncate uppercase -mt-0.5">{currentEx?.exercise_name}</h3>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
+                          {currentEx?.muscle_group} • {currentEx?.equipment || 'Sem equipamento'}
+                        </p>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+
+                  {/* 2. Current Set Controls */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3">
+                    <div className="flex justify-between items-center mb-2.5">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">AJUSTE RÁPIDO DA SÉRIE ATUAL</span>
+                      <span className="text-[10px] font-bold text-slate-500 font-mono">Série {currentSet}/{activeSetsData.length}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      {/* PESO */}
+                      <div className="flex flex-col items-center">
+                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Peso</span>
+                        <div className="flex items-center gap-1 bg-white py-0.5 px-1 rounded-xl border border-slate-100 shadow-sm">
+                          <button 
+                            onClick={() => {
+                              const currentVal = activeSetsData[currentSet - 1]?.weight || 0;
+                              updateSetData(currentSet - 1, 'weight', Math.max(0, currentVal - 2));
+                            }}
+                            className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 font-bold text-slate-500 flex items-center justify-center hover:bg-slate-100"
+                          >
+                            -
+                          </button>
+                          <span className="w-12 text-xs font-black text-slate-700 tracking-tight font-mono text-center">
+                            {activeSetsData[currentSet - 1]?.weight || 0}kg
+                          </span>
+                          <button 
+                            onClick={() => {
+                              const currentVal = activeSetsData[currentSet - 1]?.weight || 0;
+                              updateSetData(currentSet - 1, 'weight', currentVal + 2);
+                            }}
+                            className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 font-bold text-slate-500 flex items-center justify-center hover:bg-slate-100"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* REPS */}
+                      <div className="flex flex-col items-center">
+                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Reps</span>
+                        <div className="flex items-center gap-1 bg-white py-0.5 px-1 rounded-xl border border-slate-100 shadow-sm">
+                          <button 
+                            onClick={() => {
+                              const currentVal = activeSetsData[currentSet - 1]?.reps || 10;
+                              updateSetData(currentSet - 1, 'reps', Math.max(1, currentVal - 1));
+                            }}
+                            className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 font-bold text-slate-400 flex items-center justify-center hover:bg-slate-100"
+                          >
+                            -
+                          </button>
+                          <span className="w-8 text-xs font-black text-slate-700 tracking-tight font-mono text-center">
+                            {activeSetsData[currentSet - 1]?.reps || 10}
+                          </span>
+                          <button 
+                            onClick={() => {
+                              const currentVal = activeSetsData[currentSet - 1]?.reps || 10;
+                              updateSetData(currentSet - 1, 'reps', currentVal + 1);
+                            }}
+                            className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 font-bold text-slate-400 flex items-center justify-center hover:bg-slate-100"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* RPE */}
+                      <div className="flex flex-col items-center">
+                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Esforço RPE</span>
+                        <div className="flex gap-0.5 bg-white p-0.5 rounded-xl border border-slate-100 shadow-sm">
+                          {[8, 9, 10].map(rpeVal => {
+                            const active = (activeSetsData[currentSet - 1]?.rpe || 8) === rpeVal;
+                            return (
+                              <button
+                                key={rpeVal}
+                                onClick={() => {
+                                  updateSetData(currentSet - 1, 'rpe', rpeVal);
+                                  playSensoryTone?.('click');
+                                  playHapticFeedback?.('light');
+                                }}
+                                className={`w-7 h-7 rounded-lg text-xs font-black leading-none transition-all ${
+                                  active 
+                                    ? "bg-[#7BA7FF] text-white shadow-sm" 
+                                    : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                                }`}
+                              >
+                                {rpeVal}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. Rest Timer panel */}
+                  <div className="flex items-center justify-between bg-white border border-slate-100 rounded-2xl p-2 shadow-sm">
+                    <button 
+                      onClick={() => handleAdjustTimer(-10)}
+                      className="w-12 h-9 bg-slate-50 hover:bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center active:scale-95 transition-all font-black text-[9px] tracking-widest shadow-sm border border-slate-100"
+                    >
+                      -10S
+                    </button>
+
+                    <div className="flex flex-col items-center">
+                      <span className={`text-2xl font-black font-mono leading-none tracking-tighter ${isResting ? 'text-[#7BA7FF]' : 'text-slate-700'}`}>
+                        {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
+                      </span>
+                      <span className="text-[7px] font-[1000] text-slate-400/85 uppercase tracking-widest mt-0.5">DESCANSO ADAPATIVO</span>
+                    </div>
+
+                    <button 
+                      onClick={() => handleAdjustTimer(10)}
+                      className="w-12 h-9 bg-slate-50 hover:bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center active:scale-95 transition-all font-black text-[9px] tracking-widest shadow-sm border border-slate-100"
+                    >
+                      +10S
+                    </button>
+                  </div>
+
+                  {/* 4. Complete button */}
+                  <button
+                    onClick={isResting ? () => { 
+                      log("[REST_SKIPPED] Manual skip");
+                      if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
+                    } : handleCompleteSet}
+                    disabled={saving || isTransitioning}
+                    className="w-full h-12 bg-[#7BA7FF] hover:bg-[#6b97ee] text-white rounded-xl text-xs font-[1000] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7BA7FF]/25 shrink-0"
+                  >
+                    {saving ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        {isResting 
+                          ? (timeLeft <= 0 ? "PRÓXIMA SÉRIE" : "PULAR DESCANSO") 
+                          : (isWorkoutTerminal ? "FINALIZAR TREINO" : "CONCLUIR SÉRIE")}
+                        {!isResting && (isWorkoutTerminal ? <CheckCircle2 size={13} strokeWidth={4} /> : <ArrowRight size={13} strokeWidth={4} />)}
+                      </>
+                    )}
+                  </button>
+
+                  {/* 5. Chronological History of Sets */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <History size={13} className="text-slate-400 font-sans" />
+                      <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-500">Histórico de Séries Realizadas</h4>
+                    </div>
+                    <div className="space-y-1.5">
+                      {activeSetsData.map((set, sIdx) => {
+                        const isCompleted = completedSetIndices.has(sIdx);
+                        return (
+                          <div 
+                            key={sIdx} 
+                            className={`flex justify-between items-center py-2 px-3 rounded-xl border ${
+                              isCompleted 
+                                ? 'bg-emerald-50/20 border-emerald-100/55 text-emerald-900' 
+                                : sIdx === currentSet - 1 
+                                  ? 'bg-blue-50/20 border-blue-100/55 text-[#7BA7FF]' 
+                                  : 'bg-white border-slate-100 text-slate-600'
+                            } text-xs font-bold font-mono`}
+                          >
+                            <span className="uppercase tracking-tight">Série {sIdx + 1}</span>
+                            <div className="flex items-center gap-3">
+                              <span>{set.weight}kg × {set.reps} reps</span>
+                              <span className="text-slate-400 font-normal">RPE {set.rpe}</span>
+                              {isCompleted ? (
+                                <CheckCircle2 size={14} className="text-emerald-500 fill-emerald-50" />
+                              ) : (
+                                <div className="w-4 h-4 rounded-full border border-slate-200 bg-slate-50" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 6. Notes, Intel & Insights */}
+                  <div className="bg-slate-900 text-white p-5 rounded-3xl flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={14} className="text-[#7BA7FF] fill-[#7BA7FF]/30" />
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[#7BA7FF]">Kyron Deep Intelligence</span>
+                    </div>
+                    
+                    <p className="text-xs font-black uppercase tracking-tight leading-relaxed text-slate-100">
+                      "{feedback || suggestion || preHint || "Seu desempenho hoje está acima da média para este exercício."}"
+                    </p>
+
+                    {(currentEx?.notes || currentEx?.tips) && (
+                      <div className="border-t border-slate-800 pt-2.5 mt-1 text-[11px] text-slate-400">
+                        <span className="font-extrabold text-slate-300 block mb-1">DICAS DE EXECUÇÃO:</span>
+                        {currentEx.notes && <p className="leading-snug">Note: {currentEx.notes}</p>}
+                        {currentEx.tips && <p className="leading-snug mt-1">Tip: {currentEx.tips}</p>}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 7. Extra Premium Upcoming Queue */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <List size={14} className="text-slate-400" />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Mudar Fila ou Reordenar</h4>
+                      </div>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase font-mono">{exercises.length} no total</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {exercises.map((ex, idx) => {
+                        if (idx < currentIndex) return null;
+                        
+                        const isCurrent = idx === currentIndex;
+                        const isNext = idx === currentIndex + 1;
+                        const label = isCurrent ? "ATUAL" : isNext ? "PRÓXIMO" : "DEPOIS";
+                        
+                        return (
+                          <div 
+                            key={idx} 
+                            className={`flex items-center justify-between p-2.5 rounded-2xl border transition-all ${
+                              isCurrent 
+                                ? 'bg-white border-[#7BA7FF]/30 shadow-md ring-2 ring-[#7BA7FF]/5' 
+                                : 'bg-white/40 border-slate-100'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-[48px] h-8 bg-slate-100 rounded-lg overflow-hidden shrink-0">
+                                {(ex.exercise_image || (ex as any).image_url) ? (
+                                  <img src={ex.exercise_image || (ex as any).image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-300">
+                                    <Play size={10} />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <span className={`text-[7px] font-extrabold tracking-widest uppercase block ${
+                                  isCurrent ? 'text-[#7BA7FF]' : 'text-slate-400'
+                                }`}>
+                                  {label}
+                                </span>
+                                <h5 className="text-[11px] font-black text-slate-800 uppercase tracking-tighter truncate leading-[1.1] mt-0.5">
+                                  {ex.exercise_name}
+                                </h5>
+                              </div>
+                            </div>
+
+                            {idx > currentIndex && (
+                              <div className="flex items-center gap-0.5">
+                                <button
+                                  onClick={() => {
+                                    if (idx > currentIndex + 1) {
+                                      const updated = [...exercises];
+                                      const temp = updated[idx];
+                                      updated[idx] = updated[idx - 1];
+                                      updated[idx - 1] = temp;
+                                      useWorkoutStore.setState({ exercises: updated } as any);
+                                      playSensoryTone?.('click');
+                                      playHapticFeedback?.('light');
+                                    }
+                                  }}
+                                  disabled={idx === currentIndex + 1}
+                                  className={`w-6 h-6 rounded-md flex items-center justify-center border text-slate-450 hover:bg-slate-50 active:scale-95 transition-all ${
+                                    idx === currentIndex + 1 ? 'opacity-30 cursor-not-allowed border-slate-50 text-slate-200' : 'border-slate-100 bg-white'
+                                  }`}
+                                >
+                                  <ChevronUp size={12} strokeWidth={3} />
+                                </button>
+                                
+                                <button
+                                  onClick={() => {
+                                    if (idx < exercises.length - 1) {
+                                      const updated = [...exercises];
+                                      const temp = updated[idx];
+                                      updated[idx] = updated[idx + 1];
+                                      updated[idx + 1] = temp;
+                                      useWorkoutStore.setState({ exercises: updated } as any);
+                                      playSensoryTone?.('click');
+                                      playHapticFeedback?.('light');
+                                    }
+                                  }}
+                                  disabled={idx === exercises.length - 1}
+                                  className={`w-6 h-6 rounded-md flex items-center justify-center border text-slate-450 hover:bg-slate-50 active:scale-95 transition-all ${
+                                    idx === exercises.length - 1 ? 'opacity-30 cursor-not-allowed border-slate-50 text-slate-200' : 'border-slate-100 bg-white'
+                                  }`}
+                                >
+                                  <ChevronDown size={12} strokeWidth={3} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </motion.div>
           </div>
         </motion.div>
       </ScreenState>
