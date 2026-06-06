@@ -20,8 +20,14 @@ import { rubiIntelligenceService } from '../services/rubiIntelligenceService';
 const RubiIntelligenceModal: React.FC = () => {
   const { isModalOpen, closeModal, startProcessing, updateResult, finishProcessing, isProcessing, operation: activeOperation } = useIntelligenceStore();
   const { exercises } = useAdminStore();
-  const [selectedOperation, setSelectedOperation] = useState<'audit' | 'fix' | 'metadata' | 'content' | 'scores' | 'full' | null>(null);
+  const [selectedOperation, setSelectedOperation] = useState<'audit' | 'fix' | 'metadata' | 'content' | 'scores' | 'full' | null>(activeOperation);
   
+  React.useEffect(() => {
+    if (activeOperation) {
+      setSelectedOperation(activeOperation);
+    }
+  }, [activeOperation]);
+
   // For demonstration, we'll process the "critical" or "all" depending on user context
   // Usually this is triggered from selected IDs in LibraryOS
   const [targetIds, setTargetIds] = useState<string[]>([]);

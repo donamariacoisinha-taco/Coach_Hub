@@ -31,7 +31,14 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const { showError, showSuccess } = useErrorHandler();
   const prefetch = usePrefetch();
   
-  const [activeFolderId, setActiveFolderId] = useState<string | null>(initialFolderId || null);
+  const [favoriteFolderId, setFavoriteFolderId] = useState<string | null>(() => {
+    return localStorage.getItem('favorite_workout_folder_id');
+  });
+
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(() => {
+    if (initialFolderId) return initialFolderId;
+    return localStorage.getItem('favorite_workout_folder_id') || null;
+  });
   const [activeTab, setActiveTab] = useState<'protocols' | 'evolution' | 'premium'>('protocols');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [showMagicModal, setShowMagicModal] = useState(false);
@@ -133,12 +140,29 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     }
   };
 
+  const toggleFavoriteFolder = (folderId: string) => {
+    if (favoriteFolderId === folderId) {
+      setFavoriteFolderId(null);
+      localStorage.removeItem('favorite_workout_folder_id');
+      showSuccess("Favorito Removido", "Nenhuma pasta será selecionada por padrão ao abrir o aplicativo.");
+    } else {
+      setFavoriteFolderId(folderId);
+      localStorage.setItem('favorite_workout_folder_id', folderId);
+      setActiveFolderId(folderId);
+      showSuccess("Pasta Favoritada!", "Esta pasta será selecionada automaticamente ao abrir o aplicativo.");
+    }
+  };
+
   const handleDeleteFolder = async (id: string) => {
     setDeleteConfirm(null);
     setIsPerformingAction(true);
     try {
       await workoutApi.deleteFolder(id);
       showSuccess("Pasta excluída", "Os treinos foram movidos para a categoria geral.");
+      if (favoriteFolderId === id) {
+        setFavoriteFolderId(null);
+        localStorage.removeItem('favorite_workout_folder_id');
+      }
       cacheStore.clear('dashboard_data');
       cacheStore.clearPrefix('editor_init');
       refresh();
@@ -738,6 +762,20 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                       }`}
                     >
                       <span>{folder.name}</span>
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavoriteFolder(folder.id);
+                        }}
+                        className={`p-0.5 rounded-md hover:bg-slate-100/10 transition-colors shrink-0 ${
+                          favoriteFolderId === folder.id 
+                            ? 'text-pink-500' 
+                            : 'text-slate-300 hover:text-pink-400'
+                        }`}
+                        title={favoriteFolderId === folder.id ? "Remover pasta favorita" : "Marcar como favorita para iniciar nela"}
+                      >
+                        <Heart size={10} fill={favoriteFolderId === folder.id ? "currentColor" : "none"} />
+                      </span>
                       {outdatedFolderIds.includes(folder.id) && (
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse shrink-0" title="Melhorias do protocolo disponíveis" />
                       )}
@@ -747,7 +785,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                             e.stopPropagation();
                             setDeleteConfirm({ id: folder.id, name: folder.name, type: 'folder' });
                           }}
-                          className="hover:text-red-400 transition-colors ml-1 p-0.5"
+                          className="hover:text-red-400 transition-colors ml-1 p-0.5 shrink-0"
                           title="Remover Pasta"
                         >
                           <Trash2 size={10} />

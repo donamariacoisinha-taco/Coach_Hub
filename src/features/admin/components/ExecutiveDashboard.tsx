@@ -19,6 +19,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
+import { useIntelligenceStore } from '../store/intelligenceStore';
 import { 
   AreaChart, 
   Area, 
@@ -34,6 +35,7 @@ import {
 
 const ExecutiveDashboard: React.FC = () => {
   const { stats, exercises } = useAdminStore();
+  const { openModal } = useIntelligenceStore();
 
   const chartData = [
     { name: 'Seg', total: 400, growth: 240 },
@@ -211,7 +213,10 @@ const ExecutiveDashboard: React.FC = () => {
                        Our intelligence engine detected 14 high-impact exercises missing technical prompts. Fix it now.
                     </p>
                  </div>
-                 <button className="w-full mt-10 h-14 rounded-full bg-blue-600 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-600/30 hover:bg-blue-500 transition-all active:scale-95">
+                 <button 
+                    onClick={() => openModal('audit')}
+                    className="w-full mt-10 h-14 rounded-full bg-blue-600 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-600/30 hover:bg-blue-500 transition-all active:scale-95"
+                 >
                     Start AI Audit
                  </button>
               </div>

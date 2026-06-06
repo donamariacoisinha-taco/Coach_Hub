@@ -33,7 +33,8 @@ import {
   Dumbbell, 
   Zap, 
   Sparkles,
-  Award 
+  Award,
+  Copy 
 } from 'lucide-react';
 import { useNavigation } from '../App';
 import { workoutApi } from '../lib/api/workoutApi';
@@ -44,6 +45,61 @@ import { useErrorHandler } from '../hooks/useErrorHandler';
 import { WorkoutExercise, Exercise, SetType, SetConfig, WorkoutCategory } from '../types';
 import { useWorkoutStore } from '../app/store/workoutStore';
 import { ScreenState } from './ui/ScreenState';
+
+// Sortable item wrapper for an exercise card in the preparation screen
+// Sortable muscle mappings and insights helpers
+const getMuscleFocus = (muscleGroup: string, exerciseName: string) => {
+  const clean = (muscleGroup || '').toLowerCase().trim();
+  const name = (exerciseName || '').toLowerCase();
+  
+  if (clean.includes('costas') || clean.includes('back')) {
+    if (name.includes('curvada') || name.includes('remada')) return 'Costas • Espessura Dorsal';
+    if (name.includes('puxada') || name.includes('barra')) return 'Costas • Largura do Latíssimo';
+    return 'Costas • Cadeia Posterior';
+  }
+  if (clean.includes('peito') || clean.includes('chest')) {
+    if (name.includes('inclinado')) return 'Peitoral • Porção Superior';
+    if (name.includes('declinado')) return 'Peitoral • Porção Inferior';
+    return 'Peitoral • Porção Esternocostal';
+  }
+  if (clean.includes('bíceps') || clean.includes('biceps') || clean.includes('braço') || clean.includes('arm')) {
+    if (name.includes('rosca direta') || name.includes('barra')) return 'Bíceps • Cabeça Longa';
+    if (name.includes('martelo')) return 'Braquiorradial • Largura do Antebraço';
+    return 'Bíceps • Cabeça Curta';
+  }
+  if (clean.includes('tríceps') || clean.includes('triceps')) {
+    if (name.includes('testa') || name.includes('francês')) return 'Tríceps • Cabeça Longa';
+    return 'Tríceps • Cabeça Lateral';
+  }
+  if (clean.includes('perna') || clean.includes('leg') || clean.includes('quadriceps') || clean.includes('quadríceps') || clean.includes('coxa')) {
+    if (name.includes('extensora') || name.includes('agachamento')) return 'Quadríceps • Foco Reto Femoral';
+    if (name.includes('flexora') || name.includes('stiff')) return 'Isquiotibiais • Posteriores de Coxa';
+    return 'Membros Inferiores • Cadeia Cinética';
+  }
+  if (clean.includes('ombro') || clean.includes('shoulder') || clean.includes('deltoide') || clean.includes('deltoides')) {
+    if (name.includes('lateral')) return 'Deltoide • Porção Lateral';
+    if (name.includes('frontal') || name.includes('desenvolvimento')) return 'Deltoide • Porção Anterior';
+    return 'Deltoide • Cabeça Posterior';
+  }
+  return `${muscleGroup || 'Geral'} • Foco Biomecânico`;
+};
+
+const getKyronInsight = (idx: number, exerciseName: string) => {
+  const name = (exerciseName || '').toLowerCase();
+  if (idx === 0) return 'Exercício de ativação neural e aquecimento articular.';
+  if (idx === 1) return 'Foco em recrutamento máximo de unidades motoras.';
+  if (name.includes('agachamento') || name.includes('terra') || name.includes('press')) {
+    return 'Exercício pilar para desenvolvimento de força e sobrecarga progressiva.';
+  }
+  if (name.includes('rosca') || name.includes('elevacao') || name.includes('extensora') || name.includes('flexora')) {
+    return 'Movimento isolador ideal para exaustão metabólica direcionada.';
+  }
+  
+  const mod = idx % 3;
+  if (mod === 0) return 'Principal movimento para aumento de densidade muscular.';
+  if (mod === 1) return 'Exercício chave para simetria biomecânica e estabilidade muscular.';
+  return 'Posicionamento estratégico para pico de contração sob fadiga acumulada.';
+};
 
 // Sortable item wrapper for an exercise card in the preparation screen
 interface SortablePrepExerciseCardProps {
@@ -59,6 +115,8 @@ interface SortablePrepExerciseCardProps {
   onRemoveNote: (idx: number) => void;
   onReplace: (idx: number) => void;
   onRemove: (idx: number) => void;
+  onDuplicate: (idx: number) => void;
+  onAddBelow: (idx: number) => void;
 }
 
 const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
@@ -74,6 +132,8 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
   onRemoveNote,
   onReplace,
   onRemove,
+  onDuplicate,
+  onAddBelow,
 }) => {
   const {
     attributes,
@@ -104,88 +164,120 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
     }
   }, [ex.notes]);
 
+  const isCurrent = idx === 0;
+  const isNext = idx === 1;
+
+  // Single line metrics row configuration
+  const setsCount = ex.sets_json?.length || ex.sets || 3;
+  const repsPattern = ex.reps || '12';
+  const weightPattern = ex.weight ? `${ex.weight} kg` : '0 kg';
+  const metricsText = `${setsCount} ${setsCount === 1 ? 'série' : 'séries'} • ${repsPattern} reps • ${weightPattern}`;
+
   return (
     <motion.div
       ref={setNodeRef}
       style={style}
-      layoutId={`prep-card-${ex.id}`}
+      layoutId={`prep-row-${ex.id}`}
       animate={{
-        scale: isDragging ? 1.01 : 1,
+        scale: isDragging ? 1.015 : 1,
+        backgroundColor: isDragging 
+          ? 'rgba(255, 255, 255, 0.95)' 
+          : isCurrent 
+            ? 'rgba(123, 167, 255, 0.08)' 
+            : 'rgba(255, 255, 255, 0.70)',
         boxShadow: isDragging 
-          ? '0 12px 28px rgba(15,23,42,0.08)' 
-          : '0 1px 2px rgba(15,23,42,0.01)',
+          ? '0 12px 32px rgba(15,23,42,0.08)' 
+          : '0 8px 30px rgba(15,23,42,0.05)',
       }}
       transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-      className={`relative bg-white border border-slate-100/80 p-4 rounded-2xl transition-colors ${
-        isDragging ? 'bg-slate-50/90 md:bg-white border-blue-100' : ''
+      className={`relative pl-8 pr-4 py-3 transition-all border border-white/50 backdrop-blur-xl rounded-3xl flex flex-col gap-2 hover:scale-[1.01] ${
+        isCurrent ? 'ring-1 ring-[#7BA7FF]/35' : ''
       }`}
     >
-      <div className="flex items-center gap-4">
-        {/* Drag Handle with reduced visual prominence */}
+      <div className="flex items-center gap-4 w-full min-h-[96px]">
+        {/* Subtle, minimalist drag handle */}
         <div
           {...attributes}
           {...listeners}
           style={{ touchAction: 'none' }}
-          className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-slate-500 hover:bg-slate-50 rounded-lg shrink-0 cursor-grab active:cursor-grabbing transition opacity-40 hover:opacity-100"
+          className="absolute left-1.5 top-0 bottom-0 flex items-center justify-center text-slate-300 hover:text-slate-500 transition cursor-grab active:cursor-grabbing w-5 shrink-0"
+          title="Arraste para reordenar"
         >
-          <GripVertical size={14} />
+          <GripVertical size={13} />
         </div>
 
-        {/* Thumbnail Image: 56px size */}
-        <div className="w-[84px] h-14 bg-slate-50 border border-slate-100/80 rounded-xl overflow-hidden shrink-0 flex items-center justify-center p-0.5 shadow-sm">
-          <img
-            src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'}
-            alt={ex.exercise_name}
-            className="w-full h-full object-contain mix-blend-multiply"
-            referrerPolicy="no-referrer"
-          />
+        {/* Left column: Exercise Image: Size w-24 h-24 (96x96), Rounded-2xl, background slate-100 */}
+        <div className="flex flex-col items-center shrink-0">
+          <div className="w-24 h-24 bg-slate-100/90 rounded-2xl overflow-hidden relative flex items-center justify-center p-2 shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)]">
+            <img
+              src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'}
+              alt={ex.exercise_name}
+              className="w-full h-full object-contain mix-blend-multiply"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+
+          {/* Mini Performance Tags right below the image */}
+          <div className="flex flex-row gap-1 mt-1 justify-center w-full max-w-[96px] overflow-hidden">
+            <span className="text-[9px] scale-[0.95] font-black text-[#7BA7FF] bg-[#7BA7FF]/10 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
+              RPE {ex.rpe || (8 + (idx % 2))}
+            </span>
+            <span className="text-[9px] scale-[0.95] font-black text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
+              +{2 + (idx % 3)}kg
+            </span>
+          </div>
         </div>
 
-        {/* Information Column with elegant text hierarchy */}
+        {/* Center column: Exercise Information column */}
         <div 
-          className="flex-1 min-w-0 pr-1 cursor-pointer select-none group"
+          className="flex-1 min-w-0 pr-1 cursor-pointer select-none group flex flex-col justify-center py-1"
           onClick={() => {
             if (ex.notes !== undefined) {
               setIsNotesExpanded(!isNotesExpanded);
             }
           }}
         >
-          {/* LINE 1: Exercise Title */}
-          <div className="flex items-start gap-1.5 justify-between">
-            <h4 className="font-extrabold text-[14px] text-slate-900 group-hover:text-blue-600 transition-colors leading-snug line-clamp-2 break-words flex-1">
+          {/* Muscle Focus Label: uppercase, tracking-[0.18em], text-[10px], text-slate-400, bold */}
+          <p className="uppercase tracking-[0.18em] text-[10px] text-slate-400 font-bold leading-none mb-1">
+            {getMuscleFocus(ex.muscle_group || 'Geral', ex.exercise_name).toUpperCase()}
+          </p>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {isCurrent && (
+              <span className="w-2.5 h-2.5 bg-[#7BA7FF] rounded-full shrink-0 animate-pulse" title="Exercício Ativo" />
+            )}
+            <h4 className="font-semibold text-[17px] text-[#0F172A] tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight">
               {ex.exercise_name}
             </h4>
           </div>
 
-          {/* LINE 2: Primary muscle group */}
-          <p className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest mt-0.5 leading-none">
-            {ex.muscle_group || 'Exercício'}
+          {/* Metadata Pills: series, reps and weight on the same row, in small pill badges */}
+          <div className="flex flex-row items-center gap-1.5 mt-1.5 flex-wrap">
+            <span className="bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 text-[11px] font-semibold">
+              {setsCount} {setsCount === 1 ? 'Série' : 'Séries'}
+            </span>
+            <span className="bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 text-[11px] font-semibold">
+              {repsPattern} Reps
+            </span>
+            <span className="bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 text-[11px] font-semibold">
+              {weightPattern}
+            </span>
+          </div>
+
+          {/* KYRON Insight: Subtle, micro 1-liner secondary intelligence line. Maximum 2 lines. */}
+          <p className="text-[10px] text-slate-400 mt-1.5 italic font-medium leading-relaxed line-clamp-2">
+            {getKyronInsight(idx, ex.exercise_name)}
           </p>
-
-          {/* LINE 3: Sets/reps summary */}
-          <div className="text-[12px] font-medium text-slate-600 mt-1.5 leading-none">
-            {ex.sets_json?.length || ex.sets || 3} séries • {ex.reps || '10'} reps
-          </div>
-
-          {/* LINE 4: Compact metadata row */}
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <span className="inline-flex items-center text-[10.5px] font-semibold text-slate-500 bg-slate-50 border border-slate-100/60 px-2 py-0.5 rounded-md">
-              Carga: <strong className="font-extrabold text-slate-850 ml-1">{ex.weight || '0'}kg</strong>
-            </span>
-            <span className="inline-flex items-center text-[10.5px] font-semibold text-slate-500 bg-slate-50 border border-slate-100/60 px-2 py-0.5 rounded-md">
-              Descanso: <strong className="font-extrabold text-slate-850 ml-1">{ex.rest_time || 60}s</strong>
-            </span>
-          </div>
         </div>
 
-        {/* Action Button */}
-        <div className="shrink-0 self-center">
+        {/* Right column: Context menu trigger vertically centered with opacity rules */}
+        <div className="shrink-0 self-center flex items-center justify-center">
           <button
             onClick={() => setActiveMenuId(activeMenuId === ex.id ? null : ex.id)}
-            className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${
+            className={`w-8 h-8 flex items-center justify-center rounded-full transition-all opacity-50 hover:opacity-100 ${
               activeMenuId === ex.id 
-                ? 'bg-slate-900 text-white shadow-md' 
-                : 'text-slate-350 hover:text-slate-900 hover:bg-slate-50'
+                ? 'bg-slate-900 text-white shadow-md opacity-100' 
+                : 'text-slate-400 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
             <MoreVertical size={14} />
@@ -197,19 +289,19 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
       <AnimatePresence>
         {isNotesExpanded && ex.notes !== undefined && (
           <motion.div
-            initial={{ opacity: 0, height: 0, marginTop: 0 }}
-            animate={{ opacity: 1, height: 'auto', marginTop: 10 }}
-            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
             transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-            className="overflow-hidden"
+            className="overflow-hidden w-full px-1"
           >
-            <div className="px-3.5 py-2 bg-amber-50/50 border border-amber-100 rounded-xl flex items-start gap-2 focus-within:border-amber-300 focus-within:bg-white transition-all">
-              <FileText size={12} className="text-amber-500 mt-1 shrink-0" />
+            <div className="px-3.5 py-2.5 bg-amber-50/40 border border-amber-100 rounded-xl flex items-start gap-2 focus-within:border-amber-200 focus-within:bg-white transition-all mt-1">
+              <FileText size={11} className="text-amber-500 mt-1 shrink-0" />
               <textarea
                 value={ex.notes || ''}
                 onChange={(e) => onUpdateNote(idx, e.target.value)}
-                placeholder="Ex Focar na descida controlada..."
-                className="flex-1 text-[11px] font-semibold text-slate-750 bg-transparent border-none focus:outline-none focus:ring-0 p-0 resize-none h-10 no-scrollbar leading-relaxed"
+                placeholder="Ex: Focar na descida controlada..."
+                className="flex-1 text-xs font-semibold text-slate-750 bg-transparent border-none focus:outline-none focus:ring-0 p-0 resize-none h-11 no-scrollbar leading-relaxed"
               />
               <button
                 onClick={() => onRemoveNote(idx)}
@@ -223,11 +315,11 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Card context menu dropdown */}
+      {/* Dropdown context menu popup */}
       <AnimatePresence>
         {activeMenuId === ex.id && (
           <>
-            {/* Backdrop to close click-outside */}
+            {/* Backdrop target */}
             <div 
               className="fixed inset-0 z-[100]" 
               onClick={() => setActiveMenuId(null)}
@@ -237,26 +329,46 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.95 }}
               transition={{ duration: 0.12 }}
-              className="absolute right-4 top-14 z-[105] bg-white rounded-2xl shadow-[0_12px_32px_rgba(15,23,42,0.12)] border border-slate-100 p-1.5 min-w-[160px] space-y-0.5"
+              className="absolute right-4 top-14 z-[105] bg-white rounded-2xl shadow-[0_12px_32px_rgba(15,23,42,0.12)] border border-slate-100 p-1.5 min-w-[170px] space-y-0.5"
             >
-              <button
-                onClick={() => {
-                  onReplace(idx);
-                  setActiveMenuId(null);
-                }}
-                className="w-full flex items-center gap-2.5 p-2 text-[10px] font-black uppercase tracking-widest text-slate-650 hover:bg-slate-50 rounded-lg transition"
-              >
-                <Replace size={13} className="text-blue-500" /> Substituir
-              </button>
-
               <button
                 onClick={() => {
                   onEditSetsReps(idx);
                   setActiveMenuId(null);
                 }}
-                className="w-full flex items-center gap-2.5 p-2 text-[10px] font-black uppercase tracking-widest text-slate-650 hover:bg-slate-50 rounded-lg transition"
+                className="w-full flex items-center gap-2.5 p-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition"
               >
                 <SlidersHorizontal size={13} className="text-amber-500" /> Ajustar Séries
+              </button>
+
+              <button
+                onClick={() => {
+                  onReplace(idx);
+                  setActiveMenuId(null);
+                }}
+                className="w-full flex items-center gap-2.5 p-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition"
+              >
+                <Replace size={13} className="text-[#7BA7FF]" /> Substituir
+              </button>
+
+              <button
+                onClick={() => {
+                  onAddBelow(idx);
+                  setActiveMenuId(null);
+                }}
+                className="w-full flex items-center gap-2.5 p-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition"
+              >
+                <Plus size={13} className="text-[#34D399]" /> Adicionar abaixo
+              </button>
+
+              <button
+                onClick={() => {
+                  onDuplicate(idx);
+                  setActiveMenuId(null);
+                }}
+                className="w-full flex items-center gap-2.5 p-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition"
+              >
+                <Copy size={13} className="text-slate-500" /> Duplicar
               </button>
 
               <button
@@ -268,20 +380,20 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
                   }
                   setActiveMenuId(null);
                 }}
-                className="w-full flex items-center gap-2.5 p-2 text-[10px] font-black uppercase tracking-widest text-slate-650 hover:bg-slate-50 rounded-lg transition"
+                className="w-full flex items-center gap-2.5 p-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition"
               >
-                <FileText size={13} className="text-emerald-500" /> 
+                <FileText size={13} className="text-purple-400" /> 
                 {ex.notes === undefined ? 'Nota / Dica' : isNotesExpanded ? 'Ocultar Nota' : 'Mostrar Nota'}
               </button>
 
-              <div className="h-px bg-slate-100/75 mx-1.5 my-1" />
+              <div className="h-px bg-slate-100 mx-1.5 my-1" />
 
               <button
                 onClick={() => {
                   onRemove(idx);
                   setActiveMenuId(null);
                 }}
-                className="w-full flex items-center gap-2.5 p-2 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                className="w-full flex items-center gap-2.5 p-2 text-[11px] font-bold text-rose-500 hover:bg-rose-50 rounded-lg transition"
               >
                 <Trash2 size={13} /> Remover
               </button>
@@ -311,6 +423,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
+  const [addAfterIndex, setAddAfterIndex] = useState<number | null>(null);
 
   // Modal settings
   const [editingSetsIndex, setEditingSetsIndex] = useState<number | null>(null);
@@ -484,10 +597,39 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   // Substitute/Replace Exercise Selector open
   const handleOpenReplace = useCallback((idx: number) => {
     setReplacingIndex(idx);
+    setAddAfterIndex(null);
     setShowExerciseSelector(true);
   }, []);
 
-  // Substitute finalized selection or append new exercise
+  // Add Exercise Below Target Index
+  const handleOpenAddBelow = useCallback((idx: number) => {
+    setAddAfterIndex(idx);
+    setReplacingIndex(null);
+    setShowExerciseSelector(true);
+  }, []);
+
+  // Duplicate target exercise
+  const handleDuplicateExercise = useCallback((idx: number) => {
+    setExercises(prev => {
+      const next = [...prev];
+      const source = next[idx];
+      const tempId = `dup-ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      const duplicated: WorkoutExercise = {
+        ...source,
+        id: tempId,
+        order: idx + 2
+      };
+
+      next.splice(idx + 1, 0, duplicated);
+      const reordered = next.map((item, i) => ({ ...item, order: i + 1 }));
+      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(reordered));
+      return reordered;
+    });
+    showSuccess('Exercício duplicado', 'O exercício foi duplicado com sucesso.');
+  }, [workoutId, showSuccess]);
+
+  // Substitute finalized selection or append/insert new exercise
   const handleSelectSubstitute = useCallback((exercise: Exercise) => {
     if (replacingIndex !== null) {
       setExercises(prev => {
@@ -510,13 +652,12 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
       setReplacingIndex(null);
       showSuccess('Exercício substituído', `Alterado para ${exercise.name} hoje.`);
     } else {
-      // Adding a new exercise to the workout session
+      // Adding/Inserting a new exercise to the workout session
       setExercises(prev => {
-        const newOrder = prev.length + 1;
         const tempId = `new-ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
         const numSets = 3;
-        const targetReps = '10';
+        const targetReps = '12';
         const targetWeight = 10;
         const targetRest = 60;
 
@@ -540,17 +681,25 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
           weight: targetWeight,
           rest_time: targetRest,
           sets_json: defaultSetsJson,
-          order: newOrder
+          order: prev.length + 1
         };
 
-        const next = [...prev, newWorkoutEx];
-        localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(next));
-        return next;
+        let next = [...prev];
+        if (addAfterIndex !== null) {
+          next.splice(addAfterIndex + 1, 0, newWorkoutEx);
+        } else {
+          next.push(newWorkoutEx);
+        }
+
+        const reordered = next.map((item, i) => ({ ...item, order: i + 1 }));
+        localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(reordered));
+        return reordered;
       });
       setShowExerciseSelector(false);
+      setAddAfterIndex(null);
       showSuccess('Exercício adicionado', `${exercise.name} adicionado ao treino de hoje.`);
     }
-  }, [replacingIndex, workoutId, showSuccess]);
+  }, [replacingIndex, addAfterIndex, workoutId, showSuccess]);
 
   // Delete exercise
   const handleRemoveExercise = useCallback((idx: number) => {
@@ -676,7 +825,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
     <div className="min-h-screen bg-[#F7F8FA] text-slate-900 pb-40 relative">
       {/* HEADER SECTION IN BLOCK FOR SCROLL */}
       <div className="max-w-md mx-auto px-6 pt-8 pb-4 relative z-10">
-        <header className="space-y-4">
+        <header className="space-y-6">
           {/* Sleek Light Top Navbar */}
           <div className="flex items-center justify-between">
             <button
@@ -688,10 +837,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
             
             <div className="flex flex-col items-center max-w-[200px]">
               <span className="text-[9px] font-extrabold text-blue-600 uppercase tracking-[0.25em]">
-                PLANEJAMENTO HOJE
-              </span>
-              <span className="text-xs font-black text-slate-800 tracking-tight truncate max-w-full">
-                {workoutName}
+                WORKSPACE KYRON
               </span>
             </div>
 
@@ -699,6 +845,48 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
               <Sparkles size={16} className="text-blue-500" />
             </div>
           </div>
+
+          {/* Premium Hero Section */}
+          <div className="space-y-1 pt-1">
+            <span className="text-[10px] font-black tracking-widest text-[#7BA7FF]/90 uppercase">
+              {category?.name || 'Protocolo de Alta Performance'}
+            </span>
+            <h1 className="text-3xl font-bold tracking-tight text-[#0F172A] leading-tight">
+              {workoutName}
+            </h1>
+            <p className="text-xs font-medium text-slate-400 leading-relaxed">
+              Desenvolvimento biomecanicamente planejado para estimulação neural, controle cinético e progressão de carga contínua.
+            </p>
+          </div>
+
+          {/* Minimal Editorial Metrics Strip */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-around text-center shadow-[0_4px_16px_rgba(15,23,42,0.015)] divide-x divide-slate-100">
+            <div className="flex-1">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tempo Est.</span>
+              <span className="text-sm font-bold text-slate-800 font-mono mt-0.5 block">{estimatedWorkoutMinutes} Min</span>
+            </div>
+            <div className="flex-1">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Volume total</span>
+              <span className="text-sm font-bold text-slate-800 font-mono mt-0.5 block">{totalSetsCount} Séries</span>
+            </div>
+            <div className="flex-1">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Est. Gasto</span>
+              <span className="text-sm font-bold text-slate-800 font-mono mt-0.5 block">{totalExercises * 40 + totalSetsCount * 12} Kcal</span>
+            </div>
+          </div>
+
+          {/* Rubi Intelligence Editorial Block */}
+          {exercises.length > 0 && (
+            <div className="bg-[#7BA7FF]/5 border-l-2 border-[#7BA7FF]/60 rounded-r-xl p-3.5 space-y-1">
+              <div className="flex items-center gap-1.5 text-[#7BA7FF]">
+                <Zap size={11} className="fill-current" />
+                <span className="text-[9px] font-black uppercase tracking-wider">Rubi Intelligence</span>
+              </div>
+              <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                Este protocolo prioriza {uniqueMuscleGroups.join(', ').toLowerCase() || 'equilíbrio cinético'} e estabilidade escapular. Sugerimos focar no pico de esforço previsto nos exercícios intermediários para maximizar o recrutamento de fibras do tipo IIb.
+              </p>
+            </div>
+          )}
         </header>
 
         {/* Exercises List utilizing dnd-kit */}
@@ -753,6 +941,8 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
                         onRemoveNote={handleRemoveNote}
                         onReplace={handleOpenReplace}
                         onRemove={handleRemoveExercise}
+                        onDuplicate={handleDuplicateExercise}
+                        onAddBelow={handleOpenAddBelow}
                       />
                     ))}
                   </div>
@@ -792,15 +982,15 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
       </div>
 
       {/* FOOTER ACTION BUTTONS PANEL */}
-      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-2xl border-t border-slate-100 py-6 px-6 pb-9 shadow-[0_-10px_35px_rgba(30,41,59,0.04)]">
+      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-2xl border-t border-slate-100 py-4 px-6 pb-8 shadow-[0_-10px_35px_rgba(30,41,59,0.04)]">
         <div className="max-w-md mx-auto flex items-center gap-5">
           <div className="flex flex-col justify-center leading-tight shrink-0">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Duração Est.
+              DURAÇÃO EST.
             </span>
             <div className="flex items-center gap-1.5 mt-1 text-slate-800">
-              <Clock size={16} className="text-slate-400 shrink-0" />
-              <span className="text-xl font-black tracking-tight tabular-nums">
+              <Clock size={15} className="text-[#7BA7FF] shrink-0" />
+              <span className="text-xl font-bold tracking-tight text-slate-900 font-mono">
                 ~{estimatedWorkoutMinutes}min
               </span>
             </div>
@@ -809,10 +999,10 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
           <button
             onClick={handleStartWorkout}
             disabled={exercises.length === 0}
-            className="flex-1 py-5 bg-slate-900 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-3xl font-black uppercase text-xs tracking-[0.3em] active:scale-[0.98] transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3.5"
+            className="flex-1 h-[60px] bg-gradient-to-r from-[#7BA7FF] to-[#4D85FF] hover:opacity-95 disabled:bg-slate-200 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 text-white rounded-full font-black uppercase text-xs tracking-[0.25em] active:scale-[0.98] transition-all shadow-[0_8px_30px_rgba(123,167,255,0.35)] disabled:shadow-none flex items-center justify-center gap-3"
           >
-            <Play size={16} fill="currentColor" strokeWidth={0} />
-            Iniciar Treino
+            <Play size={14} fill="currentColor" strokeWidth={0} />
+            INICIAR PROTOCOLO
           </button>
         </div>
       </footer>
@@ -955,6 +1145,21 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
         currentExercise={replacingIndex !== null ? exercises[replacingIndex] : undefined}
         favoriteIds={favoriteIds}
       />
+
+      {/* QUICK ADD floating action button with glassmorphism */}
+      {exercises.length > 0 && (
+        <button
+          onClick={() => {
+            setReplacingIndex(null);
+            setAddAfterIndex(null);
+            setShowExerciseSelector(true);
+          }}
+          className="fixed right-6 bottom-32 z-40 w-14 h-14 bg-white/70 backdrop-blur-md border border-slate-200/60 rounded-full flex items-center justify-center text-[#7BA7FF] hover:text-[#4D85FF] hover:bg-white shadow-[0_8px_24px_rgba(15,23,42,0.08)] active:scale-95 transition-all"
+          title="Adicionar exercício rapidamente"
+        >
+          <Plus size={24} strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   );
 };
