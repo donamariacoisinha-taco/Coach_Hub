@@ -104,6 +104,25 @@ export const workoutApi = {
     await supabase.from('workout_exercises').delete().eq('category_id', id);
     const { error } = await supabase.from('workout_categories').delete().eq('id', id);
     if (error) throw error;
+
+    // Synchronize localStorage backup cache immediately to prevent deleted workout from reappearing
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('rubi_dashboard_cache_')) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const cached = JSON.parse(raw);
+            if (cached && cached.workouts) {
+              cached.workouts = cached.workouts.filter((w: any) => w.id !== id);
+              localStorage.setItem(key, JSON.stringify(cached));
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[workoutApi] Failed to sync local storage cache during workout deletion', e);
+    }
   },
 
   async deleteFolder(id: string) {
@@ -111,6 +130,32 @@ export const workoutApi = {
     await supabase.from('workout_categories').update({ folder_id: null }).eq('folder_id', id);
     const { error } = await supabase.from('workout_folders').delete().eq('id', id);
     if (error) throw error;
+
+    // Synchronize localStorage backup cache immediately
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('rubi_dashboard_cache_')) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const cached = JSON.parse(raw);
+            if (cached) {
+              if (cached.folders) {
+                cached.folders = cached.folders.filter((f: any) => f.id !== id);
+              }
+              if (cached.workouts) {
+                cached.workouts = cached.workouts.map((w: any) => 
+                  w.folder_id === id ? { ...w, folder_id: null } : w
+                );
+              }
+              localStorage.setItem(key, JSON.stringify(cached));
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[workoutApi] Failed to sync local storage cache during folder deletion', e);
+    }
   },
 
   async createFolder(userId: string, name: string) {

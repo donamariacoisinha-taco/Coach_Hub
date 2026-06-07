@@ -94,8 +94,10 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
       <motion.div 
         ref={setNodeRef} 
         style={style} 
-        initial={isNew ? { scale: 0.8, opacity: 0 } : false}
-        animate={isNew ? { scale: 1, opacity: 1 } : { scale: 1, opacity: 1 }}
+        initial={isNew ? { scale: 0.8, opacity: 0 } : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ type: 'spring', stiffness: 180, damping: 22 }}
         className="relative"
       >
       {/* SWIPE ACTIONS BACKGROUND */}
@@ -119,14 +121,14 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
           if (info.offset.x > 80) onDuplicate(idx);
           if (info.offset.x < -80) setExercises(prev => prev.filter(e => e.tempId !== ex.tempId));
         }}
-        className={`flex items-center gap-4 py-2.5 transition-all bg-white relative z-10 border-b border-slate-50 ${isDragging ? 'shadow-2xl rounded-2xl scale-[1.02] border-none z-50 px-4' : ''} ${activeMenuId === ex.tempId ? 'z-[60]' : ''} ${isNew ? 'bg-blue-50/30' : ''}`}
+        className={`flex items-center gap-4 transition-all relative z-10 bg-white/75 backdrop-blur-xl rounded-[1.75rem] border border-white/40 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ${isDragging ? 'shadow-2xl scale-[1.02] border-none z-50' : ''} ${activeMenuId === ex.tempId ? 'z-[60]' : ''} ${isNew ? 'ring-2 ring-blue-500/20' : ''}`}
       >
         {/* DRAG HANDLE - triggering dnd-kit */}
         <div 
           {...attributes} 
           {...listeners}
           style={{ touchAction: 'none' }}
-          className="flex items-center justify-center w-12 h-12 text-slate-300 cursor-grab active:cursor-grabbing -ml-2 shrink-0 z-30"
+          className="flex items-center justify-center w-12 h-12 text-slate-350 cursor-grab active:cursor-grabbing -ml-2 shrink-0 z-30"
         >
           <GripVertical size={20} />
         </div>
@@ -156,8 +158,13 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
                 setEditingSetsIndex(idx);
             }}
           >
+            {/* Muscle Focus Label */}
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-bold leading-none mb-1.5 truncate">
+               {(ex.muscle_group || 'Geral').toUpperCase()}
+            </p>
+
             <div className="flex items-center gap-2">
-              <h4 className="font-bold text-[15px] text-slate-900 leading-tight break-words">
+              <h4 className="text-lg font-semibold text-slate-900 tracking-tight leading-tight break-words">
                 {ex.exercise_name}
               </h4>
               {ex.type?.toLowerCase().includes('composto') && (
@@ -166,8 +173,12 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
                 </div>
               )}
             </div>
-            <p className="text-[11px] font-semibold text-slate-400 mt-0.5 uppercase tracking-tight">
-              {ex.sets_json?.length || 3} Séries • {ex.sets_json?.[0]?.reps || '12'} Reps
+            
+            {/* Metadata with subtle separation dots */}
+            <p className="text-sm text-slate-500 font-semibold mt-1.5 flex items-center gap-2">
+              <span>{ex.sets_json?.length || ex.sets || 3} { (ex.sets_json?.length || ex.sets || 3) === 1 ? 'série' : 'séries' }</span>
+              <span className="text-slate-300 font-normal">•</span>
+              <span>{ex.sets_json?.[0]?.reps || ex.reps || '12'} reps</span>
             </p>
           </div>
         </div>
@@ -176,7 +187,7 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
         <div className="flex items-center gap-1 shrink-0 px-2" onPointerDown={(e) => e.stopPropagation()}>
           <button 
             onClick={() => setActiveMenuId(activeMenuId === ex.tempId ? null : ex.tempId)}
-            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeMenuId === ex.tempId ? 'bg-slate-900 text-white' : 'text-slate-300 hover:text-slate-900 hover:bg-slate-50'}`}
+            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeMenuId === ex.tempId ? 'bg-slate-900 text-white animate-pulse' : 'text-slate-300 hover:text-slate-900 hover:bg-slate-50'}`}
           >
             <MoreVertical size={20} />
           </button>
@@ -806,7 +817,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                 items={exercises.map(ex => ex.tempId)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="w-full">
+                <div className="space-y-5">
                   {exercises.map((ex, idx) => {
                     const prevEx = idx > 0 ? exercises[idx - 1] : null;
                     const showGroupLabel = prevEx?.muscle_group !== ex.muscle_group ? ex.muscle_group : null;

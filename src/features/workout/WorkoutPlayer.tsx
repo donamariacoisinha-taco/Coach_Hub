@@ -3384,30 +3384,30 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     
                     {/* 1. COMPLETED BLOCK */}
                     {exercises.filter((_, idx) => idx < currentIndex).length > 0 && (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <div className="flex items-center gap-2 px-1">
                           <CheckCircle2 size={12} className="text-emerald-500" strokeWidth={3} />
-                          <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Segmento Concluído</h4>
+                          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Segmento Concluído</h4>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-4">
                           {exercises.map((ex, idx) => {
                             if (idx >= currentIndex) return null;
                             return (
                               <div 
                                 key={ex.exercise_id || idx}
-                                className="bg-slate-50/50 border border-slate-100 rounded-2xl p-3 flex items-center justify-between opacity-50 select-none animate-fadeIn"
+                                className="bg-white/45 backdrop-blur-md rounded-[1.75rem] border border-white/20 p-5 flex items-center justify-between opacity-60 select-none animate-fadeIn"
                               >
                                 <div className="flex items-center gap-3 min-w-0">
-                                  <span className="text-[9px] font-black w-6 h-6 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-150">
+                                  <span className="text-[10px] font-black w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-150">
                                     {idx + 1}
                                   </span>
                                   <div className="min-w-0">
-                                    <span className="font-bold text-xs text-slate-500 block truncate line-through">{ex.exercise_name}</span>
-                                    <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">{ex.muscle_group}</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{ex.muscle_group || 'Geral'}</p>
+                                    <span className="font-semibold text-base text-slate-500 block truncate line-through mt-0.5">{ex.exercise_name}</span>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[8px] font-bold uppercase tracking-wider text-emerald-500 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">Ok</span>
+                                  <Check className="text-emerald-500" size={18} strokeWidth={3} />
                                 </div>
                               </div>
                             );
@@ -3418,13 +3418,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                     {/* 2. ACTIVE EXERCISE (Pulse / Biological glow) */}
                     {exercises[currentIndex] && (
-                      <div className="space-y-2 animate-fadeIn">
-                        <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.15em] px-1 flex items-center gap-1.5">
+                      <div className="space-y-3 animate-fadeIn">
+                        <h4 className="text-[10px] font-bold text-blue-500 uppercase tracking-[0.15em] px-1 flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse animate-duration-1000" />
                           Protocolo em execução
                         </h4>
                         <div 
-                          className="bg-white border-2 border-[#7BA7FF]/80 shadow-[0_12px_32px_rgba(123,167,255,0.18)] rounded-3xl p-4 relative overflow-hidden transition-all duration-300"
+                          className="bg-white/75 backdrop-blur-xl rounded-[1.75rem] border border-white/45 p-5 relative overflow-hidden transition-all duration-300 shadow-[0_15px_40px_rgba(123,167,255,0.15)] ring-2 ring-[#7BA7FF]/30"
                         >
                           {/* Inner soft blue glow overlay */}
                           <div className="absolute right-0 top-0 w-24 h-24 bg-[#7BA7FF]/5 blur-xl pointer-events-none rounded-full" />
@@ -3434,11 +3434,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                               <span className="text-[10px] font-black w-7 h-7 rounded-full bg-[#7BA7FF] text-white flex items-center justify-center shadow-md shadow-[#7BA7FF]/20">
                                 {currentIndex + 1}
                               </span>
-                              <div className="min-w-0">
-                                <span className="font-black text-sm text-slate-900 block truncate leading-tight">{exercises[currentIndex]?.exercise_name}</span>
-                                <span className="text-[9px] font-extrabold text-[#7BA7FF] uppercase tracking-wider mt-1 block">
-                                  {exercises[currentIndex]?.sets_json?.length || exercises[currentIndex]?.sets || 3} Séries • {exercises[currentIndex]?.weight || 0}kg
-                                </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-bold leading-none mb-1.5">
+                                  {(exercises[currentIndex]?.muscle_group || 'Geral').toUpperCase()}
+                                </p>
+                                <span className="font-semibold text-lg text-slate-900 block truncate leading-tight tracking-tight">{exercises[currentIndex]?.exercise_name}</span>
+                                <div className="flex flex-row items-center gap-2 mt-1.5 text-sm text-slate-500 font-semibold">
+                                  <span>{exercises[currentIndex]?.sets_json?.length || exercises[currentIndex]?.sets || 3} {(exercises[currentIndex]?.sets_json?.length || exercises[currentIndex]?.sets || 3) === 1 ? 'série' : 'séries'}</span>
+                                  <span className="text-slate-300 font-normal">•</span>
+                                  <span>{exercises[currentIndex]?.weight || 0}kg</span>
+                                </div>
                               </div>
                             </div>
                             
@@ -3535,9 +3540,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                     {/* 3. FUTURE/UPCOMING BLOCK */}
                     {exercises.filter((_, idx) => idx > currentIndex).length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] px-1">Próximos Protocolos</h4>
-                        <div className="space-y-2">
+                      <div className="space-y-3">
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] px-1">Próximos Protocolos</h4>
+                        <div className="space-y-4">
                           {exercises.map((ex, idx) => {
                             if (idx <= currentIndex) return null;
                             const isMenuOpened = contextMenuIndex === idx;
@@ -3545,18 +3550,24 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                               <motion.div 
                                 key={ex.exercise_id || idx}
                                 layout
-                                className="bg-slate-50/70 backdrop-blur-md border border-slate-100 rounded-2xl p-3 flex flex-col transition-all hover:bg-slate-100"
+                                className="bg-white/70 backdrop-blur-md rounded-[1.75rem] border border-white/40 p-5 flex flex-col shadow-[0_10px_30px_rgba(15,23,42,0.05)] transition-all hover:bg-white"
                               >
                                 <div className="flex items-center justify-between w-full">
                                   <div className="flex items-center gap-3 min-w-0">
-                                    <span className="text-[9px] font-black w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center border border-slate-300">
+                                    <span className="text-[10px] font-black w-7 h-7 rounded-full bg-slate-150 text-slate-500 flex items-center justify-center border border-slate-200">
                                       {idx + 1}
                                     </span>
-                                    <div className="min-w-0">
-                                      <span className="font-bold text-xs text-slate-800 block truncate">{ex.exercise_name}</span>
-                                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mt-0.5">
-                                        {ex.sets_json?.length || ex.sets || 3}s • {ex.weight || 0}kg • {ex.muscle_group}
+                                    <div className="min-w-0 flex-1">
+                                      <span className="text-xs uppercase tracking-[0.2em] text-slate-400 font-bold leading-none block mb-1.5">
+                                        {(ex.muscle_group || 'Geral').toUpperCase()}
                                       </span>
+                                      <span className="text-lg font-semibold text-slate-900 tracking-tight block truncate leading-tight">{ex.exercise_name}</span>
+                                      
+                                      <div className="flex flex-row items-center gap-2 mt-1.5 text-sm text-slate-500 font-semibold">
+                                        <span>{ex.sets_json?.length || ex.sets || 3} {(ex.sets_json?.length || ex.sets || 3) === 1 ? 'série' : 'séries'}</span>
+                                        <span className="text-slate-300 font-normal">•</span>
+                                        <span>{ex.weight || 0}kg</span>
+                                      </div>
                                     </div>
                                   </div>
 
@@ -3578,7 +3589,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                     </button>
 
                                     {/* Reorder Buttons */}
-                                    <div className="flex items-center gap-0.5 ml-1 pl-1.5 border-l border-slate-200/60">
+                                    <div className="flex items-center gap-0.5 ml-1 pl-1.5 border-l border-slate-200">
                                       <button
                                         disabled={idx === currentIndex + 1}
                                         onClick={(e) => {

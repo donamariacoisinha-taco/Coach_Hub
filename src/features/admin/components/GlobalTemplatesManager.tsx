@@ -100,8 +100,12 @@ export const GlobalTemplatesManager: React.FC = () => {
 
   const handleArchive = async (id: string) => {
     if (confirm('Tem certeza de que deseja arquivar este modelo global? Novos atletas não poderão acessá-lo.')) {
-      await systemTemplatesApi.archiveTemplate(id);
-      loadData();
+      try {
+        await systemTemplatesApi.archiveTemplate(id);
+        loadData();
+      } catch (e: any) {
+        alert(e.message || 'Erro ao arquivar o modelo global do banco de dados.');
+      }
     }
   };
 

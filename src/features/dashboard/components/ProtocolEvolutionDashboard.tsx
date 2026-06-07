@@ -180,49 +180,62 @@ export const ProtocolEvolutionDashboard: React.FC<ProtocolEvolutionDashboardProp
             Seu treino atual não está vinculado a nenhum modelo do sistema (protocolos criados vazios).
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {trackedFolders.map(tf => {
               const matchingUpdate = updates.find(u => u.folderId === tf.folderId);
               
               return (
-                <div 
+                <motion.div 
                   key={tf.folderId}
-                  className={`p-5 rounded-2xl border transition duration-300 relative flex flex-col justify-between ${matchingUpdate ? 'border-indigo-100 bg-indigo-500/[0.012]' : 'border-slate-50 bg-[#FBFBFC]/40'}`}
+                  whileTap={{ scale: 0.985 }}
+                  whileHover={{ y: -2 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 180,
+                    damping: 22
+                  }}
+                  className="w-full bg-white/75 backdrop-blur-xl rounded-[1.75rem] border border-white/40 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)] flex flex-col justify-between transition-all h-auto min-h-[130px]"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[8.5px] text-slate-400 font-black uppercase tracking-widest">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest">
                         Pasta: {tf.folderName}
                       </span>
                       {tf.origin === 'rubi_ai' ? (
-                        <span className="text-[7.5px] font-[1000] text-indigo-600 uppercase tracking-widest bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
+                        <span className="text-[7px] font-[1000] text-indigo-600 uppercase tracking-widest bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
                           Rubi AI Target
                         </span>
                       ) : (
-                        <span className="text-[7.5px] font-[1000] text-blue-600 uppercase tracking-widest bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
+                        <span className="text-[7px] font-[1000] text-blue-600 uppercase tracking-widest bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
                           Equipe Médica
                         </span>
                       )}
                     </div>
 
-                    <h5 className="text-[14px] font-black leading-none text-slate-800 uppercase tracking-tight">
+                    <h5 className="text-[14px] font-[950] leading-tight text-slate-800 uppercase tracking-tight">
                       {tf.latestTemplate?.name || tf.folderName}
                     </h5>
 
+                    {tf.latestTemplate?.description && (
+                      <p className="text-xs font-semibold text-slate-500 mt-1.5 leading-relaxed">
+                        {tf.latestTemplate.description}
+                      </p>
+                    )}
+
                     {/* Meta Info values */}
-                    <div className="grid grid-cols-3 gap-2 text-center bg-white border border-slate-100 rounded-xl p-2.5">
+                    <div className="grid grid-cols-3 gap-2 text-center bg-white/50 border border-slate-100 rounded-xl p-2 mt-3">
                       <div className="flex flex-col">
-                        <span className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">Versão Atual</span>
+                        <span className="text-[6.5px] text-slate-400 font-extrabold uppercase tracking-widest">Versão Atual</span>
                         <span className="text-xs font-black text-slate-700 leading-none mt-1">v{tf.currentVersion}</span>
                       </div>
                       <div className="flex flex-col border-x border-slate-100">
-                        <span className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">Mais Recente</span>
+                        <span className="text-[6.5px] text-slate-400 font-extrabold uppercase tracking-widest">Mais Recente</span>
                         <span className={`text-xs font-black leading-none mt-1 ${matchingUpdate ? 'text-[#5C8CFF]' : 'text-slate-700'}`}>
                           v{tf.latestTemplate?.version || tf.currentVersion}
                         </span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">Melhorias</span>
+                        <span className="text-[6.5px] text-slate-400 font-extrabold uppercase tracking-widest">Melhorias</span>
                         <span className="text-xs font-black text-emerald-600 leading-none mt-1">
                           +{tf.latestTemplate?.version_history?.reduce((acc: number, curr: any) => acc + (curr.changes?.length || 0), 0) || 1}
                         </span>
@@ -230,7 +243,7 @@ export const ProtocolEvolutionDashboard: React.FC<ProtocolEvolutionDashboardProp
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-slate-50/70 flex items-center justify-between gap-4">
+                  <div className="pt-3 mt-4 border-t border-slate-100/60 flex items-center justify-between gap-4">
                     <span className="text-[7px] font-bold text-slate-350 uppercase flex items-center gap-1 shrink-0">
                       <Clock size={9} /> Sincronizado: {new Date(tf.updatedAt).toLocaleDateString()}
                     </span>
@@ -240,7 +253,7 @@ export const ProtocolEvolutionDashboard: React.FC<ProtocolEvolutionDashboardProp
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => handleTriggerUpdate(matchingUpdate)}
-                        className="px-3.5 py-2 bg-indigo-600 text-white font-black text-[8.5px] uppercase tracking-wider rounded-xl shadow-lg shadow-indigo-600/10 flex items-center gap-1 shrink-0"
+                        className="px-3.5 py-1.5 bg-indigo-650 text-white font-black text-[8.5px] uppercase tracking-wider rounded-lg shadow-lg shadow-indigo-600/10 flex items-center gap-1 shrink-0"
                       >
                         <Zap size={10} className="fill-white" /> Atualizar
                       </motion.button>
@@ -250,7 +263,7 @@ export const ProtocolEvolutionDashboard: React.FC<ProtocolEvolutionDashboardProp
                       </span>
                     )}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>

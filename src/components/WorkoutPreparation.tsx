@@ -178,20 +178,16 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
       ref={setNodeRef}
       style={style}
       layoutId={`prep-row-${ex.id}`}
+      initial={{ opacity: 0, y: 10 }}
       animate={{
+        opacity: 1,
+        y: 0,
         scale: isDragging ? 1.015 : 1,
-        backgroundColor: isDragging 
-          ? 'rgba(255, 255, 255, 0.95)' 
-          : isCurrent 
-            ? 'rgba(123, 167, 255, 0.08)' 
-            : 'rgba(255, 255, 255, 0.70)',
-        boxShadow: isDragging 
-          ? '0 12px 32px rgba(15,23,42,0.08)' 
-          : '0 8px 30px rgba(15,23,42,0.05)',
       }}
-      transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-      className={`relative pl-[29px] pr-[14px] pt-[10px] pb-[10px] mb-[12px] transition-all border border-white/50 backdrop-blur-xl rounded-3xl flex flex-col gap-2 hover:scale-[1.01] ${
-        isCurrent ? 'ring-1 ring-[#7BA7FF]/35' : ''
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 180, damping: 22 }}
+      className={`relative pl-6 pr-5 py-5 transition-all flex flex-col gap-3 bg-white/75 backdrop-blur-xl rounded-[1.75rem] border border-white/40 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ${
+        isCurrent ? 'ring-2 ring-[#7BA7FF]/30 shadow-[0_15px_40px_rgba(123,167,255,0.15)]' : ''
       }`}
     >
       <div className="flex items-center gap-4 w-full min-h-[96px]">
@@ -203,7 +199,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
           className="flex flex-col items-center shrink-0 cursor-grab active:cursor-grabbing hover:scale-[1.02] transition duration-200"
           title="Arraste a imagem para reordenar"
         >
-          <div className="w-[91px] h-[61px] bg-slate-100/90 rounded-2xl overflow-hidden relative flex items-center justify-center p-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)]">
+          <div className="w-[91px] h-[61px] bg-slate-100/95 rounded-2xl overflow-hidden relative flex items-center justify-center p-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)]">
             <img
               src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'}
               alt={ex.exercise_name}
@@ -232,31 +228,27 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
             }
           }}
         >
-          {/* Muscle Focus Label: uppercase, tracking-[0.18em], text-[10px], text-slate-400, bold */}
-          <p className="uppercase tracking-[0.18em] text-[10px] text-slate-400 font-bold leading-none mb-1 w-[199px]">
+          {/* Muscle Focus Label: uppercase, tracking-[0.2em], text-xs, text-slate-400, bold */}
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-bold leading-none mb-1.5 w-[199px]">
             {getMuscleFocus(ex.muscle_group || 'Geral', ex.exercise_name).toUpperCase()}
           </p>
 
           <div className="flex items-center gap-1.5 flex-wrap">
             {isCurrent && (
-              <span className="w-2.5 h-2.5 bg-[#7BA7FF] rounded-full shrink-0 animate-pulse" title="Exercício Ativo" />
+              <span className="w-2.5 h-2.5 bg-[#7BA7FF] rounded-full shrink-0 animate-pulse animate-duration-1000" title="Exercício Ativo" />
             )}
-            <h4 className="font-semibold text-[17px] text-[#0F172A] tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight w-[195px]">
+            <h4 className="text-lg font-semibold text-slate-900 tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight w-[195px]">
               {ex.exercise_name}
             </h4>
           </div>
 
-          {/* Metadata Pills: series, reps and weight on the same row, in small pill badges */}
-          <div className="flex flex-row items-center gap-1.5 mt-1.5 flex-wrap">
-            <span className="bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 text-[11px] font-semibold">
-              {setsCount} {setsCount === 1 ? 'Série' : 'Séries'}
-            </span>
-            <span className="bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 text-[11px] font-semibold">
-              {repsPattern} Reps
-            </span>
-            <span className="bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 text-[11px] font-semibold">
-              {weightPattern}
-            </span>
+          {/* Metadata: subtle separation without heavy badges */}
+          <div className="flex flex-row items-center gap-2 mt-1.5 text-sm text-slate-500 font-semibold">
+            <span>{setsCount} {setsCount === 1 ? 'série' : 'séries'}</span>
+            <span className="text-slate-300 font-normal">•</span>
+            <span>{repsPattern} reps</span>
+            <span className="text-slate-300 font-normal">•</span>
+            <span>{weightPattern}</span>
           </div>
 
           {/* KYRON Insight: Subtle, micro 1-liner secondary intelligence line. Maximum 2 lines. */}
@@ -269,7 +261,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
         <div className="shrink-0 self-center flex items-center justify-center">
           <button
             onClick={() => setActiveMenuId(activeMenuId === ex.id ? null : ex.id)}
-            className={`w-8 h-8 flex items-center justify-center rounded-full transition-all opacity-50 hover:opacity-100 ${
+            className={`w-8 h-8 flex items-center justify-center rounded-full transition-all opacity-55 hover:opacity-100 ${
               activeMenuId === ex.id 
                 ? 'bg-slate-900 text-white shadow-md opacity-100' 
                 : 'text-slate-400 hover:text-slate-900 hover:bg-slate-200/50'
@@ -920,7 +912,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
                   items={exercises.map(ex => ex.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <div className="space-y-3">
+                  <div className="space-y-5">
                     {exercises.map((ex, idx) => (
                       <SortablePrepExerciseCard
                         key={ex.id}

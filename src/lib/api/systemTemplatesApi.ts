@@ -301,7 +301,13 @@ class SystemTemplatesApi {
   async getTemplates(): Promise<SystemTemplate[]> {
     try {
       const { data, error } = await supabase.from('system_templates').select('*');
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('Could not find the table') || error.code === 'PGRST204') {
+          console.warn('[SystemTemplatesApi] Table system_templates doesnt exist. Falling back to local state.');
+          return this.getLocalTemplates();
+        }
+        throw error;
+      }
       if (data && data.length > 0) {
         return data as SystemTemplate[];
       }
@@ -319,7 +325,13 @@ class SystemTemplatesApi {
   async createOrUpdateTemplate(template: SystemTemplate): Promise<SystemTemplate> {
     try {
       const { data, error } = await supabase.from('system_templates').upsert(template).select().single();
-      if (!error && data) {
+      if (error) {
+        if (error.message?.includes('Could not find the table') || error.code === 'PGRST204') {
+          console.warn('[SystemTemplatesApi] Table system_templates doesnt exist. Persisting in local state.');
+        } else {
+          throw error;
+        }
+      } else if (data) {
         const local = this.getLocalTemplates();
         const index = local.findIndex(t => t.id === template.id);
         if (index > -1) local[index] = data as SystemTemplate;
@@ -328,7 +340,8 @@ class SystemTemplatesApi {
         return data as SystemTemplate;
       }
     } catch (e) {
-      console.warn('[SystemTemplatesApi] Could not upsert template to database. Persisting to local state.', e);
+      console.error('[SystemTemplatesApi] Could not upsert template to database:', e);
+      throw e;
     }
 
     const local = this.getLocalTemplates();
@@ -345,20 +358,25 @@ class SystemTemplatesApi {
   async archiveTemplate(id: string): Promise<boolean> {
     try {
       const { error } = await supabase.from('system_templates').delete().eq('id', id);
-      if (!error) {
-        const local = this.getLocalTemplates();
-        const filtered = local.filter(t => t.id !== id);
-        this.saveLocalTemplates(filtered);
-        return true;
+      if (error) {
+        if (error.message?.includes('Could not find the table') || error.code === 'PGRST204') {
+          console.warn('[SystemTemplatesApi] Table system_templates doesn\'t exist. Falling back to local state deletion.');
+          const local = this.getLocalTemplates();
+          const filtered = local.filter(t => t.id !== id);
+          this.saveLocalTemplates(filtered);
+          return true;
+        }
+        throw error;
       }
-    } catch (e) {
-      console.warn('[SystemTemplatesApi] Database delete failed. Operating in local state.', e);
+      
+      const local = this.getLocalTemplates();
+      const filtered = local.filter(t => t.id !== id);
+      this.saveLocalTemplates(filtered);
+      return true;
+    } catch (e: any) {
+      console.error('[SystemTemplatesApi] Database delete failed:', e);
+      throw e;
     }
-
-    const local = this.getLocalTemplates();
-    const filtered = local.filter(t => t.id !== id);
-    this.saveLocalTemplates(filtered);
-    return true;
   }
 
   // Gets user template tracking registry: { [folderId]: { templateId, version } }

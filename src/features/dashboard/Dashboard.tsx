@@ -639,7 +639,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                   exit={{ opacity: 0, y: -15 }}
                   className="mb-8 font-sans"
                 >
-                  <div className="w-full bg-[#F3F5F9] bg-gradient-to-br from-[#F7F8FC] via-[#EEF2F8] to-[#E8EDF5] rounded-[2.2rem] p-7 shadow-[0_10px_40px_rgba(15,23,42,0.06)] relative overflow-hidden flex flex-col items-start border border-white/70">
+                  <div className="w-full bg-[#F3F5F9] bg-gradient-to-br from-[#F7F8FC] via-[#EEF2F8] to-[#E8EDF5] rounded-[1.75rem] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)] relative overflow-hidden flex flex-col justify-between border border-white/70 h-auto min-h-[130px]">
                     {/* Living high-tech biometrics background ambient glows (Ultra-slow movement) */}
                     <motion.div 
                       animate={{ 
@@ -652,7 +652,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         duration: 12, 
                         ease: "easeInOut" 
                       }}
-                      className="absolute top-0 right-0 w-52 h-52 bg-indigo-500/[0.08] rounded-full blur-[45px] pointer-events-none" 
+                      className="absolute top-0 right-0 w-36 h-36 bg-indigo-500/[0.08] rounded-full blur-[35px] pointer-events-none" 
                     />
                     <motion.div 
                       animate={{ 
@@ -665,32 +665,36 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         duration: 10, 
                         ease: "easeInOut" 
                       }}
-                      className="absolute bottom-0 left-0 w-44 h-44 bg-purple-500/[0.05] rounded-full blur-[40px] pointer-events-none" 
+                      className="absolute bottom-0 left-0 w-28 h-28 bg-purple-500/[0.05] rounded-full blur-[30px] pointer-events-none" 
                     />
                     
-                    <span className="text-[8px] font-semibold text-indigo-500 uppercase tracking-[0.25em] mb-2.5 ml-0.5 relative z-10 select-none">
-                      {nextAction.type === 'start_workout' ? 'Hoje recomendado' : 'Sugestão'}
-                    </span>
-                    
-                    <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-[0.95] uppercase mb-1.5 max-w-[85%] relative z-10">
-                      {nextAction.title}
-                    </h3>
-                    
-                    <p className="text-slate-500 font-medium text-xs leading-relaxed mb-6 max-w-[90%] relative z-10">
-                      {nextAction.description}
-                    </p>
+                    <div className="relative z-10 w-full text-left">
+                      <span className="block text-[8px] font-semibold text-indigo-500 uppercase tracking-[0.25em] mb-1.5 ml-0.5 select-none text-left">
+                        {nextAction.type === 'start_workout' ? 'Hoje recomendado' : 'Sugestão'}
+                      </span>
+                      
+                      <h3 className="text-xl font-[950] text-slate-900 tracking-tight leading-[1.1] uppercase max-w-[85%] text-left">
+                        {nextAction.title}
+                      </h3>
+                      
+                      {nextAction.description && (
+                        <p className="text-xs font-semibold text-slate-500 mt-2 leading-relaxed max-w-[90%] text-left">
+                          {nextAction.description}
+                        </p>
+                      )}
+                    </div>
 
-                    <div className="w-full flex items-center justify-between gap-4 relative z-10">
+                    <div className="w-full flex items-center justify-between gap-4 mt-4 pt-3.5 border-t border-slate-200/40 relative z-10">
                       {/* Editorial Separated Metadata Block */}
-                      <div className="flex items-center gap-4">
-                        <div className="flex flex-col">
-                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Duração</span>
-                          <span className="text-xs font-semibold text-slate-800">45 minutos</span>
+                      <div className="flex items-center gap-3 text-left bg-transparent pr-2">
+                        <div className="flex flex-col text-left">
+                          <span className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Duração</span>
+                          <span className="text-xs font-bold text-slate-800 leading-none">45 min</span>
                         </div>
-                        <div className="w-px h-6 bg-slate-200/50" />
-                        <div className="flex flex-col">
-                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Foco</span>
-                          <span className="text-xs font-semibold text-indigo-500">Intensidade</span>
+                        <div className="w-px h-5 bg-slate-200/50" />
+                        <div className="flex flex-col text-left">
+                          <span className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Foco</span>
+                          <span className="text-xs font-bold text-indigo-500 leading-none">Intensidade</span>
                         </div>
                       </div>
 
@@ -705,12 +709,12 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                           whileTap={{ scale: 0.98 }}
                           transition={{ type: "spring", stiffness: 400, damping: 22 }}
                           style={{ background: 'linear-gradient(135deg, rgba(93, 95, 239, 0.28), rgba(168, 85, 247, 0.18))' }}
-                          className="w-13 h-13 rounded-full border border-white/90 shadow-[0_4px_16px_rgba(99,102,241,0.12)] flex items-center justify-center relative group backdrop-blur-md active:scale-95 transition-all pr-[1px]"
+                          className="w-10 h-10 rounded-full border border-white/90 shadow-[0_4px_16px_rgba(99,102,241,0.12)] flex items-center justify-center relative group backdrop-blur-md active:scale-95 transition-all pr-[1px]"
                           title="Iniciar Treino Recomendado"
                         >
                           {/* Inner glowing effect on hover */}
                           <span className="absolute inset-0 rounded-full bg-indigo-400/10 group-hover:scale-125 transition-transform duration-500" />
-                          <Play size={15} fill="#ffffff" className="ml-[3px] text-white relative z-10 filter drop-shadow-[0_2px_4px_rgba(99,102,241,0.25)]" />
+                          <Play size={12} fill="#ffffff" className="ml-[2.5px] text-white relative z-10" />
                         </motion.button>
                       )}
                     </div>
@@ -720,7 +724,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             </AnimatePresence>
 
             {/* PROTOCOLS SECTIONS */}
-            <section className="space-y-6">
+            <section className="space-y-4">
               <div className="flex items-center justify-between px-1">
                 <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">
                   Seus Protocolos
@@ -805,7 +809,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               </div>
 
               {/* WORKOUT LIST CARDS */}
-              <div className="space-y-4">
+              <div className="space-y-6 pb-6">
                 <ScreenState
                   status={status}
                   isFetching={isFetching}
@@ -826,8 +830,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     const isOptimistic = typeof workout.id === 'string' && workout.id.startsWith('temp-');
                     
                     return (
-                      <div key={workout.id} className={`relative group ${activeMenuId === workout.id ? 'z-[100]' : 'z-[1]'} ${isOptimistic ? 'opacity-65 grayscale-[0.2]' : ''}`}>
-                        <div 
+                      <div key={workout.id} className={`relative group mb-6 ${activeMenuId === workout.id ? 'z-[100]' : 'z-[1]'} ${isOptimistic ? 'opacity-65 grayscale-[0.2]' : ''}`}>
+                        <motion.div 
                           onClick={() => {
                             if (!isOptimistic) {
                               useWorkoutStore.getState().resetWorkout();
@@ -835,42 +839,81 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                             }
                           }}
                           onMouseEnter={() => !isOptimistic && handlePrefetchWorkout(workout.id)}
-                          className="flex items-center justify-between p-6 px-7 rounded-[2rem] bg-white border border-slate-100 hover:scale-[1.01] hover:border-slate-200 hover:shadow-[0_12px_35px_rgba(0,0,0,0.02)] transition-all cursor-pointer group-active:scale-[0.99]"
+                          whileTap={{ scale: 0.985 }}
+                          whileHover={{ y: -2 }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 180,
+                            damping: 22
+                          }}
+                          className="w-full flex flex-col justify-between p-5 rounded-[1.75rem] bg-white/75 backdrop-blur-xl border border-white/40 hover:border-slate-200 transition-all cursor-pointer shadow-[0_10px_30px_rgba(15,23,42,0.04)] text-left h-auto min-h-[130px]"
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3">
-                              <h3 className="text-lg font-[900] tracking-tight text-slate-900 uppercase truncate pr-2">
+                            <div className="flex items-center justify-between gap-3 mb-1">
+                              <h3 className="text-lg font-[950] tracking-tight text-slate-900 uppercase truncate pr-2">
                                 {workout.name}
                               </h3>
                               {isOptimistic && (
-                                <span className="px-2 py-0.5 bg-indigo-50 rounded text-[7px] font-black text-indigo-400 uppercase tracking-widest animate-pulse">
+                                <span className="px-2 py-0.5 bg-indigo-50 rounded text-[7px] font-black text-indigo-400 uppercase tracking-widest animate-pulse shrink-0">
                                   Sincronizando
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-3 mt-1 text-[10px]">
-                              <span className="font-extrabold text-indigo-500 uppercase tracking-wider">
-                                {workout.description || 'Treino Rubi'}
-                              </span>
-                              <div className="w-1 h-1 bg-slate-300 rounded-full" />
-                              <span className="font-semibold text-slate-400 uppercase tracking-wider">
-                                {idx % 2 === 0 ? '45 min' : '60 min'}
-                              </span>
+                            
+                            {workout.description && (
+                              <p className="text-xs font-semibold text-slate-500 mb-2 leading-relaxed">
+                                {workout.description}
+                              </p>
+                            )}
+
+                            {/* Metadata row (Rubi OS • Duration, compact horizontal layout) */}
+                            <div className="flex items-center gap-2 mt-1 select-none">
+                              <span className="text-[9px] font-black text-indigo-505 uppercase tracking-widest bg-indigo-50/70 px-2.5 py-0.5 rounded-full">Rubi OS</span>
+                              <span className="text-slate-350 font-bold text-xs">•</span>
+                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest bg-slate-100/55 px-2.5 py-0.5 rounded-full">{idx % 2 === 0 ? '45 min' : '60 min'}</span>
                             </div>
                           </div>
 
                           {!isOptimistic && (
-                            <button 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                setActiveMenuId(activeMenuId === workout.id ? null : workout.id); 
-                              }}
-                              className="w-10 h-10 flex items-center justify-center text-slate-350 hover:text-slate-800 transition-colors z-25 relative"
-                            >
-                              <MoreVertical size={16} />
-                            </button>
+                            <div className="flex items-center justify-between border-t border-slate-100/60 pt-3 mt-4 z-25 relative">
+                              <div className="flex items-center gap-1.5">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    useWorkoutStore.getState().resetWorkout();
+                                    navigate('preparation', { id: workout.id });
+                                  }}
+                                  className="flex items-center gap-1.5 text-[9.5px] font-black text-[#7BA7FF] uppercase tracking-widest bg-[#7BA7FF]/8 hover:bg-[#7BA7FF]/15 px-3 py-1.5 rounded-full transition-all"
+                                >
+                                  <Play size={10} fill="currentColor" />
+                                  <span>Iniciar</span>
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button 
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setActiveMenuId(activeMenuId === workout.id ? null : workout.id); 
+                                  }}
+                                  className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-50 rounded-full transition-colors"
+                                  title="Mais Opções"
+                                >
+                                  <MoreVertical size={16} />
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteConfirm({ id: workout.id, name: workout.name, type: 'workout' });
+                                  }}
+                                  className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-550 hover:bg-red-50 rounded-full transition-colors"
+                                  title="Excluir"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
                           )}
-                        </div>
+                        </motion.div>
 
                         <AnimatePresence>
                           {activeMenuId === workout.id && (

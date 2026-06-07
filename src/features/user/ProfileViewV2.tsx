@@ -17,7 +17,6 @@ import { ReadinessScore } from './components/ReadinessScore';
 import { EvolutionTimeline } from './components/EvolutionTimeline';
 import { BodyRecompositionVisualizer } from './components/BodyRecompositionVisualizer';
 import { ProgressPhotoSystem } from './components/ProgressPhotoSystem';
-import { AthleteDNASystem } from './components/AthleteDNASystem';
 import { ProfileActions } from './components/ProfileActions';
 
 interface CheckInLog {
@@ -967,9 +966,6 @@ export default function ProfileViewV2() {
 
           {/* Body recomposition projection graphics */}
           <BodyRecompositionVisualizer />
-
-          {/* Athlete DNA and Volume tolerance patterns */}
-          <AthleteDNASystem />
 
           {/* Premium Progress photos comparators */}
           <ProgressPhotoSystem />
