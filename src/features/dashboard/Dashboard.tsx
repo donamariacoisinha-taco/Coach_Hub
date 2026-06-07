@@ -274,7 +274,14 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             sort_order: i + 1
         })));
 
-        showSuccess('EKE Ativada', 'O motor inteligente montou seu treino personalizado.');
+        const numExercises = exercises.length;
+        const musclesInvolved = Array.from(new Set(exercises.map(ex => ex.muscle_group))).join(', ');
+        const estDuration = magicParams.duration;
+
+        showSuccess(
+          'Protocolo criado com sucesso',
+          `• Número de exercícios: ${numExercises}\n• Grupos musculares: ${musclesInvolved}\n• Duração estimada: ${estDuration} min\n• Origem: Todos os exercícios utilizados foram selecionados da biblioteca ativa KYRON.`
+        );
         useWorkoutStore.getState().resetWorkout();
         navigate('preparation', { id: category.id });
     } catch (err: any) {

@@ -361,7 +361,14 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
         setExercises(editorExercises);
         setName(`Magic ${magicParams.goal}: ${magicParams.focusMuscles.join(' & ')}`);
         setShowMagicModal(false);
-        showSuccess('EKE Ativada', 'O motor inteligente montou o treino ideal para seu contexto.');
+        const numExercises = workout.length;
+        const musclesInvolved = Array.from(new Set(workout.map(ex => ex.muscle_group))).join(', ');
+        const estDuration = magicParams.duration;
+
+        showSuccess(
+          'Protocolo criado com sucesso',
+          `• Número de exercícios: ${numExercises}\n• Grupos musculares: ${musclesInvolved}\n• Duração estimada: ${estDuration} min\n• Origem: Todos os exercícios utilizados foram selecionados da biblioteca ativa KYRON.`
+        );
         if ('vibrate' in navigator) navigator.vibrate([20, 100, 20]);
     } catch (err: any) {
         showError(err);
