@@ -20,10 +20,32 @@ export const workoutApi = {
         if (workoutsRes.error) throw workoutsRes.error;
         if (historyRes.error) throw historyRes.error;
 
+        const workouts = (workoutsRes.data || []) as WorkoutCategory[];
+        const workoutIds = workouts.map(w => w.id);
+
+        let exercisesMap: Record<string, number> = {};
+        if (workoutIds.length > 0) {
+          const exercisesRes = await supabase
+            .from('workout_exercises')
+            .select('category_id')
+            .in('category_id', workoutIds);
+          
+          if (!exercisesRes.error && exercisesRes.data) {
+            exercisesRes.data.forEach((ex: any) => {
+              exercisesMap[ex.category_id] = (exercisesMap[ex.category_id] || 0) + 1;
+            });
+          }
+        }
+
+        const enrichedWorkouts = workouts.map(w => ({
+          ...w,
+          exercises_count: exercisesMap[w.id] || 0
+        }));
+
         const result = {
           profile: profileRes.data as UserProfile | null,
           folders: (foldersRes.data || []) as WorkoutFolder[],
-          workouts: (workoutsRes.data || []) as WorkoutCategory[],
+          workouts: enrichedWorkouts,
           history: (historyRes.data || []) as WorkoutHistory[],
           stats: { sessions: historyRes.data?.length || 0 }
         };

@@ -257,6 +257,7 @@ export interface WorkoutCategory {
   name: string;
   description?: string;
   created_at?: string;
+  exercises_count?: number;
 }
 
 export interface SetConfig {
