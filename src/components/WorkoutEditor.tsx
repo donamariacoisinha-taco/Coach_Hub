@@ -9,7 +9,7 @@ import { useErrorHandler } from '../hooks/useErrorHandler';
 import { ScreenState } from './ui/ScreenState';
 import { WorkoutSkeleton } from './ui/Skeleton';
 import { useAsyncState } from '../hooks/useAsyncState';
-import { ChevronLeft, Save, PlusCircle, GripVertical, SlidersHorizontal, Trash2, Search, X, MoreVertical, Play, Edit2, Replace, Copy, Clock, Dumbbell, Sparkles, ArrowUpCircle, Info, CheckCircle2, AlertCircle, Loader2, Shield, Star } from 'lucide-react';
+import { ChevronLeft, Save, PlusCircle, GripVertical, SlidersHorizontal, Trash2, Search, X, MoreVertical, Play, Edit2, Replace, Copy, Clock, Dumbbell, Sparkles, ArrowUpCircle, Info, CheckCircle2, AlertCircle, Loader2, Shield, Star, ChevronUp, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'motion/react';
 import {
   DndContext,
@@ -82,6 +82,32 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
 
   const isNew = lastAddedId === ex.tempId;
   const dragControls = useDragControls();
+
+  const handleMoveUp = () => {
+    if (idx > 0) {
+      setExercises((items) => {
+        const copy = [...items];
+        const temp = copy[idx];
+        copy[idx] = copy[idx - 1];
+        copy[idx - 1] = temp;
+        return copy;
+      });
+      if ('vibrate' in navigator) navigator.vibrate(10);
+    }
+  };
+
+  const handleMoveDown = () => {
+    if (idx < total - 1) {
+      setExercises((items) => {
+        const copy = [...items];
+        const temp = copy[idx];
+        copy[idx] = copy[idx + 1];
+        copy[idx + 1] = temp;
+        return copy;
+      });
+      if ('vibrate' in navigator) navigator.vibrate(10);
+    }
+  };
 
   return (
     <div className="relative" style={{ zIndex: activeMenuId === ex.tempId ? 50 : 1 }}>
@@ -185,6 +211,22 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
 
         {/* QUICK ACTIONS INLINE */}
         <div className="flex items-center gap-1 shrink-0 px-2" onPointerDown={(e) => e.stopPropagation()}>
+          <button 
+            disabled={idx === 0}
+            onClick={handleMoveUp}
+            className="w-8 h-8 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-slate-600 opacity-60 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed"
+            title="Mover para cima"
+          >
+            <ChevronUp size={16} className="w-4 h-4" />
+          </button>
+          <button 
+            disabled={idx === total - 1}
+            onClick={handleMoveDown}
+            className="w-8 h-8 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-slate-600 opacity-60 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed"
+            title="Mover para baixo"
+          >
+            <ChevronDown size={16} className="w-4 h-4" />
+          </button>
           <button 
             onClick={() => setActiveMenuId(activeMenuId === ex.tempId ? null : ex.tempId)}
             className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeMenuId === ex.tempId ? 'bg-slate-900 text-white animate-pulse' : 'text-slate-300 hover:text-slate-900 hover:bg-slate-50'}`}

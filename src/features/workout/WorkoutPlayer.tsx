@@ -367,6 +367,70 @@ const SetCard = ({
   );
 };
 
+interface SwipeableSetRowProps {
+  set: { weight: number; reps: number; rpe: number };
+  sIdx: number;
+  isCompleted: boolean;
+  isCurrent: boolean;
+  onDeleteRequest: (idx: number) => void;
+}
+
+const SwipeableSetRow: React.FC<SwipeableSetRowProps> = ({
+  set,
+  sIdx,
+  isCompleted,
+  isCurrent,
+  onDeleteRequest,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div ref={containerRef} className="relative overflow-hidden rounded-xl h-11 select-none">
+      {/* Red Delete Background */}
+      <div className="absolute inset-0 bg-rose-50 flex items-center justify-end px-4 text-rose-500 rounded-xl border border-rose-100 z-0">
+        <div className="flex items-center gap-1.5 font-extrabold text-[9px] uppercase tracking-wider">
+          <span>Excluir</span>
+          <Trash2 size={13} strokeWidth={2.5} className="animate-pulse" />
+        </div>
+      </div>
+
+      {/* Swipeable Foreground */}
+      <motion.div
+        drag="x"
+        dragDirectionLock
+        dragConstraints={{ left: -300, right: 0 }}
+        dragElastic={{ left: 0.15, right: 0 }}
+        dragMomentum={false}
+        onDragEnd={(event, info) => {
+          const width = containerRef.current?.getBoundingClientRect().width || 320;
+          const threshold = width * 0.6;
+          if (info.offset.x < -threshold) {
+            onDeleteRequest(sIdx);
+          }
+        }}
+        className={`absolute inset-0 flex justify-between items-center py-2 px-3 rounded-xl border cursor-grab active:cursor-grabbing transition-colors duration-155 z-10 ${
+          isCompleted 
+            ? 'bg-emerald-50/20 border-emerald-100/55 text-emerald-900 shadow-sm' 
+            : isCurrent 
+              ? 'bg-blue-50/20 border-blue-100/55 text-[#7BA7FF] shadow-sm' 
+              : 'bg-white border-slate-100 text-slate-600 shadow-sm'
+        } text-xs font-bold font-mono`}
+      >
+        <span className="uppercase tracking-tight text-[10px] font-black">Série {sIdx + 1}</span>
+        <div className="flex items-center gap-3">
+          <span className="font-extrabold text-[#1E293B] tabular-nums">{set.weight}kg × {set.reps} reps</span>
+          <span className="text-slate-400 font-normal">RPE {set.rpe}</span>
+          {isCompleted ? (
+            <CheckCircle2 size={14} className="text-emerald-500 fill-emerald-50" />
+          ) : (
+            <div className="w-4 h-4 rounded-full border border-slate-200 bg-slate-50" />
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { navigate, goBack } = useNavigation();
   const { showError, showSuccess } = useErrorHandler();
@@ -389,6 +453,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [timeLeft, setTimeLeft] = useState(90);
   const [restOvertime, setRestOvertime] = useState(0);
   const [showPR, setShowPR] = useState(false);
+  const [setToDelete, setSetToDelete] = useState<number | null>(null);
   const [userLevel, setUserLevel] = useState<UserLevel>('BEGINNER');
   const isBeginner = userLevel === 'BEGINNER';
   const isIntermediate = userLevel === 'INTERMEDIATE';
@@ -747,6 +812,88 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     showSuccess(`Total de séries ajustado para ${newSetsCount}`);
     setContextMenuIndex(null);
     playSensoryTone('click');
+  };
+
+  const handleConfirmDeleteSet = async (sIdx: number) => {
+    if (!currentEx) return;
+
+    // 1. Remove set from activeSetsData React state
+    const updatedSetsData = activeSetsData.filter((_, idx) => idx !== sIdx);
+    setActiveSetsData(updatedSetsData);
+
+    // 2. Bound check and update currentSet
+    const newCurrentSet = Math.min(currentSet, Math.max(1, updatedSetsData.length));
+    setCurrentSet(newCurrentSet);
+
+    // 3. Clear or adjust completed set indices
+    const updatedCompleted = new Set<number>();
+    completedSetIndices.forEach(val => {
+      if (val < sIdx) {
+        updatedCompleted.add(val);
+      } else if (val > sIdx) {
+        updatedCompleted.add(val - 1);
+      }
+    });
+    setCompletedSetIndices(updatedCompleted);
+
+    // 4. Update the exercises store
+    const updatedExercises = [...exercises];
+    const target = updatedExercises[currentIndex];
+    if (target) {
+      const currentSetsJson = target.sets_json || [];
+      const updatedSetsJson = currentSetsJson.filter((_, idx) => idx !== sIdx);
+      updatedExercises[currentIndex] = {
+        ...target,
+        sets: updatedSetsJson.length,
+        sets_json: updatedSetsJson
+      };
+      useWorkoutStore.setState({ exercises: updatedExercises } as any);
+
+      // 5. Persist immediately in backend database (workout_exercises)
+      try {
+        if (target.id) {
+          await supabase.from('workout_exercises').update({
+            sets: updatedSetsJson.length,
+            sets_json: updatedSetsJson
+          }).eq('id', target.id);
+        }
+
+        // 6. Persist/Sync workout_sets_log by deleting and re-syncing
+        await supabase.from('workout_sets_log')
+          .delete()
+          .eq('history_id', historyId)
+          .eq('exercise_id', currentEx.exercise_id);
+
+        const insertPromises = [];
+        const user = await authApi.getUser();
+        for (let i = 0; i < updatedSetsData.length; i++) {
+          if (updatedCompleted.has(i)) {
+            const s = updatedSetsData[i];
+            insertPromises.push(
+              supabase.from('workout_sets_log').insert({
+                history_id: historyId,
+                user_id: user?.id,
+                exercise_id: currentEx.exercise_id,
+                set_number: i + 1,
+                weight_achieved: s.weight,
+                reps_achieved: s.reps,
+                rpe: s.rpe,
+                set_type: SetType.NORMAL,
+                created_at: new Date().toISOString()
+              })
+            );
+          }
+        }
+        if (insertPromises.length > 0) {
+          await Promise.all(insertPromises);
+        }
+        
+        showSuccess("Série excluída e estatísticas recalculadas.");
+        if ('vibrate' in navigator) navigator.vibrate(50);
+      } catch (err) {
+        console.error("Erro ao persistir exclusão da série:", err);
+      }
+    }
   };
 
   const getSmartSelectorContext = () => {
@@ -2565,16 +2712,28 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               {/* NAVIGATION BETWEEN EXERCISES */}
               <div className="flex justify-between px-8 mt-12 mb-8">
                 <button 
-                  onClick={() => currentIndex > 0 && setCurrentIndex(currentIndex - 1)}
-                  className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 tracking-[0.2em] transition-colors flex items-center gap-2"
+                  disabled={currentIndex === 0}
+                  onClick={() => {
+                    if (currentIndex > 0) {
+                      setCurrentIndex(currentIndex - 1);
+                      if ('vibrate' in navigator) navigator.vibrate(10);
+                    }
+                  }}
+                  className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 bg-white/70 backdrop-blur-xl border border-white/40 px-4 py-2 rounded-full tracking-[0.2em] transition-all duration-200 active:scale-95 flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft size={14} strokeWidth={4} /> Anterior
                 </button>
                 <button 
-                  onClick={() => currentIndex < exercises.length - 1 && setCurrentIndex(currentIndex + 1)}
-                  className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 tracking-[0.2em] transition-colors flex items-center gap-2"
+                  disabled={currentIndex === exercises.length - 1}
+                  onClick={() => {
+                    if (currentIndex < exercises.length - 1) {
+                      setCurrentIndex(currentIndex + 1);
+                      if ('vibrate' in navigator) navigator.vibrate(10);
+                    }
+                  }}
+                  className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 bg-white/70 backdrop-blur-xl border border-white/40 px-4 py-2 rounded-full tracking-[0.2em] transition-all duration-200 active:scale-95 flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  Próxima <ChevronRight size={14} strokeWidth={4} />
+                  Próximo <ChevronRight size={14} strokeWidth={4} />
                 </button>
               </div>
 
@@ -3016,31 +3175,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       <History size={13} className="text-slate-400 font-sans" />
                       <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-500">Histórico de Séries Realizadas</h4>
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 animate-fadeIn">
                       {activeSetsData.map((set, sIdx) => {
                         const isCompleted = completedSetIndices.has(sIdx);
                         return (
-                          <div 
-                            key={sIdx} 
-                            className={`flex justify-between items-center py-2 px-3 rounded-xl border ${
-                              isCompleted 
-                                ? 'bg-emerald-50/20 border-emerald-100/55 text-emerald-900' 
-                                : sIdx === currentSet - 1 
-                                  ? 'bg-blue-50/20 border-blue-100/55 text-[#7BA7FF]' 
-                                  : 'bg-white border-slate-100 text-slate-600'
-                            } text-xs font-bold font-mono`}
-                          >
-                            <span className="uppercase tracking-tight">Série {sIdx + 1}</span>
-                            <div className="flex items-center gap-3">
-                              <span>{set.weight}kg × {set.reps} reps</span>
-                              <span className="text-slate-400 font-normal">RPE {set.rpe}</span>
-                              {isCompleted ? (
-                                <CheckCircle2 size={14} className="text-emerald-500 fill-emerald-50" />
-                              ) : (
-                                <div className="w-4 h-4 rounded-full border border-slate-200 bg-slate-50" />
-                              )}
-                            </div>
-                          </div>
+                          <SwipeableSetRow
+                            key={sIdx}
+                            set={set}
+                            sIdx={sIdx}
+                            isCompleted={isCompleted}
+                            isCurrent={sIdx === currentSet - 1}
+                            onDeleteRequest={(idx) => {
+                              if ('vibrate' in navigator) navigator.vibrate(30);
+                              setSetToDelete(idx);
+                            }}
+                          />
                         );
                       })}
                     </div>
@@ -3951,6 +4100,53 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     Não, Próximo Exercício
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE DELEÇÃO DE SÉRIE POR SWIPE */}
+      <AnimatePresence>
+        {setToDelete !== null && (
+          <div className="fixed inset-0 z-[2500] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setSetToDelete(null)}
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" 
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 15 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.95, opacity: 0, y: 15 }} 
+              className="relative bg-white border border-slate-100 rounded-[2rem] p-6 w-full max-w-sm shadow-2xl flex flex-col items-center text-center gap-4 z-10"
+            >
+              <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 shadow-inner">
+                <Trash2 size={24} className="stroke-[2.5]" />
+              </div>
+              <div>
+                <h3 className="text-sm font-[1000] text-slate-800 uppercase tracking-wider mb-1">Excluir esta série?</h3>
+                <p className="text-xs text-slate-500 font-bold leading-relaxed">Esta ação removerá a Série {setToDelete + 1} do seu treino e atualizará as estatísticas de volume e carga.</p>
+              </div>
+              
+              <div className="flex gap-3 w-full mt-2">
+                <button
+                  onClick={() => setSetToDelete(null)}
+                  className="flex-1 py-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[#475569] font-black text-[10px] uppercase tracking-widest rounded-xl transition active:scale-95 duration-150"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    handleConfirmDeleteSet(setToDelete);
+                    setSetToDelete(null);
+                  }}
+                  className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg shadow-rose-200 transition active:scale-95 duration-150"
+                >
+                  Excluir
+                </button>
               </div>
             </motion.div>
           </div>

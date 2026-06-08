@@ -34,7 +34,9 @@ import {
   Zap, 
   Sparkles,
   Award,
-  Copy 
+  Copy,
+  ChevronUp,
+  ChevronDown 
 } from 'lucide-react';
 import { useNavigation } from '../App';
 import { workoutApi } from '../lib/api/workoutApi';
@@ -105,6 +107,7 @@ const getKyronInsight = (idx: number, exerciseName: string) => {
 interface SortablePrepExerciseCardProps {
   ex: WorkoutExercise;
   idx: number;
+  total: number;
   activeMenuId: string | null;
   setActiveMenuId: (id: string | null) => void;
   onUpdateWeight: (idx: number, weight: number) => void;
@@ -117,11 +120,14 @@ interface SortablePrepExerciseCardProps {
   onRemove: (idx: number) => void;
   onDuplicate: (idx: number) => void;
   onAddBelow: (idx: number) => void;
+  onMoveUp: (idx: number) => void;
+  onMoveDown: (idx: number) => void;
 }
 
 const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
   ex,
   idx,
+  total,
   activeMenuId,
   setActiveMenuId,
   onUpdateWeight,
@@ -134,6 +140,8 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
   onRemove,
   onDuplicate,
   onAddBelow,
+  onMoveUp,
+  onMoveDown,
 }) => {
   const {
     attributes,
@@ -258,7 +266,29 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
         </div>
 
         {/* Right column: Context menu trigger vertically centered with opacity rules */}
-        <div className="shrink-0 self-center flex items-center justify-center">
+        <div className="shrink-0 self-center flex items-center justify-center gap-0.5">
+          <button
+            disabled={idx === 0}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveUp(idx);
+            }}
+            className="w-7 h-7 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-slate-600 opacity-60 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed"
+            title="Mover para cima"
+          >
+            <ChevronUp size={14} className="w-4 h-4" />
+          </button>
+          <button
+            disabled={idx === total - 1}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveDown(idx);
+            }}
+            className="w-7 h-7 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-slate-600 opacity-60 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed"
+            title="Mover para baixo"
+          >
+            <ChevronDown size={14} className="w-4 h-4" />
+          </button>
           <button
             onClick={() => setActiveMenuId(activeMenuId === ex.id ? null : ex.id)}
             className={`w-8 h-8 flex items-center justify-center rounded-full transition-all opacity-55 hover:opacity-100 ${
@@ -499,6 +529,41 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
       });
       if ('vibrate' in navigator) navigator.vibrate(5);
     }
+  }, []);
+
+  const handleMoveUp = useCallback((idx: number) => {
+    if (idx > 0) {
+      setExercises((prev) => {
+        const next = [...prev];
+        const temp = next[idx];
+        next[idx] = next[idx - 1];
+        next[idx - 1] = temp;
+        // Re-calculate orders
+        return next.map((item, index) => ({
+          ...(item as any),
+          order: index + 1,
+        }));
+      });
+      if ('vibrate' in navigator) navigator.vibrate(10);
+    }
+  }, []);
+
+  const handleMoveDown = useCallback((idx: number) => {
+    setExercises((prev) => {
+      if (idx < prev.length - 1) {
+        const next = [...prev];
+        const temp = next[idx];
+        next[idx] = next[idx + 1];
+        next[idx + 1] = temp;
+        // Re-calculate orders
+        return next.map((item, index) => ({
+          ...(item as any),
+          order: index + 1,
+        }));
+      }
+      return prev;
+    });
+    if ('vibrate' in navigator) navigator.vibrate(10);
   }, []);
 
   // Update load of index
@@ -918,6 +983,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
                         key={ex.id}
                         ex={ex}
                         idx={idx}
+                        total={exercises.length}
                         activeMenuId={activeMenuId}
                         setActiveMenuId={setActiveMenuId}
                         onUpdateWeight={handleUpdateWeight}
@@ -930,6 +996,8 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
                         onRemove={handleRemoveExercise}
                         onDuplicate={handleDuplicateExercise}
                         onAddBelow={handleOpenAddBelow}
+                        onMoveUp={handleMoveUp}
+                        onMoveDown={handleMoveDown}
                       />
                     ))}
                   </div>
