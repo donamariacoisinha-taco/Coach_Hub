@@ -367,6 +367,51 @@ const SetCard = ({
   );
 };
 
+interface SwipeableSetCardProps {
+  idx: number;
+  onDeleteRequest: (idx: number) => void;
+  children: React.ReactNode;
+}
+
+const SwipeableSetCard: React.FC<SwipeableSetCardProps> = ({
+  idx,
+  onDeleteRequest,
+  children,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div ref={containerRef} className="relative overflow-hidden rounded-2xl select-none">
+      {/* Red Delete Background */}
+      <div className="absolute inset-0 bg-rose-50 flex items-center justify-end px-6 text-rose-500 rounded-2xl border border-rose-100/50 z-0">
+        <div className="flex items-center gap-1.5 font-extrabold text-[10px] uppercase tracking-wider">
+          <span>Excluir Série {idx + 1}</span>
+          <Trash2 size={14} strokeWidth={2.5} className="animate-pulse" />
+        </div>
+      </div>
+
+      {/* Swipeable Foreground */}
+      <motion.div
+        drag="x"
+        dragDirectionLock
+        dragConstraints={{ left: -300, right: 0 }}
+        dragElastic={{ left: 0.12, right: 0 }}
+        dragMomentum={false}
+        onDragEnd={(event, info) => {
+          const width = containerRef.current?.getBoundingClientRect().width || 320;
+          const threshold = width * 0.45;
+          if (info.offset.x < -threshold) {
+            onDeleteRequest(idx);
+          }
+        }}
+        className="relative z-10"
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+};
+
 interface SwipeableSetRowProps {
   set: { weight: number; reps: number; rpe: number };
   sIdx: number;
@@ -820,6 +865,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     // 1. Remove set from activeSetsData React state
     const updatedSetsData = activeSetsData.filter((_, idx) => idx !== sIdx);
     setActiveSetsData(updatedSetsData);
+    setWorkoutPerformance(prev => ({
+      ...prev,
+      [currentIndex]: updatedSetsData
+    }));
 
     // 2. Bound check and update currentSet
     const newCurrentSet = Math.min(currentSet, Math.max(1, updatedSetsData.length));
@@ -2514,13 +2563,31 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     initial={{ height: "auto", opacity: 1 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0, padding: 0 }}
-                    className={`p-4 flex gap-4 items-center mb-2 overflow-hidden transition-all duration-500 ${
+                    className={`p-4 flex gap-3 items-center mb-2 overflow-hidden transition-all duration-500 ${
                       focusMode 
                         ? 'bg-slate-900/40 border-y border-slate-900/30 text-white' 
                         : 'bg-white text-slate-900 border-b border-slate-100'
                     }`}
                   >
-                    <div className="w-24 h-16 bg-slate-100 rounded-xl overflow-hidden shadow-sm flex-shrink-0 border border-slate-50">
+                    {/* PREMIUM EXERCISE SWITCHER LEFT */}
+                    <button
+                      disabled={currentIndex === 0}
+                      onClick={() => {
+                        if (currentIndex > 0) {
+                          setCurrentIndex(currentIndex - 1);
+                          if ('vibrate' in navigator) navigator.vibrate(12);
+                        }
+                      }}
+                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-150 shrink-0 active:scale-90 hover:bg-slate-50/80 ${
+                        focusMode 
+                          ? 'border-slate-800 bg-slate-900/80 text-slate-400 hover:text-white disabled:opacity-10' 
+                          : 'border-slate-200/60 bg-slate-50/60 text-slate-500 disabled:opacity-30 p-0'
+                      }`}
+                    >
+                      <ChevronLeft size={16} strokeWidth={3.5} />
+                    </button>
+
+                    <div className="w-16 h-12 bg-slate-100 rounded-xl overflow-hidden shadow-sm flex-shrink-0 border border-slate-50">
                       {(currentEx?.exercise_image || currentEx?.image_url) ? (
                         <img 
                           src={currentEx.exercise_image || currentEx.image_url} 
@@ -2530,7 +2597,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                           <Play className="text-slate-300 fill-slate-300" size={24} />
+                           <Play className="text-slate-300 fill-slate-300" size={18} />
                         </div>
                       )}
                     </div>
@@ -2538,28 +2605,46 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
-                            EXERCÍCIO {currentIndex + 1} DE {exercises.length}
+                          <span className="text-[9px] font-black text-[#7BA7FF] uppercase tracking-widest leading-none mb-1">
+                            EX {currentIndex + 1} DE {exercises.length}
                           </span>
-                          <h1 className="text-base font-bold leading-tight truncate">
+                          <h1 className="text-sm font-bold leading-tight truncate">
                             {currentEx?.exercise_name}
                           </h1>
                         </div>
-                        <span className={`text-[10px] font-black px-2 py-1 rounded-xl tabular-nums shrink-0 ${
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-lg tabular-nums shrink-0 ${
                           focusMode ? 'text-slate-300 bg-slate-800' : 'text-slate-500 bg-slate-100'
                         }`}>
                           SÉRIE {currentSet}/{activeSetsData.length}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-1.5 line-clamp-1">
+                      <p className="text-[9px] text-slate-400 font-medium uppercase tracking-wider mt-1 line-clamp-1">
                         {currentEx?.muscle_group} • {currentEx?.equipment || 'Sem equipamento'}
                       </p>
                       {!isAdvanced && (
-                        <p className={`text-xs line-clamp-1 mt-1 ${focusMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                          Foco na amplitude e contração lenta.
+                        <p className={`text-[10px] line-clamp-1 mt-0.5 ${focusMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                          Amplitude completa.
                         </p>
                       )}
                     </div>
+
+                    {/* PREMIUM EXERCISE SWITCHER RIGHT */}
+                    <button
+                      disabled={currentIndex === exercises.length - 1}
+                      onClick={() => {
+                        if (currentIndex < exercises.length - 1) {
+                          setCurrentIndex(currentIndex + 1);
+                          if ('vibrate' in navigator) navigator.vibrate(12);
+                        }
+                      }}
+                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-150 shrink-0 active:scale-90 hover:bg-slate-50/80 ${
+                        focusMode 
+                          ? 'border-slate-800 bg-slate-900/80 text-slate-400 hover:text-white disabled:opacity-10' 
+                          : 'border-slate-200/60 bg-slate-50/60 text-slate-500 disabled:opacity-30 p-0'
+                      }`}
+                    >
+                      <ChevronRight size={16} strokeWidth={3.5} />
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -2614,28 +2699,37 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   const delta = getSetDelta(idx, setData.weight, setData.reps);
                   
                   return (
-                    <SetCard 
+                    <SwipeableSetCard
                       key={`${currentIndex}_${idx}`}
                       idx={idx}
-                      setData={setData}
-                      isCurrent={isCurrent}
-                      isCompleted={isCompleted}
-                      isPending={isPending}
-                      isPast={isPast}
-                      intensity={intensity}
-                      showPR={showPR}
-                      lastSet={lastSet}
-                      delta={delta}
-                      updateSetData={updateSetData}
-                      rollbackToSet={rollbackToSet}
-                      setFocusedIdx={setFocusedIdx}
-                      setIsInputFocused={setIsInputFocused}
-                      setIsFooterVisible={setIsFooterVisible}
-                      setRowRef={(el: any) => (setRefs.current[idx] = el)}
-                      setInputRef={(el: any) => (inputRefs.current[idx] = el)}
-                      focusedIdx={focusedIdx}
-                      userLevel={userLevel}
-                    />
+                      onDeleteRequest={(index) => {
+                        if ('vibrate' in navigator) navigator.vibrate(30);
+                        setSetToDelete(index);
+                      }}
+                    >
+                      <SetCard 
+                        idx={idx}
+                        setData={setData}
+                        isCurrent={isCurrent}
+                        isCompleted={isCompleted}
+                        isPending={isPending}
+                        isPast={isPast}
+                        intensity={intensity}
+                        showPR={showPR}
+                        lastSet={lastSet}
+                        delta={delta}
+                        updateSetData={updateSetData}
+                        rollbackToSet={rollbackToSet}
+                        setFocusedIdx={setFocusedIdx}
+                        setIsInputFocused={setIsInputFocused}
+                        setIsFooterVisible={setIsFooterVisible}
+                        setRowRef={(el: any) => (setRefs.current[idx] = el)}
+                        setInputRef={(el: any) => (inputRefs.current[idx] = el)}
+                        focusedIdx={focusedIdx}
+                        userLevel={userLevel}
+                        focusMode={focusMode}
+                      />
+                    </SwipeableSetCard>
                   );
                 })}
 
