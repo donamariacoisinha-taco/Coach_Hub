@@ -7,6 +7,7 @@ import { useExerciseFilters } from '../hooks/useExerciseFilters';
 import { FilterChips } from './FilterChips';
 import { SubFilterChips } from './SubFilterChips';
 import { ExerciseListItem } from './ExerciseListItem';
+import { useExercisePreview } from '../context/ExercisePreviewContext';
 
 interface ExerciseReplaceScreenProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
   currentExercise,
   favoriteIds = new Set<string>()
 }) => {
+  const { openExercisePreview } = useExercisePreview();
   const {
     search,
     setSearch,
@@ -121,7 +123,17 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
                         onClick={() => onSelect(ex)}
                         className="shrink-0 w-44 bg-slate-50 rounded-3xl p-5 text-left space-y-4 active:scale-95 transition-all border border-transparent hover:border-blue-100 shadow-sm"
                       >
-                        <div className="w-[72px] h-12 bg-white rounded-2xl flex items-center justify-center p-2 shadow-sm">
+                        <div 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openExercisePreview(
+                              ex.name || "",
+                              ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop',
+                              ex.muscle_group || ""
+                            );
+                          }}
+                          className="w-[72px] h-12 bg-white rounded-2xl flex items-center justify-center p-2 shadow-sm cursor-zoom-in hover:scale-[1.05] active:scale-95 transition-all"
+                        >
                           <img src={ex.image_url} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
                         </div>
                         <div>

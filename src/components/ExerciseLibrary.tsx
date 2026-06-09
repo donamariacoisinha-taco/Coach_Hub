@@ -6,6 +6,7 @@ import { exerciseApi } from '../lib/api/exerciseApi';
 import { workoutApi } from '../lib/api/workoutApi';
 import { geminiService } from '../services/geminiService';
 import { useNavigation } from '../App';
+import { useExercisePreview } from '../context/ExercisePreviewContext';
 import { ExerciseProgress } from './ExerciseProgress';
 import { ScreenState } from './ui/ScreenState';
 import { ExerciseSkeleton } from './ui/Skeleton';
@@ -19,6 +20,7 @@ import { Goal, ExperienceLevel } from '../types';
 
 const ExerciseLibrary: React.FC = () => {
   const { navigate } = useNavigation();
+  const { openExercisePreview } = useExercisePreview();
   const prefetch = usePrefetch();
   const [favoriteExerciseIds, setFavoriteExerciseIds] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
@@ -231,7 +233,17 @@ const ExerciseLibrary: React.FC = () => {
                   className={`bg-white hover:bg-slate-50/50 active:bg-slate-100/50 transition-all cursor-pointer p-4 rounded-3xl border border-slate-100 mb-3 shadow-[0_4px_16px_rgba(15,23,42,0.015)] flex items-center justify-between ${!ex.is_active ? 'opacity-40' : ''}`}
                 >
                   <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="w-[84px] h-14 bg-slate-50/50 border border-slate-100 rounded-2xl overflow-hidden flex items-center justify-center p-2 shrink-0 shadow-inner">
+                    <div 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openExercisePreview(
+                          ex.name || "",
+                          ex.image_url || ex.static_frame_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop',
+                          ex.muscle_group || ""
+                        );
+                      }}
+                      className="w-[84px] h-14 bg-slate-50/50 border border-slate-100 rounded-2xl overflow-hidden flex items-center justify-center p-2 shrink-0 shadow-inner cursor-zoom-in hover:scale-[1.05] active:scale-95 transition-all z-10"
+                    >
                       <img 
                         src={ex.image_url || ex.static_frame_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
                         className="w-full h-full object-contain" 
@@ -309,7 +321,16 @@ const ExerciseLibrary: React.FC = () => {
             </header>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-12 no-scrollbar pb-32">
-              <div className="w-full aspect-[3/2] bg-[#F7F8FA] rounded-[2.5rem] overflow-hidden flex items-center justify-center p-6">
+              <div 
+                onClick={() => {
+                  openExercisePreview(
+                    selectedExercise.name || "",
+                    selectedExercise.image_url || selectedExercise.static_frame_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop',
+                    selectedExercise.muscle_group || ""
+                  );
+                }}
+                className="w-full aspect-[3/2] bg-[#F7F8FA] rounded-[2.5rem] overflow-hidden flex items-center justify-center p-6 cursor-zoom-in hover:scale-[1.01] active:scale-98 transition-all"
+              >
                 <img 
                   src={selectedExercise.image_url || selectedExercise.static_frame_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
                   className="w-full h-full object-contain" 

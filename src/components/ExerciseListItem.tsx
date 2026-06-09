@@ -2,6 +2,7 @@
 import React from 'react';
 import { Exercise } from '../types';
 import { motion } from 'motion/react';
+import { useExercisePreview } from '../context/ExercisePreviewContext';
 import { Replace, Info, Heart } from 'lucide-react';
 
 interface ExerciseListItemProps {
@@ -12,6 +13,8 @@ interface ExerciseListItemProps {
 }
 
 export const ExerciseListItem: React.FC<ExerciseListItemProps> = ({ exercise, onSelect, isReplacing, isFavorite }) => {
+  const { openExercisePreview } = useExercisePreview();
+
   return (
     <motion.div
       whileTap={{ backgroundColor: 'rgba(241, 245, 249, 1)' }}
@@ -21,7 +24,17 @@ export const ExerciseListItem: React.FC<ExerciseListItemProps> = ({ exercise, on
       }}
       className="flex items-center gap-4 py-4 px-6 border-b border-slate-100 cursor-pointer active:bg-slate-50 transition-colors group"
     >
-      <div className="relative w-[84px] h-14 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center p-2 shrink-0 group-active:scale-95 transition-transform">
+      <div 
+        onClick={(e) => {
+          e.stopPropagation();
+          openExercisePreview(
+            exercise.name || "",
+            exercise.image_url || exercise.static_frame_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop',
+            exercise.muscle_group || ""
+          );
+        }}
+        className="relative w-[84px] h-14 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center p-2 shrink-0 hover:scale-[1.05] active:scale-95 transition-all cursor-zoom-in z-10"
+      >
         <img 
           src={exercise.image_url || exercise.static_frame_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'} 
           className="w-full h-full object-contain mix-blend-multiply" 

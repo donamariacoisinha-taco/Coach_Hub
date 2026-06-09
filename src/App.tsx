@@ -24,8 +24,10 @@ import { usePrefetch } from './hooks/usePrefetch';
 import { imagePrefetcher } from './lib/utils/imagePrefetcher';
 import { cacheStore } from './lib/cache/cacheStore';
 import { useWorkoutStore } from './app/store/workoutStore';
-import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt, Flame, Apple } from 'lucide-react';
+import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt, Flame, Apple, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
+import { ExercisePreviewProvider, useExercisePreview } from './context/ExercisePreviewContext';
 import { NavItem } from './components/ui/NavItem';
 import { isAdmin } from './lib/utils/auth';
 import { ekeService } from './domain/eke/ekeService';
@@ -302,7 +304,8 @@ const App: React.FC = () => {
   return (
     <ErrorProvider>
       <NavigationContext.Provider value={{ current: navState, navigate, goBack, theme, toggleTheme, profile }}>
-        <div className="h-screen flex flex-col lg:flex-row bg-[#F8FAFC] overflow-hidden text-slate-900 relative">
+        <ExercisePreviewProvider>
+          <div className="h-screen flex flex-col lg:flex-row bg-[#F8FAFC] overflow-hidden text-slate-900 relative">
           
           {/* Dynamic Living Background Engine - Atmospheric subtle glows */}
           <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden select-none">
@@ -484,8 +487,105 @@ const App: React.FC = () => {
             </div>
           )}
         </div>
-      </NavigationContext.Provider>
-    </ErrorProvider>
+        <GlobalExercisePreviewModal />
+      </ExercisePreviewProvider>
+    </NavigationContext.Provider>
+  </ErrorProvider>
+  );
+};
+
+const GlobalExercisePreviewModal: React.FC = () => {
+  const { previewExercise, closeExercisePreview } = useExercisePreview();
+
+  return (
+    <AnimatePresence>
+      {previewExercise && (
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-between py-6 px-4 select-none">
+          {/* Background Blur Overlay with Fade Animation */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={closeExercisePreview}
+            className="absolute inset-0 bg-slate-950/65 backdrop-blur-xl cursor-zoom-out"
+          />
+
+          {/* Header: Discreto no Canto Superior Direito */}
+          <div className="w-full flex justify-end px-4 z-10 shrink-0">
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.2 }}
+              onClick={closeExercisePreview}
+              className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/35 backdrop-blur-2xl border border-white/10 text-white flex items-center justify-center shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition active:scale-90"
+            >
+              <X size={18} strokeWidth={2.5} />
+            </motion.button>
+          </div>
+
+          {/* Centralized Expanded Zoom Window with Drag Down Dismiss Gesture */}
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0, y: 30 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 30 }}
+            transition={{ type: "spring", damping: 26, stiffness: 320 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.05, bottom: 0.85 }}
+            onDragEnd={(event, info) => {
+              if (info.offset.y > 100) {
+                closeExercisePreview();
+              }
+            }}
+            className="relative w-full max-w-[90vw] h-[60vh] md:h-[65vh] flex items-center justify-center z-10 cursor-grab active:cursor-grabbing"
+          >
+            <div 
+              onClick={(e) => e.stopPropagation()} 
+              className="w-full h-full flex items-center justify-center rounded-[2rem] overflow-hidden"
+            >
+              <TransformWrapper
+                initialScale={1}
+                minScale={1}
+                maxScale={4}
+                centerOnInit={true}
+              >
+                <TransformComponent
+                  wrapperStyle={{ width: "100%", height: "100%" }}
+                  contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <img
+                    src={previewExercise.image}
+                    alt={previewExercise.name}
+                    className="max-w-[90vw] max-h-[60vh] md:max-h-[65vh] rounded-[2rem] object-contain shadow-[0_12px_44px_rgba(0,0,0,0.4)] pointer-events-auto select-none"
+                    referrerPolicy="no-referrer"
+                  />
+                </TransformComponent>
+              </TransformWrapper>
+            </div>
+          </motion.div>
+
+          {/* Auxiliar Information Footer */}
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 15 }}
+            transition={{ delay: 0.08, duration: 0.22 }}
+            className="text-center z-10 max-w-[420px] px-6 select-text shrink-0 pb-4 mt-2"
+          >
+            <h2 className="text-white text-lg font-black tracking-tight leading-snug drop-shadow-sm uppercase">
+              {previewExercise.name}
+            </h2>
+            {previewExercise.muscleGroup && (
+              <p className="text-slate-400 text-xs font-bold tracking-widest mt-1.5 uppercase opacity-85">
+                {previewExercise.muscleGroup}
+              </p>
+            )}
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };
 

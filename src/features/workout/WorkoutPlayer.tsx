@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { exerciseApi } from "../../lib/api/exerciseApi";
 import { motion, AnimatePresence } from "motion/react";
+import { useExercisePreview } from "../../context/ExercisePreviewContext";
 import { supabase } from "../../lib/api/supabase";
 import { authApi } from "../../lib/api/authApi";
 import { workoutApi } from "../../lib/api/workoutApi";
@@ -478,6 +479,7 @@ const SwipeableSetRow: React.FC<SwipeableSetRowProps> = ({
 
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { navigate, goBack } = useNavigation();
+  const { openExercisePreview } = useExercisePreview();
   const { showError, showSuccess } = useErrorHandler();
   const [user, setUser] = useState<any>(null);
 
@@ -2606,7 +2608,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       <ChevronLeft size={16} strokeWidth={3.5} />
                     </button>
 
-                    <div className="w-16 h-12 bg-slate-100 rounded-xl overflow-hidden shadow-sm flex-shrink-0 border border-slate-50">
+                    <div 
+                      onClick={() => {
+                        if (currentEx?.exercise_image || currentEx?.image_url) {
+                          openExercisePreview(
+                            currentEx.exercise_name || "",
+                            currentEx.exercise_image || currentEx.image_url || "",
+                            currentEx.muscle_group || ""
+                          );
+                        }
+                      }}
+                      className="w-16 h-12 bg-slate-100 rounded-xl overflow-hidden shadow-sm flex-shrink-0 border border-slate-50 cursor-pointer hover:scale-[1.03] transition-all active:scale-95 z-20"
+                    >
                       {(currentEx?.exercise_image || currentEx?.image_url) ? (
                         <img 
                           src={currentEx.exercise_image || currentEx.image_url} 
@@ -2773,7 +2786,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   >
                     <p className="text-[7px] font-[1000] text-slate-400 uppercase tracking-[0.25em] mb-3 text-center">Prepare-se: Próximo Exercício</p>
                     <div className="flex items-center gap-4 bg-white/40 backdrop-blur-sm rounded-[2rem] p-4 border border-slate-100 shadow-sm">
-                      <div className="w-[72px] h-12 bg-slate-100 rounded-2xl overflow-hidden flex-shrink-0 border border-white shadow-inner">
+                      <div 
+                        onClick={() => {
+                          if (nextEx?.exercise_image || nextEx?.image_url) {
+                            openExercisePreview(
+                              nextEx.exercise_name || "",
+                              nextEx.exercise_image || nextEx.image_url || "",
+                              nextEx.muscle_group || ""
+                            );
+                          }
+                        }}
+                        className="w-[72px] h-12 bg-slate-100 rounded-2xl overflow-hidden flex-shrink-0 border border-white shadow-inner cursor-pointer hover:scale-[1.03] transition-all active:scale-95"
+                      >
                         {(nextEx?.exercise_image || nextEx?.image_url) ? (
                           <img src={nextEx.exercise_image || nextEx.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
@@ -3121,7 +3145,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       transition={{ type: "spring", stiffness: 350, damping: 25 }}
                       className="flex items-center gap-4 bg-slate-50/50 p-3 rounded-2xl border border-slate-100"
                     >
-                      <div className="w-[100px] h-[66px] bg-slate-100 rounded-xl overflow-hidden border border-slate-100 shadow-sm shrink-0">
+                      <div 
+                        onClick={() => {
+                          if (currentEx?.exercise_image || currentEx?.image_url) {
+                            openExercisePreview(
+                              currentEx.exercise_name || "",
+                              currentEx.exercise_image || currentEx.image_url || "",
+                              currentEx.muscle_group || ""
+                            );
+                          }
+                        }}
+                        className="w-[100px] h-[66px] bg-slate-100 rounded-xl overflow-hidden border border-slate-100 shadow-sm shrink-0 cursor-pointer hover:scale-[1.03] transition-all active:scale-95"
+                      >
                         {(currentEx?.exercise_image || currentEx?.image_url) ? (
                           <img 
                             src={currentEx.exercise_image || currentEx.image_url} 
@@ -3310,7 +3345,17 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             }`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-16 h-12 bg-slate-100 rounded-xl overflow-hidden shrink-0 border border-slate-50 relative">
+                              <div 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openExercisePreview(
+                                    ex.exercise_name || "",
+                                    ex.exercise_image || (ex as any).image_url || "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=150&h=150&auto=format&fit=crop",
+                                    ex.muscle_group || ""
+                                  );
+                                }}
+                                className="w-16 h-12 bg-slate-100 rounded-xl overflow-hidden shrink-0 border border-slate-50 relative cursor-pointer hover:scale-[1.05] active:scale-95 transition-all z-10"
+                              >
                                 <img 
                                   src={ex.exercise_image || (ex as any).image_url || "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=150&h=150&auto=format&fit=crop"} 
                                   alt="" 
@@ -3639,7 +3684,19 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             className="bg-slate-50 hover:bg-[#7BA7FF]/5 border border-slate-100 hover:border-[#7BA7FF]/20 rounded-2xl p-3 flex items-center justify-between transition-all cursor-pointer group"
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-[60px] h-10 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 flex items-center justify-center relative">
+                              <div 
+                                onClick={(e) => {
+                                  if (ex.image_url) {
+                                    e.stopPropagation();
+                                    openExercisePreview(
+                                      ex.name || "",
+                                      ex.image_url || "",
+                                      ex.muscle_group || ""
+                                    );
+                                  }
+                                }}
+                                className="w-[60px] h-10 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 flex items-center justify-center relative cursor-pointer hover:scale-[1.05] active:scale-95 transition-all z-10"
+                              >
                                 {ex.image_url ? (
                                   <img src={ex.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                 ) : (
