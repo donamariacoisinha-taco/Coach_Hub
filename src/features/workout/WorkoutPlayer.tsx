@@ -556,10 +556,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const momentum = currentSet >= 3 || userLevel === 'ADVANCED';
   
   // Track all sets for the current exercise
-  const [activeSetsData, setActiveSetsData] = useState<{weight: number, reps: number, rpe: number}[]>([]);
+  const [activeSetsData, setActiveSetsData] = useState<{id?: string, weight: number, reps: number, rpe: number}[]>([]);
   
   // Track performance for ALL exercises in the session to guarantee persistence
-  const [workoutPerformance, setWorkoutPerformance] = useState<Record<number, {weight: number, reps: number, rpe: number}[]>>({});
+  const [workoutPerformance, setWorkoutPerformance] = useState<Record<number, {id?: string, weight: number, reps: number, rpe: number}[]>>({});
   
   const [lastSet, setLastSet] = useState<LastSetData | null>(null);
   const [previousSet, setPreviousSet] = useState<LastSetData | null>(null);
@@ -636,6 +636,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
     loadAllExercisesData();
   }, []);
+
+  // Close context menu when clicking anywhere else on the screen
+  useEffect(() => {
+    if (contextMenuIndex === null) return;
+    const handleDocumentClick = () => {
+      setContextMenuIndex(null);
+    };
+    document.addEventListener('click', handleDocumentClick);
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  }, [contextMenuIndex]);
 
   const handleAddExerciseToSession = (ex: any) => {
     // Construct a beautiful new WorkoutExercise object conforming to state definitions
@@ -841,7 +853,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         if (newSetsCount > prev.length) {
           const last = prev[prev.length - 1] || { weight: target.weight || 0, reps: 10, rpe: 8 };
           for (let i = prev.length; i < newSetsCount; i++) {
-            next.push({ ...last });
+            next.push({ ...last, id: `${currentIndex}_${i}_${Math.random().toString(36).substring(2, 7)}` });
           }
         } else {
           next = next.slice(0, newSetsCount);
@@ -1878,23 +1890,30 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       return;
     }
 
-    let nextSets: { weight: number, reps: number, rpe: number }[] = [];
+    let nextSets: { id?: string, weight: number, reps: number, rpe: number }[] = [];
 
     // Prioritize existing performance data (from current session or hydration)
     if (workoutPerformance[currentIndex] && workoutPerformance[currentIndex].length > 0) {
-      nextSets = workoutPerformance[currentIndex];
+      nextSets = workoutPerformance[currentIndex].map((s, idx) => ({
+        id: s.id || `${currentIndex}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
+        weight: s.weight,
+        reps: s.reps,
+        rpe: s.rpe
+      }));
     } else if (currentEx.sets_json && currentEx.sets_json.length > 0) {
       nextSets = currentEx.sets_json.map((s, idx) => {
         const fallbackRpe = s.rpe || currentEx.default_rpe || 8;
         // Auto-progression Memory: use lastSet for the first set if session is new and s.rpe is not defined
         if (idx === 0 && lastSet && !s.rpe) {
           return {
+            id: `${currentIndex}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
             weight: lastSet.weight,
             reps: lastSet.reps,
             rpe: lastSet.rpe || 8
           };
         }
         return {
+          id: `${currentIndex}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
           weight: typeof s.weight === 'number' ? s.weight : 0,
           reps: parseInt(s.reps as string) || 10,
           rpe: fallbackRpe
@@ -1904,7 +1923,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       // Empty state safety: ensure at least one set exists
       const initialWeight = lastSet?.weight || 0;
       const initialReps = lastSet?.reps || 10;
-      nextSets = [{ weight: initialWeight, reps: initialReps, rpe: 8 }];
+      nextSets = [{ id: `${currentIndex}_0_${Math.random().toString(36).substring(2, 7)}`, weight: initialWeight, reps: initialReps, rpe: 8 }];
     }
 
     // PROTECTIVE CHECK: Only update state if data has actually changed OR we are changing exercises
@@ -2700,7 +2719,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   
                   return (
                     <SwipeableSetCard
-                      key={`${currentIndex}_${idx}`}
+                      key={setData.id || `${currentIndex}_${idx}`}
                       idx={idx}
                       onDeleteRequest={(index) => {
                         if ('vibrate' in navigator) navigator.vibrate(30);
@@ -2737,7 +2756,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 <button 
                   onClick={() => {
                     const lastData = activeSetsData[activeSetsData.length - 1] || { weight: 0, reps: 10, rpe: 8 };
-                    setActiveSetsData(prev => [...prev, { ...lastData }]);
+                    setActiveSetsData(prev => [...prev, { ...lastData, id: `${currentIndex}_${prev.length}_${Math.random().toString(36).substring(2, 7)}` }]);
                     // O auto-scroll lidará com o foco se for a próxima série
                   }}
                   className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-[#7BA7FF]/30 hover:text-[#7BA7FF] transition-all flex items-center justify-center gap-2 mt-4 hover:bg-[#7BA7FF]/5 h-[56px]"
@@ -3263,52 +3282,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     )}
                   </button>
 
-                  {/* 5. Chronological History of Sets */}
-                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <History size={13} className="text-slate-400 font-sans" />
-                      <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-500">Histórico de Séries Realizadas</h4>
-                    </div>
-                    <div className="space-y-1.5 animate-fadeIn">
-                      {activeSetsData.map((set, sIdx) => {
-                        const isCompleted = completedSetIndices.has(sIdx);
-                        return (
-                          <SwipeableSetRow
-                            key={sIdx}
-                            set={set}
-                            sIdx={sIdx}
-                            isCompleted={isCompleted}
-                            isCurrent={sIdx === currentSet - 1}
-                            onDeleteRequest={(idx) => {
-                              if ('vibrate' in navigator) navigator.vibrate(30);
-                              setSetToDelete(idx);
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 6. Notes, Intel & Insights */}
-                  <div className="bg-slate-900 text-white p-5 rounded-3xl flex flex-col gap-3">
-                    <div className="flex items-center gap-2">
-                      <Sparkles size={14} className="text-[#7BA7FF] fill-[#7BA7FF]/30" />
-                      <span className="text-[10px] font-black uppercase tracking-wider text-[#7BA7FF]">Kyron Deep Intelligence</span>
-                    </div>
-                    
-                    <p className="text-xs font-black uppercase tracking-tight leading-relaxed text-slate-100">
-                      "{feedback || suggestion || preHint || "Seu desempenho hoje está acima da média para este exercício."}"
-                    </p>
-
-                    {(currentEx?.notes || currentEx?.tips) && (
-                      <div className="border-t border-slate-800 pt-2.5 mt-1 text-[11px] text-slate-400">
-                        <span className="font-extrabold text-slate-300 block mb-1">DICAS DE EXECUÇÃO:</span>
-                        {currentEx.notes && <p className="leading-snug">Note: {currentEx.notes}</p>}
-                        {currentEx.tips && <p className="leading-snug mt-1">Tip: {currentEx.tips}</p>}
-                      </div>
-                    )}
-                  </div>
-
                   {/* 7. Extra Premium Upcoming Queue */}
                   <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -3337,14 +3310,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             }`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-[48px] h-8 bg-slate-100 rounded-lg overflow-hidden shrink-0">
-                                {(ex.exercise_image || (ex as any).image_url) ? (
-                                  <img src={ex.exercise_image || (ex as any).image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                ) : (
-                                  <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-300">
-                                    <Play size={10} />
-                                  </div>
-                                )}
+                              <div className="w-16 h-12 bg-slate-100 rounded-xl overflow-hidden shrink-0 border border-slate-50 relative">
+                                <img 
+                                  src={ex.exercise_image || (ex as any).image_url || "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=150&h=150&auto=format&fit=crop"} 
+                                  alt="" 
+                                  className="w-full h-full object-cover" 
+                                  referrerPolicy="no-referrer" 
+                                />
                               </div>
                               <div className="min-w-0">
                                 <span className={`text-[7px] font-extrabold tracking-widest uppercase block ${
@@ -3358,49 +3330,148 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                               </div>
                             </div>
 
-                            {idx > currentIndex && (
-                              <div className="flex items-center gap-0.5">
-                                <button
-                                  onClick={() => {
-                                    if (idx > currentIndex + 1) {
-                                      const updated = [...exercises];
-                                      const temp = updated[idx];
-                                      updated[idx] = updated[idx - 1];
-                                      updated[idx - 1] = temp;
-                                      useWorkoutStore.setState({ exercises: updated } as any);
-                                      playSensoryTone?.('click');
-                                      playHapticFeedback?.('light');
-                                    }
-                                  }}
-                                  disabled={idx === currentIndex + 1}
-                                  className={`w-6 h-6 rounded-md flex items-center justify-center border text-slate-450 hover:bg-slate-50 active:scale-95 transition-all ${
-                                    idx === currentIndex + 1 ? 'opacity-30 cursor-not-allowed border-slate-50 text-slate-200' : 'border-slate-100 bg-white'
-                                  }`}
-                                >
-                                  <ChevronUp size={12} strokeWidth={3} />
-                                </button>
-                                
-                                <button
-                                  onClick={() => {
-                                    if (idx < exercises.length - 1) {
-                                      const updated = [...exercises];
-                                      const temp = updated[idx];
-                                      updated[idx] = updated[idx + 1];
-                                      updated[idx + 1] = temp;
-                                      useWorkoutStore.setState({ exercises: updated } as any);
-                                      playSensoryTone?.('click');
-                                      playHapticFeedback?.('light');
-                                    }
-                                  }}
-                                  disabled={idx === exercises.length - 1}
-                                  className={`w-6 h-6 rounded-md flex items-center justify-center border text-slate-450 hover:bg-slate-50 active:scale-95 transition-all ${
-                                    idx === exercises.length - 1 ? 'opacity-30 cursor-not-allowed border-slate-50 text-slate-200' : 'border-slate-100 bg-white'
-                                  }`}
-                                >
-                                  <ChevronDown size={12} strokeWidth={3} />
-                                </button>
-                              </div>
-                            )}
+                            <div className="flex items-center gap-1.5 relative">
+                              {/* Reorder actions */}
+                              {idx > currentIndex && (
+                                <div className="flex items-center gap-0.5 mr-0.5">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (idx > currentIndex + 1) {
+                                        const updated = [...exercises];
+                                        const temp = updated[idx];
+                                        updated[idx] = updated[idx - 1];
+                                        updated[idx - 1] = temp;
+                                        useWorkoutStore.setState({ exercises: updated } as any);
+                                        playSensoryTone?.('click');
+                                        playHapticFeedback?.('light');
+                                      }
+                                    }}
+                                    disabled={idx === currentIndex + 1}
+                                    className={`w-6 h-6 rounded-md flex items-center justify-center border text-slate-450 hover:bg-slate-50 active:scale-95 transition-all ${
+                                      idx === currentIndex + 1 ? 'opacity-30 cursor-not-allowed border-slate-50 text-slate-200' : 'border-slate-100 bg-white'
+                                    }`}
+                                    title="Mover para cima"
+                                  >
+                                    <ChevronUp size={12} strokeWidth={3} />
+                                  </button>
+                                  
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (idx < exercises.length - 1) {
+                                        const updated = [...exercises];
+                                        const temp = updated[idx];
+                                        updated[idx] = updated[idx + 1];
+                                        updated[idx + 1] = temp;
+                                        useWorkoutStore.setState({ exercises: updated } as any);
+                                        playSensoryTone?.('click');
+                                        playHapticFeedback?.('light');
+                                      }
+                                    }}
+                                    disabled={idx === exercises.length - 1}
+                                    className={`w-6 h-6 rounded-md flex items-center justify-center border text-slate-450 hover:bg-slate-50 active:scale-95 transition-all ${
+                                      idx === exercises.length - 1 ? 'opacity-30 cursor-not-allowed border-slate-50 text-slate-200' : 'border-slate-100 bg-white'
+                                    }`}
+                                    title="Mover para baixo"
+                                  >
+                                    <ChevronDown size={12} strokeWidth={3} />
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Three Dots Button for alterations */}
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setContextMenuIndex(contextMenuIndex === idx ? null : idx);
+                                  playHapticFeedback('light');
+                                }}
+                                className={`p-1.5 rounded-lg transition-all ${
+                                  contextMenuIndex === idx 
+                                    ? "bg-slate-900 text-white" 
+                                    : "bg-slate-100 text-slate-500 hover:text-slate-800"
+                                }`}
+                                title="Alterações de Exercício"
+                              >
+                                <MoreVertical size={12} strokeWidth={2.5} />
+                              </button>
+
+                              {/* Dropdown Menu */}
+                              <AnimatePresence>
+                                {contextMenuIndex === idx && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                                    transition={{ duration: 0.12 }}
+                                    className="absolute right-0 top-8 z-[200] bg-white/95 backdrop-blur-xl border border-slate-200/50 rounded-2xl shadow-[0_12px_30px_rgba(15,23,42,0.12)] p-1.5 min-w-[200px] flex flex-col gap-0.5"
+                                  >
+                                    {idx !== currentIndex ? (
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          playHapticFeedback('success');
+                                          setContextMenuIndex(null);
+                                          if (confirm(`Começar a executar "${ex.exercise_name}" agora em substituição ao atual?`)) {
+                                            setCurrentIndex(idx);
+                                            setCurrentSet(1);
+                                            setIsResting(false);
+                                            const savedCompleted = completedSetsByExercise[idx] || new Set();
+                                            setCompletedSetIndices(savedCompleted);
+                                            setLastSet(null);
+                                            playSensoryTone('success');
+                                            showSuccess(`Iniciando execução de: ${ex.exercise_name}`);
+                                          }
+                                        }}
+                                        className="w-full px-3 py-2 bg-indigo-50/50 hover:bg-indigo-50 text-left text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                                      >
+                                        <Play size={13} className="text-indigo-500 fill-indigo-500/20" /> Executar Agora
+                                      </button>
+                                    ) : (
+                                      <button 
+                                        disabled
+                                        className="w-full px-3 py-2 bg-slate-50 text-slate-400 border border-slate-100 text-left text-[11px] font-extrabold uppercase tracking-wider rounded-xl flex items-center gap-2 transition-all cursor-not-allowed opacity-60"
+                                      >
+                                        <Play size={13} className="text-slate-400" /> Já em Execução
+                                      </button>
+                                    )}
+                                    
+                                    {/* Substituir */}
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        playHapticFeedback('light');
+                                        setReplaceIndex(idx);
+                                        setExerciseSelectorMode('replace');
+                                        setShowExercisesList(true);
+                                        setContextMenuIndex(null);
+                                      }}
+                                      className="w-full px-3 py-2 hover:bg-slate-50 text-left text-[11px] font-black uppercase tracking-wider text-slate-700 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                                    >
+                                      <RefreshCw size={13} className="text-slate-400" /> Substituir Exercício
+                                    </button>
+
+                                    {/* Excluir Exercício */}
+                                    {exercises.length > 1 && (
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          playHapticFeedback('light');
+                                          setContextMenuIndex(null);
+                                          if (confirm(`Remover ${ex?.exercise_name} do treino?`)) {
+                                            handleRemoveExerciseFromSession(idx);
+                                          }
+                                        }}
+                                        className="w-full px-3 py-2 hover:bg-rose-50 text-left text-[11px] font-black uppercase tracking-wider text-rose-500 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                                      >
+                                        <Trash2 size={13} className="text-rose-500" /> Excluir Exercício
+                                      </button>
+                                    )}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
                           </div>
                         );
                       })}
@@ -3663,11 +3734,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     {exercises[currentIndex] && (
                       <div className="space-y-3 animate-fadeIn">
                         <h4 className="text-[10px] font-bold text-blue-500 uppercase tracking-[0.15em] px-1 flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse animate-duration-1000" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                           Protocolo em execução
                         </h4>
                         <div 
-                          className="bg-white/75 backdrop-blur-xl rounded-[1.75rem] border border-white/45 p-5 relative overflow-hidden transition-all duration-300 shadow-[0_15px_40px_rgba(123,167,255,0.15)] ring-2 ring-[#7BA7FF]/30"
+                          className="bg-white/75 backdrop-blur-xl rounded-[1.75rem] border border-white/45 p-5 relative overflow-visible transition-all duration-300 shadow-[0_15px_40px_rgba(123,167,255,0.15)] ring-2 ring-[#7BA7FF]/30"
                         >
                           {/* Inner soft blue glow overlay */}
                           <div className="absolute right-0 top-0 w-24 h-24 bg-[#7BA7FF]/5 blur-xl pointer-events-none rounded-full" />
@@ -3691,7 +3762,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             </div>
                             
                             {/* Actions Group */}
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 relative z-50">
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3706,77 +3777,50 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                               >
                                 <MoreVertical size={14} strokeWidth={2.5} />
                               </button>
+
+                              {/* FLOATING CONTEXT MENU WITH GLASSMORPHISM */}
+                              <AnimatePresence>
+                                {contextMenuIndex === currentIndex && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                                    transition={{ duration: 0.12 }}
+                                    className="absolute right-0 top-11 z-[200] bg-white/95 backdrop-blur-xl border border-slate-200/50 rounded-2xl shadow-[0_12px_30px_rgba(15,23,42,0.12)] p-1.5 min-w-[200px] flex flex-col gap-0.5"
+                                  >
+                                    {/* Substituir */}
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        playHapticFeedback('light');
+                                        setReplaceIndex(currentIndex);
+                                        setExerciseSelectorMode('replace');
+                                        setContextMenuIndex(null);
+                                      }}
+                                      className="w-full px-3 py-2 hover:bg-slate-50 text-left text-[11px] font-black uppercase tracking-wider text-slate-705 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                                    >
+                                      <RefreshCw size={13} className="text-slate-400" /> Substituir Exercício
+                                    </button>
+
+                                    {/* Excluir Exercício */}
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        playHapticFeedback('light');
+                                        setContextMenuIndex(null);
+                                        if (confirm(`Remover ${exercises[currentIndex]?.exercise_name} do treino?`)) {
+                                          handleRemoveExerciseFromSession(currentIndex);
+                                        }
+                                      }}
+                                      className="w-full px-3 py-2 hover:bg-rose-50 text-left text-[11px] font-black uppercase tracking-wider text-rose-500 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                                    >
+                                      <Trash2 size={13} className="text-rose-455" /> Excluir Exercício
+                                    </button>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
                           </div>
-
-                          {/* CONTEXTUAL TRAY ROW */}
-                          <AnimatePresence>
-                            {contextMenuIndex === currentIndex && (
-                              <motion.div 
-                                initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                                animate={{ height: "auto", opacity: 1, marginTop: 12 }}
-                                exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                                className="overflow-hidden border-t border-slate-100 pt-3 relative z-10"
-                              >
-                                <div className="grid grid-cols-2 gap-2">
-                                  {/* Replace standard biomechanic */ }
-                                  <button 
-                                    onClick={() => {
-                                      setReplaceIndex(currentIndex);
-                                      setExerciseSelectorMode('replace');
-                                    }}
-                                    className="p-2.5 bg-slate-50 hover:bg-slate-100 text-[10px] font-black uppercase text-slate-600 rounded-xl flex items-center justify-center gap-1.5 transition-colors border"
-                                  >
-                                    <RefreshCw size={12} /> Substituir
-                                  </button>
-                                  
-                                  {/* Carga Standard */}
-                                  <button 
-                                    onClick={() => {
-                                      const currentWt = exercises[currentIndex]?.weight || 0;
-                                      const delta = prompt("Ajustar carga básica do protocolo (kg):", currentWt.toString());
-                                      if (delta !== null) {
-                                        const parsed = parseFloat(delta);
-                                        if (!isNaN(parsed)) handleAdjustExerciseWeight(currentIndex, parsed);
-                                      }
-                                    }}
-                                    className="p-2.5 bg-slate-50 hover:bg-slate-100 text-[10px] font-black uppercase text-slate-600 rounded-xl flex items-center justify-center gap-1.5 transition-colors border"
-                                  >
-                                    <Dumbbell size={12} /> Carga ({exercises[currentIndex]?.weight || 0}kg)
-                                  </button>
-
-                                  {/* Sets edits */}
-                                  <button 
-                                    onClick={() => {
-                                      const curSets = exercises[currentIndex]?.sets_json?.length || exercises[currentIndex]?.sets || 3;
-                                      const setsStr = prompt("Total de séries (1-10):", curSets.toString());
-                                      if (setsStr !== null) {
-                                        const parsed = parseInt(setsStr);
-                                        if (!isNaN(parsed) && parsed >= 1 && parsed <= 10) {
-                                          handleAdjustExerciseSets(currentIndex, parsed);
-                                        }
-                                      }
-                                    }}
-                                    className="p-2.5 bg-slate-50 hover:bg-slate-100 text-[10px] font-black uppercase text-slate-600 rounded-xl flex items-center justify-center gap-1.5 transition-colors border"
-                                  >
-                                    <Plus size={12} /> Séries ({exercises[currentIndex]?.sets_json?.length || exercises[currentIndex]?.sets || 3}s)
-                                  </button>
-
-                                  {/* Remove option directly */}
-                                  <button 
-                                    onClick={() => {
-                                      if (confirm(`Remover ${exercises[currentIndex]?.exercise_name} do treino?`)) {
-                                        handleRemoveExerciseFromSession(currentIndex);
-                                      }
-                                    }}
-                                    className="p-2.5 bg-rose-50 hover:bg-rose-100 text-[10px] font-black uppercase text-rose-500 rounded-xl flex items-center justify-center gap-1.5 transition-colors border border-rose-100"
-                                  >
-                                    <Trash2 size={12} /> Excluir
-                                  </button>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
                         </div>
                       </div>
                     )}
@@ -3814,7 +3858,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-1 relative z-50">
                                     {/* Action trigger menu */}
                                     <button 
                                       onClick={(e) => {
@@ -3830,6 +3874,73 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                     >
                                       <MoreVertical size={12} strokeWidth={2.5} />
                                     </button>
+
+                                    {/* FLOATING CONTEXT MENU WITH GLASSMORPHISM */}
+                                    <AnimatePresence>
+                                      {isMenuOpened && (
+                                        <motion.div 
+                                          initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                                          exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                                          transition={{ duration: 0.12 }}
+                                          className="absolute right-0 top-9 z-[200] bg-white/95 backdrop-blur-xl border border-slate-200/50 rounded-2xl shadow-[0_12px_30px_rgba(15,23,42,0.12)] p-1.5 min-w-[200px] flex flex-col gap-0.5"
+                                        >
+                                          {/* Executar Agora */}
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              playHapticFeedback('success');
+                                              setContextMenuIndex(null);
+                                              if (confirm(`Começar a executar "${ex.exercise_name}" agora em substituição ao atual?`)) {
+                                                setCurrentIndex(idx);
+                                                setCurrentSet(1);
+                                                setIsResting(false);
+                                                const savedCompleted = completedSetsByExercise[idx] || new Set();
+                                                setCompletedSetIndices(savedCompleted);
+                                                setLastSet(null);
+                                                setShowExercisesList(false);
+                                                playSensoryTone('success');
+                                                showSuccess(`Iniciando execução de: ${ex.exercise_name}`);
+                                              }
+                                            }}
+                                            className="w-full px-3 py-2 bg-indigo-50/50 hover:bg-indigo-50 text-left text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                                          >
+                                            <Play size={13} className="text-indigo-500 fill-indigo-500/20" /> Executar Agora
+                                          </button>
+
+                                          {/* Substituir */}
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              playHapticFeedback('light');
+                                              setReplaceIndex(idx);
+                                              setExerciseSelectorMode('replace');
+                                              setContextMenuIndex(null);
+                                            }}
+                                            className="w-full px-3 py-2 hover:bg-slate-50 text-left text-[11px] font-black uppercase tracking-wider text-slate-707 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                                          >
+                                            <RefreshCw size={13} className="text-slate-400" /> Substituir Exercício
+                                          </button>
+                                          
+
+
+                                          {/* Excluir Exercício */}
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              playHapticFeedback('light');
+                                              setContextMenuIndex(null);
+                                              if (confirm(`Remover ${ex.exercise_name} do treino?`)) {
+                                                handleRemoveExerciseFromSession(idx);
+                                              }
+                                            }}
+                                            className="w-full px-3 py-2 hover:bg-rose-50 text-left text-[11px] font-black uppercase tracking-wider text-rose-500 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                                          >
+                                            <Trash2 size={13} className="text-rose-455" /> Excluir Exercício
+                                          </button>
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
 
                                     {/* Reorder Buttons */}
                                     <div className="flex items-center gap-0.5 ml-1 pl-1.5 border-l border-slate-200">
@@ -3862,97 +3973,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                     </div>
                                   </div>
                                 </div>
-
-                                {/* Context Menu Options Tray for Future Exercise */}
-                                <AnimatePresence>
-                                  {isMenuOpened && (
-                                    <motion.div 
-                                      initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                                      animate={{ height: "auto", opacity: 1, marginTop: 10 }}
-                                      exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                                      className="overflow-hidden border-t border-slate-200/60 pt-2.5 mt-2"
-                                    >
-                                      <div className="grid grid-cols-2 gap-2">
-                                        {/* Executar Agora */}
-                                        <button 
-                                          onClick={() => {
-                                            if (confirm(`Começar a executar "${ex.exercise_name}" agora em substituição ao atual?`)) {
-                                              setCurrentIndex(idx);
-                                              setCurrentSet(1);
-                                              setIsResting(false);
-                                              const savedCompleted = completedSetsByExercise[idx] || new Set();
-                                              setCompletedSetIndices(savedCompleted);
-                                              setLastSet(null);
-                                              setContextMenuIndex(null);
-                                              setShowExercisesList(false);
-                                              playSensoryTone('success');
-                                              playHapticFeedback('success');
-                                              showSuccess(`Iniciando execução de: ${ex.exercise_name}`);
-                                            }
-                                          }}
-                                          className="col-span-2 p-2.5 bg-indigo-50 hover:bg-indigo-100 text-[9.5px] font-[1000] uppercase text-indigo-600 rounded-lg flex items-center justify-center gap-1.5 border border-indigo-100/60 transition-all shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)]"
-                                        >
-                                          <Play size={11} className="fill-indigo-600" /> Executar agora
-                                        </button>
-
-                                        {/* Substituir */}
-                                        <button 
-                                          onClick={() => {
-                                            setReplaceIndex(idx);
-                                            setExerciseSelectorMode('replace');
-                                          }}
-                                          className="p-2 bg-white hover:bg-slate-50 text-[9px] font-black uppercase text-slate-500 rounded-lg flex items-center justify-center gap-1 border transition-all"
-                                        >
-                                          <RefreshCw size={11} /> Substituir
-                                        </button>
-                                        
-                                        {/* Ajustar Carga */}
-                                        <button 
-                                          onClick={() => {
-                                            const currentWt = exercises[idx]?.weight || 0;
-                                            const loadVal = prompt(`Carga base para ${ex.exercise_name} (kg):`, currentWt.toString());
-                                            if (loadVal !== null) {
-                                              const parsed = parseFloat(loadVal);
-                                              if (!isNaN(parsed)) handleAdjustExerciseWeight(idx, parsed);
-                                            }
-                                          }}
-                                          className="p-2 bg-white hover:bg-slate-50 text-[9px] font-black uppercase text-slate-500 rounded-lg flex items-center justify-center gap-1 border transition-all"
-                                        >
-                                          <Dumbbell size={11} /> Carga ({ex.weight || 0}kg)
-                                        </button>
-
-                                        {/* Editar Séries */}
-                                        <button 
-                                          onClick={() => {
-                                            const curSets = exercises[idx]?.sets_json?.length || exercises[idx]?.sets || 3;
-                                            const setsStr = prompt("Total de séries (1-10):", curSets.toString());
-                                            if (setsStr !== null) {
-                                              const parsed = parseInt(setsStr);
-                                              if (!isNaN(parsed) && parsed >= 1 && parsed <= 10) {
-                                                handleAdjustExerciseSets(idx, parsed);
-                                              }
-                                            }
-                                          }}
-                                          className="p-2 bg-white hover:bg-slate-50 text-[9px] font-black uppercase text-slate-500 rounded-lg flex items-center justify-center gap-1 border transition-all"
-                                        >
-                                          <Plus size={11} /> Séries ({ex.sets_json?.length || ex.sets || 3}s)
-                                        </button>
-
-                                        {/* Excluir Exercício */}
-                                        <button 
-                                          onClick={() => {
-                                            if (confirm(`Remover ${ex.exercise_name} do treino?`)) {
-                                              handleRemoveExerciseFromSession(idx);
-                                            }
-                                          }}
-                                          className="p-2 bg-rose-50 hover:bg-rose-100 text-[9px] font-black uppercase text-rose-500 rounded-lg flex items-center justify-center gap-1 border border-rose-100 transition-all"
-                                        >
-                                          <Trash2 size={11} /> Remover
-                                        </button>
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
                               </motion.div>
                             );
                           })}

@@ -207,6 +207,37 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
           className="flex flex-col items-center shrink-0 cursor-grab active:cursor-grabbing hover:scale-[1.02] transition duration-200"
           title="Arraste a imagem para reordenar"
         >
+          {/* Mini reorganization controls above the image */}
+          <div className="flex items-center justify-center gap-1.5 mb-1.5 bg-slate-50 border border-slate-100 p-0.5 px-2 rounded-full shadow-[0_1px_3px_rgba(15,23,42,0.04)] select-none">
+            <button
+              disabled={idx === 0}
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveUp(idx);
+              }}
+              className="w-4 h-4 flex items-center justify-center rounded-md transition-all text-slate-400 hover:text-[#7BA7FF] hover:bg-slate-100 disabled:opacity-20 disabled:hover:bg-transparent"
+              title="Mover para cima"
+            >
+              <ChevronUp size={11} strokeWidth={3} />
+            </button>
+            <div className="w-[1px] h-2 bg-slate-200" />
+            <button
+              disabled={idx === total - 1}
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveDown(idx);
+              }}
+              className="w-4 h-4 flex items-center justify-center rounded-md transition-all text-slate-400 hover:text-[#7BA7FF] hover:bg-slate-100 disabled:opacity-20 disabled:hover:bg-transparent"
+              title="Mover para baixo"
+            >
+              <ChevronDown size={11} strokeWidth={3} />
+            </button>
+          </div>
+
           <div className="w-[91px] h-[61px] bg-slate-100/95 rounded-2xl overflow-hidden relative flex items-center justify-center p-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)]">
             <img
               src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'}
@@ -266,29 +297,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
         </div>
 
         {/* Right column: Context menu trigger vertically centered with opacity rules */}
-        <div className="shrink-0 self-center flex items-center justify-center gap-0.5">
-          <button
-            disabled={idx === 0}
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveUp(idx);
-            }}
-            className="w-7 h-7 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-slate-600 opacity-60 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed"
-            title="Mover para cima"
-          >
-            <ChevronUp size={14} className="w-4 h-4" />
-          </button>
-          <button
-            disabled={idx === total - 1}
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveDown(idx);
-            }}
-            className="w-7 h-7 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-slate-600 opacity-60 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed"
-            title="Mover para baixo"
-          >
-            <ChevronDown size={14} className="w-4 h-4" />
-          </button>
+        <div className="shrink-0 self-center flex items-center justify-center">
           <button
             onClick={() => setActiveMenuId(activeMenuId === ex.id ? null : ex.id)}
             className={`w-8 h-8 flex items-center justify-center rounded-full transition-all opacity-55 hover:opacity-100 ${
