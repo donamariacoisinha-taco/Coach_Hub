@@ -32,7 +32,27 @@ export const ExercisePreviewProvider: React.FC<{ children: React.ReactNode }> = 
 
   const openExercisePreview = (name: string, image: string, muscleGroup?: string) => {
     if (!image) return;
-    setPreviewExercise({ name, image, muscleGroup });
+    
+    // Normalize Unsplash URLs to fetch high resolution original imagery
+    let processedImage = image;
+    if (image.includes('unsplash.com')) {
+      try {
+        const urlObj = new URL(image);
+        urlObj.searchParams.set('w', '1200');
+        urlObj.searchParams.set('q', '90');
+        urlObj.searchParams.delete('h');
+        urlObj.searchParams.delete('fit');
+        urlObj.searchParams.delete('crop');
+        processedImage = urlObj.toString();
+      } catch (e) {
+        processedImage = image
+          .replace(/w=\d+/, 'w=1200')
+          .replace(/h=\d+/, 'w=1200')
+          .replace(/&fit=crop/, '');
+      }
+    }
+
+    setPreviewExercise({ name, image: processedImage, muscleGroup });
     playHapticFeedback?.('light');
   };
 

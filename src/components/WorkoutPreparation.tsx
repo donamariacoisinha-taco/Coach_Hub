@@ -6,8 +6,11 @@ import {
   useSensors, 
   PointerSensor, 
   KeyboardSensor, 
+  TouchSensor,
+  DragOverlay,
   DragEndEvent 
 } from '@dnd-kit/core';
+import { playHapticFeedback } from '../services/athleteMemoryEngine';
 import { 
   arrayMove, 
   SortableContext, 
@@ -39,6 +42,7 @@ import {
   ChevronDown 
 } from 'lucide-react';
 import { useNavigation } from '../App';
+import { useExercisePreview } from '../context/ExercisePreviewContext';
 import { workoutApi } from '../lib/api/workoutApi';
 import { exerciseApi } from '../lib/api/exerciseApi';
 import { authApi } from '../lib/api/authApi';
@@ -122,6 +126,7 @@ interface SortablePrepExerciseCardProps {
   onAddBelow: (idx: number) => void;
   onMoveUp: (idx: number) => void;
   onMoveDown: (idx: number) => void;
+  isOverlay?: boolean;
 }
 
 const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
@@ -142,6 +147,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
   onAddBelow,
   onMoveUp,
   onMoveDown,
+  isOverlay = false,
 }) => {
   const {
     attributes,
@@ -150,15 +156,10 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: ex.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 200 : (activeMenuId === ex.id ? 150 : 1),
-  };
+  } = useSortable({ id: ex.id, disabled: isOverlay });
 
   const [isNotesExpanded, setIsNotesExpanded] = useState<boolean>(false);
+  const { openExercisePreview } = useExercisePreview();
 
   // Auto-expand notes dynamically when they are first initialized inside this session
   const isMounted = React.useRef(false);
@@ -181,32 +182,69 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
   const weightPattern = ex.weight ? `${ex.weight} kg` : '0 kg';
   const metricsText = `${setsCount} ${setsCount === 1 ? 'série' : 'séries'} • ${repsPattern} reps • ${weightPattern}`;
 
+  // Smart placeholder when dragging the original element
+  if (isDragging && !isOverlay) {
+    return (
+      <div 
+        ref={setNodeRef}
+        style={{
+          transform: CSS.Transform.toString(transform),
+          transition,
+        }}
+        className="border-2 border-dashed border-slate-300 bg-slate-50/70 rounded-[1.75rem] h-[138px] flex flex-col items-center justify-center text-xs font-bold text-slate-400 select-none shadow-[inset_0_2px_8px_rgba(15,23,42,0.02)] gap-1.5 transition-all outline-none"
+      >
+        <span className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-black">Mover para esta posição</span>
+        <span className="text-[9px] text-slate-350 tracking-wider font-extrabold uppercase">{ex.exercise_name} (Posição {idx + 1})</span>
+      </div>
+    );
+  }
+
+  const style = isOverlay ? {
+    transform: 'scale(1.03)',
+    border: '1px solid #CBD5E1',
+    backgroundColor: '#FFFFFF',
+    boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+  } : {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 200 : (activeMenuId === ex.id ? 150 : 1),
+  };
+
   return (
     <motion.div
-      ref={setNodeRef}
+      ref={isOverlay ? undefined : setNodeRef}
       style={style}
-      layoutId={`prep-row-${ex.id}`}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{
+      layoutId={isOverlay ? undefined : `prep-row-${ex.id}`}
+      initial={isOverlay ? undefined : { opacity: 0, y: 10 }}
+      animate={isOverlay ? { scale: 1.03 } : {
         opacity: 1,
         y: 0,
         scale: isDragging ? 1.015 : 1,
       }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ type: 'spring', stiffness: 180, damping: 22 }}
-      className={`relative pl-6 pr-5 py-5 transition-all flex flex-col gap-3 bg-white/75 backdrop-blur-xl rounded-[1.75rem] border border-white/40 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ${
-        isCurrent ? 'ring-2 ring-[#7BA7FF]/30 shadow-[0_15px_40px_rgba(123,167,255,0.15)]' : ''
+      whileTap={isOverlay ? undefined : { scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.7 }}
+      className={`relative pl-3.5 pr-5 py-5 transition-all flex flex-col gap-3 rounded-[1.75rem] ${
+        isOverlay
+          ? 'bg-white border-slate-300 shadow-2xl ring-2 ring-[#7BA7FF]/40'
+          : `bg-white/75 backdrop-blur-xl border border-white/40 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ${
+              isCurrent ? 'ring-2 ring-[#7BA7FF]/30 shadow-[0_15px_40px_rgba(123,167,255,0.15)]' : ''
+            }`
       }`}
     >
-      <div className="flex items-center gap-4 w-full min-h-[96px]">
-        {/* Left column: Draggable Exercise Image serving as the main drag handle */}
+      <div className="flex items-center gap-3 w-full min-h-[96px]">
+        {/* Premium Drag Handle leftmost */}
         <div
-          {...attributes}
-          {...listeners}
+          {...(isOverlay ? {} : attributes)}
+          {...(isOverlay ? {} : listeners)}
           style={{ touchAction: 'none' }}
-          className="flex flex-col items-center shrink-0 cursor-grab active:cursor-grabbing hover:scale-[1.02] transition duration-200"
-          title="Arraste a imagem para reordenar"
+          className="w-10 h-24 shrink-0 flex items-center justify-center text-slate-400 hover:text-[#7BA7FF] opacity-60 hover:opacity-100 transition-all cursor-grab active:cursor-grabbing hover:scale-105 active:scale-95 z-20 group"
+          title="Arraste para reordenar"
         >
+          <GripVertical size={22} className="transition-transform group-active:scale-90" />
+        </div>
+
+        {/* Column 2: Exercise Image & Reorder Buttons */}
+        <div className="flex flex-col items-center shrink-0">
           {/* Mini reorganization controls above the image */}
           <div className="flex items-center justify-center gap-1.5 mb-1.5 bg-slate-50 border border-slate-100 p-0.5 px-2 rounded-full shadow-[0_1px_3px_rgba(15,23,42,0.04)] select-none">
             <button
@@ -238,7 +276,17 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
             </button>
           </div>
 
-          <div className="w-[91px] h-[61px] bg-slate-100/95 rounded-2xl overflow-hidden relative flex items-center justify-center p-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)]">
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              openExercisePreview(
+                ex.exercise_name || '',
+                ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop',
+                ex.muscle_group || ''
+              );
+            }}
+            className="w-[91px] h-[61px] bg-slate-100/95 rounded-2xl overflow-hidden relative flex items-center justify-center p-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)] cursor-zoom-in hover:scale-[1.05] active:scale-95 transition-all z-10"
+          >
             <img
               src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'}
               alt={ex.exercise_name}
@@ -267,8 +315,8 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
             }
           }}
         >
-          {/* Muscle Focus Label: uppercase, tracking-[0.2em], text-xs, text-slate-400, bold */}
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-bold leading-none mb-1.5 w-[199px]">
+          {/* Muscle Focus Label: uppercase, tracking-[0.2em], text-[9px], text-slate-400, bold */}
+          <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold leading-none mb-1.5 w-full">
             {getMuscleFocus(ex.muscle_group || 'Geral', ex.exercise_name).toUpperCase()}
           </p>
 
@@ -276,7 +324,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
             {isCurrent && (
               <span className="w-2.5 h-2.5 bg-[#7BA7FF] rounded-full shrink-0 animate-pulse animate-duration-1000" title="Exercício Ativo" />
             )}
-            <h4 className="text-lg font-semibold text-slate-900 tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight w-[195px]">
+            <h4 className="text-lg font-semibold text-slate-900 tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight w-full">
               {ex.exercise_name}
             </h4>
           </div>
@@ -290,8 +338,8 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
             <span>{weightPattern}</span>
           </div>
 
-          {/* KYRON Insight: Subtle, micro 1-liner secondary intelligence line. Maximum 2 lines. */}
-          <p className="text-[10px] text-slate-400 mt-1.5 italic font-medium leading-relaxed line-clamp-2 w-[199px]">
+          {/* KYRON Insight: Subtle, micro 1-liner secondary intelligence line */}
+          <p className="text-[10px] text-slate-400 mt-1.5 italic font-medium leading-relaxed line-clamp-2 w-full">
             {getKyronInsight(idx, ex.exercise_name)}
           </p>
         </div>
@@ -462,11 +510,20 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const lastOverIdRef = React.useRef<string | null>(null);
+
   // Setup sensors for dragging with tap-prevent criteria
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 180,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -521,9 +578,27 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
     loadData();
   }, [workoutId, showError]);
 
+  // Drag start handler to initialize active dragging states
+  const handleDragStart = useCallback((event: any) => {
+    setActiveId(event.active.id);
+    setActiveMenuId(null);
+    playHapticFeedback('light');
+  }, []);
+
+  // Drag over handler to provide haptic feedback when order has changed
+  const handleDragOver = useCallback((event: any) => {
+    const { over } = event;
+    if (over && over.id !== lastOverIdRef.current) {
+      lastOverIdRef.current = over.id;
+      playHapticFeedback('light');
+    }
+  }, []);
+
   // Handle Drag & Drop Ended reordering
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveId(null);
+    lastOverIdRef.current = null;
     if (over && active.id !== over.id) {
       setExercises((prev) => {
         const oldIdx = prev.findIndex((item) => item.id === active.id);
@@ -536,7 +611,9 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
           order: index + 1,
         }));
       });
-      if ('vibrate' in navigator) navigator.vibrate(5);
+      playHapticFeedback('medium');
+    } else {
+      playHapticFeedback('light');
     }
   }, []);
 
@@ -980,7 +1057,16 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
+                autoScroll={{
+                  threshold: {
+                    top: 0.15,
+                    bottom: 0.15,
+                  },
+                  acceleration: 2,
+                }}
               >
                 <SortableContext
                   items={exercises.map(ex => ex.id)}
@@ -1011,7 +1097,57 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
                     ))}
                   </div>
                 </SortableContext>
+
+                <DragOverlay adjustScale={true}>
+                  {activeId ? (() => {
+                    const activeEx = exercises.find(ex => ex.id === activeId);
+                    if (!activeEx) return null;
+                    const activeIdx = exercises.findIndex(ex => ex.id === activeId);
+                    return (
+                      <div className="opacity-95 pointer-events-none select-none">
+                        <SortablePrepExerciseCard
+                          ex={activeEx}
+                          idx={activeIdx}
+                          total={exercises.length}
+                          activeMenuId={null}
+                          setActiveMenuId={() => {}}
+                          onUpdateWeight={() => {}}
+                          onUpdateReps={() => {}}
+                          onEditSetsReps={() => {}}
+                          onAddNote={() => {}}
+                          onUpdateNote={() => {}}
+                          onRemoveNote={() => {}}
+                          onReplace={() => {}}
+                          onRemove={() => {}}
+                          onDuplicate={() => {}}
+                          onAddBelow={() => {}}
+                          onMoveUp={() => {}}
+                          onMoveDown={() => {}}
+                          isOverlay={true}
+                        />
+                      </div>
+                    );
+                  })() : null}
+                </DragOverlay>
               </DndContext>
+
+              {/* Float capsule indicating position under Active Dragging */}
+              <AnimatePresence>
+                {activeId && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 50, scale: 0.9 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                    className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1000] bg-slate-900/95 backdrop-blur-xl text-white px-4 py-2 rounded-full shadow-[0_8px_24px_rgba(15,23,42,0.25)] flex items-center gap-2 border border-slate-800 text-[11px] font-bold uppercase tracking-wider"
+                  >
+                    <span className="w-1.5 h-1.5 bg-[#7BA7FF] rounded-full animate-pulse" />
+                    <span>
+                      Movendo exercício &bull; Posição {exercises.findIndex(e => e.id === activeId) + 1} de {exercises.length}
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <button
                 onClick={() => {
