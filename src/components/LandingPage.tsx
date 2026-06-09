@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { translations } from '../translations';
-import kyronLogo from '../assets/images/kyron_core_logo_1781042739395.png';
+import kyronLogo from '../assets/images/kyron_core_v2_1781043247216.png';
 import { 
   Sparkles, 
   ArrowRight, 
