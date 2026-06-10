@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { authApi } from '../lib/api/authApi';
 import { useNavigation } from '../App';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import kyronLogo from '../assets/images/kyron_official_logo_1781087891387.png';
 
 interface AuthProps {
   onBack?: () => void;
@@ -65,22 +66,24 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] p-6 flex flex-col justify-center max-w-md mx-auto relative">
+    <div className="min-h-screen bg-[#F8FAFC] p-6 flex flex-col justify-center max-w-md mx-auto relative select-none">
       {onBack && (
-        <button onClick={onBack} className="absolute top-10 left-6 text-slate-400 hover:text-blue-600 transition-colors">
-          <i className="fas fa-chevron-left mr-2"></i>
-          <span className="text-[10px] font-black uppercase tracking-widest">Voltar</span>
+        <button onClick={onBack} className="absolute top-10 left-6 text-slate-400 hover:text-[#0F172A] transition-colors flex items-center gap-1 cursor-pointer">
+          <span className="text-[10px] font-bold uppercase tracking-widest">Voltar</span>
         </button>
       )}
 
-      <div className="text-center mb-10">
-        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-6 shadow-xl shadow-blue-600/20">
-           <i className="fas fa-gem text-2xl"></i>
-         </div>
-        <h2 className="text-4xl font-black text-slate-900 mb-2 uppercase tracking-tighter">
+      <div className="text-center mb-10 flex flex-col items-center">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-white border border-slate-200/60 rounded-full flex items-center justify-center overflow-hidden shadow-xs p-1.5">
+            <img src={kyronLogo} alt="KYRON OS" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+          </div>
+          <span className="text-base font-black uppercase tracking-[0.25em] text-slate-900 pt-0.5">KYRON OS</span>
+        </div>
+        <h2 className="text-3xl font-[1000] tracking-tight text-slate-900 mb-2 uppercase">
            {isSignUp ? 'Criar Perfil' : 'Bem-vindo'}
         </h2>
-        <p className="text-slate-400 text-sm">
+        <p className="text-slate-500 text-sm font-medium">
            {isSignUp ? 'Inicie sua jornada de alta performance.' : 'Entre para continuar evoluindo.'}
         </p>
       </div>
@@ -98,7 +101,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-5 bg-white border border-slate-200 rounded-2xl focus:border-blue-600 outline-none transition-all text-slate-900 font-bold shadow-sm"
+            className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
             placeholder="atleta@exemplo.com"
             required
           />
@@ -110,7 +113,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-5 bg-white border border-slate-200 rounded-2xl focus:border-blue-600 outline-none transition-all text-slate-900 font-bold shadow-sm"
+            className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
             placeholder="••••••••"
             required
           />
@@ -119,16 +122,16 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-6 bg-blue-600 rounded-3xl font-black text-white text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50"
+          className="w-full py-5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer text-center"
         >
-          {loading ? <i className="fas fa-spinner animate-spin"></i> : isSignUp ? 'FORJAR MEU ACESSO' : 'ENTRAR NO DASHBOARD'}
+          {loading ? 'Processando...' : isSignUp ? 'FORJAR MEU ACESSO' : 'ENTRAR NO DASHBOARD'}
         </button>
       </form>
 
       <div className="mt-10 flex flex-col gap-4 text-center">
         <button
           onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
-          className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] hover:text-blue-600 transition-colors"
+          className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:text-[#0F172A] transition-colors cursor-pointer"
         >
           {isSignUp ? 'Já possuo uma conta' : 'Não possuo cadastro'}
         </button>
@@ -136,7 +139,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
         <button
           onClick={handleGuestLogin}
           type="button"
-          className="text-blue-600 text-[10px] font-black uppercase tracking-[0.2em] hover:text-blue-800 transition-colors border border-dashed border-blue-600/30 rounded-2xl py-4 hover:border-blue-600/60 mt-2"
+          className="w-full py-4 bg-[#EAF2FF] hover:bg-[#D5E6FF] text-[#0F172A] font-bold text-[10px] uppercase tracking-[0.2em] rounded-2xl shadow-xs transition-all cursor-pointer border border-blue-100/30"
         >
           Entrar como Convidado (Modo Offline)
         </button>

@@ -227,7 +227,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
             <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Membros Exclusivos</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-light tracking-tight text-slate-900 leading-none">
-            Biblioteca Premium
+            Curadoria Premium
           </h1>
           <p className="text-sm sm:text-base leading-relaxed text-slate-500 max-w-sm">
             Protocolos desenvolvidos por especialistas, refinados pela <strong className="text-[#7BA7FF] font-medium">Rubi Intelligence</strong> e estruturados para acelerar sua evolução física.
@@ -550,17 +550,17 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                     <div className="space-y-4">
                       <div className="flex items-center justify-between gap-2.5">
                         {p.premium ? (
-                          <span className="bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white font-[900] text-[8px] uppercase tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                          <span className="bg-[#0F172A] text-white font-[910] text-[8px] uppercase tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                             <Crown size={8} /> Premium
                           </span>
                         ) : (
-                          <span className="text-[8px] font-black uppercase text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-full shrink-0">
+                          <span className="text-[8px] font-black uppercase text-[#0F172A] bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full shrink-0">
                             Livre
                           </span>
                         )}
 
-                        <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider truncate max-w-[120px]">
-                          {creatorName}
+                        <span className="text-[8px] font-bold text-[#7BA7FF] uppercase tracking-wider flex items-center gap-1 shrink-0">
+                          ✓ Validado por Rubi AI
                         </span>
                       </div>
 
@@ -639,17 +639,17 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
               <div className="space-y-4 pt-1 pb-6 border-b border-slate-100 pr-8">
                 <div className="flex flex-wrap gap-2">
                   {selectedProtocol.premium ? (
-                    <span className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase text-white bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] px-3.5 py-1 rounded-full shadow-md shadow-[#7BA7FF]/20 shrink-0">
+                    <span className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase text-white bg-[#0F172A] px-3.5 py-1 rounded-full shadow-sm shrink-0">
                       <Crown size={9} /> Premium
                     </span>
                   ) : (
-                    <span className="text-[8px] font-[1000] uppercase text-emerald-500 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full shrink-0">
+                    <span className="text-[8px] font-[1000] uppercase text-[#0F172A] bg-slate-100 border border-slate-200 px-3 py-1 rounded-full shrink-0">
                       Livre
                     </span>
                   )}
 
-                  <span className="text-[8px] font-black uppercase text-[#34D399] bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full shrink-0">
-                    Mapeado por Rubi Intelligence
+                  <span className="text-[8px] font-black uppercase text-[#7BA7FF] bg-blue-50 border border-blue-100 px-3 py-1 rounded-full shrink-0">
+                    ✓ Validado por Rubi AI
                   </span>
                 </div>
 

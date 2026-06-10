@@ -22,6 +22,7 @@ import { systemTemplatesApi } from '../../lib/api/systemTemplatesApi';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { Goal, ExperienceLevel, EquipmentPreference, UserProfile } from '../../types';
 import { useNavigation } from '../../App';
+import kyronLogo from '../../assets/images/kyron_official_logo_1781087891387.png';
 
 // Steps Constants
 const TOTAL_STEPS = 7;
@@ -144,22 +145,25 @@ export default function SmartOnboarding() {
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center text-center space-y-8 py-12">
-      <div className="w-24 h-24 bg-slate-900 rounded-[2.5rem] flex items-center justify-center shadow-2xl rotate-3">
-        <Sparkles size={40} className="text-white" strokeWidth={2.5} />
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-white border border-slate-200/60 rounded-full flex items-center justify-center overflow-hidden shadow-xs p-1.5">
+          <img src={kyronLogo} alt="KYRON OS Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+        </div>
+        <span className="text-base font-black uppercase tracking-[0.25em] text-slate-900 pt-0.5">KYRON OS</span>
       </div>
       
       <div className="space-y-3">
-        <h1 className="text-4xl font-[1000] tracking-tighter text-slate-900 leading-none">
-          Bem-vindo ao<br />KYRON OS
+        <h1 className="text-4xl font-[1000] tracking-tighter text-slate-900 leading-none uppercase">
+          Bem-vindo
         </h1>
-        <p className="text-slate-500 text-lg font-medium">
+        <p className="text-slate-500 text-base font-medium max-w-xs">
           Configure seu ecossistema adaptivo de performance humana em poucos segundos.
         </p>
       </div>
 
       <button
         onClick={onNext}
-        className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 mt-8"
+        className="w-full bg-[#0F172A] text-white py-5 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 mt-8 cursor-pointer"
       >
         Começar Agora
         <ChevronRight size={18} strokeWidth={3} />
@@ -191,7 +195,7 @@ function NameStep({ value, onChange, onNext }: { value: string, onChange: (v: st
       <button
         disabled={!value.trim()}
         onClick={onNext}
-        className="w-full bg-slate-900 disabled:bg-slate-200 text-white py-6 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+        className="w-full bg-[#0F172A] disabled:bg-slate-200 text-white py-5 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 cursor-pointer"
       >
         Continuar
       </button>
@@ -323,13 +327,13 @@ function FrequencyStep({ value, onChange, onNext }: { value: number, onChange: (
         <p className="text-slate-500">Consistência é a chave para o sucesso.</p>
       </div>
 
-      <div className="flex justify-between items-center bg-white p-8 rounded-[2.5rem] shadow-sm border-4 border-slate-50">
+      <div className="flex justify-between items-center bg-white p-8 rounded-[2.5rem] shadow-xs border-4 border-slate-50">
         {[2, 3, 4, 5, 6].map(num => (
           <button
             key={num}
             onClick={() => onChange(num)}
-            className={`w-12 h-12 rounded-full font-black text-lg transition-all ${
-              value === num ? 'bg-slate-900 text-white scale-125 shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+            className={`w-12 h-12 rounded-full font-black text-lg transition-all cursor-pointer ${
+              value === num ? 'bg-[#0F172A] text-white scale-125 shadow-sm' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
             }`}
           >
             {num}
@@ -341,7 +345,7 @@ function FrequencyStep({ value, onChange, onNext }: { value: number, onChange: (
 
       <button
         onClick={onNext}
-        className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+        className="w-full bg-[#0F172A] text-white py-5 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 cursor-pointer"
       >
         Próximo
       </button>
@@ -373,7 +377,7 @@ function DurationStep({ value, onChange, onNext, isFinishing }: { value: number,
           step="5"
           value={value}
           onChange={(e) => onChange(parseInt(e.target.value))}
-          className="w-full h-3 bg-slate-100 rounded-full appearance-none cursor-pointer accent-slate-900"
+          className="w-full h-3 bg-slate-100 rounded-full appearance-none cursor-pointer accent-[#0F172A]"
         />
         <div className="text-center">
            <span className="text-5xl font-[1000] text-slate-900">{value}</span>
@@ -384,7 +388,7 @@ function DurationStep({ value, onChange, onNext, isFinishing }: { value: number,
       <button
         disabled={isFinishing}
         onClick={onNext}
-        className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 mt-4 overflow-hidden relative"
+        className="w-full bg-[#0F172A] text-white py-5 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 mt-4 overflow-hidden relative cursor-pointer"
       >
         {isFinishing ? (
           <motion.div 

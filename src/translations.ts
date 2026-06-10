@@ -113,8 +113,8 @@ export const translations = {
     insight3: "Seu padrão de consistência está acima da média das últimas semanas.",
 
     // Premium Library Curated
-    libBadge: "OPÇÕES DA CURADORIA",
-    libTitle: "Premium Protocol Library",
+    libBadge: "PROTOCOLOS SELECIONADOS",
+    libTitle: "Curadoria Premium",
     libSub: "Incluído na Assinatura Premium",
     libCurated: "Curadoria de Adaptações Humanas",
     libIncluded: "INCLUÍDO NO PREMIUM",
@@ -187,7 +187,7 @@ export const translations = {
     bentoCard5Title: "Identidade do Atleta",
     bentoCard5Desc: "Seu perfil biológico único, mapeando biomarcadores, taxas de fadiga e equilíbrio de fibras musculares.",
     bentoCard5Cat: "PERFIL",
-    bentoCard6Title: "Biblioteca Premium",
+    bentoCard6Title: "Curadoria Premium",
     bentoCard6Desc: "Protocolos atléticos exclusivos de elite, calibrados para o máximo de transição fisiológica humana.",
     bentoCard6Cat: "COLEÇÃO"
   },
@@ -305,8 +305,8 @@ export const translations = {
     insight3: "Your consistency pattern is above the average of the last few weeks.",
 
     // Premium Library Curated
-    libBadge: "EXPERT SELECTIONS",
-    libTitle: "Premium Protocol Library",
+    libBadge: "HANDPICKED PROTOCOLS",
+    libTitle: "Curated Premium",
     libSub: "Included with Premium Membership",
     libCurated: "Curated Human Adaptations",
     libIncluded: "INCLUDED WITH PREMIUM",
@@ -379,7 +379,7 @@ export const translations = {
     bentoCard5Title: "Athlete Identity",
     bentoCard5Desc: "Your unique biological profile, mapping biomarkers, fatigue ratios, and muscle fiber balance.",
     bentoCard5Cat: "PROFILE",
-    bentoCard6Title: "Premium Library",
+    bentoCard6Title: "Curated Premium",
     bentoCard6Desc: "Exclusive, elite athletic protocols calibrated for maximum human physiological transitions.",
     bentoCard6Cat: "COLLECTION"
   }

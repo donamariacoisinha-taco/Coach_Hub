@@ -2,6 +2,7 @@
 import React from 'react';
 import { WorkoutHistory } from '../types';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import kyronLogo from '../assets/images/kyron_official_logo_1781087891387.png';
 
 interface ShareCardProps {
   workout: Partial<WorkoutHistory> & { totalTonnage?: number, topExercise?: string };
@@ -46,12 +47,12 @@ const ShareCard: React.FC<ShareCardProps> = ({ workout, onClose }) => {
          {/* Header */}
          <header className="relative z-10 mb-auto">
             <div className="flex items-center gap-3 mb-8">
-               <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]">
-                  <i className="fas fa-gem"></i>
+               <div className="w-10 h-10 bg-white/15 backdrop-blur-md rounded-full flex items-center justify-center overflow-hidden border border-white/25 shadow-xs p-1.5 shrink-0">
+                  <img src={kyronLogo} alt="KYRON OS" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                </div>
                <div>
-                  <p className="text-[8px] font-black text-blue-500 uppercase tracking-[0.4em] leading-none mb-1">Rubi Neural Coach</p>
-                  <h4 className="text-sm font-black text-white uppercase tracking-widest leading-none">Status da Sessão</h4>
+                  <p className="text-[8px] font-black text-[#7BA7FF] uppercase tracking-[0.4em] leading-none mb-1">Rubi Neural Coach</p>
+                  <h4 className="text-sm font-black text-white uppercase tracking-widest leading-none">KYRON OS</h4>
                </div>
             </div>
 
@@ -108,7 +109,7 @@ const ShareCard: React.FC<ShareCardProps> = ({ workout, onClose }) => {
       <div className="w-full max-w-[360px] mt-10 space-y-4">
          <button 
            onClick={handleShare}
-           className="w-full py-6 bg-blue-600 rounded-[2rem] font-black text-white uppercase text-xs tracking-[0.2em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-4"
+           className="w-full py-5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-2xl font-bold uppercase text-xs tracking-[0.2em] shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer"
          >
             <i className="fas fa-share-alt"></i> Compartilhar Evolução
          </button>

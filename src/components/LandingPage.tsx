@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { translations } from '../translations';
-import kyronLogo from '../assets/images/kyron_core_v2_1781043247216.png';
+import kyronLogo from '../assets/images/kyron_official_logo_1781087891387.png';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -188,14 +188,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
       <div className="absolute bottom-[1000px] left-10 w-[800px] h-[800px] rounded-full pointer-events-none blur-[180px] opacity-[0.14] bg-[#A5C8FF]/40" />
 
       {/* NAVIGATION BAR */}
-      <nav className="fixed top-0 left-0 right-0 z-[110] h-20 border-b border-white/30 bg-white/60 backdrop-blur-xl px-6 sm:px-12 flex items-center justify-between shadow-[0_2px_20px_rgba(15,23,42,0.02)]">
+      <nav className="fixed top-0 left-0 right-0 z-[110] h-20 border-b border-white/20 bg-white/60 backdrop-blur-xl px-6 sm:px-12 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-slate-950/20">
-            <img src={kyronLogo} alt="KYRON OS" className="w-[26px] h-[26px] object-contain scale-[1.12]" referrerPolicy="no-referrer" />
+          <div className="border border-slate-200/60 rounded-full flex items-center justify-center overflow-hidden shadow-xs p-1.5" style={{ width: '51px', height: '50px', backgroundColor: '#F3F4F4' }}>
+            <img 
+              src={kyronLogo} 
+              alt="KYRON OS" 
+              className="h-full object-contain transition-transform hover:scale-105 duration-500" 
+              style={{ width: '50.1875px' }}
+              referrerPolicy="no-referrer" 
+            />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-black uppercase tracking-[0.28em] text-slate-900 leading-none">KYRON OS</span>
-            <span className="text-[7px] font-bold text-slate-400 tracking-widest uppercase mt-0.5">{t('poweredBy')}</span>
+            <span className="text-[7.3px] font-bold text-slate-400 tracking-widest uppercase mt-0.5">{t('poweredBy')}</span>
           </div>
         </div>
 
@@ -227,7 +233,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
           <button 
             id="nav-start"
             onClick={onStart}
-            className="hidden sm:inline-flex bg-[#0F172A] hover:bg-slate-800 text-white font-bold text-[10.5px] tracking-[0.18em] uppercase py-3.5 px-6 rounded-2xl shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            className="hidden sm:inline-flex bg-[#7BA7FF] hover:bg-[#8FBCFF] text-[#0F172A] hover:shadow-[0_4px_15px_rgba(123,167,255,0.45)] font-bold text-[10.5px] tracking-[0.18em] uppercase py-3.5 px-6 rounded-2xl shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             {t('start')}
           </button>
@@ -294,17 +300,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                     hover: { y: -2, scale: 1.01 }
                   }}
                   transition={{ type: "spring", stiffness: 180, damping: 22, mass: 0.8 }}
-                  className="w-full sm:w-auto h-14 px-9 text-white rounded-full font-medium uppercase text-[11px] tracking-[0.22em] flex items-center justify-center gap-2 cursor-pointer relative overflow-hidden"
-                  style={{
-                    background: "linear-gradient(135deg, #7BA7FF 0%, #6B8DFF 50%, #818CF8 100%)",
-                    boxShadow: "0 12px 30px rgba(123, 167, 255, 0.22), 0 4px 12px rgba(15, 23, 42, 0.08)",
-                    border: "1px solid rgba(255, 255, 255, 0.25)"
-                  }}
+                  className="w-full sm:w-auto h-14 px-9 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-[#0F172A] hover:shadow-[0_8px_25px_rgba(123,167,255,0.45)] rounded-full font-bold uppercase text-[11px] tracking-[0.22em] flex items-center justify-center gap-2 cursor-pointer shadow-sm relative overflow-hidden"
                 >
-                  {/* Internal gloss overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
-                  
-                  <span className="relative z-10">{t('ctaStart')}</span>
+                  <span className="relative z-10 text-[#0F172A]">{t('ctaStart')}</span>
                   <motion.span
                     className="relative z-10"
                     variants={{
@@ -312,19 +310,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                     }}
                     transition={{ type: "spring", stiffness: 180, damping: 22, mass: 0.8 }}
                   >
-                    <ArrowRight size={13} className="text-white" />
+                    <ArrowRight size={13} className="text-[#0F172A]" />
                   </motion.span>
                 </motion.button>
                 
-                <motion.a 
-                  href="#how-it-works"
+                <motion.button 
+                  onClick={onStart}
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ type: "spring", stiffness: 180, damping: 22, mass: 0.8 }}
-                  className="w-full sm:w-auto h-14 px-9 bg-white/70 backdrop-blur-xl border border-slate-200 rounded-full font-medium text-slate-600 hover:text-slate-900 uppercase text-[11px] tracking-[0.22em] shadow-lg flex items-center justify-center gap-1 cursor-pointer"
+                  className="w-full sm:w-auto h-14 px-9 bg-[#EAF2FF] text-[#0F172A] hover:bg-[#D5E6FF] rounded-full font-medium uppercase text-[11px] tracking-[0.22em] shadow-xs flex items-center justify-center gap-1 cursor-pointer border border-blue-100/30"
                 >
                   {t('heroExplore')}
-                </motion.a>
+                </motion.button>
               </div>
 
               {/* THREE MICRO-BENEFITS (STRICTLY SUBTLE, BELOW CTA) */}
@@ -411,12 +409,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
 
                     <div className="space-y-5 pt-4">
                       <div className="flex items-center justify-between text-[9px] text-slate-500">
-                        <span className="font-mono text-[#4F46E5] font-bold uppercase tracking-wider">{t('activeProtocol')}</span>
+                        <span className="font-mono text-[#7BA7FF] font-bold uppercase tracking-wider">{t('activeProtocol')}</span>
                         <span className="font-mono text-slate-400">{t('rpeTarget')}</span>
                       </div>
 
                       <div className="space-y-1">
-                        <span className="text-[9px] uppercase tracking-[0.2em] text-[#4F46E5] font-bold block">{t('inclinePress')}</span>
+                        <span className="text-[9px] uppercase tracking-[0.2em] text-[#7BA7FF] font-bold block">{t('inclinePress')}</span>
                         <h5 className="text-lg font-light text-[#0F172A] leading-tight">{t('setCount').replace('{currentSet}', currentSet.toString())}</h5>
                       </div>
 
@@ -446,7 +444,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
 
                       <div className="bg-[#7BA7FF]/8 border border-[#7BA7FF]/20 p-3 rounded-xl flex items-center justify-between">
                         <div>
-                          <span className="text-[8.5px] uppercase font-bold text-[#4F46E5] block mb-0.5 font-mono">{t('restDecay')}</span>
+                          <span className="text-[8.5px] uppercase font-bold text-[#7BA7FF] block mb-0.5 font-mono">{t('restDecay')}</span>
                           <span className="text-xl font-light text-[#0F172A] font-mono leading-none tabular-nums">00:{secsRemaining < 10 ? '0' + secsRemaining : secsRemaining}</span>
                         </div>
 
@@ -565,7 +563,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                     className="w-full max-w-[340px] bg-white/90 text-[#0F172A] rounded-[2.25rem] p-6 shadow-xl flex flex-col justify-between min-h-[300px] border border-slate-200/80 backdrop-blur-md"
                   >
                     <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-[#818CF8]/10 text-[#4F46E5] flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-lg bg-[#818CF8]/10 text-[#818CF8] flex items-center justify-center">
                         <Brain size={12} />
                       </div>
                       <div>
@@ -582,7 +580,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                       </div>
 
                       <div className="text-left flex gap-2">
-                        <div className="w-5.5 h-5.5 bg-[#4F46E5] text-white font-bold rounded-full flex items-center justify-center text-[8.5px] font-mono shrink-0 pt-0.5" id="rubi-response-pill">R</div>
+                        <div className="w-5.5 h-5.5 bg-[#818CF8] text-white font-bold rounded-full flex items-center justify-center text-[8.5px] font-mono shrink-0 pt-0.5" id="rubi-response-pill">R</div>
                         <div className="bg-[#818CF8]/8 border border-[#818CF8]/15 text-[9.5px] px-3 py-2 rounded-xl rounded-tl-none font-light leading-relaxed max-w-[88%] text-slate-700">
                           {t('interactiveAnswer')}
                         </div>
@@ -661,41 +659,44 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
         </div>
       </section>
 
-      {/* SECTION 02 — EVERYTHING IN ONE SYSTEM (Four Premium Cards) */}
-      <section className="py-10 px-6 sm:px-12 max-w-7xl mx-auto border-t border-slate-200/50">
+      {/* SECTION 02 — ECOSSISTEMA KYRON (Highly Compact 4x1/2x2 Grid) */}
+      <section className="py-12 px-6 sm:px-12 max-w-7xl mx-auto border-t border-slate-200/40">
         <div className="text-center mb-8 space-y-1">
-          <h2 className="text-3xl sm:text-4xl font-medium text-[#0F172A] tracking-tight">
-            {lang === 'PT' ? 'Tudo Em Um Sistema' : 'Everything In One System'}
+          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#7BA7FF] font-mono block">
+            {lang === 'PT' ? 'DASHBOARD INTEGRADO' : 'INTEGRATED DASHBOARD'}
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-light text-[#0F172A] tracking-tight">
+            {lang === 'PT' ? 'Ecossistema KYRON' : 'KYRON Ecosystem'}
           </h2>
-          <p className="text-sm text-slate-500 font-light">
-            {lang === 'PT' ? 'Treino, nutrição, memória e evolução conectados.' : 'Training, nutrition, memory, and evolution connected.'}
+          <p className="text-sm text-slate-500 font-light max-w-md mx-auto">
+            {lang === 'PT' ? 'Treino, nutrição, memória e evolução conectados em tempo real.' : 'Training, nutrition, memory, and evolution connected in real-time.'}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 max-w-6xl mx-auto">
           {[
             {
               category: lang === 'PT' ? 'TREINAMENTO' : 'TRAINING',
-              title: lang === 'PT' ? 'Treinamento Adaptativo' : 'Adaptive Training',
-              desc: lang === 'PT' ? 'Ajusta seu protocolo conforme sua evolução.' : 'Adjusts your protocol as you evolve.',
+              title: lang === 'PT' ? 'Treino Adaptativo' : 'Adaptive Training',
+              desc: lang === 'PT' ? 'Ajusta seu volume e rest-pause.' : 'Adjusts your volume and rest-pause.',
               icon: Dumbbell
             },
             {
               category: lang === 'PT' ? 'METABOLISMO' : 'METABOLISM',
               title: lang === 'PT' ? 'Nutrição Inteligente' : 'Intelligent Nutrition',
-              desc: lang === 'PT' ? 'Metas metabólicas recalculadas continuamente.' : 'Metabolic targets continuously recalculated.',
+              desc: lang === 'PT' ? 'Metas recalculadas continuamente.' : 'Metabolic targets continuously updated.',
               icon: Apple
             },
             {
               category: lang === 'PT' ? 'MEMÓRIA' : 'MEMORY',
               title: lang === 'PT' ? 'Memória do Atleta' : 'Athlete Memory',
-              desc: lang === 'PT' ? 'Aprende seus hábitos, preferências e padrões.' : 'Learns your habits, preferences, and patterns.',
+              desc: lang === 'PT' ? 'Aprende seus hábitos e constância.' : 'Learns your habits and consistency.',
               icon: Brain
             },
             {
               category: lang === 'PT' ? 'PERFORMANCE' : 'PERFORMANCE',
               title: lang === 'PT' ? 'Performance Real' : 'Real Performance',
-              desc: lang === 'PT' ? 'Monitora progresso, carga e consistência.' : 'Monitors progress, load, and consistency.',
+              desc: lang === 'PT' ? 'Mapeamento de carga e biometria.' : 'Mapping load and biometrics.',
               icon: LineChart
             }
           ].map((card, idx) => {
@@ -707,22 +708,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-100px" }}
                 transition={{ type: "spring", stiffness: 180, damping: 22, mass: 0.8, delay: idx * 0.05 }}
-                whileHover={{ y: -2, scale: 1.01 }}
-                className="bg-white/70 backdrop-blur-xl border border-white/40 p-5 rounded-3xl shadow-[0_4px_24px_rgba(15,23,42,0.02)] flex flex-col justify-between h-[130px] sm:h-[135px] group transition-all"
+                whileHover={{ y: -2 }}
+                className="bg-white border border-slate-200/50 p-4 rounded-3xl shadow-xs flex flex-col justify-between h-[125px] sm:h-[130px] group transition-all"
               >
                 <div className="flex items-center justify-between w-full">
-                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#7BA7FF] shrink-0">
-                    <Icon size={18} />
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-50/70 rounded-xl flex items-center justify-center text-[#7BA7FF] shrink-0">
+                    <Icon size={16} />
                   </div>
-                  <span className="text-[10px] uppercase tracking-widest text-slate-400 font-mono">
+                  <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-slate-400 font-mono">
                     {card.category}
                   </span>
                 </div>
                 <div className="space-y-0.5">
-                  <h3 className="text-base sm:text-lg font-medium text-slate-900 tracking-tight leading-snug">
+                  <h3 className="text-sm sm:text-base font-semibold text-slate-900 tracking-tight leading-snug">
                     {card.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-500 font-light truncate leading-none">
+                  <p className="text-[11px] sm:text-xs text-slate-500 font-light truncate">
                     {card.desc}
                   </p>
                 </div>
@@ -732,72 +733,62 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
         </div>
       </section>
 
-      {/* SECTION 05 — PREMIUM PROTOCOL LIBRARY (REFINED) */}
-      <section className="py-12 bg-gradient-to-b from-[#F8FAFC]/55 to-white border-y border-slate-200/50 text-[#0F172A]">
+      {/* SECTION 03 — BIBLIOTECA PREMIUM (Compact Horizontal Netflix/Apple TV Carousel) */}
+      <section className="py-12 bg-white border-y border-slate-200/40 text-[#0F172A]">
         <div className="max-w-7xl mx-auto px-6 sm:px-12">
           
-          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 gap-4">
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#4F46E5] font-mono">{t('libBadge')}</span>
-              <h2 className="text-2xl sm:text-3.5xl font-medium tracking-tight text-[#0F172A]">
+          <div className="flex items-end justify-between mb-6">
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#7BA7FF] font-mono block">{t('libBadge')}</span>
+              <h2 className="text-2xl sm:text-3xl font-light tracking-tight text-[#0F172A]">
                 {t('libTitle')}
               </h2>
-              {/* MANDATORY SUBHEAD */}
-              <p className="text-slate-500 font-mono text-[10px] uppercase tracking-wider block">
+              <p className="text-slate-500 font-mono text-[9px] uppercase tracking-wider block">
                 {t('libSub')}
               </p>
             </div>
-            <p className="text-[#64748B] text-xs font-mono uppercase tracking-widest leading-none hidden md:block">
-              {t('libCurated')}
-            </p>
+            <span className="text-slate-400 text-[10px] font-mono uppercase tracking-widest hidden sm:block">
+              {lang === 'PT' ? 'Arraste para o lado →' : 'Swipe to explore →'}
+            </span>
           </div>
 
-          {/* Compact Premium Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {/* Elegant Horizontal Carousel with Netflix/Apple TV Vibes */}
+          <div className="flex overflow-x-auto gap-4 pb-4 px-1 -mx-4 sm:-mx-12 sm:px-12 scrollbar-none snap-x snap-mandatory pt-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {protocolsList.map((prot, idx) => {
               const duration = lang === 'PT' 
-                ? (idx === 0 ? "8 semanas" : idx === 1 ? "12 semanas" : idx === 2 ? "6 semanas" : "10 semanas") 
-                : (idx === 0 ? "8 weeks" : idx === 1 ? "12 weeks" : idx === 2 ? "6 weeks" : "10 weeks");
-              const difficultyShort = lang === 'PT'
-                ? (idx === 0 ? "Iniciante → Intermediário" : idx === 1 ? "Intermediário → Avançado" : idx === 2 ? "Todos os Níveis" : "Performance Elite")
-                : (idx === 0 ? "Beginner → Intermediate" : idx === 1 ? "Intermediate → Advanced" : idx === 2 ? "All Levels" : "Elite Performance");
+                ? (idx === 0 ? "8 sem" : idx === 1 ? "12 sem" : idx === 2 ? "6 sem" : "10 sem") 
+                : (idx === 0 ? "8 wks" : idx === 1 ? "12 wks" : idx === 2 ? "6 wks" : "10 wks");
+              
+              const levelLabel = lang === 'PT' ? t(prot.difficultyKey) : t(prot.difficultyKey);
 
               return (
                 <motion.div 
                   key={idx}
                   onClick={onStart}
-                  className="bg-white/70 backdrop-blur-xl border border-slate-200/50 p-5 rounded-3xl relative overflow-hidden flex flex-col justify-between h-[210px] cursor-pointer group shadow-[0_4px_20px_rgba(15,23,42,0.01)] hover:shadow-[0_12px_36px_rgba(15,23,42,0.04)]"
-                  whileHover={{ y: -4, scale: 1.01 }}
+                  className="bg-slate-50 border border-slate-200/60 p-4.5 rounded-3xl shrink-0 w-[260px] sm:w-[290px] h-[145px] snap-align-start flex flex-col justify-between cursor-pointer hover:border-[#7BA7FF]/50 transition-all shadow-xs"
+                  whileHover={{ y: -3 }}
                   transition={springConfig}
                 >
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] uppercase tracking-[0.2em] font-bold bg-[#4F46E5]/10 text-[#4F46E5] border border-[#4F46E5]/15 px-2.5 py-1 rounded-full leading-none">
-                        {t(prot.difficultyKey)}
+                      <span className="text-[8px] uppercase tracking-wider font-bold bg-[#7BA7FF]/10 text-[#7BA7FF] px-2 py-0.5 rounded-full">
+                        {levelLabel}
                       </span>
-                      <span className="text-[10px] font-mono text-slate-400 font-medium">{duration}</span>
+                      <span className="text-[9.5px] font-mono text-slate-400 font-medium">{duration}</span>
                     </div>
 
-                    <h3 className="text-base font-semibold text-[#0F172A] leading-snug pt-1 group-hover:text-[#4F46E5] transition-colors">
+                    <h3 className="text-sm sm:text-base font-semibold text-[#0F172A] tracking-tight leading-snug">
                       {t(prot.titleKey)}
                     </h3>
-                    
-                    <p className="text-xs text-slate-500 font-light leading-relaxed truncate">
-                      {t(prot.objectiveKey)}
-                    </p>
                   </div>
 
-                  {/* Metadata and immediate action line */}
-                  <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex flex-col text-[9.5px] text-slate-400 leading-tight">
-                      <span className="font-mono font-medium">{t('countProtocols').replace('{num}', prot.num.toString())}</span>
-                      <span className="text-slate-500 font-medium truncate max-w-[130px]">{difficultyShort}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-1 text-xs text-[#4F46E5] font-bold uppercase tracking-wider group-hover:text-[#4F46E5]/80 transition-colors">
-                      <span className="text-[10px]">{lang === 'PT' ? 'Explorar' : 'Explore'}</span>
-                      <ArrowUpRight size={13} strokeWidth={2.5} />
-                    </div>
+                  <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500 font-medium truncate max-w-[140px]">
+                      {t(prot.objectiveKey)}
+                    </span>
+                    <span className="text-[8px] font-black text-[#7BA7FF] uppercase tracking-wide flex items-center gap-1 shrink-0">
+                      ✓ Validado por Rubi AI
+                    </span>
                   </div>
                 </motion.div>
               );
@@ -807,90 +798,78 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
         </div>
       </section>
 
-      {/* SECTION 05 — RUBI INTELLIGENCE */}
-      <section className="py-12 px-6 sm:px-12 bg-slate-50/50 border-b border-slate-200/50 relative overflow-hidden">
-        {/* Soft background light glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#7BA7FF]/5 rounded-full blur-[140px] pointer-events-none" />
+      {/* SECTION 04 — RUBI INTELLIGENCE (Compact, minimalist real insights) */}
+      <section className="py-12 px-6 sm:px-12 bg-slate-50/50 border-b border-slate-200/40 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#7BA7FF]/3 rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto space-y-8 relative z-10">
+        <div className="max-w-6xl mx-auto space-y-6 relative z-10">
           
-          {/* Header */}
-          <div className="text-center space-y-1.5 max-w-2xl mx-auto">
+          <div className="text-center space-y-1 max-w-xl mx-auto">
             <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#7BA7FF] font-mono block">
-              {lang === 'PT' ? 'INTELIGÊNCIA ALGORÍTMICA' : 'ALGORITHMIC INTELLIGENCE'}
+              {lang === 'PT' ? 'PROCESSAMENTO NEURAL' : 'NEURAL PROCESSING'}
             </span>
-            <h2 className="text-2xl sm:text-3.5xl font-medium text-[#0F172A] tracking-tight">
-              {lang === 'PT' ? 'Rubi Intelligence' : 'Rubi Intelligence'}
+            <h2 className="text-2xl sm:text-3xl font-light text-[#0F172A] tracking-tight">
+              Rubi Intelligence
             </h2>
-            <p className="text-slate-500 font-light text-sm">
-              {lang === 'PT' 
-                ? 'Insights biológicos contínuos calculados com base na sua performance real e comportamento.' 
-                : 'Continuous biological insights calculated based on your real performance and behavior.'}
+            <p className="text-xs text-slate-500 font-light">
+              {lang === 'PT' ? 'Exemplos reais de análises e feedbacks biológicos calibrados:' : 'Real examples of calibrated biological analysis and feedbacks:'}
             </p>
           </div>
 
-          {/* 4 Premium Biological Insight Cards in an Elegant Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {/* 4 Minimalistic Insight Cards (simulating Apple Health / WHOOP metrics) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 max-w-5xl mx-auto">
             {[
               {
                 title: lang === 'PT' ? 'Foco Cronotrópico' : 'Chronotropic Focus',
-                insight: lang === 'PT' ? '"Você costuma render melhor entre 18h e 20h."' : '"You tend to perform better between 6 PM and 8 PM."',
+                insight: lang === 'PT' ? '"Seu melhor horário de treino é entre 18h e 20h."' : '"Your best workout window is between 6 PM and 8 PM."',
                 badge: lang === 'PT' ? 'Padrão Circadiano' : 'Circadian Pattern',
-                color: 'border-[#7BA7FF]/20 text-[#7BA7FF]',
-                glow: 'from-[#7BA7FF]/5 via-transparent to-transparent'
+                color: 'text-[#7BA7FF] bg-[#7BA7FF]/5 border-[#7BA7FF]/10'
               },
               {
-                title: lang === 'PT' ? 'Volume de Carga' : 'Load Volume',
-                insight: lang === 'PT' ? '"Seu volume semanal está aumentando de forma sustentável."' : '"Your weekly volume is increasing sustainably."',
-                badge: lang === 'PT' ? 'Sobrecarga Progressiva' : 'Progressive Overload',
-                color: 'border-[#818CF8]/20 text-[#818CF8]',
-                glow: 'from-[#818CF8]/5 via-transparent to-transparent'
+                title: lang === 'PT' ? 'Carga Evolutiva' : 'Evolutionary Load',
+                insight: lang === 'PT' ? '"Seu volume semanal evoluiu de forma sustentável."' : '"Your weekly volume evolved sustainably."',
+                badge: lang === 'PT' ? 'Micro-Sobrecarga' : 'Micro-Overload',
+                color: 'text-[#818CF8] bg-[#818CF8]/5 border-[#818CF8]/10'
               },
               {
-                title: lang === 'PT' ? 'Taxa de Recuperação' : 'Recovery Rate',
-                insight: lang === 'PT' ? '"Sua recuperação melhorou 11% esta semana."' : '"Your recovery improved by 11% this week."',
-                badge: lang === 'PT' ? 'Homeostase Ativa' : 'Active Homeostasis',
-                color: 'border-[#34D399]/20 text-[#34D399]',
-                glow: 'from-[#34D399]/5 via-transparent to-transparent'
+                title: lang === 'PT' ? 'Equilíbrio Homeostático' : 'Homeostatic Balance',
+                insight: lang === 'PT' ? '"Seu padrão de recuperação melhorou esta semana."' : '"Your recovery pattern improved this week."',
+                badge: lang === 'PT' ? 'Mapeamento Nervoso' : 'Neural Mapping',
+                color: 'text-[#34D399] bg-[#34D399]/5 border-[#34D399]/10'
               },
               {
-                title: lang === 'PT' ? 'Prontidão Neuromuscular' : 'Neuromuscular Readiness',
-                insight: lang === 'PT' ? '"Hoje é um bom dia para progressão de carga."' : '"Today is a good day for load progression."',
-                badge: lang === 'PT' ? 'Mapeamento Sináptico' : 'Synaptic Mapping',
-                color: 'border-[#60A5FA]/20 text-[#60A5FA]',
-                glow: 'from-[#60A5FA]/5 via-transparent to-transparent'
+                title: lang === 'PT' ? 'Aferição Neuromuscular' : 'Neuromuscular Assessment',
+                insight: lang === 'PT' ? '"Hoje é um bom dia para progressão de carga."' : '"Today is a great day for load progression."',
+                badge: lang === 'PT' ? 'Prontidão de Fibra' : 'Fiber Readiness',
+                color: 'text-[#60A5FA] bg-[#60A5FA]/5 border-[#60A5FA]/10'
               }
             ].map((card, idx) => (
               <motion.div
                 key={idx}
-                initial={{ opacity: 0, scale: 0.98, y: 12 }}
-                whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                whileHover={{ y: -4 }}
-                transition={{ type: "spring", stiffness: 180, damping: 20 }}
-                className="bg-white/70 backdrop-blur-xl border border-white/40 p-5 rounded-3xl shadow-[0_4px_20px_rgba(15,23,42,0.01)] flex flex-col justify-between h-[155px] sm:h-[160px] relative overflow-hidden group border-slate-200/50"
+                whileHover={{ y: -2 }}
+                className="bg-white border border-slate-200/60 p-4.5 rounded-3xl shadow-xs flex flex-col justify-between h-[135px] sm:h-[140px] relative overflow-hidden group"
               >
-                {/* Micro Ambient Glow in Card */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${card.glow} opacity-60 pointer-events-none`} />
-
-                <div className="space-y-3 relative z-10">
+                <div className="space-y-1.5 relative z-10">
                   <div className="flex items-center justify-between">
-                    <span className={`text-[8.5px] uppercase tracking-[0.2em] font-semibold px-2.5 py-0.5 bg-white border border-slate-150 rounded-full font-mono ${card.color}`}>
+                    <span className={`text-[8px] uppercase tracking-wider font-semibold px-2 py-0.5 border rounded-full font-mono ${card.color}`}>
                       {card.badge}
                     </span>
-                    <span className="text-[9px] font-black tracking-widest text-[#10B981] flex items-center gap-1 font-mono uppercase">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                      {lang === 'PT' ? 'Aferido' : 'VERIFIED'}
+                    <span className="text-[8px] font-bold text-[#10B981] flex items-center gap-1 font-mono uppercase">
+                      <span className="w-1 h-1 rounded-full bg-[#10B981] animate-pulse" />
+                      {lang === 'PT' ? 'CALIBRADO' : 'CALIBRATED'}
                     </span>
                   </div>
 
-                  <h3 className="text-sm font-semibold text-slate-800 tracking-tight pt-1">
+                  <h3 className="text-xs font-semibold text-slate-800 tracking-tight">
                     {card.title}
                   </h3>
                 </div>
 
-                <div className="pt-2 relative z-10">
-                  <p className="text-xs font-semibold italic text-[#0F172A] leading-snug">
+                <div className="relative z-10 pt-1">
+                  <p className="text-[11.5px] font-medium italic text-[#0F172A] leading-relaxed">
                     {card.insight}
                   </p>
                 </div>
@@ -901,96 +880,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
         </div>
       </section>
 
-      {/* SECTION 07 — SOCIAL PROOF EVOLUTION (Elegant statistics instead of testimonials) */}
-      <section className="py-12 px-6 sm:px-12 max-w-5xl mx-auto text-center space-y-8">
-        
-        <div className="space-y-1.5">
-          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#7BA7FF] font-mono block">{t('statBadge')}</span>
-          <h2 className="text-2xl sm:text-3.5xl font-medium text-[#0F172A] tracking-tight">
-            {t('statTitle')}
-          </h2>
-        </div>
-
-        {/* Triple luxury physical statistics layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto text-left">
+      {/* SECTION 05 — ELEGANT CHIC FINAL CTA (Light background to avoid visual heaviness) */}
+      <section className="py-12 px-6 text-center select-none bg-white">
+        <div className="max-w-4xl mx-auto bg-[#EAF2FF]/30 border border-[#7BA7FF]/25 rounded-[2.5rem] p-8 sm:p-12 relative overflow-hidden shadow-xs">
+          <div className="absolute top-[-50px] right-[-50px] w-64 h-64 bg-[#7BA7FF]/8 rounded-full blur-3xl pointer-events-none" />
           
-          <div className="space-y-3 p-5.5 bg-white/70 backdrop-blur-xl border border-slate-200/50 rounded-3xl relative overflow-hidden shadow-sm flex flex-col justify-between h-[160px]">
-            <span className="text-4xl sm:text-5xl font-extralight tracking-tighter text-[#0F172A] font-mono block">
-              +17%
-            </span>
-            <div className="space-y-0.5 border-t border-slate-100 pt-3">
-              <h4 className="text-xs sm:text-sm font-semibold text-[#0F172A] tracking-tight">
-                {t('stat1Label')}
-              </h4>
-              <p className="text-[10px] text-[#64748B] font-mono uppercase tracking-widest leading-none">
-                {t('stat1Sub')}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3 p-5.5 bg-white/70 backdrop-blur-xl border border-slate-200/50 rounded-3xl relative overflow-hidden shadow-sm flex flex-col justify-between h-[160px]">
-            <span className="text-4xl sm:text-5xl font-extralight tracking-tighter text-[#0F172A] font-mono block">
-              92%
-            </span>
-            <div className="space-y-0.5 border-t border-slate-100 pt-3">
-              <h4 className="text-xs sm:text-sm font-semibold text-[#0F172A] tracking-tight">
-                {t('stat2Label')}
-              </h4>
-              <p className="text-[10px] text-[#64748B] font-mono uppercase tracking-widest leading-none">
-                {t('stat2Sub')}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3 p-5.5 bg-white/70 backdrop-blur-xl border border-slate-200/50 rounded-3xl relative overflow-hidden shadow-sm flex flex-col justify-between h-[160px]">
-            <span className="text-4xl sm:text-5xl font-extralight tracking-tighter text-[#0F172A] font-mono block">
-              -8kg
-            </span>
-            <div className="space-y-0.5 border-t border-slate-100 pt-3">
-              <h4 className="text-xs sm:text-sm font-semibold text-[#0F172A] tracking-tight">
-                {t('stat3Label')}
-              </h4>
-              <p className="text-[10px] text-[#64748B] font-mono uppercase tracking-widest leading-none">
-                {t('stat3Sub')}
-              </p>
-            </div>
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* SECTION 08 — FINAL CTA REFINEMENT */}
-      <section className="py-12 px-6 text-center select-none">
-        <div className="max-w-4xl mx-auto bg-slate-950 text-white rounded-[2.5rem] p-8 sm:p-14 relative overflow-hidden shadow-2xl border border-slate-900">
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
-          <div className="absolute bottom-[-100px] right-[-100px] w-80 h-80 bg-[#7BA7FF]/10 rounded-full blur-3xl pointer-events-none" />
-          
-          <div className="space-y-5 relative z-10">
-            <span className="uppercase tracking-[0.25em] text-[10px] font-black text-[#7BA7FF] font-mono block">{t('finalBadge')}</span>
+          <div className="space-y-6 relative z-10">
+            <span className="uppercase tracking-[0.2em] text-[9px] font-bold text-[#7BA7FF] font-mono block">{t('finalBadge')}</span>
             
-            <h2 className="text-2xl sm:text-4.5xl font-light leading-tight tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-light tracking-tight text-[#0F172A] leading-tight">
               {t('finalTitle1')}<br/>
-              <span className="font-semibold text-[#7BA7FF]">{t('finalTitle2')}</span>
+              <span className="font-semibold text-slate-900">{t('finalTitle2')}</span>
             </h2>
 
-            {/* MANDATORY SUPPORTING LINE */}
-            <div className="space-y-1.5 max-w-lg mx-auto">
-              <p className="text-slate-200 text-sm sm:text-base font-light italic">
+            <div className="space-y-1 max-w-md mx-auto">
+              <p className="text-slate-600 text-sm font-light italic">
                 {t('finalSupport')}
               </p>
-              {t('finalSubtext') && (
-                <p className="text-slate-400 text-xs font-light">
-                  {t('finalSubtext')}
-                </p>
-              )}
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-2">
               <button 
                 id="footer-cta-start"
                 onClick={onStart}
-                className="w-full sm:w-auto px-10 py-4 bg-[#7BA7FF] text-[#0F172A] hover:bg-[#7BA7FF]/90 rounded-2xl font-bold uppercase text-[11px] tracking-[0.22em] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                className="w-full sm:w-auto px-10 h-13 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-[#0F172A] hover:shadow-[0_8px_30px_rgba(123,167,255,0.4)] transition-all font-bold uppercase text-[10.5px] tracking-[0.2em] rounded-full cursor-pointer shadow-xs"
               >
                 {t('finalStartBtn')}
               </button>
@@ -998,7 +911,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
               <button 
                 id="footer-cta-login"
                 onClick={onLogin}
-                className="w-full sm:w-auto px-10 py-4 bg-white/10 border border-white/15 hover:bg-white/15 text-white rounded-2xl font-bold uppercase text-[11px] tracking-[0.22em] transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-10 h-13 bg-transparent hover:bg-[#EAF2FF]/50 border border-slate-300 text-[#0F172A] rounded-full font-bold uppercase text-[10.5px] tracking-[0.2em] transition-all cursor-pointer"
               >
                 {t('finalLoginBtn')}
               </button>
@@ -1008,17 +921,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
       </section>
 
       {/* LUXURY FOOTER */}
-      <footer className="py-8 px-8 sm:px-12 border-t border-slate-200/55 bg-white relative z-15 select-none text-center sm:text-left">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+      <footer className="py-8 px-8 sm:px-12 border-t border-slate-200/50 bg-white relative z-15 select-none text-center sm:text-left">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center overflow-hidden text-white">
-              <img src={kyronLogo} alt="KYRON OS" className="w-[22px] h-[22px] object-contain scale-[1.12]" referrerPolicy="no-referrer" />
+            <div className="w-9 h-9 bg-white border border-slate-200/60 rounded-full flex items-center justify-center overflow-hidden shadow-xs p-1.5">
+              <img src={kyronLogo} alt="KYRON OS" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
-            <span className="text-xs font-black uppercase tracking-[0.2em] text-[#64748B]">KYRON OS © 2026</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#64748B]">KYRON OS © 2026</span>
           </div>
 
-          <div className="flex flex-wrap gap-8 text-[10.5px] font-bold uppercase tracking-wider text-[#64748B] justify-center sm:justify-start">
+          <div className="flex flex-wrap gap-6 text-[10px] font-bold uppercase tracking-wider text-[#64748B] justify-center sm:justify-start">
             <a href="#" className="hover:text-slate-800 transition-colors">{t('footerTerms')}</a>
             <a href="#" className="hover:text-slate-800 transition-colors">{t('footerPrivacy')}</a>
             <a href="#" className="hover:text-slate-800 transition-colors">{t('footerPerformanceLab')}</a>
@@ -1027,7 +940,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
         </div>
       </footer>
 
-      {/* FLOATING ACTION PILL */}
+      {/* FLOATING ACTION PILL (Elegant frosted white glass pill) */}
       <AnimatePresence>
         {scrollProgress > 0.15 && (
           <motion.div
@@ -1036,20 +949,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             exit={{ opacity: 0, y: 25 }}
             className="fixed bottom-6 inset-x-0 z-[120] flex justify-center px-4"
           >
-            <div className="bg-slate-900/95 text-white backdrop-blur-md px-5 py-3 rounded-full border border-slate-800 shadow-[0_12px_40px_rgba(0,0,0,0.15)] flex items-center gap-4.5">
+            <div className="bg-white/80 text-slate-800 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-200/60 shadow-[0_12px_44px_rgba(0,0,0,0.08)] flex items-center gap-4.5">
               <div className="hidden sm:flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-[#34D399] rounded-full animate-pulse" />
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300">{t('floatBadge')}</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#64748B]">{t('floatBadge')}</span>
               </div>
 
-              <div className="hidden sm:block w-[1px] h-4 bg-white/10" />
+              <div className="hidden sm:block w-[1px] h-4 bg-slate-200" />
 
-              <span className="text-xs font-light text-slate-100 hidden md:block">{t('floatSubtitle')}</span>
+              <span className="text-[11px] font-light text-slate-600 hidden md:block">{t('floatSubtitle')}</span>
 
               <button 
                 id="floating-cta-start"
                 onClick={onStart}
-                className="bg-[#7BA7FF] hover:bg-[#7BA7FF]/95 text-slate-950 font-bold px-4 py-2 text-[10px] tracking-[0.16em] uppercase rounded-full shadow-md active:scale-95 transition-all cursor-pointer"
+                className="bg-[#7BA7FF] hover:bg-[#8FBCFF] text-[#0F172A] hover:shadow-[0_6px_20px_rgba(123,167,255,0.35)] font-bold px-4 py-2 text-[9.5px] tracking-[0.16em] uppercase rounded-full transition-all cursor-pointer"
               >
                 {t('floatBtnStart')}
               </button>
@@ -1057,7 +970,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
               <button 
                 id="floating-cta-login"
                 onClick={onLogin} 
-                className="text-white/70 hover:text-white px-2 text-[10px] font-bold uppercase tracking-wider cursor-pointer"
+                className="text-slate-500 hover:text-slate-800 px-2 text-[9.5px] font-bold uppercase tracking-wider cursor-pointer"
               >
                 {t('floatBtnLogin')}
               </button>
