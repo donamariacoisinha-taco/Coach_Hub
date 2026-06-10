@@ -35,10 +35,10 @@ interface LibraryState {
 }
 
 const DEFAULT_VIEWS: SavedView[] = [
-  { id: 'all', name: 'Todos os Exercícios', filters: {}, columns: ['thumb', 'name', 'muscle_group', 'quality_score', 'usage_count', 'ranking_status', 'actions'] },
-  { id: 'critical', name: 'Críticos (Score < 40)', filters: { minScore: 40 }, columns: ['thumb', 'name', 'muscle_group', 'quality_score', 'actions'] },
-  { id: 'no-media', name: 'Sem Mídia', filters: { hasImage: false }, columns: ['thumb', 'name', 'muscle_group', 'actions'] },
-  { id: 'rising', name: 'Rising Stars', filters: { status: 'rising' }, columns: ['thumb', 'name', 'quality_score', 'usage_count', 'actions'] },
+  { id: 'all', name: 'Todos os Exercícios', filters: {}, columns: ['thumb', 'name', 'secondary_muscles', 'muscle_group', 'quality_score', 'usage_count', 'ranking_status', 'actions'] },
+  { id: 'critical', name: 'Críticos (Score < 40)', filters: { minScore: 40 }, columns: ['thumb', 'name', 'secondary_muscles', 'muscle_group', 'quality_score', 'actions'] },
+  { id: 'no-media', name: 'Sem Mídia', filters: { hasImage: false }, columns: ['thumb', 'name', 'secondary_muscles', 'muscle_group', 'actions'] },
+  { id: 'rising', name: 'Rising Stars', filters: { status: 'rising' }, columns: ['thumb', 'name', 'secondary_muscles', 'quality_score', 'usage_count', 'actions'] },
 ];
 
 export const useLibraryStore = create<LibraryState>()(
@@ -47,7 +47,7 @@ export const useLibraryStore = create<LibraryState>()(
       viewMode: 'table',
       activeViewId: 'all',
       savedViews: DEFAULT_VIEWS,
-      visibleColumns: ['thumb', 'name', 'muscle_group', 'quality_score', 'usage_count', 'ranking_status', 'actions'],
+      visibleColumns: ['thumb', 'name', 'secondary_muscles', 'muscle_group', 'quality_score', 'usage_count', 'ranking_status', 'actions'],
       isKeyboardModeActive: false,
 
       setViewMode: (mode) => set({ viewMode: mode }),

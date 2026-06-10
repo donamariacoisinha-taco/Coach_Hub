@@ -291,7 +291,11 @@ const ExerciseEditorV2: React.FC = () => {
                                    </label>
                                    <div className="flex flex-wrap gap-1.5">
                                       {(() => {
-                                         const cluster = form.muscle_group || '';
+                                         let cluster = form.muscle_group || '';
+                                         if (cluster === 'Perna') cluster = 'Pernas';
+                                         if (cluster === 'Ombro') cluster = 'Ombros';
+                                         if (cluster === 'Abdômen' || cluster === 'Oblíquos' || cluster === 'Abdominais') cluster = 'Abdominais';
+                                         if (cluster === 'Panturrilha' || cluster === 'Panturrilhas') cluster = 'Panturrilha';
                                          const subSuggestions: Record<string, string[]> = {
                                             'Peito': ['Peitoral Maior', 'Peitoral Menor', 'Porção Superior (Inclinado)', 'Porção Inferior (Declinado)', 'Deltoide Anterior', 'Tríceps (Auxiliar)'],
                                             'Costas': ['Latíssimo do Dorso', 'Asas / Dorsais', 'Trapézio', 'Romboides', 'Redondo Maior', 'Eretores da Espinha', 'Bíceps (Auxiliar)'],

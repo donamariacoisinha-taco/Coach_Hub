@@ -16,6 +16,7 @@ interface ColumnsManagerProps {
 const ALL_COLUMNS = [
   { id: 'thumb', label: 'Media Thumb' },
   { id: 'name', label: 'Exercise Name' },
+  { id: 'secondary_muscles', label: 'Subgrupos' },
   { id: 'muscle_group', label: 'Muscle Group' },
   { id: 'difficulty_level', label: 'Difficulty' },
   { id: 'quality_score', label: 'Quality Score' },
