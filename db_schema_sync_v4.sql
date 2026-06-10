@@ -23,6 +23,9 @@ BEGIN
     IF NOT (SELECT is_admin FROM public.profiles WHERE id = auth.uid()) THEN
         RAISE EXCEPTION 'Acesso negado: Apenas administradores podem modificar a biblioteca global.';
     END IF;
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
