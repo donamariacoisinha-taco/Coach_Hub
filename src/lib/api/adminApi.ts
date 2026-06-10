@@ -31,7 +31,7 @@ export const adminApi = {
     const sanitizedData: any = {};
     Object.keys(updateData).forEach(key => {
       const val = updateData[key];
-      if (val !== undefined && typeof val !== 'object') {
+      if (val !== undefined && (typeof val !== 'object' || Array.isArray(val))) {
         sanitizedData[key] = val;
       } else if (val === null) {
         sanitizedData[key] = null;

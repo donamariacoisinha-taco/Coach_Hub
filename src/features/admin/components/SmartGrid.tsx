@@ -532,21 +532,32 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
 
                   {/* Subgrupos */}
                   {visibleColumns.includes('secondary_muscles') && (
-                    <td className="px-6 py-6 max-w-[220px]">
-                       <div className="flex flex-wrap gap-1.5 min-h-[28px] items-center">
-                          {(!ex.secondary_muscles || ex.secondary_muscles.length === 0) ? (
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider italic select-none">—</span>
-                          ) : (
-                            ex.secondary_muscles.map((muscle) => (
-                              <span 
-                                key={muscle}
-                                className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-wider border border-blue-100/30"
-                              >
-                                {muscle}
-                              </span>
-                            ))
-                          )}
-                       </div>
+                    <td className="px-6 py-6 max-w-[220px] relative" onDoubleClick={() => setEditingCell({ id: ex.id, field: 'secondary_muscles' })}>
+                       {editingCell?.id === ex.id && editingCell?.field === 'secondary_muscles' ? (
+                          <InlineCellEditor 
+                            value={(ex.secondary_muscles || []).join(', ')} 
+                            onSave={(val) => {
+                              const arr = val ? val.split(',').map((item: string) => item.trim()).filter(Boolean) : [];
+                              handleInlineSave(ex.id, 'secondary_muscles', arr);
+                            }} 
+                            onCancel={() => setEditingCell(null)} 
+                          />
+                       ) : (
+                          <div className="flex flex-wrap gap-1.5 min-h-[28px] items-center">
+                             {(!ex.secondary_muscles || ex.secondary_muscles.length === 0) ? (
+                               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider italic select-none">—</span>
+                             ) : (
+                               ex.secondary_muscles.map((muscle) => (
+                                 <span 
+                                   key={muscle}
+                                   className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-wider border border-blue-100/30"
+                                 >
+                                   {muscle}
+                                 </span>
+                               ))
+                             )}
+                          </div>
+                       )}
                     </td>
                   )}
 
@@ -557,7 +568,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                          <InlineCellEditor 
                            value={ex.muscle_group} 
                            type="select"
-                           options={['Peito', 'Costas', 'Ombros', 'Pernas', 'Bíceps', 'Tríceps', 'Abdominais']} 
+                           options={['Peito', 'Costas', 'Ombros', 'Pernas', 'Bíceps', 'Tríceps', 'Abdominais', 'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilha', 'Full Body', 'Cardio', 'Mobilidade']} 
                            onSave={(val) => handleInlineSave(ex.id, 'muscle_group', val)} 
                            onCancel={() => setEditingCell(null)} 
                          />
