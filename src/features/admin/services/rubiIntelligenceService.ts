@@ -35,7 +35,10 @@ export const rubiIntelligenceService = {
         body: JSON.stringify({ prompt, systemInstruction: OPTIMIZATION_PROMPT })
       });
 
-      if (!response.ok) throw new Error("API request failed");
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || errJson.details || "API request failed");
+      }
       const result = await response.json();
       
       return {

@@ -62,8 +62,8 @@ const RubiIntelligenceModal: React.FC = () => {
         const optimized = await rubiIntelligenceService.optimizeExercise(exercise, selectedOperation);
         updateResult(id, { status: 'completed', optimizedData: optimized, originalData: exercise });
         completedResults.push({ id, ...optimized, updated_at: new Date().toISOString() });
-      } catch (err) {
-        updateResult(id, { status: 'failed', error: 'Falha na conexão neural' });
+      } catch (err: any) {
+        updateResult(id, { status: 'failed', error: err.message || 'Falha na conexão neural' });
       }
     }
 

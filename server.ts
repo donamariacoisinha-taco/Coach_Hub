@@ -26,6 +26,29 @@ async function startServer() {
     return ai;
   };
 
+  async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
+    try {
+      return await fn();
+    } catch (error: any) {
+      if (retries <= 0) throw error;
+      const errorMsg = error.message || (typeof error === 'string' ? error : JSON.stringify(error));
+      const status = error.status || error.code || 500;
+      const isTransient = status === 503 || status === 429 || 
+                          errorMsg.includes("503") || 
+                          errorMsg.includes("UNAVAILABLE") || 
+                          errorMsg.includes("high demand") || 
+                          errorMsg.includes("ResourceAssembling") || 
+                          errorMsg.includes("Too Many Requests") || 
+                          errorMsg.includes("rate limit");
+      if (isTransient) {
+        console.warn(`[GEMINI] Transient error encountered: ${errorMsg}. Retrying in ${delay}ms... (Remaining retries: ${retries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return retryWithBackoff(fn, retries - 1, delay * 2);
+      }
+      throw error;
+    }
+  }
+
   const handleAIError = (error: any, res: any, prefix: string) => {
     console.error(`[${prefix}] Error:`, error);
     
@@ -52,8 +75,8 @@ async function startServer() {
       const { prompt, systemInstruction } = req.body;
       const genAI = getGenAI();
       
-      const response = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
+      const response = await retryWithBackoff(() => genAI.models.generateContent({
+        model: "gemini-3.5-flash",
         contents: prompt,
         config: {
           systemInstruction,
@@ -85,7 +108,7 @@ async function startServer() {
             required: ['name', 'description', 'instructions', 'quality_score_v3']
           }
         }
-      });
+      }));
 
       res.json(JSON.parse(response.text || '{}'));
     } catch (error: any) {
@@ -98,8 +121,8 @@ async function startServer() {
       const { prompt, systemInstruction } = req.body;
       const genAI = getGenAI();
 
-      const response = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
+      const response = await retryWithBackoff(() => genAI.models.generateContent({
+        model: "gemini-3.5-flash",
         contents: prompt,
         tools: [{ googleSearch: {} }] as any,
         config: {
@@ -146,7 +169,7 @@ async function startServer() {
             }
           }
         }
-      } as any);
+      } as any));
 
       res.json(JSON.parse(response.text || '{}'));
     } catch (error: any) {
@@ -157,7 +180,7 @@ async function startServer() {
   app.post("/api/intelligence/proxy", async (req, res) => {
     try {
       const genAI = getGenAI();
-      const { prompt, systemInstruction, responseSchema, model: modelName = "gemini-3-flash-preview" } = req.body;
+      const { prompt, systemInstruction, responseSchema, model: modelName = "gemini-3.5-flash" } = req.body;
       
       const config: any = {
         responseMimeType: responseSchema ? "application/json" : "text/plain",
@@ -167,14 +190,17 @@ async function startServer() {
         config.responseSchema = responseSchema;
       }
 
-      const response = await genAI.models.generateContent({
-        model: modelName,
+      // If user is requesting gemini-3-flash-preview, divert transparently to gemini-3.5-flash
+      const resolvedModelName = modelName === "gemini-3-flash-preview" ? "gemini-3.5-flash" : modelName;
+
+      const response = await retryWithBackoff(() => genAI.models.generateContent({
+        model: resolvedModelName,
         contents: prompt,
         config: {
           ...config,
           systemInstruction,
         }
-      });
+      }));
 
       if (responseSchema) {
         res.json(JSON.parse(response.text || '{}'));

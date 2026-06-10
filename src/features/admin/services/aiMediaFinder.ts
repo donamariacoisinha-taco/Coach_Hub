@@ -39,7 +39,10 @@ export const aiMediaFinder = {
         body: JSON.stringify({ prompt, systemInstruction: MEDIA_FINDER_PROMPT })
       });
 
-      if (!response.ok) throw new Error("API request failed");
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || errJson.details || "API request failed");
+      }
       return await response.json();
     } catch (error) {
       console.error("[MediaFinder] AI Error:", error);

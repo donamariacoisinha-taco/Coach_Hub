@@ -10,15 +10,45 @@ export const profileApi = {
         const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
         if (error) throw error;
         
-        if (data && (!data.is_admin || data.role !== 'admin')) {
-          console.log('[profileApi] Auto-elevating privileges to admin for sandbox environment...');
-          try {
-            await supabase.from('profiles').update({ is_admin: true, role: 'admin' }).eq('id', userId);
-          } catch (err) {
-            console.warn('Could not update is_admin status:', err);
+        let currentUserEmail = '';
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          currentUserEmail = authData?.user?.email || '';
+        } catch (e) {
+          console.warn('[profileApi] Could not fetch auth user email:', e);
+        }
+
+        const adminEmails = [
+          'donamariacoisinha@gmail.com',
+          'marivaldotorres@gmail.com'
+        ].map(e => e.toLowerCase());
+
+        const isEmailAdmin = currentUserEmail ? adminEmails.includes(currentUserEmail.toLowerCase()) : false;
+
+        if (data) {
+          if (isEmailAdmin) {
+            if (!data.is_admin || data.role !== 'admin') {
+              console.log('[profileApi] Elevating admin status for:', currentUserEmail);
+              try {
+                await supabase.from('profiles').update({ is_admin: true, role: 'admin' }).eq('id', userId);
+              } catch (err) {
+                console.warn('Could not update is_admin status:', err);
+              }
+              data.is_admin = true;
+              data.role = 'admin';
+            }
+          } else {
+            if (data.is_admin || data.role === 'admin') {
+              console.log('[profileApi] De-elevating non-admin user:', currentUserEmail);
+              try {
+                await supabase.from('profiles').update({ is_admin: false, role: 'user' }).eq('id', userId);
+              } catch (err) {
+                console.warn('Could not de-elevate is_admin status:', err);
+              }
+              data.is_admin = false;
+              data.role = 'user';
+            }
           }
-          data.is_admin = true;
-          data.role = 'admin';
         }
         
         const profileData = data as UserProfile | null;
@@ -91,11 +121,27 @@ export const profileApi = {
       const profile = await this.getProfile(userId);
       if (!profile) {
         console.log(`[PROFILE_API] Creating initial profile for ${userId}`);
+        
+        let currentUserEmail = '';
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          currentUserEmail = authData?.user?.email || '';
+        } catch (e) {
+          console.warn('[profileApi] Could not fetch auth user email:', e);
+        }
+
+        const adminEmails = [
+          'donamariacoisinha@gmail.com',
+          'marivaldotorres@gmail.com'
+        ].map(e => e.toLowerCase());
+
+        const isEmailAdmin = currentUserEmail ? adminEmails.includes(currentUserEmail.toLowerCase()) : false;
+
         const { error } = await supabase.from('profiles').insert({
           id: userId,
           onboarding_completed: false,
-          is_admin: true,
-          role: 'admin',
+          is_admin: isEmailAdmin,
+          role: isEmailAdmin ? 'admin' : 'user',
           created_at: new Date().toISOString()
         });
         if (error) {
