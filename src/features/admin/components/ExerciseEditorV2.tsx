@@ -34,6 +34,7 @@ const ExerciseEditorV2: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'basic' | 'technique' | 'media'>('basic');
   const [form, setForm] = useState<Partial<Exercise>>({});
   const [saving, setSaving] = useState(false);
+  const [subgroupInput, setSubgroupInput] = useState('');
 
   useEffect(() => {
     if (selectedExercise) {
@@ -243,8 +244,141 @@ const ExerciseEditorV2: React.FC = () => {
                                </div>
                             </div>
 
-                            <div className="space-y-3">
-                               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Operational Description</label>
+                             {/* BIOMECHANICAL SUBGROUPS (SECONDARY MUSCLES) SECTION */}
+                             <div className="bg-white rounded-[2rem] border border-slate-200/60 p-6 sm:p-8 space-y-6 shadow-xs my-6">
+                                <div className="space-y-1">
+                                   <label className="text-[10px] font-black uppercase tracking-widest text-[#7BA7FF] font-mono block">Biomecânica Humana</label>
+                                   <h4 className="text-base font-black text-slate-900 uppercase tracking-tight">Subgrupos do Corpo Humano</h4>
+                                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Adicione subdivisões musculares e sinergistas para calibração anatômica refinada.</p>
+                                </div>
+
+                                {/* Active Subgroups / Tags */}
+                                <div className="space-y-2">
+                                   <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Subgrupos Selecionados (Músculos Secundários)</label>
+                                   <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-2xl border border-slate-100/80 min-h-12">
+                                      {(!form.secondary_muscles || form.secondary_muscles.length === 0) ? (
+                                         <span className="text-xs text-slate-400 font-medium italic select-none">Nenhum subgrupo ativado para esta arquitetura. Escolha abaixo ou digite novos.</span>
+                                      ) : (
+                                         form.secondary_muscles.map((muscle) => (
+                                            <span 
+                                               key={muscle}
+                                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold border border-blue-100/50"
+                                            >
+                                               {muscle}
+                                               <button 
+                                                  type="button" 
+                                                  onClick={() => {
+                                                     const updated = (form.secondary_muscles || []).filter(m => m !== muscle);
+                                                     setForm({ ...form, secondary_muscles: updated });
+                                                  }}
+                                                  className="text-blue-400 hover:text-blue-600 transition-colors cursor-pointer"
+                                               >
+                                                  <X size={12} strokeWidth={2.5} />
+                                               </button>
+                                            </span>
+                                         ))
+                                      )}
+                                   </div>
+                                </div>
+
+                                {/* Fast selection suggestions - Contextual based on primary cluster */}
+                                <div className="space-y-2">
+                                   <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">
+                                      {form.muscle_group 
+                                         ? `Sugestões para ${form.muscle_group}`
+                                         : 'Sugestões de Subgrupos Gerais'
+                                      }
+                                   </label>
+                                   <div className="flex flex-wrap gap-1.5">
+                                      {(() => {
+                                         const cluster = form.muscle_group || '';
+                                         const subSuggestions: Record<string, string[]> = {
+                                            'Peito': ['Peitoral Maior', 'Peitoral Menor', 'Porção Superior (Inclinado)', 'Porção Inferior (Declinado)', 'Deltoide Anterior', 'Tríceps (Auxiliar)'],
+                                            'Costas': ['Latíssimo do Dorso', 'Asas / Dorsais', 'Trapézio', 'Romboides', 'Redondo Maior', 'Eretores da Espinha', 'Bíceps (Auxiliar)'],
+                                            'Ombros': ['Deltoide Anterior', 'Deltoide Lateral', 'Deltoide Posterior', 'Manguito Rotador', 'Trapézio Superior'],
+                                            'Pernas': ['Quadríceps', 'Isquiotibiais (Posterior)', 'Glúteo Máximo', 'Glúteo Médio', 'Sóleo', 'Gastrocnêmio (Panturrilha)', 'Adutores', 'Abdutores'],
+                                            'Bíceps': ['Bíceps Braquial', 'Braquial', 'Braquiorradial', 'Flexores do Antebraço'],
+                                            'Tríceps': ['Tríceps (Cabeça Longa)', 'Tríceps (Cabeça Lateral)', 'Tríceps (Cabeça Medial)', 'Ancôneo'],
+                                            'Abdominais': ['Reto Abdominal', 'Oblíquos', 'Transverso Abdominal', 'Lombar'],
+                                            'Quadríceps': ['Reto Femoral', 'Vasto Lateral', 'Vasto Medial', 'Vasto Intermédio', 'Sartório'],
+                                            'Posterior': ['Bíceps Femoral', 'Semitendíneo', 'Semimembranáceo', 'Glúteo Máximo'],
+                                            'Glúteos': ['Glúteo Máximo', 'Glúteo Médio', 'Glúteo Mínimo', 'Piriforme'],
+                                            'Panturrilha': ['Gastrocnêmio Lateral', 'Gastrocnêmio Medial', 'Sóleo', 'Tibial Anterior'],
+                                            'Full Body': ['Core Estabilizador', 'Cadeia Posterior', 'Cadeia Anterior', 'Estabilizadores Escapulares'],
+                                            'Cardio': ['Resistência Cardiovascular', 'Capacidade Aeróbica', 'Frequência Cardíaca Elevada'],
+                                            'Mobilidade': ['Alongamento Ativo', 'Estabilidade Articular', 'Flexibilidade Miofascial']
+                                         };
+                                         const list = subSuggestions[cluster] || ['Core', 'Estabilizadores', 'Manguito Rotador', 'Deltoide Anterior', 'Peitoral Maior', 'Trapézio', 'Antebraço'];
+                                         return list.map(item => {
+                                            const isActive = (form.secondary_muscles || []).includes(item);
+                                            return (
+                                               <button
+                                                  type="button"
+                                                  key={item}
+                                                  onClick={() => {
+                                                     const current = form.secondary_muscles || [];
+                                                     const updated = current.includes(item) 
+                                                        ? current.filter(m => m !== item) 
+                                                        : [...current, item];
+                                                     setForm({ ...form, secondary_muscles: updated });
+                                                  }}
+                                                  className={`px-3 py-1.5 rounded-xl text-[10.5px] font-bold transition-all border cursor-pointer ${
+                                                     isActive 
+                                                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-600/20' 
+                                                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                                                  }`}
+                                               >
+                                                  {isActive ? '✓ ' : '+ '} {item}
+                                               </button>
+                                            );
+                                         });
+                                      })()}
+                                   </div>
+                                </div>
+
+                                {/* Custom subgroup typing */}
+                                <div className="flex gap-2">
+                                   <input 
+                                      type="text"
+                                      value={subgroupInput}
+                                      onChange={(e) => setSubgroupInput(e.target.value)}
+                                      onKeyDown={(e) => {
+                                         if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            if (subgroupInput.trim()) {
+                                               const val = subgroupInput.trim();
+                                               const current = form.secondary_muscles || [];
+                                               if (!current.includes(val)) {
+                                                  setForm({ ...form, secondary_muscles: [...current, val] });
+                                               }
+                                               setSubgroupInput('');
+                                            }
+                                         }
+                                      }}
+                                      placeholder="Ex: Porção Esternocostal, Deltoide Anterior, etc."
+                                      className="flex-1 h-12 bg-white border border-slate-200 rounded-xl px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all placeholder:text-slate-400 shadow-xs"
+                                   />
+                                   <button
+                                      type="button"
+                                      onClick={() => {
+                                         if (subgroupInput.trim()) {
+                                            const val = subgroupInput.trim();
+                                            const current = form.secondary_muscles || [];
+                                            if (!current.includes(val)) {
+                                               setForm({ ...form, secondary_muscles: [...current, val] });
+                                            }
+                                            setSubgroupInput('');
+                                         }
+                                      }}
+                                      className="px-5 h-12 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
+                                   >
+                                      Inserir
+                                   </button>
+                                </div>
+                             </div>
+
+                             <div className="space-y-3">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Operational Description</label>
                                <textarea 
                                   value={form.description || ''}
                                   onChange={(e) => setForm({...form, description: e.target.value})}
