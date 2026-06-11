@@ -229,11 +229,58 @@ export const workoutApi = {
           console.error("Failed to parse cached workout data:", e);
         }
 
-        // Return a beautifully reconstructed interactive offline routine matching the workout ID
+        // Search in dashboard cache for the workout details to extract its real name & description
+        let parsedMockName = '';
+        let parsedMockDescription = '';
+        try {
+          const dashCached = localStorage.getItem(`rubi_dashboard_cache_${userId}`);
+          if (dashCached) {
+            const parsedDash = JSON.parse(dashCached);
+            const foundCategory = parsedDash.workouts?.find((w: any) => w.id === workoutId);
+            if (foundCategory) {
+              parsedMockName = foundCategory.name || '';
+              parsedMockDescription = foundCategory.description || '';
+            }
+          }
+        } catch (e) {
+          console.warn('[workoutApi] Failed to find workout name in dashboard cache:', e);
+        }
+
+        const mockCategoryName = parsedMockName || (workoutId === 'classic-b' 
+          ? 'Protocolo B — Ênfase Posterior Chain' 
+          : workoutId === 'classic-c'
+          ? 'Protocolo C — Divisão de Quadríceps & Core'
+          : 'Protocolo A — Desenvolvimento Miofibrilar');
+
+        // Return a beautifully reconstructed interactive offline routine matching the workout ID and training focus
         const staticExercises = await exerciseApi.getExercises();
+        const workoutNameLower = mockCategoryName.toLowerCase();
         
-        // Grab 4-5 premium exercises to construct a balanced routine
-        const routineExercises = staticExercises.slice(0, 5).map((ex, index) => ({
+        let matchedExercises = [...staticExercises];
+        
+        if (workoutNameLower.includes('costas') || workoutNameLower.includes('costa') || workoutNameLower.includes('bíceps') || workoutNameLower.includes('biceps') || workoutNameLower.includes('dorsal') || workoutNameLower.includes('pull') || workoutNameLower.includes('trapezi') || workoutNameLower.includes('braço') || workoutNameLower.includes('braco')) {
+          matchedExercises = staticExercises.filter(ex => {
+            const muscle = (ex.muscle_group || '').toLowerCase();
+            return muscle.includes('costa') || muscle.includes('bíceps') || muscle.includes('biceps') || muscle.includes('dorsal') || muscle.includes('antebraço');
+          });
+        } else if (workoutNameLower.includes('leg') || workoutNameLower.includes('perna') || workoutNameLower.includes('quad') || workoutNameLower.includes('glúteo') || workoutNameLower.includes('gluteo') || workoutNameLower.includes('panturrilha') || workoutNameLower.includes('posterior') || workoutNameLower.includes('coxa') || workoutNameLower.includes('membres inferieurs') || workoutNameLower.includes('agachamento')) {
+          matchedExercises = staticExercises.filter(ex => {
+            const muscle = (ex.muscle_group || '').toLowerCase();
+            return muscle.includes('perna') || muscle.includes('quadríceps') || muscle.includes('quadriceps') || muscle.includes('glúteo') || muscle.includes('gluteo') || muscle.includes('panturrilha') || muscle.includes('posterior') || muscle.includes('coxa');
+          });
+        } else if (workoutNameLower.includes('peito') || workoutNameLower.includes('tríceps') || workoutNameLower.includes('triceps') || workoutNameLower.includes('ombro') || workoutNameLower.includes('push') || workoutNameLower.includes('delto')) {
+          matchedExercises = staticExercises.filter(ex => {
+            const muscle = (ex.muscle_group || '').toLowerCase();
+            return muscle.includes('peito') || muscle.includes('tríceps') || muscle.includes('triceps') || muscle.includes('ombro') || muscle.includes('ombros');
+          });
+        }
+
+        if (matchedExercises.length < 3) {
+          matchedExercises = staticExercises;
+        }
+
+        // Grab 4-6 exercises to construct a balanced routine
+        const routineExercises = matchedExercises.slice(0, 6).map((ex, index) => ({
           id: `offline-work-ex-${ex.id}-${index}`,
           category_id: workoutId,
           exercise_id: ex.id,
@@ -248,18 +295,12 @@ export const workoutApi = {
           exercises: ex
         }));
 
-        const mockCategoryName = workoutId === 'classic-b' 
-          ? 'Protocolo B — Ênfase Posterior Chain' 
-          : workoutId === 'classic-c'
-          ? 'Protocolo C — Divisão de Quadríceps & Core'
-          : 'Protocolo A — Desenvolvimento Miofibrilar';
-
         return {
           category: {
             id: workoutId,
             name: mockCategoryName,
             user_id: userId,
-            description: 'Rotina de alta performance executada em modo offline resiliente.',
+            description: parsedMockDescription || 'Rotina de alta performance executada em modo offline resiliente.',
             duration_minutes: 50,
             created_at: new Date().toISOString()
           } as WorkoutCategory,
@@ -510,12 +551,18 @@ export const workoutApi = {
         if (error) throw error;
         return;
       } catch (err: any) {
-        // Resilience pattern: handle missing columns from schema
-        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
-          const match = err.message.match(/column '(.*)'/);
+        const errorMsg = err.message || '';
+        console.warn(`[insertWorkoutExercises] Failed to insert workout exercises:`, errorMsg);
+
+        // Resilience pattern: handle missing columns from schema with improved regex matching covering single/double quotes
+        if (errorMsg.toLowerCase().includes('column') || errorMsg.includes('schema cache') || errorMsg.includes('relation')) {
+          const match = errorMsg.match(/column ["']([^"']+)["']/) || 
+                        errorMsg.match(/column\s+named\s+["']([^"']+)["']/) || 
+                        errorMsg.match(/column\s+([a-zA-Z0-9_-]+)/);
+                        
           if (match && match[1]) {
             const badColumn = match[1];
-            console.warn(`[WORKOUT] Removing missing column from insert: ${badColumn}`);
+            console.warn(`[WORKOUT] Removing missing column from insert payload: ${badColumn}`);
             
             currentExercises = currentExercises.map(ex => {
               const { [badColumn]: _, ...remaining } = ex;

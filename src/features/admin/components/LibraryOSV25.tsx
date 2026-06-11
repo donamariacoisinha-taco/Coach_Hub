@@ -135,21 +135,20 @@ const LibraryOSV25: React.FC = () => {
         ))}
       </div>
 
-      {/* Main Content Area with Sidebar */}
-      <div className="flex flex-col xl:flex-row gap-10">
-        <div className="flex-1 flex flex-col gap-10 min-w-0">
-          {/* Smart Grid Section */}
-          <div className="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden min-h-[700px] flex flex-col">
-             <SmartGrid 
-                selectedIds={selectedIds}
-                onSelectChange={setSelectedIds}
-             />
-          </div>
+      {/* Main Content Area */}
+      <div className="flex flex-col gap-10">
+        {/* Smart Grid Section - Now taking full 100% width */}
+        <div className="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden min-h-[700px] flex flex-col">
+           <SmartGrid 
+              selectedIds={selectedIds}
+              onSelectChange={setSelectedIds}
+           />
         </div>
 
-        {/* Smart Insights Sidebar */}
-        <aside className="w-full xl:w-96 space-y-8">
-           <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+        {/* Smart Insights & Keyboard Hints moved below the list */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+           {/* Smart Insights Panel - Spanning 2 columns on large screens */}
+           <div className="lg:col-span-2 bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
               <div className="flex items-center gap-4 mb-8">
                  <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
                     <Sparkles size={20} />
@@ -160,7 +159,7 @@ const LibraryOSV25: React.FC = () => {
                  </div>
               </div>
 
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <InsightCard 
                     icon={<AlertCircle className="text-red-500" />} 
                     label="Críticos Hoje" 
@@ -197,20 +196,22 @@ const LibraryOSV25: React.FC = () => {
               </button>
            </div>
 
-           {/* Keyboard Hint */}
-           <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white">
-              <div className="flex items-center gap-3 mb-6">
-                 <Keyboard size={18} className="text-indigo-400" />
-                 <span className="text-[10px] font-black uppercase tracking-widest">Atalhos Pro</span>
-              </div>
-              <div className="space-y-4">
-                 <ShortcutHint keys={['/']} label="Universal Search" />
-                 <ShortcutHint keys={['N']} label="Novo Exercício" />
-                 <ShortcutHint keys={['V']} label="Toggle Lista/Grid" />
-                 <ShortcutHint keys={['ESC']} label="Limpar Seleção" />
+           {/* Keyboard Hint - Spanning 1 column */}
+           <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white flex flex-col justify-between">
+              <div>
+                 <div className="flex items-center gap-3 mb-6">
+                    <Keyboard size={18} className="text-indigo-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Atalhos Pro</span>
+                 </div>
+                 <div className="space-y-4">
+                    <ShortcutHint keys={['/']} label="Universal Search" />
+                    <ShortcutHint keys={['N']} label="Novo Exercício" />
+                    <ShortcutHint keys={['V']} label="Toggle Lista/Grid" />
+                    <ShortcutHint keys={['ESC']} label="Limpar Seleção" />
+                 </div>
               </div>
            </div>
-        </aside>
+        </div>
       </div>
 
       <BulkActionBar 
