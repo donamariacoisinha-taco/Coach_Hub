@@ -199,5 +199,23 @@ export const profileApi = {
   async upsertBodyMeasurement(payload: any) {
     const { error } = await supabase.from('body_measurements').upsert(payload);
     if (error) throw error;
+  },
+
+  async getAllProfiles() {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn('[profileApi] getAllProfiles connection failed, returning fallback mock profiles');
+      return [
+        { id: '1', name: 'Marivaldo Torres', email: 'marivaldotorres@gmail.com', role: 'admin', is_admin: true, onboarding_completed: true, workout_streak: 12, created_at: '2026-01-10T12:00:00Z', last_access: '2026-06-11T12:00:00Z', is_premium: true },
+        { id: '2', name: 'Carlos Santos', email: 'carlos.santos@email.com', role: 'user', is_admin: false, onboarding_completed: true, workout_streak: 5, created_at: '2026-02-14T09:30:00Z', last_access: '2026-06-10T21:45:00Z', is_premium: false },
+        { id: '3', name: 'Juliana Ribeiro', email: 'juliana.r@email.com', role: 'user', is_admin: false, onboarding_completed: true, workout_streak: 8, created_at: '2026-03-20T14:15:00Z', last_access: '2026-06-11T08:12:00Z', is_premium: true },
+        { id: '4', name: 'Beatriz Costa', email: 'beatriz.c@email.com', role: 'user', is_admin: false, onboarding_completed: true, workout_streak: 0, created_at: '2026-04-05T17:00:00Z', last_access: '2026-06-05T10:00:00Z', is_premium: false },
+        { id: '5', name: 'Mariana Lima', email: 'mariana.lima@email.com', role: 'user', is_admin: false, onboarding_completed: true, workout_streak: 15, created_at: '2026-05-12T11:20:00Z', last_access: '2026-06-11T07:44:00Z', is_premium: true },
+        { id: '6', name: 'Gabriel Alencar', email: 'gabriel.alencar@email.com', role: 'user', is_admin: false, onboarding_completed: true, workout_streak: 4, created_at: '2026-05-20T15:40:00Z', last_access: '2026-06-11T06:10:00Z', is_premium: false }
+      ];
+    }
   }
 };

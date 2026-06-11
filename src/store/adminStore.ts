@@ -11,7 +11,7 @@ interface AdminState {
   error: string | null;
   
   // UI State
-  activeTab: 'dashboard' | 'library' | 'review' | 'ai' | 'analytics' | 'settings' | 'autofix' | 'performance' | 'templates';
+  activeTab: 'dashboard' | 'library' | 'review' | 'ai' | 'analytics' | 'settings' | 'autofix' | 'performance' | 'templates' | 'protocols' | 'users';
   searchQuery: string;
   selectedMuscleFilter: string;
   viewMode: 'table' | 'grid' | 'compact';

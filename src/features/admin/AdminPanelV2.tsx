@@ -16,7 +16,9 @@ import {
   Command as CommandIcon,
   Sparkles,
   Zap,
-  Folder
+  Folder,
+  Award,
+  Users
 } from 'lucide-react';
 import { useAdminStore } from '../../store/adminStore';
 import ExecutiveDashboard from './components/ExecutiveDashboard';
@@ -32,6 +34,8 @@ import AutoFixQueue from './components/AutoFixQueue';
 import PerformanceDashboard from './components/PerformanceDashboard';
 import RubiIntelligenceModal from './components/RubiIntelligenceModal';
 import { GlobalTemplatesManager } from './components/GlobalTemplatesManager';
+import { ProtocolManagement } from './components/ProtocolManagement';
+import { UserManagement } from './components/UserManagement';
 
 interface AdminPanelV2Props {
   onBack: () => void;
@@ -67,15 +71,11 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
   }, [isCommandPaletteOpen, setCommandPaletteOpen]);
 
   const tabs = [
-    { id: 'dashboard', label: 'Executive', icon: LayoutDashboard, desc: 'Overview & KPIs' },
-    { id: 'library', label: 'Library OS', icon: Library, desc: 'Asset Management' },
-    { id: 'templates', label: 'Templates Globais', icon: Folder, desc: 'Template Editor' },
-    { id: 'performance', label: 'Performance', icon: BrainCircuit, desc: 'Adaptive Learning' },
-    { id: 'autofix', label: 'Auto Fix', icon: Zap, desc: 'Self-Healing Engine' },
-    { id: 'review', label: 'Review Hub', icon: ListTodo, desc: 'Quality Control' },
-    { id: 'ai', label: 'AI Operator', icon: BrainCircuit, desc: 'Intelligence Engine' },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3, desc: 'Growth Data' },
-    { id: 'settings', label: 'Settings', icon: Settings, desc: 'Core Config' },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, desc: 'Visão Geral do Sistema' },
+    { id: 'library', label: 'Exercícios', icon: Library, desc: 'Gerenciar biblioteca' },
+    { id: 'protocols', label: 'Protocolos', icon: Award, desc: 'Templates, Premium e Core' },
+    { id: 'users', label: 'Usuários', icon: Users, desc: 'Administrar atletas' },
+    { id: 'settings', label: 'Configurações', icon: Settings, desc: 'Parâmetros e Avançados' },
   ] as const;
 
   return (
@@ -221,17 +221,8 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
               >
                   {activeTab === 'dashboard' && <ExecutiveDashboard />}
                   {activeTab === 'library' && <LibraryOSV25 />}
-                  {activeTab === 'templates' && <GlobalTemplatesManager />}
-                  {activeTab === 'performance' && <PerformanceDashboard />}
-                  {activeTab === 'autofix' && (
-                    <div className="space-y-12">
-                       <AutoFixDashboard />
-                       <AutoFixQueue />
-                    </div>
-                  )}
-                  {activeTab === 'review' && <ReviewCenter />}
-                  {activeTab === 'ai' && <AIOperator />}
-                  {activeTab === 'analytics' && <AnalyticsGrowth />}
+                  {activeTab === 'protocols' && <ProtocolManagement />}
+                  {activeTab === 'users' && <UserManagement />}
                   {activeTab === 'settings' && <SettingsLogs />}
               </motion.div>
             </AnimatePresence>
@@ -248,7 +239,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
             </div>
             <span className="text-[9px] font-black uppercase tracking-widest leading-none">Voltar</span>
          </button>
-         {tabs.filter(t => t.id !== 'settings' && t.id !== 'analytics').slice(0, 4).map((tab) => {
+         {tabs.filter(t => t.id !== 'settings').map((tab) => {
            const Icon = tab.icon;
            const isActive = activeTab === tab.id;
            return (

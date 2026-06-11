@@ -23,6 +23,7 @@ import { ProgressIntelligence } from './ProgressIntelligence';
 import { ProtocolEvolutionDashboard } from './components/ProtocolEvolutionDashboard';
 import { systemTemplatesApi } from '../../lib/api/systemTemplatesApi';
 import { PremiumLibraryComponent } from './components/PremiumLibraryComponent';
+import { premiumProtocolsApi } from '../../lib/api/premiumProtocolsApi';
 import { Crown } from 'lucide-react';
 import { isAdmin } from '../../lib/utils/auth';
 import { playHapticFeedback } from '../../services/athleteMemoryEngine';
@@ -1115,6 +1116,53 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                               >
                                 <Copy size={13} className="text-slate-400" /> Duplicar
                               </button>
+                              {isAdmin(profile) && (
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      setIsPerformingAction(true);
+                                      const session = await authApi.getSession();
+                                      if (!session?.user) throw new Error("Sessão expirada.");
+                                      const { exercises: workoutExercises } = await workoutApi.getWorkoutInitData(workout.id, session.user.id);
+                                      
+                                      await premiumProtocolsApi.createOrUpdateProtocol({
+                                        id: `pr_${Date.now()}`,
+                                        name: workout.name,
+                                        description: workout.description || "Criado via Workspace",
+                                        level: "Intermediário",
+                                        duration: "45 min",
+                                        goal: "Hipertrofia",
+                                        is_new: true,
+                                        premium: true,
+                                        suggested_frequency: "3x por semana",
+                                        rubi_curation_score: 95,
+                                        curation_notes: [],
+                                        workouts: [{
+                                          id: `w_sub_${Date.now()}`,
+                                          name: "Treino " + workout.name,
+                                          exercises: workoutExercises.map((e, index) => ({
+                                            exercise_id: e.exercise_id,
+                                            sets_count: 4,
+                                            reps: "8-12 reps",
+                                            notes: "Cadência controlada",
+                                            sort_order: index
+                                          }))
+                                        }]
+                                      });
+                                      
+                                      showSuccess("Convertido com Sucesso!", "O protocolo foi publicado na Biblioteca Premium.");
+                                      setActiveMenuId(null);
+                                    } catch (err) {
+                                      showError(err);
+                                    } finally {
+                                      setIsPerformingAction(false);
+                                    }
+                                  }}
+                                  className="w-full flex items-center gap-3 p-2.5 text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 rounded-xl transition"
+                                >
+                                  <Crown size={13} className="text-indigo-500 animate-pulse" /> Converter p/ Premium
+                                </button>
+                              )}
                               <div className="border-t border-slate-100 my-1" />
                               <button 
                                 onClick={() => {
