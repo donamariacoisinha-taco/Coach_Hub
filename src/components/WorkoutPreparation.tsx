@@ -766,8 +766,9 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   }, [workoutId, showSuccess]);
 
   // Substitute finalized selection or append/insert new exercise
-  const handleSelectSubstitute = useCallback((exercise: Exercise) => {
+  const handleSelectSubstitute = useCallback((exercise: Exercise | Exercise[]) => {
     if (replacingIndex !== null) {
+      if (Array.isArray(exercise)) return; // Should not happen in replacing mode
       setExercises(prev => {
         const next = [...prev];
         const target = next[replacingIndex];
@@ -789,51 +790,63 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
       showSuccess('Exercício substituído', `Alterado para ${exercise.name} hoje.`);
     } else {
       // Adding/Inserting a new exercise to the workout session
+      const exerciseArray = Array.isArray(exercise) ? exercise : [exercise];
+
       setExercises(prev => {
-        const tempId = `new-ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-        const numSets = 3;
-        const targetReps = '12';
-        const targetWeight = 10;
-        const targetRest = 60;
-
-        const defaultSetsJson = Array.from({ length: numSets }).map(() => ({
-          reps: targetReps,
-          weight: targetWeight,
-          rest_time: targetRest,
-          type: SetType.NORMAL
-        }));
-
-        const newWorkoutEx: WorkoutExercise = {
-          id: tempId,
-          category_id: workoutId,
-          exercise_id: exercise.id,
-          exercise_name: exercise.name,
-          exercise_image: exercise.image_url || exercise.static_frame_url,
-          muscle_group: exercise.muscle_group,
-          type: exercise.type,
-          sets: numSets,
-          reps: targetReps,
-          weight: targetWeight,
-          rest_time: targetRest,
-          sets_json: defaultSetsJson,
-          order: prev.length + 1
-        };
-
         let next = [...prev];
-        if (addAfterIndex !== null) {
-          next.splice(addAfterIndex + 1, 0, newWorkoutEx);
-        } else {
-          next.push(newWorkoutEx);
-        }
+
+        exerciseArray.forEach((exItem, itemIdx) => {
+          const tempId = `new-ex-${Date.now()}-${itemIdx}-${Math.random().toString(36).substr(2, 9)}`;
+
+          const numSets = 3;
+          const targetReps = '12';
+          const targetWeight = 10;
+          const targetRest = 60;
+
+          const defaultSetsJson = Array.from({ length: numSets }).map(() => ({
+            reps: targetReps,
+            weight: targetWeight,
+            rest_time: targetRest,
+            type: SetType.NORMAL
+          }));
+
+          const newWorkoutEx: WorkoutExercise = {
+            id: tempId,
+            category_id: workoutId,
+            exercise_id: exItem.id,
+            exercise_name: exItem.name,
+            exercise_image: exItem.image_url || exItem.static_frame_url,
+            muscle_group: exItem.muscle_group,
+            type: exItem.type,
+            sets: numSets,
+            reps: targetReps,
+            weight: targetWeight,
+            rest_time: targetRest,
+            sets_json: defaultSetsJson,
+            order: next.length + 1
+          };
+
+          if (addAfterIndex !== null) {
+            // Insert in sequence
+            next.splice(addAfterIndex + 1 + itemIdx, 0, newWorkoutEx);
+          } else {
+            next.push(newWorkoutEx);
+          }
+        });
 
         const reordered = next.map((item, i) => ({ ...item, order: i + 1 }));
         localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(reordered));
         return reordered;
       });
+
       setShowExerciseSelector(false);
       setAddAfterIndex(null);
-      showSuccess('Exercício adicionado', `${exercise.name} adicionado ao treino de hoje.`);
+
+      const successTitle = exerciseArray.length > 1 ? 'Exercícios adicionados' : 'Exercício adicionado';
+      const successDesc = exerciseArray.length > 1 
+        ? `${exerciseArray.length} exercícios adicionados com sucesso ao treino de hoje.` 
+        : `${exerciseArray[0].name} adicionado ao treino de hoje.`;
+      showSuccess(successTitle, successDesc);
     }
   }, [replacingIndex, addAfterIndex, workoutId, showSuccess]);
 

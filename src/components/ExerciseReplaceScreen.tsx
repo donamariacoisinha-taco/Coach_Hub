@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Search, Sparkles } from 'lucide-react';
+import { X, Search, Sparkles, Check } from 'lucide-react';
 import { Exercise } from '../types';
 import { useExerciseFilters } from '../hooks/useExerciseFilters';
 import { FilterChips } from './FilterChips';
@@ -13,7 +13,7 @@ interface ExerciseReplaceScreenProps {
   isOpen: boolean;
   onClose: () => void;
   availableExercises: Exercise[];
-  onSelect: (exercise: Exercise) => void;
+  onSelect: (exercise: any) => void;
   replacingIndex: number | null;
   currentExercise?: any;
   favoriteIds?: Set<string>;
@@ -41,6 +41,33 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
     availableCuts
   } = useExerciseFilters(availableExercises, currentExercise, favoriteIds);
 
+  const [selectedItems, setSelectedItems] = React.useState<Exercise[]>([]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setSelectedItems([]);
+    }
+  }, [isOpen]);
+
+  const toggleSelection = React.useCallback((exercise: Exercise) => {
+    setSelectedItems(prev => {
+      const exists = prev.some(item => item.id === exercise.id);
+      if (exists) {
+        return prev.filter(item => item.id !== exercise.id);
+      } else {
+        return [...prev, exercise];
+      }
+    });
+  }, []);
+
+  const handleItemClick = React.useCallback((ex: Exercise) => {
+    if (replacingIndex !== null) {
+      onSelect(ex);
+    } else {
+      toggleSelection(ex);
+    }
+  }, [replacingIndex, onSelect, toggleSelection]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -67,7 +94,7 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
                   {replacingIndex !== null ? 'Substituir' : 'Biblioteca'}
                 </h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                  {filteredExercises.length} opções disponíveis
+                  {filteredExercises.length} opções disponíveis {replacingIndex === null && selectedItems.length > 0 && `• ${selectedItems.length} selecionados`}
                 </p>
               </div>
               <button 
@@ -95,8 +122,8 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
 
               <div className="space-y-2">
                 <FilterChips 
-                  selectedMuscle={selectedMuscle} 
-                  onSelect={handleMuscleSelect} 
+                   selectedMuscle={selectedMuscle} 
+                   onSelect={handleMuscleSelect} 
                 />
                 <SubFilterChips 
                   cuts={availableCuts} 
@@ -107,7 +134,7 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
             </div>
 
             {/* CONTENT AREA */}
-            <div className="flex-1 overflow-y-auto no-scrollbar bg-white rounded-t-[2.5rem] shadow-inner">
+            <div className="flex-1 overflow-y-auto no-scrollbar bg-white rounded-t-[2.5rem] shadow-inner relative">
               
               {/* SUGGESTIONS SECTION */}
               {suggestions.length > 0 && !search && !selectedMuscle && (
@@ -117,31 +144,44 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
                     <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Sugeridos para você</span>
                   </div>
                   <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-                    {suggestions.map((ex) => (
-                      <button 
-                        key={ex.id}
-                        onClick={() => onSelect(ex)}
-                        className="shrink-0 w-44 bg-slate-50 rounded-3xl p-5 text-left space-y-4 active:scale-95 transition-all border border-transparent hover:border-blue-100 shadow-sm"
-                      >
-                        <div 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openExercisePreview(
-                              ex.name || "",
-                              ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop',
-                              ex.muscle_group || ""
-                            );
-                          }}
-                          className="w-[72px] h-12 bg-white rounded-2xl flex items-center justify-center p-2 shadow-sm cursor-zoom-in hover:scale-[1.05] active:scale-95 transition-all"
+                    {suggestions.map((ex) => {
+                      const isSelected = selectedItems.some(item => item.id === ex.id);
+                      return (
+                        <button 
+                          key={ex.id}
+                          onClick={() => handleItemClick(ex)}
+                          className={`shrink-0 w-44 rounded-3xl p-5 text-left space-y-4 active:scale-95 transition-all border-2 shadow-sm relative ${
+                            isSelected 
+                              ? 'border-[#7BA7FF]/65 bg-[#F4F8FF]' 
+                              : 'bg-slate-50 border-transparent hover:border-blue-100'
+                          }`}
                         >
-                          <img src={ex.image_url} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
-                        </div>
-                        <div>
-                          <h5 className="text-[12px] font-bold text-slate-900 leading-tight line-clamp-2">{ex.name}</h5>
-                          <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mt-1">{ex.muscle_group}</p>
-                        </div>
-                      </button>
-                    ))}
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openExercisePreview(
+                                ex.name || "",
+                                ex.image_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop',
+                                ex.muscle_group || ""
+                              );
+                            }}
+                            className="w-[72px] h-12 bg-white rounded-2xl flex items-center justify-center p-2 shadow-sm cursor-zoom-in hover:scale-[1.05] active:scale-95 transition-all"
+                          >
+                            <img src={ex.image_url} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
+                          </div>
+                          <div>
+                            <h5 className="text-[12px] font-bold text-slate-900 leading-tight line-clamp-2">{ex.name}</h5>
+                            <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mt-1">{ex.muscle_group}</p>
+                          </div>
+
+                          {replacingIndex === null && isSelected && (
+                            <div className="absolute top-3 right-3 bg-[#7BA7FF] text-white w-5 h-5 rounded-full flex items-center justify-center shadow-md">
+                              <Check size={11} strokeWidth={3} />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -149,15 +189,20 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
               {/* MAIN LIST */}
               <div className="pt-4">
                 {filteredExercises.length > 0 ? (
-                  filteredExercises.map((ex) => (
-                    <ExerciseListItem 
-                      key={ex.id} 
-                      exercise={ex} 
-                      onSelect={onSelect} 
-                      isReplacing={replacingIndex !== null}
-                      isFavorite={favoriteIds.has(ex.id)}
-                    />
-                  ))
+                  filteredExercises.map((ex) => {
+                    const isSelected = selectedItems.some(item => item.id === ex.id);
+                    return (
+                      <ExerciseListItem 
+                        key={ex.id} 
+                        exercise={ex} 
+                        onSelect={handleItemClick} 
+                        isReplacing={replacingIndex !== null}
+                        isFavorite={favoriteIds.has(ex.id)}
+                        isSelected={isSelected}
+                        showCheckbox={replacingIndex === null}
+                      />
+                    );
+                  })
                 ) : (
                   <div className="flex flex-col items-center justify-center py-20 px-8 text-center space-y-4">
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
@@ -168,8 +213,33 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
                 )}
               </div>
               
-              <div className="h-20" /> {/* Bottom spacing */}
+              <div style={{ height: selectedItems.length > 0 ? '110px' : '70px' }} className="transition-all duration-300" />
             </div>
+
+            {/* STICKY ACTION BUTTON WHEN ADDING PROCESS & ACTIVE SELECTION */}
+            <AnimatePresence>
+              {replacingIndex === null && selectedItems.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 30 }}
+                  className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white via-white/95 to-transparent flex justify-center z-50 pointer-events-none"
+                >
+                  <button
+                    onClick={() => {
+                      if (selectedItems.length > 0) {
+                        onSelect(selectedItems);
+                        onClose();
+                      }
+                    }}
+                    className="w-full max-w-sm h-14 bg-[#7BA7FF] hover:bg-[#6494EC] text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-blue-500/10 active:scale-95 transition-all flex items-center justify-center gap-2.5 pointer-events-auto cursor-pointer"
+                  >
+                    <span>Adicionar {selectedItems.length} Exercício{selectedItems.length > 1 ? 's' : ''}</span>
+                    <span className="bg-white/25 px-2 py-0.5 rounded-full text-[9px] font-black">Pronto</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
       )}

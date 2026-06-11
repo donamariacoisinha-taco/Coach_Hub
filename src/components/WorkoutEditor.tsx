@@ -533,32 +533,54 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
     }
   };
 
-  const handleAddOrReplaceExercise = (ex: Exercise) => {
-    const tempId = crypto.randomUUID();
-    const newEx: EditorExercise = {
-      tempId,
-      exercise_id: ex.id,
-      exercise_name: ex.name,
-      exercise_image: ex.image_url,
-      muscle_group: ex.muscle_group,
-      type: ex.type,
-      sets_json: [
-        { reps: '12', weight: 0, rest_time: 60, type: SetType.NORMAL },
-        { reps: '12', weight: 0, rest_time: 60, type: SetType.NORMAL },
-        { reps: '12', weight: 0, rest_time: 60, type: SetType.NORMAL }
-      ],
-      superset_id: null
-    };
-
+  const handleAddOrReplaceExercise = (ex: Exercise | Exercise[]) => {
     if (replacingIndex !== null) {
+      if (Array.isArray(ex)) return; // Should not happen in replacing mode
+      const tempId = crypto.randomUUID();
+      const newEx: EditorExercise = {
+        tempId,
+        exercise_id: ex.id,
+        exercise_name: ex.name,
+        exercise_image: ex.image_url,
+        muscle_group: ex.muscle_group,
+        type: ex.type,
+        sets_json: [
+          { reps: '12', weight: 0, rest_time: 60, type: SetType.NORMAL },
+          { reps: '12', weight: 0, rest_time: 60, type: SetType.NORMAL },
+          { reps: '12', weight: 0, rest_time: 60, type: SetType.NORMAL }
+        ],
+        superset_id: null
+      };
+
       const newExs = [...exercises];
       newExs[replacingIndex] = newEx;
       setExercises(newExs);
       setReplacingIndex(null);
     } else {
-      setExercises([...exercises, newEx]);
-      setLastAddedId(tempId);
-      setTimeout(() => setLastAddedId(null), 1000);
+      const exerciseArray = Array.isArray(ex) ? ex : [ex];
+      const newExercises = exerciseArray.map((exItem) => {
+        const tempId = crypto.randomUUID();
+        return {
+          tempId,
+          exercise_id: exItem.id,
+          exercise_name: exItem.name,
+          exercise_image: exItem.image_url,
+          muscle_group: exItem.muscle_group,
+          type: exItem.type,
+          sets_json: [
+            { reps: '12', weight: 0, rest_time: 60, type: SetType.NORMAL },
+            { reps: '12', weight: 0, rest_time: 60, type: SetType.NORMAL },
+            { reps: '12', weight: 0, rest_time: 60, type: SetType.NORMAL }
+          ],
+          superset_id: null
+        } as EditorExercise;
+      });
+
+      setExercises(prev => [...prev, ...newExercises]);
+      if (newExercises.length > 0) {
+        setLastAddedId(newExercises[newExercises.length - 1].tempId);
+        setTimeout(() => setLastAddedId(null), 1000);
+      }
     }
     setShowExerciseSelector(false);
     if ('vibrate' in navigator) navigator.vibrate(10);
