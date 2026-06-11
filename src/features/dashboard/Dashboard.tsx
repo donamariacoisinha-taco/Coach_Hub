@@ -25,12 +25,29 @@ import { systemTemplatesApi } from '../../lib/api/systemTemplatesApi';
 import { PremiumLibraryComponent } from './components/PremiumLibraryComponent';
 import { Crown } from 'lucide-react';
 import { isAdmin } from '../../lib/utils/auth';
+import { playHapticFeedback } from '../../services/athleteMemoryEngine';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
   const { showError, showSuccess } = useErrorHandler();
   const prefetch = usePrefetch();
   
+  const [showDiscoveryTooltip, setShowDiscoveryTooltip] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hasDiscovered = localStorage.getItem('eke_discovered');
+      if (!hasDiscovered) {
+        setShowDiscoveryTooltip(true);
+        const timer = setTimeout(() => {
+          setShowDiscoveryTooltip(false);
+          localStorage.setItem('eke_discovered', 'true');
+        }, 7000); // 7 seconds auto-dismiss
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
+
   const [favoriteFolderId, setFavoriteFolderId] = useState<string | null>(() => {
     return localStorage.getItem('favorite_workout_folder_id');
   });
@@ -470,13 +487,102 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             </div>
 
             {/* AI Action Trigger */}
-            <button 
-              onClick={() => setShowMagicModal(true)}
-              className="w-11 h-11 rounded-2xl bg-white border border-slate-100 shadow-[0_4px_12px_rgba(0,0,0,0.03)] flex items-center justify-center text-indigo-500 hover:text-indigo-600 hover:scale-105 active:scale-95 transition-all"
-              title="Ativar Treino Mágico Inteligente"
-            >
-              <Sparkles size={18} className="animate-pulse" />
-            </button>
+            <div className="relative">
+              <motion.button 
+                onClick={() => {
+                  try {
+                    playHapticFeedback('light');
+                  } catch (e) {
+                    console.warn('[EKE] Haptic feedback error:', e);
+                  }
+                  setShowMagicModal(true);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('eke_discovered', 'true');
+                  }
+                  setShowDiscoveryTooltip(false);
+                }}
+                className="relative w-11 h-11 rounded-2xl bg-white border flex items-center justify-center text-indigo-500 cursor-pointer select-none"
+                title="Ativar Treino Mágico Inteligente"
+                whileHover={{
+                  scale: 1.02,
+                  boxShadow: "0 8px 24px rgba(123, 167, 255, 0.35), 0 0 12px rgba(123, 167, 255, 0.22)",
+                  borderColor: "rgba(123, 167, 255, 0.55)",
+                  contrast: "1.08"
+                }}
+                whileTap={{ scale: 0.98 }}
+                animate={{
+                  scale: [1, 1.03, 1],
+                  boxShadow: [
+                    "0 4px 12px rgba(0,0,0,0.03), 0 0 0px rgba(123, 167, 255, 0)",
+                    "0 6px 16px rgba(123, 167, 255, 0.2), 0 0 10px rgba(123, 167, 255, 0.12)",
+                    "0 4px 12px rgba(0,0,0,0.03), 0 0 0px rgba(123, 167, 255, 0)"
+                  ],
+                  borderColor: [
+                    "rgba(241, 245, 249, 1)", // border-slate-100
+                    "rgba(123, 167, 255, 0.4)", // kyron glow border
+                    "rgba(241, 245, 249, 1)"
+                  ]
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: [0.25, 0.8, 0.25, 1], // premium biology spring curve feel
+                  repeatType: "loop"
+                }}
+              >
+                <Sparkles size={18} className="text-indigo-500" />
+                
+                {/* Intelligence Signal - Biometric Pulse Dot */}
+                <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 flex items-center justify-center pointer-events-none">
+                  <span className="absolute w-1.5 h-1.5 rounded-full bg-[#7BA7FF]" />
+                  <motion.span 
+                    className="absolute w-3.5 h-3.5 rounded-full border border-[#7BA7FF]/50 bg-[#7BA7FF]/5"
+                    animate={{ scale: [0.8, 1.8, 0.8], opacity: [0.35, 0.9, 0.35] }}
+                    transition={{ 
+                      duration: 3, 
+                      repeat: Infinity, 
+                      ease: "easeInOut" 
+                    }}
+                  />
+                </div>
+              </motion.button>
+
+              {/* Discovery Tooltip */}
+              <AnimatePresence>
+                {showDiscoveryTooltip && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                    transition={{ type: "spring", damping: 15 }}
+                    className="absolute right-0 top-14 z-[50] w-[210px] bg-slate-900 border border-slate-800 text-white p-3 rounded-2xl shadow-xl flex flex-col items-start gap-1 font-sans cursor-pointer"
+                    onClick={() => {
+                      try {
+                        playHapticFeedback('light');
+                      } catch (e) {
+                        console.warn(e);
+                      }
+                      if (typeof window !== 'undefined') {
+                        localStorage.setItem('eke_discovered', 'true');
+                      }
+                      setShowDiscoveryTooltip(false);
+                      setShowMagicModal(true);
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5 text-indigo-300">
+                      <Sparkles size={11} className="text-[#7BA7FF] animate-pulse" />
+                      <span className="text-[9px] font-black uppercase tracking-widest">Rubi Intelligence</span>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-100 tracking-tight leading-tight mt-1">
+                      ✨ Descubra exercícios ideais para o seu objetivo
+                    </p>
+                    <span className="text-[8px] font-normal text-slate-400 mt-1">
+                      Toque para iniciar
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           <p className="text-[10.5px] font-black text-slate-400 uppercase tracking-wider ml-1 mb-4 flex items-center gap-1.5">
