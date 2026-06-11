@@ -1129,25 +1129,36 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                                         id: `pr_${Date.now()}`,
                                         name: workout.name,
                                         description: workout.description || "Criado via Workspace",
-                                        level: "Intermediário",
-                                        duration: "45 min",
-                                        goal: "Hipertrofia",
-                                        is_new: true,
+                                        version: 1,
                                         premium: true,
-                                        suggested_frequency: "3x por semana",
-                                        rubi_curation_score: 95,
-                                        curation_notes: [],
+                                        goal: "hypertrophy",
+                                        difficulty: "intermediate",
+                                        duration_weeks: 12,
+                                        frequency: 3,
+                                        created_by: 'admin',
+                                        rating: 4.9,
+                                        athletes_count: 12,
+                                        completion_rate: 90,
+                                        strength_increase_pct: 15,
+                                        created_at: new Date().toISOString(),
+                                        updated_at: new Date().toISOString(),
+                                        updated_by: 'Rubi Admin',
                                         workouts: [{
                                           id: `w_sub_${Date.now()}`,
                                           name: "Treino " + workout.name,
-                                          exercises: workoutExercises.map((e, index) => ({
+                                          exercises: workoutExercises.map((e: any, index) => ({
                                             exercise_id: e.exercise_id,
-                                            sets_count: 4,
+                                            exercise_name: e.exercise_name || e.name || "Exercício",
+                                            sets: 4,
                                             reps: "8-12 reps",
-                                            notes: "Cadência controlada",
-                                            sort_order: index
+                                            weight: 20,
+                                            rest_time: 60,
+                                            sets_json: [],
+                                            sort_order: index,
+                                            notes: "Cadência controlada"
                                           }))
-                                        }]
+                                        }],
+                                        version_history: []
                                       });
                                       
                                       showSuccess("Convertido com Sucesso!", "O protocolo foi publicado na Biblioteca Premium.");

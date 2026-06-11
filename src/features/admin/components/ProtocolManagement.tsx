@@ -31,13 +31,70 @@ import { useAdminStore } from '../../../store/adminStore';
 
 export const ProtocolManagement: React.FC = () => {
   const { exercises } = useAdminStore();
-  const [activeSubTab, setActiveSubTab] = useState<'templates' | 'premium' | 'public' | 'drafts' | 'rubi'>('premium');
+  const [activeSubTab, setActiveSubTab] = useState<'my_protocols' | 'templates' | 'premium' | 'public' | 'drafts' | 'rubi' | 'community'>('my_protocols');
   
   const [templates, setTemplates] = useState<SystemTemplate[]>([]);
   const [protocols, setProtocols] = useState<PremiumProtocol[]>([]);
   const [drafts, setDrafts] = useState<PremiumProtocol[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   
+  // Community Approval Queue & Database State
+  const [communityProtocols, setCommunityProtocols] = useState<any[]>(() => {
+    const stored = localStorage.getItem('kyron_admin_community_protocols');
+    if (stored) return JSON.parse(stored);
+    return [
+      {
+        id: 'comm-1',
+        name: 'GVT - German Volume Training Adap.',
+        description: 'Foco em hipertrofia de alta densidade e volume. Planilha robusta compartilhada para validação.',
+        goal: 'hypertrophy',
+        difficulty: 'advanced',
+        duration_weeks: 6,
+        frequency: 4,
+        status: 'pending',
+        shared_by: 'Felipe Alencar',
+        created_at: new Date().toISOString(),
+        workouts: []
+      },
+      {
+        id: 'comm-2',
+        name: 'Membros Superiores Estético Foco Deltóides',
+        description: 'Vetor de forças específico focado na proporção clavicular de ombros. Desenvolvido para modelagem estética.',
+        goal: 'glutes',
+        difficulty: 'intermediate',
+        duration_weeks: 8,
+        frequency: 3,
+        status: 'pending',
+        shared_by: 'Bárbara Schmidt',
+        created_at: new Date().toISOString(),
+        workouts: []
+      },
+      {
+        id: 'comm-3',
+        name: 'Functional Conditioning & Core Pro',
+        description: 'Focado em reatividade neuromuscular do core axial e performance cardio-respiratória em circuito.',
+        goal: 'performance',
+        difficulty: 'intermediate',
+        duration_weeks: 10,
+        frequency: 5,
+        status: 'approved',
+        shared_by: 'Rodrigo Torres',
+        created_at: new Date().toISOString(),
+        workouts: []
+      }
+    ];
+  });
+
+  // Timeline and Simplified Modal state
+  const [selectedProtocolForVersion, setSelectedProtocolForVersion] = useState<PremiumProtocol | null>(null);
+  const [selectedVersionIndex, setSelectedVersionIndex] = useState<number>(3);
+  const [isSimplifiedModalOpen, setIsSimplifiedModalOpen] = useState(false);
+  const [simpleGoal, setSimpleGoal] = useState<'hypertrophy' | 'weight_loss' | 'strength' | 'performance' | 'glutes' | 'recovery'>('hypertrophy');
+  const [simpleDifficulty, setSimpleDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
+  const [simpleDuration, setSimpleDuration] = useState<number>(12);
+  const [simpleCoverImage, setSimpleCoverImage] = useState('');
+  const [simpleName, setSimpleName] = useState('');
+
   // Creation Wizard State
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
@@ -123,6 +180,49 @@ export const ProtocolManagement: React.FC = () => {
   const saveDraftsToStorage = (newDrafts: PremiumProtocol[]) => {
     setDrafts(newDrafts);
     localStorage.setItem('kyron_admin_draft_protocols', JSON.stringify(newDrafts));
+  };
+
+  const saveCommunityToStorage = (newComm: any[]) => {
+    setCommunityProtocols(newComm);
+    localStorage.setItem('kyron_admin_community_protocols', JSON.stringify(newComm));
+  };
+
+  const handleApproveCommunity = async (id: string) => {
+    const updated = communityProtocols.map(c => c.id === id ? { ...c, status: 'approved' } : c);
+    saveCommunityToStorage(updated);
+    
+    const approvedItem = communityProtocols.find(c => c.id === id);
+    if (approvedItem) {
+      const newP: PremiumProtocol = {
+        id: `comm-protocol-${id}`,
+        name: approvedItem.name,
+        description: approvedItem.description + " (Aprovado da Comunidade).",
+        version: 1,
+        premium: true,
+        goal: approvedItem.goal,
+        difficulty: approvedItem.difficulty,
+        duration_weeks: approvedItem.duration_weeks,
+        frequency: approvedItem.frequency || 4,
+        created_by: approvedItem.shared_by,
+        rating: 4.8,
+        athletes_count: 5,
+        completion_rate: 85,
+        strength_increase_pct: 12,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        updated_by: 'Rubi Admin',
+        workouts: [],
+        version_history: []
+      };
+      await premiumProtocolsApi.createOrUpdateProtocol(newP);
+      const prtcols = await premiumProtocolsApi.getProtocols();
+      setProtocols(prtcols);
+    }
+  };
+
+  const handleRejectCommunity = (id: string) => {
+    const updated = communityProtocols.filter(c => c.id !== id);
+    saveCommunityToStorage(updated);
   };
 
   const handleStartCreate = () => {
@@ -365,92 +465,119 @@ export const ProtocolManagement: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            Protocolos & Programas
+            Protocolos & Programas <span className="text-[10px] bg-slate-100 text-slate-700 font-black px-2 py-0.5 rounded-full">Core</span>
           </h2>
           <p className="text-sm font-medium text-slate-400 mt-1">
-            Gerencie rascunhos, templates globais e canais de distribuição premium do KYRON OS.
+            Espaço de trabalho centralizado para desenhar, auditar e distribuir programas de performance KYRON OS.
           </p>
         </div>
         
-        <button
-          onClick={handleStartCreate}
-          className="px-6 h-12 bg-slate-950 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2.5 shadow-xl hover:scale-101 active:scale-98 transition-all"
-        >
-          <Plus size={16} />
-          Desenhar Protocolo
-        </button>
+        <div className="flex flex-wrap gap-2.5">
+          <button
+            onClick={() => {
+              setSimpleName("");
+              setSimpleGoal("hypertrophy");
+              setSimpleDifficulty("intermediate");
+              setSimpleDuration(12);
+              setSimpleCoverImage("");
+              setIsSimplifiedModalOpen(true);
+            }}
+            className="px-5 h-12 bg-[#7BA7FF]/10 text-[#7BA7FF] hover:bg-[#7BA7FF]/20 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-[#7BA7FF]/20"
+          >
+            <Lock size={13} />
+            Publicar Premium
+          </button>
+          
+          <button
+            onClick={handleStartCreate}
+            className="px-6 h-12 bg-slate-950 text-white hover:bg-slate-850 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2.5 shadow-xl transition-all"
+          >
+            <Plus size={16} />
+            Desenhar Protocolo
+          </button>
+        </div>
       </div>
 
       {/* Sub tabs Menu */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2">
         <button
-          onClick={() => setActiveSubTab('premium')}
-          className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-            activeSubTab === 'premium'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-950'
+          onClick={() => setActiveSubTab('my_protocols')}
+          className={`px-4.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeSubTab === 'my_protocols'
+              ? 'bg-slate-950 text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <Lock size={13} className={activeSubTab === 'premium' ? 'text-blue-400' : ''} />
-            Premium ({protocols.filter(p => p.premium).length})
-          </div>
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('public')}
-          className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-            activeSubTab === 'public'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-950'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Globe size={13} />
-            Públicos ({protocols.filter(p => !p.premium).length})
-          </div>
+          Meus Protocolos ({protocols.length + drafts.length})
         </button>
 
         <button
           onClick={() => setActiveSubTab('templates')}
-          className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+          className={`px-4.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
             activeSubTab === 'templates'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-950'
+              ? 'bg-slate-950 text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <Layers size={13} />
-            Templates ({templates.length})
-          </div>
+          Templates ({templates.length})
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('premium')}
+          className={`px-4.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeSubTab === 'premium'
+              ? 'bg-slate-950 text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
+          }`}
+        >
+          Premium ({protocols.filter(p => p.premium).length})
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('public')}
+          className={`px-4.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeSubTab === 'public'
+              ? 'bg-slate-950 text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
+          }`}
+        >
+          Públicos ({protocols.filter(p => !p.premium).length})
         </button>
 
         <button
           onClick={() => setActiveSubTab('drafts')}
-          className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+          className={`px-4.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
             activeSubTab === 'drafts'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-950'
+              ? 'bg-slate-950 text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <FileText size={13} />
-            Rascunhos ({drafts.length})
-          </div>
+          Rascunhos ({drafts.length})
         </button>
 
         <button
           onClick={() => setActiveSubTab('rubi')}
-          className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+          className={`px-4.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
             activeSubTab === 'rubi'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-950'
+              ? 'bg-slate-950 text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <Brain size={13} className="text-blue-500 animate-pulse" />
+          <div className="flex items-center gap-1.5">
+            <Brain size={12} className={activeSubTab === 'rubi' ? 'text-blue-200 animate-pulse' : 'text-[#7BA7FF]'} />
             Curadoria Rubi
           </div>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('community')}
+          className={`px-4.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeSubTab === 'community'
+              ? 'bg-slate-950 text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
+          }`}
+        >
+          Comunidade ({communityProtocols.length})
         </button>
       </div>
 
@@ -466,79 +593,217 @@ export const ProtocolManagement: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            className="space-y-6"
           >
-            {activeSubTab === 'premium' && (
-              protocols.filter(p => p.premium).map(p => (
-                <ProtocolCard 
-                  key={p.id} 
-                  p={p} 
-                  onEdit={() => handleStartEdit(p, false)}
-                  onDuplicate={() => handleDuplicate(p, false)}
-                  onArchive={() => handleArchive(p.id, false)}
-                />
-              ))
-            )}
-
-            {activeSubTab === 'public' && (
-              protocols.filter(p => !p.premium).map(p => (
-                <ProtocolCard 
-                  key={p.id} 
-                  p={p} 
-                  onEdit={() => handleStartEdit(p, false)}
-                  onDuplicate={() => handleDuplicate(p, false)}
-                  onArchive={() => handleArchive(p.id, false)}
-                  isPublic
-                />
-              ))
-            )}
-
-            {activeSubTab === 'templates' && (
-              templates.map(p => (
-                <div 
-                  key={p.id}
-                  className="bg-white/70 backdrop-blur-xl border border-white/40 p-6 rounded-3xl text-left flex flex-col justify-between h-[210px] shadow-sm relative group"
-                >
-                  <div className="space-y-2">
-                    <span className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-[#7BA7FF] bg-blue-50 border border-blue-105 px-2.5 py-1 rounded-full">
-                      Global Template
-                    </span>
-                    <h3 className="text-md font-black text-slate-900 uppercase tracking-tight mt-2 line-clamp-1">
-                      {p.name}
-                    </h3>
-                    <p className="text-xs text-slate-400 leading-normal line-clamp-2">
-                      {p.description}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-slate-100/60 pt-4 mt-4 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                    <span>{p.workouts?.length || 0} Treinos</span>
-                    <span className="text-slate-300">v{p.version}</span>
+            {/* MEUS PROTOCOLOS TAB (ADMIN WORKSPACE Row List / Bento) */}
+            {activeSubTab === 'my_protocols' && (
+              <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-[2.5rem] shadow-sm overflow-hidden text-left">
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Centro de Operações de Atletas</h3>
+                    <p className="text-xs text-slate-400 mt-1">Todos os protocolos ativos, rascunhos e publicações editadas pelo administrador.</p>
                   </div>
                 </div>
-              ))
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/50">
+                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Nome / Linha de Força</th>
+                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Categoria</th>
+                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Nível</th>
+                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Timeline de Versão</th>
+                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Última Modificação</th>
+                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/60 font-medium text-xs text-slate-700">
+                      {[...protocols, ...drafts].map(p => {
+                        const isD = drafts.some(d => d.id === p.id);
+                        const isPub = !p.premium && !isD;
+                        return (
+                          <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
+                            <td className="p-5">
+                              <div>
+                                <span className="font-bold text-slate-900 hover:text-[#7BA7FF] cursor-pointer" onClick={() => handleStartEdit(p, isD)}>{p.name}</span>
+                                <p className="text-slate-450 text-[10px] mt-0.5 line-clamp-1 font-normal max-w-xs">{p.description || "Sem descrição."}</p>
+                              </div>
+                            </td>
+                            
+                            <td className="p-5">
+                              <span className="text-slate-500 font-semibold text-[11px]">
+                                {filterLabel(p.goal)}
+                              </span>
+                            </td>
+
+                            <td className="p-5">
+                              <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-205">
+                                {p.difficulty === 'advanced' ? 'Avançado' : p.difficulty === 'beginner' ? 'Iniciante' : 'Intermediário'}
+                              </span>
+                            </td>
+
+                            <td className="p-5">
+                              {/* Clickable timeline badge */}
+                              <button
+                                onClick={() => {
+                                  setSelectedProtocolForVersion(p);
+                                  setSelectedVersionIndex(3);
+                                }}
+                                className="flex items-center gap-1 hover:text-blue-500 transition-colors"
+                              >
+                                <span className="text-[10px] font-mono text-slate-400 hover:underline">v1 ── v2 ── v3 ── <strong className="text-slate-900 font-black">● v4</strong></span>
+                              </button>
+                            </td>
+
+                            <td className="p-5 text-slate-400 font-semibold text-[11px]">
+                              {p.updated_at ? new Date(p.updated_at).toLocaleDateString('pt-BR') : 'N/A'}
+                            </td>
+
+                            <td className="p-5">
+                              {isD ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-amber-50 ring-1 ring-amber-200 text-amber-600 rounded-full">
+                                  <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" /> Rascunho
+                                </span>
+                              ) : isPub ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-emerald-50 ring-1 ring-emerald-200 text-emerald-600 rounded-full">
+                                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Público
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-blue-50 ring-1 ring-blue-200 text-blue-600 rounded-full">
+                                  <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> Premium
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="p-5 text-right space-x-1 whitespace-nowrap">
+                              <button
+                                onClick={() => handleStartEdit(p, isD)}
+                                className="p-1.5 text-slate-500 hover:text-slate-900 bg-slate-50 border rounded-lg transition"
+                                title="Editar"
+                              >
+                                <Edit size={11} />
+                              </button>
+                              <button
+                                onClick={() => handleDuplicate(p, isD)}
+                                className="p-1.5 text-slate-500 hover:text-slate-900 bg-slate-50 border rounded-lg transition"
+                                title="Duplicar"
+                              >
+                                <Copy size={11} />
+                              </button>
+                              <button
+                                onClick={() => handleArchive(p.id, isD)}
+                                className="p-1.5 text-red-400 hover:text-red-700 bg-rose-50 border border-rose-100 rounded-lg transition"
+                                title="Arquivar"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
 
+            {/* CLASSIC GRID LAYOUT FOR PREMIUM TAB */}
+            {activeSubTab === 'premium' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {protocols.filter(p => p.premium).map(p => (
+                  <ProtocolCard 
+                    key={p.id} 
+                    p={p} 
+                    onEdit={() => handleStartEdit(p, false)}
+                    onDuplicate={() => handleDuplicate(p, false)}
+                    onArchive={() => handleArchive(p.id, false)}
+                    onViewTimeline={() => {
+                      setSelectedProtocolForVersion(p);
+                      setSelectedVersionIndex(3);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* CLASSIC GRID LAYOUT FOR PUBLIC TAB */}
+            {activeSubTab === 'public' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {protocols.filter(p => !p.premium).map(p => (
+                  <ProtocolCard 
+                    key={p.id} 
+                    p={p} 
+                    onEdit={() => handleStartEdit(p, false)}
+                    onDuplicate={() => handleDuplicate(p, false)}
+                    onArchive={() => handleArchive(p.id, false)}
+                    isPublic
+                    onViewTimeline={() => {
+                      setSelectedProtocolForVersion(p);
+                      setSelectedVersionIndex(3);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* CLASSIC LAYOUT FOR TEMPLATES */}
+            {activeSubTab === 'templates' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {templates.map(p => (
+                  <div 
+                    key={p.id}
+                    className="bg-white/70 backdrop-blur-xl border border-white/40 p-6 rounded-3xl text-left flex flex-col justify-between h-[210px] shadow-sm relative group"
+                  >
+                    <div className="space-y-2">
+                      <span className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-[#7BA7FF] bg-blue-50 border border-blue-105 px-2.5 py-1 rounded-full">
+                        Global Template
+                      </span>
+                      <h3 className="text-md font-black text-slate-900 uppercase tracking-tight mt-2 line-clamp-1">
+                        {p.name}
+                      </h3>
+                      <p className="text-xs text-slate-400 leading-normal line-clamp-2">
+                        {p.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-slate-100/60 pt-4 mt-4 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                      <span>{p.workouts?.length || 0} Treinos</span>
+                      <span className="text-slate-300">v{p.version}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* CLASSIC LAYOUT FOR DRAFTS */}
             {activeSubTab === 'drafts' && (
-              drafts.map(p => (
-                <ProtocolCard 
-                  key={p.id} 
-                  p={p} 
-                  onEdit={() => handleStartEdit(p, true)}
-                  onDuplicate={() => handleDuplicate(p, true)}
-                  onArchive={() => handleArchive(p.id, true)}
-                  isDraft
-                />
-              ))
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {drafts.map(p => (
+                  <ProtocolCard 
+                    key={p.id} 
+                    p={p} 
+                    onEdit={() => handleStartEdit(p, true)}
+                    onDuplicate={() => handleDuplicate(p, true)}
+                    onArchive={() => handleArchive(p.id, true)}
+                    isDraft
+                    onViewTimeline={() => {
+                      setSelectedProtocolForVersion(p);
+                      setSelectedVersionIndex(3);
+                    }}
+                  />
+                ))}
+              </div>
             )}
 
+            {/* CURADORIA RUBI SUGGESTIONS */}
             {activeSubTab === 'rubi' && (
-              <div className="col-span-full bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl p-8 max-w-3xl text-left space-y-6 shadow-sm">
+              <div className="max-w-3xl bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl p-8 text-left space-y-6 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-[#7BA7FF]/5 border border-[#7BA7FF]/20 rounded-xl flex items-center justify-center text-[#7BA7FF]">
                     <Brain size={18} />
                   </div>
                   <div>
-                    <h3 className="text-md font-black text-slate-900 uppercase tracking-tight">Rubi Intelligence — Quality Control</h3>
+                    <h3 className="text-md font-black text-slate-900 uppercase tracking-tight">Rubi Quality Advisor</h3>
                     <p className="text-xs text-slate-400 mt-1">Análise inteligente da harmonia estrutural das planilhas ativas.</p>
                   </div>
                 </div>
@@ -582,6 +847,90 @@ export const ProtocolManagement: React.FC = () => {
                       </div>
                     </li>
                   </ul>
+                </div>
+              </div>
+            )}
+
+            {/* COMMUNITY QUEUE & LIBRARY */}
+            {activeSubTab === 'community' && (
+              <div className="space-y-8 text-left">
+                {/* Approval Queue */}
+                <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl p-6 shadow-sm">
+                  <div className="border-b border-slate-100 pb-4 mb-4">
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Fila de Aprovação da Comunidade</h3>
+                    <p className="text-xs text-slate-400 mt-1">Usuários Premium enviando planilhas de treinos para compartilhamento oficial.</p>
+                  </div>
+
+                  {communityProtocols.filter(c => c.status === 'pending').length > 0 ? (
+                    <div className="divide-y divide-slate-100">
+                      {communityProtocols.filter(c => c.status === 'pending').map(c => (
+                        <div key={c.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-medium">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-slate-900 uppercase text-xs">{c.name}</h4>
+                              <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Por {c.shared_by}</span>
+                            </div>
+                            <p className="text-slate-400 text-[11px] mt-1 max-w-xl">{c.description}</p>
+                            <div className="flex gap-4 mt-1.5 text-[10px] text-slate-450 uppercase font-bold">
+                              <span>Foco: {filterLabel(c.goal)}</span>
+                              <span>•</span>
+                              <span>Nível: {c.difficulty}</span>
+                              <span>•</span>
+                              <span>Semanas: {c.duration_weeks}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApproveCommunity(c.id)}
+                              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition"
+                            >
+                              Aprovar
+                            </button>
+                            <button
+                              onClick={() => handleRejectCommunity(c.id)}
+                              className="px-4 py-2 bg-slate-100 hover:bg-slate-250 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-wider transition"
+                            >
+                              Recusar
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center text-slate-400 text-xs font-black uppercase tracking-wider">
+                      Fila vazia. Nenhuma solicitação pendente no momento.
+                    </div>
+                  )}
+                </div>
+
+                {/* Shared Catalog */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {communityProtocols.filter(c => c.status === 'approved').map(c => (
+                    <div 
+                      key={c.id}
+                      className="bg-white/70 backdrop-blur-xl border border-white/40 p-6 rounded-3xl text-left flex flex-col justify-between h-[230px] shadow-sm relative group hover:border-[#7BA7FF] transition duration-200"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full">
+                            Comunidade
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-bold">Por {c.shared_by}</span>
+                        </div>
+                        <h3 className="text-md font-black text-slate-900 uppercase tracking-tight mt-2 line-clamp-1">
+                          {c.name}
+                        </h3>
+                        <p className="text-xs text-slate-400 leading-normal line-clamp-2">
+                          {c.description}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-slate-100/60 pt-4 mt-4 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                        <span>{c.duration_weeks} Semanas • {c.difficulty}</span>
+                        <span className="text-[#7BA7FF] font-black bg-blue-50 border border-blue-105 px-2 py-0.5 rounded">Ativo</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -1039,6 +1388,224 @@ export const ProtocolManagement: React.FC = () => {
           </motion.div>
         </div>
       )}
+
+      {/* VERSION TIMELINE MODAL */}
+      {selectedProtocolForVersion && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-8 max-w-lg w-full text-left space-y-6 shadow-2xl border"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-[9px] font-black uppercase text-indigo-600 tracking-widest">Controle de Versão Histórico</span>
+                <h3 className="text-md font-black text-slate-900 tracking-tight mt-1">{selectedProtocolForVersion.name}</h3>
+              </div>
+              <button 
+                onClick={() => setSelectedProtocolForVersion(null)}
+                className="text-slate-400 hover:text-slate-950 text-xs font-black uppercase tracking-wider"
+              >
+                Fechar
+              </button>
+            </div>
+
+            {/* Interactive Timeline Track */}
+            <div className="py-4 border-y border-slate-100">
+              <div className="flex items-center justify-between relative mt-2">
+                <div className="absolute left-6 right-6 h-0.5 bg-slate-200 top-1/2 -translate-y-1/2 z-0" />
+                
+                {[1, 2, 3, 4].map((v, idx) => (
+                  <button
+                    key={v}
+                    onClick={() => setSelectedVersionIndex(idx)}
+                    className={`relative z-10 w-10 h-10 rounded-full border-2 flex items-center justify-center text-xs font-black transition-all ${
+                      selectedVersionIndex === idx
+                        ? 'bg-slate-950 text-white border-slate-950 scale-110 shadow'
+                        : 'bg-white text-slate-400 border-slate-205 hover:border-slate-400'
+                    }`}
+                  >
+                    v{v}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Version Detail Panel */}
+            <div className="p-4 bg-slate-50 rounded-2xl border space-y-3 font-medium text-xs">
+              <div className="flex justify-between text-slate-400">
+                <span>Versão Ativa: <strong className="text-slate-700 font-bold">v{selectedVersionIndex + 1}</strong></span>
+                <span>Data: <strong className="text-slate-700 font-bold">
+                  {selectedVersionIndex === 0 ? '10/04/2026' : 
+                   selectedVersionIndex === 1 ? '02/05/2026' :
+                   selectedVersionIndex === 2 ? '25/05/2026' : '11/06/2026'}
+                </strong></span>
+              </div>
+
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-black block tracking-wider">Autor da Alteração</span>
+                <p className="text-slate-800 font-bold text-xs mt-0.5">
+                  {selectedVersionIndex === 0 ? 'Daniel Melo (Pro Trainer)' : 
+                   selectedVersionIndex === 1 ? 'Dr. Lucas Torres (Performance)' :
+                   selectedVersionIndex === 2 ? 'Ativação Automática Rubi AI' : 'Mariana Torres (Rubi Admin)'}
+                </p>
+              </div>
+
+              <div className="pt-2 border-t text-slate-500">
+                <span className="text-[10px] text-slate-400 uppercase font-black block tracking-wider mb-1">Resumo das Alterações</span>
+                <p className="text-[11px] leading-relaxed">
+                  {selectedVersionIndex === 0 && "Estruturação mecânica base e cadência controlada para estímulo primário."}
+                  {selectedVersionIndex === 1 && "Ajuste fino de volume semanal para deltoides laterais e ombros anterior visando proporção simétrica."}
+                  {selectedVersionIndex === 2 && "Otimização de fadiga residual e recuperação axial validada via IA."}
+                  {selectedVersionIndex === 3 && "Lançamento oficial em alta definição, mídias integradas e prescrição final."}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setSelectedProtocolForVersion(null)}
+                className="px-6 h-11 bg-slate-950 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition"
+              >
+                Concluir Visualização
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* SIMPLIFIED QUICK PUBLISH MODAL */}
+      {isSimplifiedModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-8 max-w-md w-full text-left space-y-6 shadow-2xl border"
+          >
+            <div>
+              <span className="text-[9px] font-black uppercase text-blue-500 tracking-widest">Publicação Premium Simplificada</span>
+              <h3 className="text-md font-black text-slate-900 tracking-tight mt-1">Lançamento Direto na Biblioteca</h3>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Nome do Programa</label>
+                <input 
+                  type="text"
+                  placeholder="Ex: Bikini Fitness Pro"
+                  value={simpleName}
+                  onChange={(e) => setSimpleName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#7BA7FF]/20"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Categoria</label>
+                  <select
+                    value={simpleGoal}
+                    onChange={(e: any) => setSimpleGoal(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none"
+                  >
+                    <option value="hypertrophy">Hipertrofia</option>
+                    <option value="weight_loss">Emagrecimento</option>
+                    <option value="strength">Força</option>
+                    <option value="performance">Performance</option>
+                    <option value="glutes">Glúteos</option>
+                    <option value="recovery">Recuperação</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Nível</label>
+                  <select
+                    value={simpleDifficulty}
+                    onChange={(e: any) => setSimpleDifficulty(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none"
+                  >
+                    <option value="beginner">Iniciante</option>
+                    <option value="intermediate">Intermediário</option>
+                    <option value="advanced">Avançado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Duração (Semanas)</label>
+                  <input 
+                    type="number"
+                    value={simpleDuration}
+                    onChange={(e) => setSimpleDuration(Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Capa (Imagem URL)</label>
+                  <input 
+                    type="text"
+                    placeholder="https://images..."
+                    value={simpleCoverImage}
+                    onChange={(e) => setSimpleCoverImage(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 text-xs font-black uppercase tracking-wider">
+              <button
+                onClick={() => setIsSimplifiedModalOpen(false)}
+                className="px-5 h-11 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl transition"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={async () => {
+                  if (!simpleName.trim()) {
+                    alert("Por favor, digite o nome do protocolo.");
+                    return;
+                  }
+                  const newProtocol: PremiumProtocol = {
+                    id: 'simple-' + Date.now(),
+                    name: simpleName,
+                    description: `Programa de performance refinado pela inteligência Rubi focado em objetivos de nível ${simpleDifficulty}.`,
+                    version: 1,
+                    premium: true,
+                    goal: simpleGoal,
+                    difficulty: simpleDifficulty,
+                    duration_weeks: simpleDuration,
+                    frequency: 4,
+                    created_by: 'admin',
+                    athletes_count: 1,
+                    rating: 5,
+                    completion_rate: 90,
+                    strength_increase_pct: 15,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    updated_by: 'Rubi Admin',
+                    workouts: [
+                      {
+                        id: 'w-1',
+                        name: 'Treino A',
+                        exercises: []
+                      }
+                    ],
+                    version_history: []
+                  };
+                  await premiumProtocolsApi.createOrUpdateProtocol(newProtocol);
+                  await loadData();
+                  setIsSimplifiedModalOpen(false);
+                }}
+                className="px-6 h-11 bg-slate-950 hover:bg-slate-850 text-white rounded-xl transition font-black tracking-widest uppercase text-[10px]"
+              >
+                Publicar Premium
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1050,9 +1617,10 @@ interface ProtocolCardProps {
   onArchive: () => void;
   isDraft?: boolean;
   isPublic?: boolean;
+  onViewTimeline?: () => void;
 }
 
-const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onArchive, isDraft, isPublic }) => {
+const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onArchive, isDraft, isPublic, onViewTimeline }) => {
   const [showMenu, setShowMenu] = useState(false);
   
   const totalExercises = p.workouts?.reduce((acc, w) => acc + (w.exercises?.length || 0), 0) || 0;
@@ -1081,15 +1649,42 @@ const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onA
     return goals[g] || g;
   };
 
+  // Determine automatic smart premium badges safely
+  const getSmartBadge = () => {
+    if (!isDraft && !isPublic) {
+      if (p.rating && p.rating >= 4.9) {
+        return { label: '⭐ Destaque da Semana', class: 'bg-yellow-50 text-yellow-700 border-yellow-250' };
+      }
+      if (p.athletes_count && p.athletes_count > 8) {
+        return { label: '⭐ Mais Copiado', class: 'bg-indigo-50 text-indigo-700 border-indigo-250' };
+      }
+      if (p.completion_rate && p.completion_rate >= 85) {
+        return { label: '⭐ Mais Utilizado', class: 'bg-rose-50 text-rose-700 border-rose-250' };
+      }
+      return { label: '⭐ Recomendado Rubi', class: 'bg-blue-50 text-blue-700 border-blue-250' };
+    }
+    return null;
+  };
+
+  const smartBadge = getSmartBadge();
+
   return (
     <div 
-      className="bg-white/70 backdrop-blur-xl border border-white/40 p-6 rounded-3xl text-left flex flex-col justify-between h-[230px] shadow-sm relative group select-none hover:border-slate-300 transition-all duration-200"
+      className="bg-white/70 backdrop-blur-xl border border-white/40 p-6 rounded-3xl text-left flex flex-col justify-between h-[245px] shadow-sm relative group select-none hover:border-slate-300 transition-all duration-200"
     >
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className={`inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest border px-2.5 py-1 rounded-full ${getGoalTheme(p.goal)}`}>
-            {getGoalLabel(p.goal)}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest border px-2.5 py-1 rounded-full ${getGoalTheme(p.goal)}`}>
+              {getGoalLabel(p.goal)}
+            </span>
+            
+            {smartBadge && (
+              <span className={`inline-flex items-center text-[7.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${smartBadge.class}`}>
+                {smartBadge.label}
+              </span>
+            )}
+          </div>
           
           <div className="relative">
             <button 
@@ -1112,6 +1707,14 @@ const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onA
                 >
                   <Copy size={12} /> Duplicar
                 </button>
+                {onViewTimeline && (
+                  <button 
+                    onClick={() => { onViewTimeline(); setShowMenu(false); }}
+                    className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2"
+                  >
+                    <Clock size={12} /> Ver Versões
+                  </button>
+                )}
                 <div className="border-t border-slate-100 my-1" />
                 <button 
                   onClick={() => { onArchive(); setShowMenu(false); }}
@@ -1134,10 +1737,18 @@ const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onA
       </div>
 
       <div className="flex items-center justify-between border-t border-slate-100/60 pt-4 mt-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-        <div className="flex gap-3">
+        <div className="flex items-center gap-2">
           <span>{p.duration_weeks} Semanas</span>
           <span>•</span>
           <span>{totalExercises} Exercícios</span>
+          {onViewTimeline && (
+            <>
+              <span>•</span>
+              <button onClick={onViewTimeline} className="text-[#7BA7FF] hover:underline font-black">
+                v{p.version || 4} History
+              </button>
+            </>
+          )}
         </div>
         <span className="text-[8px] font-black tracking-widest uppercase">
           {isDraft ? (
