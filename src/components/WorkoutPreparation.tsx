@@ -318,7 +318,16 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
           }}
         >
           <div className="flex items-center gap-1.5 flex-wrap">
-            <h4 className="text-lg font-semibold text-slate-900 tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight w-full">
+            <h4 
+              className="text-lg font-semibold text-slate-900 tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight w-full"
+              style={
+                idx === 0 
+                  ? { width: '162.816px', height: '22.5px', lineHeight: '20.5px', fontSize: '17px' }
+                  : idx === 1 
+                  ? { width: '163.816px', lineHeight: '18.5px' }
+                  : undefined
+              }
+            >
               {ex.exercise_name}
             </h4>
           </div>
@@ -1171,7 +1180,10 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
       </div>
 
       {/* FOOTER ACTION BUTTONS PANEL */}
-      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-2xl border-t border-slate-100 py-4 px-6 pb-8 shadow-[0_-10px_35px_rgba(30,41,59,0.04)]">
+      <footer 
+        className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-2xl border-t border-slate-100 py-4 px-6 pb-8 shadow-[0_-10px_35px_rgba(30,41,59,0.04)]"
+        style={{ height: '110.097px' }}
+      >
         <div className="max-w-md mx-auto flex items-center gap-5">
           <div className="flex flex-col justify-center leading-tight shrink-0">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
