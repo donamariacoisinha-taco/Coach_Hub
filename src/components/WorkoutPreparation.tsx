@@ -232,50 +232,52 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
       }`}
     >
       <div className="flex items-center gap-3 w-full min-h-[96px]">
-        {/* Premium Drag Handle leftmost */}
-        <div
-          {...(isOverlay ? {} : attributes)}
-          {...(isOverlay ? {} : listeners)}
-          style={{ touchAction: 'none' }}
-          className="w-10 h-24 shrink-0 flex items-center justify-center text-slate-400 hover:text-[#7BA7FF] opacity-60 hover:opacity-100 transition-all cursor-grab active:cursor-grabbing hover:scale-105 active:scale-95 z-20 group"
-          title="Arraste para reordenar"
-        >
-          <GripVertical size={22} className="transition-transform group-active:scale-90" />
-        </div>
+        {/* Premium Drag Handle & Reorder controls leftmost */}
+        <div className="w-10 h-[96px] shrink-0 flex flex-col items-center justify-between z-20 select-none">
+          {/* Arrow Up */}
+          <button
+            disabled={idx === 0}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveUp(idx);
+            }}
+            className="w-7 h-7 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-[#7BA7FF] hover:bg-slate-100 active:scale-90 disabled:opacity-20 disabled:hover:bg-transparent"
+            title="Mover para cima"
+          >
+            <ChevronUp size={14} strokeWidth={3} />
+          </button>
 
-        {/* Column 2: Exercise Image & Reorder Buttons */}
-        <div className="flex flex-col items-center shrink-0">
-          {/* Mini reorganization controls above the image */}
-          <div className="flex items-center justify-center gap-1.5 mb-1.5 bg-slate-50 border border-slate-100 p-0.5 px-2 rounded-full shadow-[0_1px_3px_rgba(15,23,42,0.04)] select-none">
-            <button
-              disabled={idx === 0}
-              onPointerDown={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onMoveUp(idx);
-              }}
-              className="w-4 h-4 flex items-center justify-center rounded-md transition-all text-slate-400 hover:text-[#7BA7FF] hover:bg-slate-100 disabled:opacity-20 disabled:hover:bg-transparent"
-              title="Mover para cima"
-            >
-              <ChevronUp size={11} strokeWidth={3} />
-            </button>
-            <div className="w-[1px] h-2 bg-slate-200" />
-            <button
-              disabled={idx === total - 1}
-              onPointerDown={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onMoveDown(idx);
-              }}
-              className="w-4 h-4 flex items-center justify-center rounded-md transition-all text-slate-400 hover:text-[#7BA7FF] hover:bg-slate-100 disabled:opacity-20 disabled:hover:bg-transparent"
-              title="Mover para baixo"
-            >
-              <ChevronDown size={11} strokeWidth={3} />
-            </button>
+          {/* Grip Icon (actual drag target with listeners) */}
+          <div
+            {...(isOverlay ? {} : attributes)}
+            {...(isOverlay ? {} : listeners)}
+            style={{ touchAction: 'none' }}
+            className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-[#7BA7FF] opacity-60 hover:opacity-100 transition-all cursor-grab active:cursor-grabbing hover:scale-110 active:scale-90 group"
+            title="Arraste para reordenar"
+          >
+            <GripVertical size={20} className="transition-transform group-active:scale-90" />
           </div>
 
+          {/* Arrow Down */}
+          <button
+            disabled={idx === total - 1}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveDown(idx);
+            }}
+            className="w-7 h-7 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-[#7BA7FF] hover:bg-slate-100 active:scale-90 disabled:opacity-20 disabled:hover:bg-transparent"
+            title="Mover para baixo"
+          >
+            <ChevronDown size={14} strokeWidth={3} />
+          </button>
+        </div>
+
+        {/* Column 2: Exercise Image */}
+        <div className="flex flex-col items-center shrink-0">
           <div 
             onClick={(e) => {
               e.stopPropagation();
@@ -315,15 +317,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
             }
           }}
         >
-          {/* Muscle Focus Label: uppercase, tracking-[0.2em], text-[9px], text-slate-400, bold */}
-          <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold leading-none mb-1.5 w-full">
-            {getMuscleFocus(ex.muscle_group || 'Geral', ex.exercise_name).toUpperCase()}
-          </p>
-
           <div className="flex items-center gap-1.5 flex-wrap">
-            {isCurrent && (
-              <span className="w-2.5 h-2.5 bg-[#7BA7FF] rounded-full shrink-0 animate-pulse animate-duration-1000" title="Exercício Ativo" />
-            )}
             <h4 className="text-lg font-semibold text-slate-900 tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight w-full">
               {ex.exercise_name}
             </h4>
@@ -337,11 +331,6 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
             <span className="text-slate-300 font-normal">•</span>
             <span>{weightPattern}</span>
           </div>
-
-          {/* KYRON Insight: Subtle, micro 1-liner secondary intelligence line */}
-          <p className="text-[10px] text-slate-400 mt-1.5 italic font-medium leading-relaxed line-clamp-2 w-full">
-            {getKyronInsight(idx, ex.exercise_name)}
-          </p>
         </div>
 
         {/* Right column: Context menu trigger vertically centered with opacity rules */}
