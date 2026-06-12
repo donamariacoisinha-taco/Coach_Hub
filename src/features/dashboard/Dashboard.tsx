@@ -24,7 +24,7 @@ import { ProtocolEvolutionDashboard } from './components/ProtocolEvolutionDashbo
 import { systemTemplatesApi } from '../../lib/api/systemTemplatesApi';
 import { PremiumLibraryComponent } from './components/PremiumLibraryComponent';
 import { premiumProtocolsApi } from '../../lib/api/premiumProtocolsApi';
-import { Crown } from 'lucide-react';
+import { Crown, Sliders } from 'lucide-react';
 import { isAdmin } from '../../lib/utils/auth';
 import { playHapticFeedback } from '../../services/athleteMemoryEngine';
 
@@ -721,7 +721,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         <div className="flex bg-white/70 backdrop-blur-xl p-1 rounded-3xl border border-white/40 mb-8 shadow-sm">
           <button 
             onClick={() => { setActiveTab('protocols'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'protocols' ? 'bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white shadow-md shadow-[#7BA7FF]/15' : 'text-slate-500 hover:text-slate-855'}`}
+            className={`flex-1 py-3 rounded-2xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'protocols' ? 'bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white shadow-md shadow-[#7BA7FF]/15' : 'text-slate-500 hover:text-slate-855'}`}
           >
             <Dumbbell size={13} className={activeTab === 'protocols' ? 'text-white' : 'text-slate-400'} />
             Protocolos
@@ -729,15 +729,15 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           {isAdmin(profile) && (
             <button 
               onClick={() => { setActiveTab('premium'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-              className={`flex-1 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'premium' ? 'bg-gradient-to-r from-[#818CF8] to-[#9333EA] text-white shadow-md shadow-[#818CF8]/15' : 'text-slate-500 hover:text-slate-855'}`}
+              className={`flex-1 pt-[11px] pb-3 px-3 h-[47px] rounded-2xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'premium' ? 'bg-gradient-to-r from-[#818CF8] to-[#9333EA] text-white shadow-md shadow-[#818CF8]/15' : 'text-slate-500 hover:text-slate-855'}`}
             >
-              <Crown size={12} className={activeTab === 'premium' ? 'text-white' : 'text-slate-400'} />
+              <Sliders size={12} className={activeTab === 'premium' ? 'text-white' : 'text-slate-400'} />
               Biblioteca Premium (Admin)
             </button>
           )}
           <button 
             onClick={() => { setActiveTab('evolution'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'evolution' ? 'bg-gradient-to-r from-[#059669] to-[#10B981] text-white shadow-md shadow-emerald-500/15' : 'text-slate-500 hover:text-slate-855'}`}
+            className={`flex-1 h-[47px] w-[127px] py-3 rounded-2xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'evolution' ? 'bg-gradient-to-r from-[#059669] to-[#10B981] text-white shadow-md shadow-emerald-500/15' : 'text-slate-500 hover:text-slate-855'}`}
           >
             <Activity size={13} className={activeTab === 'evolution' ? 'text-white' : 'text-slate-400'} />
             Evolução
