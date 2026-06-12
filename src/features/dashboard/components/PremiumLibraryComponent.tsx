@@ -50,6 +50,9 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showCheckoutModal, setShowCheckoutModal] = useState<boolean>(false);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const featuredRef = useRef<HTMLDivElement>(null);
+  const newRef = useRef<HTMLDivElement>(null);
+  const popularRef = useRef<HTMLDivElement>(null);
 
   // Load state on mount
   useEffect(() => {
@@ -203,15 +206,92 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
   const getCategoryIcon = (goal: string) => {
     const g = goal?.toLowerCase() || '';
     if (g.includes('hypertrophy') || g.includes('hipertrofia') || g.includes('ganho') || g.includes('força') || g.includes('strength')) {
-      return <Dumbbell size={13} className="text-slate-400 group-hover:text-[#7BA7FF] transition-colors shrink-0" />;
+      return <Dumbbell size={13} className="text-slate-450 group-hover:text-[#7BA7FF] transition-colors shrink-0" />;
     }
     if (g.includes('performance') || g.includes('zap') || g.includes('academia')) {
-      return <Zap size={13} className="text-slate-400 group-hover:text-[#7BA7FF] transition-colors shrink-0" />;
+      return <Zap size={13} className="text-slate-450 group-hover:text-[#7BA7FF] transition-colors shrink-0" />;
     }
     if (g.includes('weight_loss') || g.includes('emagrecimento') || g.includes('flame') || g.includes('perda')) {
-      return <Flame size={13} className="text-slate-400 group-hover:text-[#7BA7FF] transition-colors shrink-0" />;
+      return <Flame size={13} className="text-slate-450 group-hover:text-[#7BA7FF] transition-colors shrink-0" />;
     }
-    return <Shield size={13} className="text-slate-400 group-hover:text-[#7BA7FF] transition-colors shrink-0" />;
+    return <Shield size={13} className="text-slate-450 group-hover:text-[#7BA7FF] transition-colors shrink-0" />;
+  };
+
+  const getCoverGradient = (goal: string) => {
+    switch (goal?.toLowerCase()) {
+      case 'hypertrophy':
+      case 'hipertrofia':
+        return 'from-indigo-650 via-[#818CF8] to-[#9333EA]';
+      case 'strength':
+      case 'força':
+        return 'from-[#0F172A] via-slate-700 to-[#7BA7FF]';
+      case 'weight_loss':
+      case 'emagrecimento':
+        return 'from-rose-500 via-amber-500 to-red-650';
+      case 'performance':
+        return 'from-emerald-500 via-teal-650 to-blue-500';
+      default:
+        return 'from-slate-700 to-slate-900';
+    }
+  };
+
+  const renderProtocolCard = (p: PremiumProtocol) => {
+    return (
+      <motion.div
+        key={p.id}
+        whileHover={{ y: -4, scale: 1.015 }}
+        whileTap={{ scale: 0.985 }}
+        onClick={() => setSelectedProtocol(p)}
+        className="snap-start shrink-0 w-[270px] sm:w-[280px] bg-white rounded-3xl border border-slate-100 shadow-xs cursor-pointer flex flex-col overflow-hidden relative group hover:border-[#7BA7FF]/35 hover:shadow-md transition-all duration-300 text-left"
+      >
+        {/* Compact Elegant Cover Image area */}
+        <div className="relative w-full h-[105px] overflow-hidden bg-slate-950 flex-shrink-0">
+          <div className={`absolute inset-0 opacity-70 bg-gradient-to-br ${getCoverGradient(p.goal)}`} />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/30 to-transparent" />
+          
+          <div className="absolute top-3 left-3 flex gap-1.5 items-center">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider backdrop-blur-md border border-white/10 ${p.premium ? 'bg-[#7BA7FF]/35 text-white' : 'bg-slate-800/40 text-slate-200'}`}>
+              {p.premium ? 'Premium' : 'Público'}
+            </span>
+            {p.featured && (
+              <span className="inline-flex items-center px-2 py-0.5 bg-emerald-500/80 border border-white/10 text-white rounded-full text-[8.5px] font-black tracking-wider uppercase shadow-sm">
+                Novo
+              </span>
+            )}
+          </div>
+
+          <div className="absolute bottom-2.5 left-3">
+            <span className="text-[8px] font-black text-white uppercase tracking-widest bg-black/30 border border-white/10 px-2.5 py-0.5 rounded-full">
+              {p.goal === 'hypertrophy' ? 'Hipertrofia' : p.goal === 'strength' ? 'Força' : p.goal === 'weight_loss' ? 'Emagrecimento' : 'Performance'}
+            </span>
+          </div>
+        </div>
+
+        {/* Info detail */}
+        <div className="p-4 flex flex-col flex-grow justify-between min-h-[145px] gap-2">
+          <div className="space-y-1.5">
+            <h4 className="text-[13px] font-extrabold uppercase text-slate-900 group-hover:text-[#7BA7FF] transition-colors leading-[1.3] truncate" title={p.name}>
+              {p.name}
+            </h4>
+            
+            <p className="text-[9.5px] text-[#7BA7FF] font-black uppercase tracking-wider">
+              {p.difficulty === 'advanced' ? 'Avançado' : p.difficulty === 'intermediate' ? 'Intermediário' : 'Iniciante'} • {p.duration_weeks} semanas
+            </p>
+            
+            <p className="text-[11.5px] text-slate-500 leading-relaxed font-normal line-clamp-2">
+              {p.description}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between pt-2.5 border-t border-slate-50 mt-1">
+            <span className="text-[9px] font-black text-slate-400 group-hover:text-[#7BA7FF] transition-colors uppercase tracking-widest flex items-center gap-1.5">
+              Ver Protocolo <ArrowRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
+            </span>
+            <span className="text-[10px] text-slate-450 font-bold">{p.athletes_count?.toLocaleString('pt-BR')} atletas</span>
+          </div>
+        </div>
+      </motion.div>
+    );
   };
 
   const rubiCollections = [
@@ -355,111 +435,140 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
 
       {/* SECTION 4: PROTOCOLS GRID & SWIPER CAROUSEL */}
       <div className="w-full min-w-0 max-w-none px-5 sm:px-6 md:px-8 relative z-10 text-left">
-        {activeFilter !== 'Todos' && (
-          <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3 mb-6">
-            <div>
-              <span className="text-[8px] font-black text-[#7BA7FF] uppercase tracking-widest">Fila de Filtro</span>
-              <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-widest flex items-center gap-2 mt-0.5">
-                {activeFilter}
-                <span className="text-[10px] font-medium text-slate-400">({filteredProtocols.length})</span>
-              </h2>
+        {activeFilter !== 'Todos' ? (
+          /* Filtered Category Grid View */
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[8px] font-black text-[#7BA7FF] uppercase tracking-widest">Fila de Filtro</span>
+                <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-widest flex items-center gap-2 mt-0.5">
+                  {activeFilter}
+                  <span className="text-[10px] font-medium text-slate-400">({filteredProtocols.length})</span>
+                </h2>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setActiveFilter('Todos')}
+                className="text-[9px] font-black text-[#7BA7FF] hover:text-[#818CF8] uppercase tracking-widest transition cursor-pointer"
+              >
+                Ver Todos
+              </button>
             </div>
-            
-            <button 
-              type="button"
-              onClick={() => setActiveFilter('Todos')}
-              className="text-[9px] font-black text-[#7BA7FF] hover:text-[#818CF8] uppercase tracking-widest transition cursor-pointer"
-            >
-              Ver Todos
-            </button>
-          </div>
-        )}
 
-        {filteredProtocols.length === 0 ? (
-          <div className="p-12 text-center bg-white/70 backdrop-blur-xl border border-slate-200/50 rounded-3xl text-slate-404 font-semibold text-xs uppercase tracking-wider">
-            <span className="flex flex-col items-center gap-2.5 justify-center">
-              <Layers size={22} className="text-slate-305" />
-              Nenhum programa correspondente encontrado
-            </span>
+            {filteredProtocols.length === 0 ? (
+              <div className="p-12 text-center bg-white/70 backdrop-blur-xl border border-slate-200/50 rounded-3xl text-slate-400 font-semibold text-xs uppercase tracking-wider">
+                <span className="flex flex-col items-center gap-2.5 justify-center">
+                  <Layers size={22} className="text-slate-300" />
+                  Nenhum programa correspondente encontrado
+                </span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-2">
+                {filteredProtocols.map((p) => renderProtocolCard(p))}
+              </div>
+            )}
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                {activeFilter === 'Todos' ? 'Curadoria Inteligente' : `Protocolos Premium`}
-              </span>
-              <div className="flex gap-1.5">
-                <button 
-                  type="button"
-                  onClick={() => carouselRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-                  className="w-7 h-7 rounded-lg border border-slate-200/60 bg-white text-slate-500 hover:text-slate-850 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
-                >
-                  ←
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => carouselRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-                  className="w-7 h-7 rounded-lg border border-slate-200/60 bg-white text-slate-500 hover:text-slate-850 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
-                >
-                  →
-                </button>
+          /* MasterClass / Apple Fitness + Lightweight curate shelves */
+          <div className="space-y-10">
+            {/* 1. Featured Protocols (Destaques de Elite) */}
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Destaques Recomendados</h3>
+                  <p className="text-[10px] text-slate-400">Programas de alta performance com maior adesão adaptativa</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <button 
+                    type="button"
+                    onClick={() => featuredRef.current?.scrollBy({ left: -290, behavior: 'smooth' })}
+                    className="w-7 h-7 rounded-full border border-slate-200/60 bg-white text-slate-500 hover:text-slate-850 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
+                  >
+                    ←
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => featuredRef.current?.scrollBy({ left: 290, behavior: 'smooth' })}
+                    className="w-7 h-7 rounded-full border border-slate-200/60 bg-white text-slate-500 hover:text-slate-850 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+              <div 
+                ref={featuredRef}
+                className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-3 w-full"
+              >
+                {protocols.filter(p => p.featured || p.rating >= 4.9).map(p => renderProtocolCard(p))}
               </div>
             </div>
 
-            {/* Horizontal Swipe Layout with compact cards matching height limit exactly (180px–220px / h-[190px]) */}
-            <div 
-              ref={carouselRef}
-              className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-2 w-full"
-            >
-              {filteredProtocols.map((p) => (
-                <motion.div
-                  key={p.id}
-                  whileHover={{ y: -3, scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={() => setSelectedProtocol(p)}
-                  className="snap-start shrink-0 w-[82vw] sm:w-[320px] max-w-[360px] bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl p-5 cursor-pointer flex flex-col justify-between h-[190px] relative overflow-hidden group hover:border-blue-200 hover:bg-white transition-all duration-300 text-left shadow-sm animate-in fade-in zoom-in-95 duration-200"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-widest">
-                      {getCategoryIcon(p.goal)}
-                      <span>
-                        {p.difficulty === 'advanced' ? 'Avançado' : p.difficulty === 'intermediate' ? 'Intermediário' : 'Iniciante'} • {p.duration_weeks} semanas
-                      </span>
-                    </div>
+            {/* 2. New Releases (Novos Programas) */}
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Novos Lançamentos</h3>
+                  <p className="text-[10px] text-slate-400">Últimas metodologias geradas e adaptadas no repositório</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <button 
+                    type="button"
+                    onClick={() => newRef.current?.scrollBy({ left: -290, behavior: 'smooth' })}
+                    className="w-7 h-7 rounded-full border border-slate-200/60 bg-white text-slate-505 hover:text-slate-850 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
+                  >
+                    ←
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => newRef.current?.scrollBy({ left: 290, behavior: 'smooth' })}
+                    className="w-7 h-7 rounded-full border border-slate-200/60 bg-white text-slate-505 hover:text-slate-850 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+              <div 
+                ref={newRef}
+                className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-3 w-full"
+              >
+                {[...protocols]
+                  .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                  .map(p => renderProtocolCard(p))}
+              </div>
+            </div>
 
-                    <div className="space-y-1">
-                      <h4 className="text-sm sm:text-base font-semibold text-slate-900 uppercase tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight line-clamp-1">
-                        {p.name}
-                      </h4>
-                      <p className="text-xs text-slate-500 font-normal leading-relaxed line-clamp-2">
-                        {p.description}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-100/60 mt-auto">
-                    <div className="flex gap-1.5 shrink-0">
-                      {p.premium ? (
-                        <span className="rounded-full text-[10.5px] font-medium px-2.5 py-0.5 bg-slate-900 border border-slate-900 text-white select-none">
-                          Premium
-                        </span>
-                      ) : (
-                        <span className="rounded-full text-[10.5px] font-medium px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 select-none">
-                          Público
-                        </span>
-                      )}
-                      {p.featured && (
-                        <span className="rounded-full text-[10.5px] font-medium px-2.5 py-0.5 bg-emerald-50 border border-emerald-250 text-emerald-600 select-none">
-                          Novo
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[9px] font-black text-[#7BA7FF] uppercase tracking-widest flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                      Abrir protocolo →
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
+            {/* 3. Most Popular (Mais Populares) */}
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Mais Populares</h3>
+                  <p className="text-[10px] text-slate-400">Os protocolos mais clonados e seguidos pelos atletas de elite</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <button 
+                    type="button"
+                    onClick={() => popularRef.current?.scrollBy({ left: -290, behavior: 'smooth' })}
+                    className="w-7 h-7 rounded-full border border-slate-200/60 bg-white text-slate-550 hover:text-slate-855 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
+                  >
+                    ←
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => popularRef.current?.scrollBy({ left: 290, behavior: 'smooth' })}
+                    className="w-7 h-7 rounded-full border border-slate-200/60 bg-white text-slate-550 hover:text-slate-855 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+              <div 
+                ref={popularRef}
+                className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-3 w-full"
+              >
+                {[...protocols]
+                  .sort((a, b) => b.athletes_count - a.athletes_count)
+                  .map(p => renderProtocolCard(p))}
+              </div>
             </div>
           </div>
         )}
