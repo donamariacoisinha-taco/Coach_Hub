@@ -25,7 +25,15 @@ import {
   Download,
   Copy,
   X,
-  ExternalLink
+  ExternalLink,
+  Smartphone,
+  Monitor,
+  Play,
+  Layout,
+  Eye,
+  CheckCircle2,
+  CheckSquare,
+  Tablet
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -53,6 +61,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
   const [activeTab, setActiveTab] = useState<TabType>('workout');
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showBrandKit, setShowBrandKit] = useState(false);
+  const [brandKitTab, setBrandKitTab] = useState<'appicons' | 'logos' | 'favicons' | 'splash' | 'usage' | 'validation'>('appicons');
+  const [splashAnimationTrigger, setSplashAnimationTrigger] = useState(0);
   const [copiedColor, setCopiedColor] = useState<string | null>(null);
 
   const copyToClipboard = (text: string) => {
@@ -204,18 +214,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
       {/* NAVIGATION BAR */}
       <nav className="fixed top-0 left-0 right-0 z-[110] h-20 border-b border-white/20 bg-white/60 backdrop-blur-xl px-6 sm:px-12 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="border border-slate-200/60 rounded-full flex items-center justify-center overflow-hidden shadow-xs p-1.5" style={{ width: '51px', height: '50px', backgroundColor: '#F3F4F4' }}>
+          <div className="border border-white/40 rounded-2xl flex items-center justify-center overflow-hidden shadow-sm bg-gradient-to-tr from-[#7BA7FF]/15 via-white/85 to-[#818CF8]/15 backdrop-blur-xl" style={{ width: '48px', height: '47px', paddingLeft: '2px', paddingTop: '5px', paddingRight: '2px', paddingBottom: '2px', marginLeft: '1px', marginRight: '1px', marginTop: '1px', marginBottom: '1px' }}>
             <img 
               src={kyronLogo} 
               alt="KYRON OS" 
-              className="h-full object-contain transition-transform hover:scale-105 duration-500" 
-              style={{ width: '50.1875px' }}
+              className="w-full h-full object-contain scale-[1.75] transform transition-transform hover:scale-[1.9] duration-500" 
               referrerPolicy="no-referrer" 
             />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-black uppercase tracking-[0.28em] text-slate-900 leading-none">KYRON OS</span>
-            <span className="text-[7.3px] font-bold text-slate-400 tracking-widest uppercase mt-0.5">{t('poweredBy')}</span>
           </div>
         </div>
 
@@ -938,11 +946,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
       <footer className="py-8 px-8 sm:px-12 border-t border-slate-200/50 bg-white relative z-15 select-none text-center sm:text-left">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-white border border-slate-200/60 rounded-full flex items-center justify-center overflow-hidden shadow-xs p-1.5">
-              <img src={kyronLogo} alt="KYRON OS" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+          <div className="flex flex-col items-center sm:items-start gap-1">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-gradient-to-tr from-[#7BA7FF]/15 via-white/85 to-[#818CF8]/15 backdrop-blur-md border border-white/40 rounded-xl flex items-center justify-center overflow-hidden shadow-xs p-0 shrink-0">
+                <img src={kyronLogo} alt="KYRON OS" className="w-full h-full object-contain scale-[1.75] transform" referrerPolicy="no-referrer" />
+              </div>
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#64748B]">KYRON OS © 2026</span>
             </div>
-            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#64748B]">KYRON OS © 2026</span>
+            <span className="text-[8.5px] font-bold text-slate-400 tracking-wider uppercase mt-1 pl-1">
+              {t('poweredBy')}
+            </span>
           </div>
 
           <div className="flex flex-wrap gap-6 text-[10px] font-bold uppercase tracking-wider text-[#64748B] justify-center sm:justify-start">
@@ -1039,178 +1052,753 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                 </button>
               </div>
 
+              {/* TABS SELECTOR */}
+              <div className="px-6 sm:px-8 border-b border-slate-200/50 flex gap-2 overflow-x-auto no-scrollbar bg-slate-50/50 py-3 sticky top-[84px] z-20">
+                {[
+                  { id: 'appicons', label: lang === 'PT' ? 'App Icon' : 'App Icon', icon: Sparkle },
+                  { id: 'logos', label: lang === 'PT' ? 'Logotipos' : 'Logos', icon: Layout },
+                  { id: 'favicons', label: lang === 'PT' ? 'Favicons' : 'Favicons', icon: Eye },
+                  { id: 'splash', label: lang === 'PT' ? 'Splash Screen' : 'Splash Screen', icon: Smartphone },
+                  { id: 'usage', label: lang === 'PT' ? 'Uso do Sistema' : 'Usage System', icon: CheckSquare },
+                  { id: 'validation', label: lang === 'PT' ? 'Validação' : 'Validation', icon: CheckCircle2 }
+                ].map((tab) => {
+                  const IconComponent = tab.icon;
+                  const active = brandKitTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setBrandKitTab(tab.id as any)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border shrink-0 cursor-pointer ${
+                        active 
+                          ? 'bg-slate-900 border-slate-900 text-white shadow-xs' 
+                          : 'bg-white hover:bg-slate-50 text-slate-500 border-slate-200/80 hover:text-slate-800'
+                      }`}
+                    >
+                      <IconComponent size={12} className={active ? 'stroke-[3]' : 'stroke-[2.5]'} />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
               <div className="p-6 sm:p-8 space-y-8">
-                {/* LOGO GRID */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* LOGO 1: OFFICIAL LIGHT PREVIEW */}
-                  <div className="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between bg-slate-50/50 hover:shadow-md transition-shadow">
-                    <div>
-                      <div className="relative h-32 rounded-xl mb-4 bg-white flex items-center justify-center p-4 border border-slate-200/60 overflow-hidden">
-                        <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#000000_1px,transparent_1px)] [background-size:12px_12px]" />
-                        <img 
-                          src={kyronLogo} 
-                          alt="Kyron OS Official Logo - Light Theme" 
-                          className="max-h-full max-w-full object-contain drop-shadow-xs"
-                          referrerPolicy="no-referrer"
-                        />
+                {brandKitTab === 'logos' && (
+                  <motion.div
+                    key="logos-tab"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-8"
+                  >
+                    {/* LOGO GRID */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* LOGO 1: OFFICIAL LIGHT PREVIEW */}
+                      <div className="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between bg-slate-50/50 hover:shadow-md transition-shadow">
+                        <div>
+                          <div className="relative h-32 rounded-xl mb-4 bg-white flex items-center justify-center p-0 border border-slate-200/60 overflow-hidden">
+                            <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#000000_1px,transparent_1px)] [background-size:12px_12px]" />
+                            <img 
+                              src={kyronLogo} 
+                              alt="Kyron OS Official Logo - Light Theme" 
+                              className="max-h-full max-w-full object-contain scale-[1.7] transform drop-shadow-xs"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                            {lang === 'PT' ? 'Logo Oficial — Fundo Claro' : 'Official Logo — Light Backdrop'}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                            {lang === 'PT'
+                              ? 'O emblema oficial conforme renderizado na barra superior do KYRON OS. Versão balanceada para mídias claras e impressões.'
+                              : 'The official brand symbol as displayed in the top navigation bar. Formatted for light mode compositions and clean interfaces.'}
+                          </p>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+                          <a 
+                            href={kyronLogo} 
+                            download="kyron_official_logo_light.png"
+                            className="flex-1 h-9 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-slate-950 font-bold hover:shadow-[0_4px_12px_rgba(123,167,255,0.3)] text-[9.5px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <Download size={12} className="stroke-[2.5]" />
+                            {lang === 'PT' ? 'Baixar' : 'Download'}
+                          </a>
+                          <a 
+                            href={kyronLogo} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="w-9 h-9 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                            title={lang === 'PT' ? 'Abrir em nova aba' : 'Open in new tab'}
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
                       </div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
-                        {lang === 'PT' ? 'Logo Oficial — Fundo Claro' : 'Official Logo — Light Backdrop'}
-                      </h4>
-                      <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                        {lang === 'PT'
-                          ? 'O emblema oficial conforme renderizado na barra superior do KYRON OS. Versão balanceada para mídias claras e impressões.'
-                          : 'The official brand symbol as displayed in the top navigation bar. Formatted for light mode compositions and clean interfaces.'}
-                      </p>
-                    </div>
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
-                      <a 
-                        href={kyronLogo} 
-                        download="kyron_official_logo_light.png"
-                        className="flex-1 h-9 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-slate-950 font-bold hover:shadow-[0_4px_12px_rgba(123,167,255,0.3)] text-[9.5px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Download size={12} className="stroke-[2.5]" />
-                        {lang === 'PT' ? 'Baixar' : 'Download'}
-                      </a>
-                      <a 
-                        href={kyronLogo} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="w-9 h-9 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl transition-all flex items-center justify-center cursor-pointer"
-                        title={lang === 'PT' ? 'Abrir em nova aba' : 'Open in new tab'}
-                      >
-                        <ExternalLink size={12} />
-                      </a>
-                    </div>
-                  </div>
 
-                  {/* LOGO 2: OFFICIAL DARK PREVIEW */}
-                  <div className="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between bg-slate-50/50 hover:shadow-md transition-shadow">
-                    <div>
-                      <div className="relative h-32 rounded-xl mb-4 bg-slate-950 flex items-center justify-center p-4 border border-slate-800 overflow-hidden">
-                        <div className="absolute inset-0 opacity-[0.1] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:12px_12px]" />
-                        <img 
-                          src={kyronLogo} 
-                          alt="Kyron OS Official Logo - Dark Theme" 
-                          className="max-h-full max-w-full object-contain"
-                          referrerPolicy="no-referrer"
-                        />
+                      {/* LOGO 2: OFFICIAL DARK PREVIEW */}
+                      <div className="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between bg-slate-50/50 hover:shadow-md transition-shadow">
+                        <div>
+                          <div className="relative h-32 rounded-xl mb-4 bg-slate-950 flex items-center justify-center p-0 border border-slate-800 overflow-hidden">
+                            <div className="absolute inset-0 opacity-[0.1] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:12px_12px]" />
+                            <img 
+                              src={kyronLogo} 
+                              alt="Kyron OS Official Logo - Dark Theme" 
+                              className="max-h-full max-w-full object-contain scale-[1.7] transform"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                            {lang === 'PT' ? 'Logo Oficial — Fundo Escuro' : 'Official Logo — Dark Backdrop'}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                            {lang === 'PT'
+                              ? 'O emblema oficial em contraste com fundo preto profundo. Ideal para plataformas de alta fidelidade e interfaces noturnas.'
+                              : 'The official logo rendered in stark contrast against a deep dark canvas. Tailored for high-fidelity devices and midnight screens.'}
+                          </p>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+                          <a 
+                            href={kyronLogo} 
+                            download="kyron_official_logo_dark.png"
+                            className="flex-1 h-9 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-slate-950 font-bold hover:shadow-[0_4px_12px_rgba(123,167,255,0.3)] text-[9.5px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <Download size={12} className="stroke-[2.5]" />
+                            {lang === 'PT' ? 'Baixar' : 'Download'}
+                          </a>
+                          <a 
+                            href={kyronLogo} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="w-9 h-9 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                            title={lang === 'PT' ? 'Abrir em nova aba' : 'Open in new tab'}
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
                       </div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
-                        {lang === 'PT' ? 'Logo Oficial — Fundo Escuro' : 'Official Logo — Dark Backdrop'}
-                      </h4>
-                      <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                        {lang === 'PT'
-                          ? 'O emblema oficial em contraste com fundo preto profundo. Ideal para plataformas de alta fidelidade e interfaces noturnas.'
-                          : 'The official logo rendered in stark contrast against a deep dark canvas. Tailored for high-fidelity devices and midnight screens.'}
-                      </p>
-                    </div>
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
-                      <a 
-                        href={kyronLogo} 
-                        download="kyron_official_logo_dark.png"
-                        className="flex-1 h-9 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-slate-950 font-bold hover:shadow-[0_4px_12px_rgba(123,167,255,0.3)] text-[9.5px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Download size={12} className="stroke-[2.5]" />
-                        {lang === 'PT' ? 'Baixar' : 'Download'}
-                      </a>
-                      <a 
-                        href={kyronLogo} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="w-9 h-9 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl transition-all flex items-center justify-center cursor-pointer"
-                        title={lang === 'PT' ? 'Abrir em nova aba' : 'Open in new tab'}
-                      >
-                        <ExternalLink size={12} />
-                      </a>
-                    </div>
-                  </div>
 
-                  {/* LOGO 3: COGNITIVE DIGITAL GRADIENT */}
-                  <div className="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between bg-slate-50/50 hover:shadow-md transition-shadow">
-                    <div>
-                      <div className="relative h-32 rounded-xl mb-4 bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#7BA7FF]/20 flex items-center justify-center p-4 border border-slate-200/60 overflow-hidden">
-                        <div className="absolute inset-0 opacity-[0.2] bg-[radial-gradient(#7ba7ff_1px,transparent_1px)] [background-size:16px_16px]" />
-                        <img 
-                          src={kyronLogo} 
-                          alt="Kyron OS Official Logo - Digital Ambient" 
-                          className="max-h-full max-w-full object-contain"
-                          referrerPolicy="no-referrer"
-                        />
+                      {/* LOGO 3: COGNITIVE DIGITAL GRADIENT */}
+                      <div className="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between bg-slate-50/50 hover:shadow-md transition-shadow">
+                        <div>
+                          <div className="relative h-32 rounded-xl mb-4 bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#7BA7FF]/20 flex items-center justify-center p-0 border border-slate-200/60 overflow-hidden">
+                            <div className="absolute inset-0 opacity-[0.2] bg-[radial-gradient(#7ba7ff_1px,transparent_1px)] [background-size:16px_16px]" />
+                            <img 
+                              src={kyronLogo} 
+                              alt="Kyron OS Official Logo - Digital Ambient" 
+                              className="max-h-full max-w-full object-contain scale-[1.7] transform"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                            {lang === 'PT' ? 'Logo Oficial — Atmosfera Digital' : 'Official Logo — Digital Ambient'}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                            {lang === 'PT'
+                              ? 'O emblema oficial imerso em nosso gradiente de assinaturas. Utilizado para posts sociais, capas, badges e banners promocionais.'
+                              : 'The official emblem set during our active digital atmosphere gradient. Used for promotional cards, covers, active keys, and badge slots.'}
+                          </p>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+                          <a 
+                            href={kyronLogo} 
+                            download="kyron_official_logo_ambient.png"
+                            className="flex-1 h-9 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-slate-950 font-bold hover:shadow-[0_4px_12px_rgba(123,167,255,0.3)] text-[9.5px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <Download size={12} className="stroke-[2.5]" />
+                            {lang === 'PT' ? 'Baixar' : 'Download'}
+                          </a>
+                          <a 
+                            href={kyronLogo} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="w-9 h-9 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                            title={lang === 'PT' ? 'Abrir em nova aba' : 'Open in new tab'}
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
                       </div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
-                        {lang === 'PT' ? 'Logo Oficial — Atmosfera Digital' : 'Official Logo — Digital Ambient'}
-                      </h4>
-                      <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                        {lang === 'PT'
-                          ? 'O emblema oficial imerso em nosso gradiente de assinaturas. Utilizado para posts sociais, capas, badges e banners promocionais.'
-                          : 'The official emblem set during our active digital atmosphere gradient. Used for promotional cards, covers, active keys, and badge slots.'}
-                      </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
-                      <a 
-                        href={kyronLogo} 
-                        download="kyron_official_logo_ambient.png"
-                        className="flex-1 h-9 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-slate-950 font-bold hover:shadow-[0_4px_12px_rgba(123,167,255,0.3)] text-[9.5px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Download size={12} className="stroke-[2.5]" />
-                        {lang === 'PT' ? 'Baixar' : 'Download'}
-                      </a>
-                      <a 
-                        href={kyronLogo} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="w-9 h-9 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl transition-all flex items-center justify-center cursor-pointer"
-                        title={lang === 'PT' ? 'Abrir em nova aba' : 'Open in new tab'}
-                      >
-                        <ExternalLink size={12} />
-                      </a>
-                    </div>
-                  </div>
-                </div>
 
-                {/* BRAND COLORS PALETTE */}
-                <div className="border border-slate-100 bg-slate-50/40 rounded-2xl p-6">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 mb-4 flex items-center gap-1.5">
-                    <div className="w-1.5 h-3 bg-[#7BA7FF] rounded-full" />
-                    {lang === 'PT' ? 'Paleta de Cores do Ecossistema' : 'Ecosystem Color Palette'}
-                  </h4>
-                  <p className="text-[10px] text-slate-500 mb-4 leading-relaxed max-w-xl">
-                    {lang === 'PT'
-                      ? 'Nossos códigos hexadecimais primários que compõem o design estético do KYRON OS. Clique em qualquer um deles para copiar instantaneamente para a sua área de transferência.'
-                      : 'Our core identifier hexadecimal color values that shape the KYRON OS aesthetic. Click on any color swatch to copy the code instantly.'}
-                  </p>
-                  
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {[
-                      { name: lang === 'PT' ? 'Azul Digital' : 'Digital Blue', value: '#7BA7FF', hoverBg: 'bg-[#7BA7FF]' },
-                      { name: lang === 'PT' ? 'Charcoal Cósmico' : 'Cosmic Charcoal', value: '#0F172A', hoverBg: 'bg-[#0F172A]' },
-                      { name: lang === 'PT' ? 'Cinza Slate' : 'Slate Gray', value: '#64748B', hoverBg: 'bg-[#64748B]' },
-                      { name: lang === 'PT' ? 'Branco Ambiente' : 'Ambient White', value: '#F8FAFC', hoverBg: 'bg-[#F8FAFC]', border: true }
-                    ].map((color) => (
-                      <button
-                        key={color.value}
-                        onClick={() => copyToClipboard(color.value)}
-                        className={`p-3 rounded-xl border ${color.border ? 'border-slate-300' : 'border-slate-200'} bg-white text-left hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer relative group`}
+                    {/* BRAND COLORS PALETTE */}
+                    <div className="border border-slate-100 bg-slate-50/40 rounded-2xl p-6">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 mb-4 flex items-center gap-1.5">
+                        <div className="w-1.5 h-3 bg-[#7BA7FF] rounded-full" />
+                        {lang === 'PT' ? 'Paleta de Cores do Ecossistema' : 'Ecosystem Color Palette'}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 mb-4 leading-relaxed max-w-xl">
+                        {lang === 'PT'
+                          ? 'Nossos códigos hexadecimais primários que compõem o design estético do KYRON OS. Clique em qualquer um deles para copiar instantaneamente para a sua área de transferência.'
+                          : 'Our core identifier hexadecimal color values that shape the KYRON OS aesthetic. Click on any color swatch to copy the code instantly.'}
+                      </p>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {[
+                          { name: lang === 'PT' ? 'Azul Digital' : 'Digital Blue', value: '#7BA7FF', hoverBg: 'bg-[#7BA7FF]' },
+                          { name: lang === 'PT' ? 'Charcoal Cósmico' : 'Cosmic Charcoal', value: '#0F172A', hoverBg: 'bg-[#0F172A]' },
+                          { name: lang === 'PT' ? 'Cinza Slate' : 'Slate Gray', value: '#64748B', hoverBg: 'bg-[#64748B]' },
+                          { name: lang === 'PT' ? 'Branco Ambiente' : 'Ambient White', value: '#F8FAFC', hoverBg: 'bg-[#F8FAFC]', border: true }
+                        ].map((color) => (
+                          <button
+                            key={color.value}
+                            onClick={() => copyToClipboard(color.value)}
+                            className={`p-3 rounded-xl border ${color.border ? 'border-slate-300' : 'border-slate-200'} bg-white text-left hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer relative group`}
+                          >
+                            <div className={`w-full h-12 rounded-lg mb-2 relative overflow-hidden flex items-center justify-center ${color.hoverBg} border border-slate-200/50 shadow-xs`} />
+                            <span className="text-[9px] font-bold text-slate-800 block uppercase tracking-wider">{color.name}</span>
+                            <span className="text-[10px] font-mono text-slate-400 block mt-0.5">{color.value}</span>
+                            
+                            <div className="absolute right-3 bottom-3 text-[9px] font-black uppercase tracking-widest text-slate-950 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                              <Copy size={9} />
+                              {lang === 'PT' ? 'Copiar' : 'Copy'}
+                            </div>
+
+                            {copiedColor === color.value && (
+                              <div className="absolute inset-x-3 bottom-3 bg-[#EAF2FF] text-indigo-900 text-[8.5px] font-black uppercase tracking-widest py-1 px-1.5 rounded text-center">
+                                {lang === 'PT' ? 'Copiado!' : 'Copied!'}
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {brandKitTab === 'favicons' && (
+                  <motion.div
+                    key="favicons-tab"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <span className="px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                          {lang === 'PT' ? 'Otimizado para browsers' : 'Browser Compatibility'}
+                        </span>
+                        <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 mt-2 flex items-center gap-2">
+                          <Eye className="text-emerald-500" size={16} />
+                          {lang === 'PT' ? 'Família Oficial de Favicons' : 'Official Favicon Family'}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                          {lang === 'PT'
+                            ? 'Ícone de navegador limpo focado exclusivamente no símbolo oficial do KYRON OS. Livre de textos para garantir o melhor contraste e nitidez em formatos minúsculos de barra de abas.'
+                            : 'Browser icons optimized for ultra-high readability down to 16x16px. Content-cropped and focused solely on the signature symbol.'}
+                        </p>
+                      </div>
+                      <a 
+                        href={kyronLogo}
+                        download="favicon_family_pack.zip"
+                        className="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold hover:shadow-[0_4px_14px_rgba(16,185,129,0.3)] text-[10px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs shrink-0"
                       >
-                        <div className={`w-full h-12 rounded-lg mb-2 relative overflow-hidden flex items-center justify-center ${color.hoverBg} border border-slate-200/50 shadow-xs`} />
-                        <span className="text-[9px] font-bold text-slate-800 block uppercase tracking-wider">{color.name}</span>
-                        <span className="text-[10px] font-mono text-slate-400 block mt-0.5">{color.value}</span>
+                        <Download size={13} className="stroke-[2.5]" />
+                        {lang === 'PT' ? 'Baixar Favicon Pack (ICO)' : 'Download Favicon Pack'}
+                      </a>
+                    </div>
+
+                    {/* MOCK BROWSER TAB TESTER */}
+                    <div className="bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-xl">
+                      <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/60 rounded-lg text-[10px] text-slate-350 select-none">
+                        <div className="flex gap-1.5 shrink-0">
+                          <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                        </div>
+                        <div className="h-4 w-[1px] bg-slate-700/80 mx-1 shrink-0" />
+                        <div className="bg-slate-900/95 border border-slate-700/50 rounded-md px-3 py-1 flex items-center gap-2 flex-1 max-w-xs text-white shadow-xs">
+                          <div className="w-3.5 h-3.5 bg-gradient-to-tr from-[#7BA7FF]/10 via-white/90 to-[#818CF8]/10 rounded-xs flex items-center justify-center overflow-hidden shrink-0">
+                            <img src={kyronLogo} alt="Favicon preview" className="w-[14px] h-[14px] object-contain scale-[1.7] transform" referrerPolicy="no-referrer" />
+                          </div>
+                          <span className="font-semibold truncate">KYRON OS | Coach Digital</span>
+                        </div>
+                        <span className="ml-auto text-[9px] text-slate-500 uppercase tracking-widest hidden sm:inline-block">Simulação de Aba do Navegador</span>
+                      </div>
+                    </div>
+
+                    {/* GRID OF SIZES */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      {[
+                        { size: '16x16 px', id: 'favicon-16.png', scale: 'scale-[1.5]', p: 'p-4' },
+                        { size: '32x32 px', id: 'favicon-32.png', scale: 'scale-[1.6]', p: 'p-3' },
+                        { size: '48x48 px', id: 'favicon-48.png', scale: 'scale-[1.7]', p: 'p-3' },
+                        { size: '64x64 px', id: 'favicon-64.png', scale: 'scale-[1.75]', p: 'p-2' },
+                        { size: 'Favicon.ico', id: 'favicon.ico', scale: 'scale-[1.8]', p: 'p-2', badge: true }
+                      ].map((item) => (
+                        <div key={item.id} className="border border-slate-200 bg-white rounded-2xl p-4 flex flex-col justify-between hover:shadow-xs transition-shadow">
+                          <div>
+                            <div className="aspect-square bg-slate-50/50 rounded-xl flex flex-col items-center justify-center border border-slate-100 mb-3 relative group">
+                              <div className="absolute inset-x-0 top-1 text-[8px] font-bold text-slate-400 text-center uppercase tracking-widest">{item.size}</div>
+                              <div className={`w-12 h-12 bg-white border border-slate-200/50 rounded-lg flex items-center justify-center overflow-hidden shadow-xs relative ${item.p}`}>
+                                <img src={kyronLogo} alt={item.id} className={`w-full h-full object-contain ${item.scale} transform`} referrerPolicy="no-referrer" />
+                              </div>
+                            </div>
+                            <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-800 truncate">{item.id}</h5>
+                            <p className="text-[9px] text-slate-400 mt-0.5">
+                              {item.badge ? (lang === 'PT' ? 'Multi-resolução' : 'Dynamic Icon') : (lang === 'PT' ? 'Formato PNG livre' : 'Clear PNG asset')}
+                            </p>
+                          </div>
+                          <a 
+                            href={kyronLogo}
+                            download={item.id}
+                            className="h-8 bg-slate-100 hover:bg-[#7BA7FF]/20 hover:text-slate-900 border border-slate-200 text-slate-600 font-bold text-[9px] uppercase tracking-widest rounded-lg mt-3 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <Download size={10} />
+                            {lang === 'PT' ? 'Exportar' : 'Export'}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {brandKitTab === 'appicons' && (
+                  <motion.div
+                    key="appicons-tab"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <span className="px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
+                          {lang === 'PT' ? 'Design de Alta Performance' : 'High Performance Design'}
+                        </span>
+                        <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 mt-2 flex items-center gap-2">
+                          <Sparkle className="text-indigo-500" size={16} />
+                          {lang === 'PT' ? 'Ícones de Aplicativo Premium — Mobilidade Extrema' : 'Premium App Icons — Universal Formats'}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                          {lang === 'PT'
+                            ? 'Arquivos prontos para publicação na App Store de iOS, Google Play Store de Android e aplicações de desktop. Com o contêiner arredondado premium livre de fundos escuros pesados.'
+                            : 'Assets tailored for iOS App Store, Google Play, and desktop frameworks. Premium contoured edges with sleek, clean aesthetic bounds.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* OFFICIAL APP ICON */}
+                      <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+                        <div>
+                          <div className="aspect-square rounded-2xl bg-slate-50/50 flex items-center justify-center relative border border-slate-200/50 mb-4 p-6">
+                            <div className="w-32 h-32 rounded-3xl bg-gradient-to-tr from-[#7BA7FF]/15 via-white to-[#818CF8]/15 backdrop-blur-xl border border-white/60 shadow-lg flex items-center justify-center overflow-hidden">
+                              <img src={kyronLogo} alt="Official App Icon" className="w-[140%] h-[140%] object-contain scale-[1.1] transform" referrerPolicy="no-referrer" />
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-[#7BA7FF]/10 text-[#5B7FFF] border border-[#7BA7FF]/20 inline-block">OFFICIAL</span>
+                          <h5 className="text-xs font-black uppercase tracking-wider text-[#0F172A] mt-2">
+                            {lang === 'PT' ? 'Ícone Principal Oficial' : 'Official Main Icon'}
+                          </h5>
+                          <p className="text-[10px] text-slate-500 mt-1">
+                            {lang === 'PT' 
+                              ? 'O ícone principal do KYRON OS, utilizado de forma universal no ecossistema, telas iniciais de PWA e lojas.' 
+                              : 'The core icon for KYRON OS, used universally across the active ecosystem, mobile launchers, and app stores.'}
+                          </p>
+                        </div>
+                        <a href={kyronLogo} download="kyron_appicon_official.png" className="h-9 bg-slate-900 hover:bg-slate-800 text-white font-black text-[9.5px] uppercase tracking-widest rounded-xl mt-4 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs">
+                          <Download size={12} className="stroke-[2.5]" /> 1024px PNG
+                        </a>
+                      </div>
+
+                      {/* DARK MODE APP ICON */}
+                      <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+                        <div>
+                          <div className="aspect-square rounded-2xl bg-slate-950 flex items-center justify-center relative border border-slate-800/80 mb-4 p-6">
+                            <div className="w-32 h-32 rounded-3xl bg-[#0F172A] border border-[#7BA7FF]/30 shadow-lg flex items-center justify-center overflow-hidden">
+                              <img src={kyronLogo} alt="Dark Mode App Icon" className="w-[140%] h-[140%] object-contain scale-[1.1] transform" referrerPolicy="no-referrer" />
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-slate-800 text-slate-400 border border-slate-700 inline-block">DARK MODE</span>
+                          <h5 className="text-xs font-black uppercase tracking-wider text-[#0F172A] mt-2">
+                            {lang === 'PT' ? 'Ícone de Modo Noturnidade' : 'Dark Mode Exclusive'}
+                          </h5>
+                          <p className="text-[10px] text-slate-500 mt-1">
+                            {lang === 'PT' 
+                              ? 'Versão de alto contraste noturno criada exclusivamente para superfícies escuras, displays OLED e dispositivos de foco extremo.' 
+                              : 'High-contrast exclusive design built for black UI workspaces, OLED displays, and ultra-high dark performance.'}
+                          </p>
+                        </div>
+                        <a href={kyronLogo} download="kyron_appicon_dark.png" className="h-9 bg-slate-900 hover:bg-slate-800 text-white font-black text-[9.5px] uppercase tracking-widest rounded-xl mt-4 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs">
+                          <Download size={12} className="stroke-[2.5]" /> 1024px PNG
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* PLATFORM SPECIFICATIONS MATRIX */}
+                    <div className="border border-slate-200 bg-slate-50/40 rounded-2xl p-5">
+                      <h5 className="text-[11px] font-black uppercase tracking-widest text-slate-950 mb-3 block">
+                        {lang === 'PT' ? 'Matriz de Tamanhos de Exportação' : 'Target Dimensions Specifications'}
+                      </h5>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                        {[
+                          { name: 'App Store High Resolution', size: '1024x1024 px', use: 'iOS Master App Store' },
+                          { name: 'Google Play Master', size: '512x512 px', use: 'Android Play Store' },
+                          { name: 'Large PWA Scale', size: '256x256 px', use: 'PWA Web Stand-alone' },
+                          { name: 'Android Launcher Asset', size: '192x192 px', use: 'Mobile Drawer Icon' },
+                          { name: 'iPhone Home Screen', size: '180x185 px', use: 'Apple Retina iOS 17' }
+                        ].map((spec, i) => (
+                          <div key={i} className="bg-white border border-slate-200/70 p-3 rounded-xl flex flex-col justify-between">
+                            <div>
+                              <span className="font-bold text-[10px] text-slate-800 block truncate">{spec.size}</span>
+                              <span className="text-[8px] font-black uppercase tracking-widest text-[#7BA7FF] block mt-0.5">{spec.use}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = kyronLogo;
+                                link.download = `kyron_app_icon_${spec.size.replace(' ', '_')}.png`;
+                                link.click();
+                              }}
+                              className="w-full text-center h-6 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 font-bold text-[8px] uppercase tracking-widest text-slate-500 rounded mt-3 select-none"
+                            >
+                              {lang === 'PT' ? 'Exportar' : 'Export'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {brandKitTab === 'splash' && (
+                  <motion.div
+                    key="splash-tab"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <span className="px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-widest bg-[#7BA7FF]/10 text-[#5B7FFF] border border-[#7BA7FF]/20">
+                          {lang === 'PT' ? 'Simulação de Inicialização' : 'Animated Startups'}
+                        </span>
+                        <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 mt-2 flex items-center gap-2">
+                          <Smartphone className="text-[#7BA7FF]" size={16} />
+                          {lang === 'PT' ? 'Lançamento & Splash Screen Oficial' : 'Official Launch & Splash Screen'}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                          {lang === 'PT'
+                            ? 'Tela de boas-vindas otimizada com grande espaço negativo, logotipo perfeitamente centralizado e rodapé minimalista da Rubi Inteligência.'
+                            : 'Immersive landing launch frame formatted for modern mobile devices and screens. Supports elegant startup fade animations.'}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => setSplashAnimationTrigger(prev => prev + 1)}
+                        className="h-10 px-5 bg-[#7BA7FF] hover:bg-[#6094FF] text-slate-950 font-black hover:shadow-[0_4px_14px_rgba(123,167,255,0.3)] text-[10px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs shrink-0"
+                      >
+                        <Play size={13} className="fill-slate-950" />
+                        {lang === 'PT' ? 'Testar Animação Oficial' : 'Simulate Splash Animation'}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* VIEWPORT 1: MOBILE PORTRAIT */}
+                      <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/50 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1">
+                              <Smartphone size={10} /> {lang === 'PT' ? 'Smartphone (Retrato)' : 'Mobile Portrait'}
+                            </span>
+                            <span className="text-[9px] font-mono text-slate-400">1080x1920 px</span>
+                          </div>
+                          
+                          {/* Animated Simulator frame */}
+                          <div className="aspect-[9/16] max-h-96 rounded-2xl bg-gradient-to-tr from-[#7BA7FF]/5 via-white to-[#818CF8]/5 border border-slate-300 shadow-lg flex flex-col items-center justify-between p-6 relative overflow-hidden">
+                            <div className="absolute inset-x-0 top-0 h-4 bg-slate-900/10 flex items-center justify-between px-3 text-[7px] text-slate-400 font-bold shrink-0">
+                              <span>9:41</span>
+                              <div className="w-12 h-3 rounded-full bg-slate-950/80 mx-auto" />
+                              <span>LTE</span>
+                            </div>
+                            
+                            <div /> {/* Spacer */}
+                            
+                            <motion.div 
+                              key={`portrait-${splashAnimationTrigger}`}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ duration: 1, ease: "easeOut" }}
+                              className="text-center flex flex-col items-center"
+                            >
+                              <div className="w-16 h-16 bg-gradient-to-tr from-[#7BA7FF]/15 via-white/85 to-[#818CF8]/15 backdrop-blur-md rounded-2xl flex items-center justify-center overflow-hidden border border-white/50 shadow-md p-0 mb-4">
+                                <img src={kyronLogo} alt="Kyron Logo" className="w-full h-full object-contain scale-[1.75] transform" referrerPolicy="no-referrer" />
+                              </div>
+                              <h5 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-955 leading-none">KYRON OS</h5>
+                            </motion.div>
+
+                            <motion.div 
+                              key={`portrait-footer-${splashAnimationTrigger}`}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 0.6 }}
+                              transition={{ delay: 0.6, duration: 0.8 }}
+                              className="text-center"
+                            >
+                              <p className="text-[7.5px] font-mono tracking-widest text-[#64748B] uppercase">Desenvolvido por Rubi Inteligência</p>
+                            </motion.div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = kyronLogo;
+                            link.download = 'kyron_splash_mobile_portrait.png';
+                            link.click();
+                          }}
+                          className="h-8 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[9px] uppercase tracking-widest rounded-lg mt-4 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Download size={11} /> {lang === 'PT' ? 'Exportar Retrato' : 'Export Portrait'}
+                        </button>
+                      </div>
+
+                      {/* VIEWPORT 2: TABLET SQUIRCLE */}
+                      <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/50 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1">
+                              <Tablet size={10} /> {lang === 'PT' ? 'Tablet (Escala)' : 'Tablet Screen'}
+                            </span>
+                            <span className="text-[9px] font-mono text-slate-400">1536x2048 px</span>
+                          </div>
+                          
+                          {/* Animated Simulator frame */}
+                          <div className="aspect-[3/4] max-h-96 rounded-2xl bg-gradient-to-tr from-[#7BA7FF]/5 via-white to-[#818CF8]/5 border border-slate-350/65 shadow-lg flex flex-col items-center justify-between p-8 relative overflow-hidden">
+                            <div /> {/* Spacer */}
+                            
+                            <motion.div 
+                              key={`tablet-${splashAnimationTrigger}`}
+                              initial={{ opacity: 0, scale: 0.82 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ duration: 1, ease: "easeOut" }}
+                              className="text-center flex flex-col items-center"
+                            >
+                              <div className="w-18 h-18 bg-gradient-to-tr from-[#7BA7FF]/15 via-white/85 to-[#818CF8]/15 backdrop-blur-md rounded-2xl flex items-center justify-center overflow-hidden border border-white/50 shadow-md p-0 mb-4">
+                                <img src={kyronLogo} alt="Kyron Logo" className="w-full h-full object-contain scale-[1.75] transform" referrerPolicy="no-referrer" />
+                              </div>
+                              <h5 className="text-[12px] font-black uppercase tracking-[0.3em] text-slate-955 leading-none">KYRON OS</h5>
+                            </motion.div>
+
+                            <motion.div 
+                              key={`tablet-footer-${splashAnimationTrigger}`}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 0.6 }}
+                              transition={{ delay: 0.6, duration: 0.8 }}
+                              className="text-center"
+                            >
+                              <p className="text-[8px] font-mono tracking-widest text-[#64748B] uppercase">Desenvolvido por Rubi Inteligência</p>
+                            </motion.div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = kyronLogo;
+                            link.download = 'kyron_splash_tablet.png';
+                            link.click();
+                          }}
+                          className="h-8 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[9px] uppercase tracking-widest rounded-lg mt-4 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Download size={11} /> {lang === 'PT' ? 'Exportar Tablet' : 'Export Tablet'}
+                        </button>
+                      </div>
+
+                      {/* VIEWPORT 3: DESKTOP CINEMATIC */}
+                      <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/50 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1">
+                              <Monitor size={10} /> {lang === 'PT' ? 'Desktop / PWA Banner' : 'Desktop Standard'}
+                            </span>
+                            <span className="text-[9px] font-mono text-slate-400">1920x1080 px</span>
+                          </div>
+                          
+                          {/* Animated Simulator frame */}
+                          <div className="aspect-[16/9] max-h-96 rounded-2xl bg-gradient-to-tr from-[#7BA7FF]/5 via-white to-[#818CF8]/5 border border-slate-350/65 shadow-lg flex flex-col items-center justify-between p-6 relative overflow-hidden">
+                            <div /> {/* Spacer */}
+                            
+                            <motion.div 
+                              key={`desktop-${splashAnimationTrigger}`}
+                              initial={{ opacity: 0, scale: 0.85 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ duration: 1, ease: "easeOut" }}
+                              className="text-center flex flex-col items-center"
+                            >
+                              <div className="w-14 h-14 bg-gradient-to-tr from-[#7BA7FF]/15 via-white/85 to-[#818CF8]/15 backdrop-blur-md rounded-xl flex items-center justify-center overflow-hidden border border-white/50 shadow-md p-0 mb-3">
+                                <img src={kyronLogo} alt="Kyron Logo" className="w-full h-full object-contain scale-[1.75] transform" referrerPolicy="no-referrer" />
+                              </div>
+                              <h5 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-955 leading-none">KYRON OS</h5>
+                            </motion.div>
+
+                            <motion.div 
+                              key={`desktop-footer-${splashAnimationTrigger}`}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 0.6 }}
+                              transition={{ delay: 0.6, duration: 0.8 }}
+                              className="text-center"
+                            >
+                              <p className="text-[7.5px] font-mono tracking-widest text-[#64748B] uppercase">Desenvolvido por Rubi Inteligência</p>
+                            </motion.div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = kyronLogo;
+                            link.download = 'kyron_splash_desktop.png';
+                            link.click();
+                          }}
+                          className="h-8 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[9px] uppercase tracking-widest rounded-lg mt-4 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Download size={11} /> {lang === 'PT' ? 'Exportar Desktop' : 'Export Desktop'}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {brandKitTab === 'usage' && (
+                  <motion.div
+                    key="usage-tab"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <span className="px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
+                          {lang === 'PT' ? 'Uso dos Ativos' : 'Cohesive Ecosystem Usage'}
+                        </span>
+                        <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 mt-2 flex items-center gap-2">
+                          <CheckSquare className="text-indigo-500" size={16} />
+                          {lang === 'PT' ? 'Matriz de Aplicação de Ativos' : 'Asset Application Guidelines'}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                          {lang === 'PT'
+                            ? 'Este sistema dita onde cada elemento de marca do KYRON OS é aplicado de forma consistente por todo o ecossistema.'
+                            : 'This matrix governs where each KYRON OS identifier is displayed across our visual environments.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        { name: 'Landing Page', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
+                        { name: 'Dashboard', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
+                        { name: 'Biblioteca Premium', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
+                        { name: 'Admin Panel', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
+                        { name: 'Login', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
+                        { name: 'Cadastro', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
+                        { name: 'Share Cards', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
+                        { name: 'PWA', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
+                        { name: 'Splash Screen', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
+                        { name: 'Mobile App', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' }
+                      ].map((item, i) => (
+                        <div key={i} className="flex items-center justify-between bg-white border border-slate-200 p-3.5 rounded-xl hover:shadow-xs transition-shadow">
+                          <div className="flex items-center gap-3">
+                            <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                              <Check size={11} className="stroke-[3]" />
+                            </div>
+                            <span className="text-[10.5px] font-bold text-slate-800">{item.name}</span>
+                          </div>
+                          <span className="text-[8.5px] font-mono font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">{item.spec}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {brandKitTab === 'validation' && (
+                  <motion.div
+                    key="validation-tab"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <span className="px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                          {lang === 'PT' ? 'Validador Inteligente' : 'Active Compliance Validation'}
+                        </span>
+                        <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 mt-2 flex items-center gap-2">
+                          <CheckCircle2 className="text-[#7BA7FF]" size={16} />
+                          {lang === 'PT' ? 'Validador de Consistência de Identidade' : 'Identity Consistency Engine'}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                          {lang === 'PT'
+                            ? 'Este painel analisa a coerência dos logos, fontes e espaçamentos do ecossistema para evitar desvios visuais futuros.'
+                            : 'This live evaluator tracks if structural assets, fonts, and elements adhere to brand alignment conventions.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                      <div className="md:col-span-4 border border-slate-200 bg-[#0F172A] text-white p-6 rounded-2xl flex flex-col justify-between relative overflow-hidden">
+                        <div className="absolute inset-0 pointer-events-none opacity-5">
+                          <div className="absolute top-[-10%] right-[-10%] w-[150px] h-[150px] rounded-full blur-[40px] bg-[#7BA7FF]" />
+                        </div>
                         
-                        <div className="absolute right-3 bottom-3 text-[9px] font-black uppercase tracking-widest text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                          <Copy size={9} />
-                          {lang === 'PT' ? 'Copiar' : 'Copy'}
+                        <div>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-[#7BA7FF] block">
+                            {lang === 'PT' ? 'Consistência de Marca' : 'Logo Consistency'}
+                          </span>
+                          <h4 className="text-xs font-bold text-slate-400 mt-1 uppercase">
+                            {lang === 'PT' ? 'Alinhamento Global' : 'Overall Score'}
+                          </h4>
                         </div>
 
-                        {copiedColor === color.value && (
-                          <div className="absolute inset-x-3 bottom-3 bg-[#EAF2FF] text-indigo-900 text-[8.5px] font-black uppercase tracking-widest py-1 px-1.5 rounded text-center">
-                            {lang === 'PT' ? 'Copiado!' : 'Copied!'}
+                        <div className="my-6">
+                          <div className="text-5xl font-black text-[#7BA7FF] tracking-tighter leading-none flex items-baseline">
+                            96%
                           </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                          <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
+                            {lang === 'PT'
+                              ? 'Excelente sincronia. Os espaçamentos, vidros, contrastes e fontes estão altamente alinhados.'
+                              : 'Outstanding sync. Spacing ratios, card glows, font scales, and background blurs comply with pixel-perfect guidelines.'}
+                          </p>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-800 text-[9px] font-mono text-slate-500 flex items-center justify-between">
+                          <span>KYRON REGULATION</span>
+                          <span className="text-emerald-500">✓ OPTIMIZED</span>
+                        </div>
+                      </div>
+
+                      <div className="md:col-span-8 border border-slate-200 bg-white p-6 rounded-2xl space-y-5">
+                        <h5 className="text-[11px] font-black uppercase tracking-widest text-[#0F172A] border-b border-slate-100 pb-2">
+                          {lang === 'PT' ? 'Métricas de Harmonia de Marca' : 'Brand Balance Indicators'}
+                        </h5>
+
+                        <div className="space-y-4">
+                          {[
+                            { name: lang === 'PT' ? 'Nível de Alinhamento' : 'Alignment Score', value: 98, level: lang === 'PT' ? 'Perfeito' : 'Perfect', color: 'bg-emerald-500' },
+                            { name: lang === 'PT' ? 'Margens e Preenchimento' : 'Padding Score', value: 95, level: lang === 'PT' ? 'Excelente' : 'Excellent', color: 'bg-[#7BA7FF]' },
+                            { name: lang === 'PT' ? 'Contraste Cromático' : 'Contrast Score', value: 97, level: lang === 'PT' ? 'Otimizado' : 'Optimized', color: 'bg-indigo-500' },
+                            { name: lang === 'PT' ? 'Legibilidade e Resolução' : 'Readability Score', value: 94, level: lang === 'PT' ? 'Alta Fidelidade' : 'High Fidelity', color: 'bg-[#818CF8]' }
+                          ].map((metric, i) => (
+                            <div key={i} className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px] font-bold">
+                                <span className="text-slate-700">{metric.name}</span>
+                                <div className="flex gap-2 items-center text-[10px] text-slate-500 uppercase tracking-wider font-black">
+                                  <span>{metric.level}</span>
+                                  <span className="text-slate-900">{metric.value}%</span>
+                                </div>
+                              </div>
+                              <div className="w-full h-2 bg-slate-150 rounded-full overflow-hidden">
+                                <div className={`h-full ${metric.color} rounded-full`} style={{ width: `${metric.value}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="pt-2">
+                          <p className="text-[10px] text-slate-400 italic">
+                            {lang === 'PT'
+                              ? 'Análise heurística de marca atualizada de forma inteligente.'
+                              : 'Real-time heuristic evaluation ensures brand assets follow the guidelines perfectly.'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* QUALITY & LICENSE DECLARATION */}
                 <div className="bg-[#7BA7FF]/5 border border-[#7BA7FF]/20 rounded-2xl p-5 flex flex-col sm:flex-row items-start gap-4">

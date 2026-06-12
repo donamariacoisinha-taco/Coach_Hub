@@ -185,29 +185,24 @@ const SettingsLogs: React.FC = () => {
 
               {/* Logs Sidebar */}
               <div className="lg:col-span-4">
-                <div className="bg-slate-950 rounded-[3rem] p-10 text-white shadow-2xl shadow-slate-950/10 flex flex-col min-h-[500px]">
-                  <div className="flex items-center justify-between mb-8">
+                <div className="bg-slate-950 rounded-[3rem] p-8 text-white shadow-2xl shadow-slate-950/10 flex flex-col min-h-[450px]">
+                  <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-blue-400">
-                        <FileText size={16} />
+                      <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-[#7BA7FF]">
+                        <FileText size={15} />
                       </div>
-                      <h4 className="text-xs font-black uppercase tracking-widest italic">System Logs</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest italic">Core Activity</h4>
                     </div>
-                    <button className="text-[9px] font-black uppercase text-blue-400 hover:text-white transition-colors">Limpar</button>
                   </div>
 
-                  <div className="space-y-5 overflow-y-auto pr-1 flex-1">
-                    <LogEntry time="2m atrás" user="Rubi AI" action="Auto-approved" target="Supino Reto" />
-                    <LogEntry time="15m atrás" user="Admin" action="Updated Metadata" target="Leg Press" />
-                    <LogEntry time="1h atrás" user="System" action="Batch Sync" target="142 Itens" />
-                    <LogEntry time="4h atrás" user="Rubi AI" action="Semantic Audit" target="Completado" />
-                    <LogEntry time="6h atrás" user="Admin" action="Bulk Import" target="Sincronizado" />
-                    <LogEntry time="12h atrás" user="Segurança" action="Acesso Negado" target="Autenticação" error />
-                    <LogEntry time="14h atrás" user="System" action="Backup Diário" target="Concluído" />
+                  <div className="space-y-4 overflow-y-auto pr-1 flex-1">
+                    <LogEntry time="2m ago" user="Rubi AI" action="Auto-approved" target="Supino Reto" />
+                    <LogEntry time="1h ago" user="System" action="Batch Sync" target="142 Itens" />
+                    <LogEntry time="14h ago" user="System" action="Backup Diário" target="Concluído" />
                   </div>
                   
-                  <button className="mt-8 w-full py-4 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/55 hover:text-white hover:bg-white/10 transition-all">
-                     Exportar Registro de Auditoria
+                  <button className="mt-6 w-full py-3.5 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/55 hover:text-white hover:bg-white/10 transition-all cursor-pointer">
+                     Full System Diagnostic
                   </button>
                 </div>
               </div>

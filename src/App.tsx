@@ -32,6 +32,7 @@ import { NavItem } from './components/ui/NavItem';
 import { isAdmin } from './lib/utils/auth';
 import { ekeService } from './domain/eke/ekeService';
 import { MinhaDieta } from './features/dashboard/MinhaDieta';
+import kyronLogo from './assets/images/kyron_official_logo_1781087891387.png';
 
 type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'preparation' | 'editor' | 'history' | 'admin' | 'profile' | 'library' | 'dieta';
 type Theme = 'classic' | 'light' | 'aggressive' | 'bloom' | 'neon-strike';
@@ -315,7 +316,9 @@ const App: React.FC = () => {
 
           {!isImmersive && session && (
             <aside className="hidden lg:flex w-24 bg-white/70 backdrop-blur-xl border-r border-slate-200/40 flex-col items-center shrink-0 justify-between py-10 shadow-[4px_0_30px_rgba(15,23,42,0.02)] z-30">
-               <div className="w-11 h-11 bg-gradient-to-tr from-[#7BA7FF] to-[#A5C8FF] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/10"><Bolt size={20} className="stroke-[2.5]" /></div>
+               <div className="w-10 h-10 bg-gradient-to-tr from-[#7BA7FF]/15 via-white/85 to-[#818CF8]/15 backdrop-blur-md border border-white/40 rounded-xl flex items-center justify-center overflow-hidden shadow-md p-0 shrink-0">
+                 <img src={kyronLogo} alt="KYRON OS" className="w-full h-full object-contain scale-[1.75] transform" referrerPolicy="no-referrer" />
+               </div>
                
                {profile?.workout_streak && profile.workout_streak > 0 && (
                  <div className="flex flex-col items-center gap-1.5 my-6">

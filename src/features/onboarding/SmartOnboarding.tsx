@@ -146,8 +146,8 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center text-center space-y-8 py-12">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-white border border-slate-200/60 rounded-full flex items-center justify-center overflow-hidden shadow-xs p-1.5">
-          <img src={kyronLogo} alt="KYRON OS Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+        <div className="w-10 h-10 bg-gradient-to-tr from-[#7BA7FF]/15 via-white/85 to-[#818CF8]/15 backdrop-blur-md border border-white/40 rounded-xl flex items-center justify-center overflow-hidden shadow-xs p-0 shrink-0">
+          <img src={kyronLogo} alt="KYRON OS Logo" className="w-full h-full object-contain scale-[1.75] transform" referrerPolicy="no-referrer" />
         </div>
         <span className="text-base font-black uppercase tracking-[0.25em] text-slate-900 pt-0.5">KYRON OS</span>
       </div>

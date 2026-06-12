@@ -46,9 +46,9 @@ const ShareCard: React.FC<ShareCardProps> = ({ workout, onClose }) => {
 
          {/* Header */}
          <header className="relative z-10 mb-auto">
-            <div className="flex items-center gap-3 mb-8">
-               <div className="w-10 h-10 bg-white/15 backdrop-blur-md rounded-full flex items-center justify-center overflow-hidden border border-white/25 shadow-xs p-1.5 shrink-0">
-                  <img src={kyronLogo} alt="KYRON OS" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+          <div className="flex items-center gap-3 mb-8">
+               <div className="w-10 h-10 bg-gradient-to-tr from-[#7BA7FF]/15 via-white/85 to-[#818CF8]/15 backdrop-blur-md rounded-xl flex items-center justify-center overflow-hidden border border-white/20 shadow-xs p-0 shrink-0">
+                  <img src={kyronLogo} alt="KYRON OS" className="w-full h-full object-contain scale-[1.75] transform" referrerPolicy="no-referrer" />
                </div>
                <div>
                   <p className="text-[8px] font-black text-[#7BA7FF] uppercase tracking-[0.4em] leading-none mb-1">Rubi Neural Coach</p>
