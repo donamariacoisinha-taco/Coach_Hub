@@ -167,6 +167,7 @@ export const translations = {
     footerTerms: "Termos",
     footerPrivacy: "Privacidade",
     footerPerformanceLab: "Performance Lab",
+    footerBrandKit: "Kit de Marca (Logos)",
 
     // Bento keys
     bentoBadge: "EXCELÊNCIA POR PADRÃO",
@@ -359,6 +360,7 @@ export const translations = {
     footerTerms: "Terms",
     footerPrivacy: "Privacy",
     footerPerformanceLab: "Performance Lab",
+    footerBrandKit: "Brand Kit (Logos)",
 
     // Bento keys
     bentoBadge: "EXCELLENCE BY DEFAULT",

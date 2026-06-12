@@ -75,7 +75,15 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
   const dashboardQuery = useSmartQuery('dashboard_data', async () => {
     const session = await authApi.getSession();
-    if (!session?.user) throw new Error("Sessão expirada.");
+    if (!session?.user) {
+      return {
+        profile: null,
+        folders: [],
+        workouts: [],
+        history: [],
+        stats: { sessions: 0 }
+      };
+    }
 
     return workoutApi.getDashboardData(session.user.id);
   }, {

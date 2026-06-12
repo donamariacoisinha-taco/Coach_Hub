@@ -28,6 +28,7 @@ interface AthleteProfile {
   created_at: string;
   last_access?: string;
   is_premium?: boolean;
+  _is_mock?: boolean;
 }
 
 export const UserManagement: React.FC = () => {
@@ -87,17 +88,31 @@ export const UserManagement: React.FC = () => {
   const premiumCount = profiles.filter(p => p.is_premium).length;
   const freeCount = profiles.filter(p => !p.is_premium && p.role !== 'admin').length;
   const adminCount = profiles.filter(p => p.role === 'admin' || p.is_admin).length;
+  const isFallbackMode = profiles.length === 0 || profiles.some(p => p._is_mock);
 
   return (
     <div className="space-y-8 pb-32">
       {/* Header Info */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            Gestão de Atletas
-          </h2>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+              Gestão de Atletas
+            </h2>
+            {isFallbackMode ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[9px] font-black uppercase tracking-wider bg-amber-50 border border-amber-200 text-amber-600 rounded-full">
+                <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" /> Modo Sandbox
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[9px] font-black uppercase tracking-wider bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-full">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Base em Tempo Real
+              </span>
+            )}
+          </div>
           <p className="text-sm font-medium text-slate-400 mt-1">
-            Lista unificada de usuários ativos, assinantes premium e acessos administrativos.
+            {isFallbackMode 
+              ? "Exibindo base de demonstração (local fallback) de atletas devido a conexão offline ou pendência de credenciais." 
+              : "Conectado com Sucesso: Sincronização direta com a tabela 'profiles' do banco de dados."}
           </p>
         </div>
       </div>

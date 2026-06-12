@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { translations } from '../translations';
 import kyronLogo from '../assets/images/kyron_official_logo_1781087891387.png';
+import kyronCoreLogo from '../assets/images/kyron_core_logo_1781042739395.png';
+import kyronCoreV2 from '../assets/images/kyron_core_v2_1781043247216.png';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -19,7 +21,11 @@ import {
   Flame,
   TrendingUp,
   User,
-  ShieldCheck
+  ShieldCheck,
+  Download,
+  Copy,
+  X,
+  ExternalLink
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -46,6 +52,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
 
   const [activeTab, setActiveTab] = useState<TabType>('workout');
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [showBrandKit, setShowBrandKit] = useState(false);
+  const [copiedColor, setCopiedColor] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedColor(text);
+    setTimeout(() => setCopiedColor(null), 2000);
+  };
 
   // Core motion spring configuration
   const springConfig = {
@@ -935,6 +949,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             <a href="#" className="hover:text-slate-800 transition-colors">{t('footerTerms')}</a>
             <a href="#" className="hover:text-slate-800 transition-colors">{t('footerPrivacy')}</a>
             <a href="#" className="hover:text-slate-800 transition-colors">{t('footerPerformanceLab')}</a>
+            <button 
+              onClick={() => setShowBrandKit(true)} 
+              className="hover:text-[#7BA7FF] transition-colors cursor-pointer bg-transparent border-none p-0 font-bold uppercase text-[10px] tracking-wider flex items-center gap-1 text-[#64748B]"
+            >
+              <Download size={11} className="stroke-[2.5]" />
+              {t('footerBrandKit')}
+            </button>
           </div>
 
         </div>
@@ -975,6 +996,250 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                 {t('floatBtnLogin')}
               </button>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 📥 OFFICIAL BRAND KIT & LOGOS DOWNLOAD MODAL */}
+      <AnimatePresence>
+        {showBrandKit && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[140] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md"
+            onClick={() => setShowBrandKit(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-4xl max-h-[90vh] overflow-y-auto no-scrollbar"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* HEADER */}
+              <div className="relative sticky top-0 bg-white/90 backdrop-blur-md px-6 sm:px-8 py-5 border-b border-slate-200/50 flex items-center justify-between z-10">
+                <div>
+                  <h3 className="text-lg font-black uppercase tracking-[0.2em] text-slate-900 flex items-center gap-2">
+                    <Sparkles className="text-[#7BA7FF]" size={18} />
+                    {lang === 'PT' ? 'Kit Oficial de Marca' : 'Official Brand Kit'}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {lang === 'PT' 
+                      ? 'Faça o download das versões oficiais de alta resolução do logotipo do KYRON OS.' 
+                      : 'Download high-resolution official versions of Kyron OS logos.'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowBrandKit(false)}
+                  className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-6 sm:p-8 space-y-8">
+                {/* LOGO GRID */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* LOGO 1: OFFICIAL LIGHT PREVIEW */}
+                  <div className="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between bg-slate-50/50 hover:shadow-md transition-shadow">
+                    <div>
+                      <div className="relative h-32 rounded-xl mb-4 bg-white flex items-center justify-center p-4 border border-slate-200/60 overflow-hidden">
+                        <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#000000_1px,transparent_1px)] [background-size:12px_12px]" />
+                        <img 
+                          src={kyronLogo} 
+                          alt="Kyron OS Official Logo - Light Theme" 
+                          className="max-h-full max-w-full object-contain drop-shadow-xs"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        {lang === 'PT' ? 'Logo Oficial — Fundo Claro' : 'Official Logo — Light Backdrop'}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                        {lang === 'PT'
+                          ? 'O emblema oficial conforme renderizado na barra superior do KYRON OS. Versão balanceada para mídias claras e impressões.'
+                          : 'The official brand symbol as displayed in the top navigation bar. Formatted for light mode compositions and clean interfaces.'}
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+                      <a 
+                        href={kyronLogo} 
+                        download="kyron_official_logo_light.png"
+                        className="flex-1 h-9 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-slate-950 font-bold hover:shadow-[0_4px_12px_rgba(123,167,255,0.3)] text-[9.5px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <Download size={12} className="stroke-[2.5]" />
+                        {lang === 'PT' ? 'Baixar' : 'Download'}
+                      </a>
+                      <a 
+                        href={kyronLogo} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="w-9 h-9 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                        title={lang === 'PT' ? 'Abrir em nova aba' : 'Open in new tab'}
+                      >
+                        <ExternalLink size={12} />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* LOGO 2: OFFICIAL DARK PREVIEW */}
+                  <div className="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between bg-slate-50/50 hover:shadow-md transition-shadow">
+                    <div>
+                      <div className="relative h-32 rounded-xl mb-4 bg-slate-950 flex items-center justify-center p-4 border border-slate-800 overflow-hidden">
+                        <div className="absolute inset-0 opacity-[0.1] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:12px_12px]" />
+                        <img 
+                          src={kyronLogo} 
+                          alt="Kyron OS Official Logo - Dark Theme" 
+                          className="max-h-full max-w-full object-contain"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        {lang === 'PT' ? 'Logo Oficial — Fundo Escuro' : 'Official Logo — Dark Backdrop'}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                        {lang === 'PT'
+                          ? 'O emblema oficial em contraste com fundo preto profundo. Ideal para plataformas de alta fidelidade e interfaces noturnas.'
+                          : 'The official logo rendered in stark contrast against a deep dark canvas. Tailored for high-fidelity devices and midnight screens.'}
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+                      <a 
+                        href={kyronLogo} 
+                        download="kyron_official_logo_dark.png"
+                        className="flex-1 h-9 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-slate-950 font-bold hover:shadow-[0_4px_12px_rgba(123,167,255,0.3)] text-[9.5px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <Download size={12} className="stroke-[2.5]" />
+                        {lang === 'PT' ? 'Baixar' : 'Download'}
+                      </a>
+                      <a 
+                        href={kyronLogo} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="w-9 h-9 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                        title={lang === 'PT' ? 'Abrir em nova aba' : 'Open in new tab'}
+                      >
+                        <ExternalLink size={12} />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* LOGO 3: COGNITIVE DIGITAL GRADIENT */}
+                  <div className="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between bg-slate-50/50 hover:shadow-md transition-shadow">
+                    <div>
+                      <div className="relative h-32 rounded-xl mb-4 bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#7BA7FF]/20 flex items-center justify-center p-4 border border-slate-200/60 overflow-hidden">
+                        <div className="absolute inset-0 opacity-[0.2] bg-[radial-gradient(#7ba7ff_1px,transparent_1px)] [background-size:16px_16px]" />
+                        <img 
+                          src={kyronLogo} 
+                          alt="Kyron OS Official Logo - Digital Ambient" 
+                          className="max-h-full max-w-full object-contain"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        {lang === 'PT' ? 'Logo Oficial — Atmosfera Digital' : 'Official Logo — Digital Ambient'}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                        {lang === 'PT'
+                          ? 'O emblema oficial imerso em nosso gradiente de assinaturas. Utilizado para posts sociais, capas, badges e banners promocionais.'
+                          : 'The official emblem set during our active digital atmosphere gradient. Used for promotional cards, covers, active keys, and badge slots.'}
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+                      <a 
+                        href={kyronLogo} 
+                        download="kyron_official_logo_ambient.png"
+                        className="flex-1 h-9 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-slate-950 font-bold hover:shadow-[0_4px_12px_rgba(123,167,255,0.3)] text-[9.5px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <Download size={12} className="stroke-[2.5]" />
+                        {lang === 'PT' ? 'Baixar' : 'Download'}
+                      </a>
+                      <a 
+                        href={kyronLogo} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="w-9 h-9 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                        title={lang === 'PT' ? 'Abrir em nova aba' : 'Open in new tab'}
+                      >
+                        <ExternalLink size={12} />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BRAND COLORS PALETTE */}
+                <div className="border border-slate-100 bg-slate-50/40 rounded-2xl p-6">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 mb-4 flex items-center gap-1.5">
+                    <div className="w-1.5 h-3 bg-[#7BA7FF] rounded-full" />
+                    {lang === 'PT' ? 'Paleta de Cores do Ecossistema' : 'Ecosystem Color Palette'}
+                  </h4>
+                  <p className="text-[10px] text-slate-500 mb-4 leading-relaxed max-w-xl">
+                    {lang === 'PT'
+                      ? 'Nossos códigos hexadecimais primários que compõem o design estético do KYRON OS. Clique em qualquer um deles para copiar instantaneamente para a sua área de transferência.'
+                      : 'Our core identifier hexadecimal color values that shape the KYRON OS aesthetic. Click on any color swatch to copy the code instantly.'}
+                  </p>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                      { name: lang === 'PT' ? 'Azul Digital' : 'Digital Blue', value: '#7BA7FF', hoverBg: 'bg-[#7BA7FF]' },
+                      { name: lang === 'PT' ? 'Charcoal Cósmico' : 'Cosmic Charcoal', value: '#0F172A', hoverBg: 'bg-[#0F172A]' },
+                      { name: lang === 'PT' ? 'Cinza Slate' : 'Slate Gray', value: '#64748B', hoverBg: 'bg-[#64748B]' },
+                      { name: lang === 'PT' ? 'Branco Ambiente' : 'Ambient White', value: '#F8FAFC', hoverBg: 'bg-[#F8FAFC]', border: true }
+                    ].map((color) => (
+                      <button
+                        key={color.value}
+                        onClick={() => copyToClipboard(color.value)}
+                        className={`p-3 rounded-xl border ${color.border ? 'border-slate-300' : 'border-slate-200'} bg-white text-left hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer relative group`}
+                      >
+                        <div className={`w-full h-12 rounded-lg mb-2 relative overflow-hidden flex items-center justify-center ${color.hoverBg} border border-slate-200/50 shadow-xs`} />
+                        <span className="text-[9px] font-bold text-slate-800 block uppercase tracking-wider">{color.name}</span>
+                        <span className="text-[10px] font-mono text-slate-400 block mt-0.5">{color.value}</span>
+                        
+                        <div className="absolute right-3 bottom-3 text-[9px] font-black uppercase tracking-widest text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                          <Copy size={9} />
+                          {lang === 'PT' ? 'Copiar' : 'Copy'}
+                        </div>
+
+                        {copiedColor === color.value && (
+                          <div className="absolute inset-x-3 bottom-3 bg-[#EAF2FF] text-indigo-900 text-[8.5px] font-black uppercase tracking-widest py-1 px-1.5 rounded text-center">
+                            {lang === 'PT' ? 'Copiado!' : 'Copied!'}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* QUALITY & LICENSE DECLARATION */}
+                <div className="bg-[#7BA7FF]/5 border border-[#7BA7FF]/20 rounded-2xl p-5 flex flex-col sm:flex-row items-start gap-4">
+                  <div className="p-2 sm:p-3 bg-[#7BA7FF]/15 text-[#6094FF] rounded-xl shrink-0">
+                    <ShieldCheck size={18} className="stroke-[2.5]" />
+                  </div>
+                  <div>
+                    <h5 className="text-[11px] font-extrabold uppercase tracking-widest text-slate-900">
+                      {lang === 'PT' ? 'Diretrizes de Identidade Visual Ativa' : 'Active Visual Identity Guidelines'}
+                    </h5>
+                    <p className="text-[10px] text-slate-600 mt-1.5 leading-relaxed">
+                      {lang === 'PT'
+                        ? 'Estes ativos são marcas registradas do ecossistema KYRON OS. Você está autorizado a utilizá-los para fins de divulgação biológica, relatórios de evolução de atletas ou integrações parceiras, desde que a integridade original das proporções do logotipo seja sempre mantida e respeitada.'
+                        : 'These branding assets are trademarks of the KYRON OS ecosystem. You are authorized to use them for biometric reports, athlete promotion, or partnership integrations, provided the typography and aspect ratios are respected.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* FOOTER */}
+              <div className="bg-slate-50 px-6 sm:px-8 py-4 border-t border-slate-200/50 flex justify-end">
+                <button
+                  onClick={() => setShowBrandKit(false)}
+                  className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[9.5px] uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-xs"
+                >
+                  {lang === 'PT' ? 'Fechar' : 'Close'}
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
