@@ -250,17 +250,6 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/30 to-transparent" />
           
           <div className="absolute top-3 left-3 flex gap-1.5 items-center">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider backdrop-blur-md border border-white/10 ${p.premium ? 'bg-[#7BA7FF]/35 text-white' : 'bg-slate-800/40 text-slate-200'}`}>
-              {p.premium ? 'Premium' : 'Público'}
-            </span>
-            {p.featured && (
-              <span className="inline-flex items-center px-2 py-0.5 bg-emerald-500/80 border border-white/10 text-white rounded-full text-[8.5px] font-black tracking-wider uppercase shadow-sm">
-                Novo
-              </span>
-            )}
-          </div>
-
-          <div className="absolute bottom-2.5 left-3">
             <span className="text-[8px] font-black text-white uppercase tracking-widest bg-black/30 border border-white/10 px-2.5 py-0.5 rounded-full">
               {p.goal === 'hypertrophy' ? 'Hipertrofia' : p.goal === 'strength' ? 'Força' : p.goal === 'weight_loss' ? 'Emagrecimento' : 'Performance'}
             </span>
@@ -268,7 +257,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
         </div>
 
         {/* Info detail */}
-        <div className="p-4 flex flex-col flex-grow justify-between min-h-[145px] gap-2">
+        <div className="p-4 flex flex-col flex-grow justify-between min-h-[125px] gap-2">
           <div className="space-y-1.5">
             <h4 className="text-[13px] font-extrabold uppercase text-slate-900 group-hover:text-[#7BA7FF] transition-colors leading-[1.3] truncate" title={p.name}>
               {p.name}
@@ -287,7 +276,6 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
             <span className="text-[9px] font-black text-slate-400 group-hover:text-[#7BA7FF] transition-colors uppercase tracking-widest flex items-center gap-1.5">
               Ver Protocolo <ArrowRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
             </span>
-            <span className="text-[10px] text-slate-450 font-bold">{p.athletes_count?.toLocaleString('pt-BR')} atletas</span>
           </div>
         </div>
       </motion.div>
@@ -722,7 +710,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                         setSelectedProtocol(null);
                         setShowCheckoutModal(true);
                       }}
-                      className="w-full py-4 bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-md cursor-pointer max-w-full truncate flex-shrink-0"
+                      className="btn-primary w-full shadow-md py-4 text-xs font-black uppercase tracking-[0.2em]"
                     >
                       Tornar-se Premium
                     </button>
@@ -732,7 +720,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                     type="button"
                     disabled={loadingAction === selectedProtocol.id}
                     onClick={() => handleCloneProtocol(selectedProtocol)}
-                    className="w-full py-4 bg-[#7BA7FF] hover:bg-[#828df9] text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-lg shadow-[#7BA7FF]/15 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98 max-w-full truncate flex-shrink-0"
+                    className="btn-primary w-full py-4 text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
                   >
                     {loadingAction === selectedProtocol.id ? (
                       <span className="text-white/60 animate-pulse">Sincronizando Metodologia...</span>
@@ -747,7 +735,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedProtocol(null)}
-                  className="w-full py-2 text-slate-400 hover:text-slate-650 font-bold text-[9px] uppercase tracking-widest text-center cursor-pointer max-w-full truncate flex-shrink-0"
+                  className="btn-text w-full py-2 hover:opacity-100 text-[10px] font-bold text-slate-400 hover:text-slate-600 tracking-widest text-center"
                 >
                   Fechar Visualização
                 </button>
@@ -808,14 +796,14 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                 <button
                   type="button"
                   onClick={handleSubscribeNow}
-                  className="w-full py-4 bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white font-black text-xs uppercase tracking-[0.25em] rounded-2xl shadow-lg active:scale-95 transition-all cursor-pointer text-center max-w-full truncate flex-shrink-0"
+                  className="btn-primary w-full py-4 text-xs font-black uppercase tracking-[0.25em] text-center"
                 >
                   Confirmar Assinatura (Simulado)
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowCheckoutModal(false)}
-                  className="w-full py-2 text-slate-400 hover:text-slate-650 font-bold text-[9px] uppercase tracking-widest text-center cursor-pointer max-w-full truncate flex-shrink-0"
+                  className="btn-text w-full py-2 hover:opacity-100 text-[10px] font-bold text-slate-400 hover:text-slate-650 tracking-widest text-center"
                 >
                   Voltar para Biblioteca
                 </button>
