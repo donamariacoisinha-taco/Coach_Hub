@@ -207,7 +207,7 @@ export const MinhaDieta: React.FC = () => {
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-[#A5C8FF]/5 rounded-full pointer-events-none blur-3xl opacity-30" />
 
       {/* 1. EDITORIAL INTEGRATE CONTROL BAR */}
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between bg-white/70 backdrop-blur-2xl border border-white/40 rounded-[2.5rem] p-6 shadow-sm gap-4">
+      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between bg-white/70 backdrop-blur-2xl border border-white/40 rounded-3xl p-6 shadow-sm gap-4">
         
         {/* Assistant Title Unit */}
         <div className="flex items-center space-x-4 pl-1">
@@ -219,7 +219,7 @@ export const MinhaDieta: React.FC = () => {
               METABOLIC INTELLIGENCE ENGINE
             </span>
             <span className="text-sm font-light text-slate-800 tracking-tight block">
-              Rubi Intelligence • Metabolic Assistant
+              KYRON OS Engine • Metabolic Assistant
             </span>
           </div>
         </div>

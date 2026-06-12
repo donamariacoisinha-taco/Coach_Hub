@@ -1081,13 +1081,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                 })}
               </div>
 
-              <div className="p-6 sm:p-8 space-y-8">
+              <div className="p-5 sm:p-6 space-y-6">
                 {brandKitTab === 'logos' && (
                   <motion.div
                     key="logos-tab"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="space-y-8"
+                    className="space-y-6"
                   >
                     {/* LOGO GRID */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1677,27 +1677,44 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       {[
-                        { name: 'Landing Page', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
-                        { name: 'Dashboard', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
-                        { name: 'Biblioteca Premium', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
-                        { name: 'Admin Panel', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
-                        { name: 'Login', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
-                        { name: 'Cadastro', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
-                        { name: 'Share Cards', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
-                        { name: 'PWA', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
-                        { name: 'Splash Screen', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' },
-                        { name: 'Mobile App', spec: lang === 'PT' ? '✓ Ativo' : '✓ Active' }
-                      ].map((item, i) => (
-                        <div key={i} className="flex items-center justify-between bg-white border border-slate-200 p-3.5 rounded-xl hover:shadow-xs transition-shadow">
-                          <div className="flex items-center gap-3">
-                            <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                              <Check size={11} className="stroke-[3]" />
+                        { 
+                          category: lang === 'PT' ? 'App Icon' : 'App Icon', 
+                          items: ['PWA', lang === 'PT' ? 'Lançador Mobile' : 'Mobile Launcher', 'App Store', 'Play Store'] 
+                        },
+                        { 
+                          category: lang === 'PT' ? 'Logo' : 'Logo', 
+                          items: ['Navbar', 'Dashboard', lang === 'PT' ? 'Autenticação' : 'Authentication', 'Footer'] 
+                        },
+                        { 
+                          category: lang === 'PT' ? 'Favicon' : 'Favicon', 
+                          items: [lang === 'PT' ? 'Abas do Navegador' : 'Browser Tabs', lang === 'PT' ? 'Favoritos' : 'Bookmarks', lang === 'PT' ? 'Atalhos Desktop' : 'Desktop Shortcuts'] 
+                        },
+                        { 
+                          category: lang === 'PT' ? 'Splash Screen' : 'Splash Screen', 
+                          items: [lang === 'PT' ? 'Inicialização Mobile' : 'Mobile Launch', lang === 'PT' ? 'Inicialização Tablet' : 'Tablet Launch', lang === 'PT' ? 'Carregamento Desktop' : 'Desktop Loading'] 
+                        }
+                      ].map((grp, gIdx) => (
+                        <div key={gIdx} className="bg-slate-50/60 border border-slate-200/60 p-4 rounded-2xl flex flex-col justify-between">
+                          <div>
+                            <h5 className="text-[10px] font-black uppercase text-slate-800 tracking-widest border-b border-slate-200/50 pb-1.5 mb-2.5">
+                              {grp.category}
+                            </h5>
+                            <div className="flex flex-wrap gap-1.5">
+                              {grp.items.map((it, i) => (
+                                <span 
+                                  key={i} 
+                                  className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-600 bg-white border border-slate-250/50 rounded-lg hover:border-[#7BA7FF]/30 transition-all cursor-default select-none shadow-xs"
+                                >
+                                  {it}
+                                </span>
+                              ))}
                             </div>
-                            <span className="text-[10.5px] font-bold text-slate-800">{item.name}</span>
                           </div>
-                          <span className="text-[8.5px] font-mono font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">{item.spec}</span>
+                          <div className="text-[8px] font-mono text-slate-400 mt-3 text-right">
+                            ✓ STANDARD ACTIVE
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1768,10 +1785,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
 
                         <div className="space-y-4">
                           {[
-                            { name: lang === 'PT' ? 'Nível de Alinhamento' : 'Alignment Score', value: 98, level: lang === 'PT' ? 'Perfeito' : 'Perfect', color: 'bg-emerald-500' },
-                            { name: lang === 'PT' ? 'Margens e Preenchimento' : 'Padding Score', value: 95, level: lang === 'PT' ? 'Excelente' : 'Excellent', color: 'bg-[#7BA7FF]' },
-                            { name: lang === 'PT' ? 'Contraste Cromático' : 'Contrast Score', value: 97, level: lang === 'PT' ? 'Otimizado' : 'Optimized', color: 'bg-indigo-500' },
-                            { name: lang === 'PT' ? 'Legibilidade e Resolução' : 'Readability Score', value: 94, level: lang === 'PT' ? 'Alta Fidelidade' : 'High Fidelity', color: 'bg-[#818CF8]' }
+                            { name: lang === 'PT' ? 'Área de Segurança (Safe Area Ratio)' : 'Safe Area Ratio', value: 98, level: lang === 'PT' ? 'Perfeito' : 'Perfect', color: 'bg-emerald-500' },
+                            { name: lang === 'PT' ? 'Alinhamento de Símbolos (Symbol Alignment)' : 'Symbol Alignment', value: 96, level: lang === 'PT' ? 'Alinhado' : 'Centered', color: 'bg-[#7BA7FF]' },
+                            { name: lang === 'PT' ? 'Equilíbrio Geométrico (Geometric Balance)' : 'Geometric Balance', value: 97, level: lang === 'PT' ? 'Simétrico' : 'Balanced', color: 'bg-indigo-500' },
+                            { name: lang === 'PT' ? 'Centro Óptico (Optical Center)' : 'Optical Center', value: 95, level: lang === 'PT' ? 'Otimizado' : 'Optimized', color: 'bg-[#818CF8]' },
+                            { name: lang === 'PT' ? 'Conformidade de Marca (Brand Compliance)' : 'Brand Compliance', value: 100, level: lang === 'PT' ? 'Aprovado' : 'Approved', color: 'bg-emerald-600' }
                           ].map((metric, i) => (
                             <div key={i} className="space-y-1.5">
                               <div className="flex items-center justify-between text-[11px] font-bold">

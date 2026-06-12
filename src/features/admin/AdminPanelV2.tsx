@@ -84,11 +84,11 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
       <aside className="fixed left-0 top-0 bottom-0 w-80 bg-white border-r border-slate-200 hidden lg:flex flex-col z-40">
         <div className="p-8">
           <div className="flex items-center gap-4 mb-12 cursor-pointer group" onClick={onBack}>
-            <div className="w-12 h-12 bg-slate-950 rounded-[1.25rem] flex items-center justify-center text-white shadow-2xl shadow-slate-950/20 group-hover:scale-110 transition-transform">
-              <Sparkles size={24} className="text-blue-400" />
+            <div className="w-12 h-12 bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] rounded-[1.25rem] flex items-center justify-center text-white shadow-2xl shadow-blue-500/20 group-hover:scale-110 transition-transform">
+              <Sparkles size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="font-black text-2xl tracking-tighter leading-none group-hover:text-blue-600 transition-colors">RUBI <span className="text-blue-600 group-hover:text-slate-950">OS</span></h1>
+              <h1 className="font-black text-2xl tracking-tighter leading-none group-hover:text-[#7BA7FF] transition-colors">KYRON <span className="text-[#7BA7FF] group-hover:text-slate-950">OS</span></h1>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mt-1.5 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                 Admin v2.0
@@ -106,20 +106,20 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 group ${
                     isActive 
-                      ? 'bg-slate-950 text-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] ring-1 ring-white/10' 
+                      ? 'bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white shadow-lg shadow-[#7BA7FF]/20 border-transparent' 
                       : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'
                   }`}
                 >
-                  <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-white group-hover:text-blue-600 shadow-sm border border-slate-100'}`}>
+                  <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-white/20 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-white group-hover:text-[#7BA7FF] shadow-sm border border-slate-100'}`}>
                     <Icon size={18} />
                   </div>
                   <div className="flex-1 text-left">
                     <p className="text-xs font-black uppercase tracking-widest">{tab.label}</p>
-                    <p className={`text-[10px] font-medium leading-none mt-1 ${isActive ? 'text-blue-200' : 'text-slate-400'}`}>
+                    <p className={`text-[10px] font-medium leading-none mt-1 ${isActive ? 'text-blue-105' : 'text-slate-400'}`}>
                       {tab.desc}
                     </p>
                   </div>
-                  {isActive && <ChevronRight size={14} className="text-blue-400" />}
+                  {isActive && <ChevronRight size={14} className="text-white" />}
                 </button>
               );
             })}
@@ -156,7 +156,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
             <button onClick={onBack} className="p-3 rounded-2xl bg-white shadow-sm border border-slate-100 active:scale-95 transition-all">
                <ArrowLeft size={18} />
             </button>
-            <h1 className="font-black text-xl tracking-tighter">RUBI <span className="text-blue-600">OS</span></h1>
+            <h1 className="font-black text-xl tracking-tighter">KYRON <span className="text-[#7BA7FF]">OS</span></h1>
           </div>
 
           <div className="hidden lg:block">

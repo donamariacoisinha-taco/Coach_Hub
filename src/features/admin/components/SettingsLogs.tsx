@@ -121,14 +121,14 @@ const SettingsLogs: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 text-left">
               {/* Settings Configuration Card */}
               <div className="lg:col-span-8 space-y-12">
-                <section className="bg-white rounded-[3rem] border border-slate-200 p-10 shadow-sm">
+                <section className="bg-white rounded-3xl border border-slate-200 p-10 shadow-sm">
                   <div className="flex items-center gap-4 mb-8">
                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
                       <Settings size={22} />
                     </div>
                     <div>
                       <h3 className="text-lg font-black uppercase tracking-tight text-slate-900">Configurações Gerais</h3>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Parâmetros Operacionais do Rubi OS</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Parâmetros Operacionais do KYRON OS</p>
                     </div>
                   </div>
 
@@ -183,27 +183,45 @@ const SettingsLogs: React.FC = () => {
                 </section>
               </div>
 
-              {/* Logs Sidebar */}
+              {/* Core Activity Sidebar */}
               <div className="lg:col-span-4">
-                <div className="bg-slate-950 rounded-[3rem] p-8 text-white shadow-2xl shadow-slate-950/10 flex flex-col min-h-[450px]">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
+                <div className="bg-slate-950 rounded-[3rem] p-8 text-white shadow-2xl shadow-slate-950/10 flex flex-col justify-between min-h-[450px]">
+                  <div>
+                    <div className="flex items-center gap-3 mb-8">
                       <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-[#7BA7FF]">
                         <FileText size={15} />
                       </div>
                       <h4 className="text-[10px] font-black uppercase tracking-widest italic">Core Activity</h4>
                     </div>
-                  </div>
 
-                  <div className="space-y-4 overflow-y-auto pr-1 flex-1">
-                    <LogEntry time="2m ago" user="Rubi AI" action="Auto-approved" target="Supino Reto" />
-                    <LogEntry time="1h ago" user="System" action="Batch Sync" target="142 Itens" />
-                    <LogEntry time="14h ago" user="System" action="Backup Diário" target="Concluído" />
+                    <div className="space-y-6">
+                      {[
+                        { label: 'Status do Sistema', value: 'Totalmente Operacional', sub: 'Todos os módulos inteligentes online', badge: 'Online', badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+                        { label: 'Última Atualização', value: 'Hoje, às 04:13', sub: 'Sincronização de banco concluída por completo' },
+                        { label: 'Atletas Ativos', value: '1,248 Usuários Ativos', sub: 'Logados nas últimas 24 horas' },
+                        { label: 'Novos Protocolos', value: '12 Adicionados', sub: 'Programas de hipertrofia refinados nesta semana' }
+                      ].map((activity, i) => (
+                        <div key={i} className="border-b border-white/5 pb-4 last:border-0 last:pb-0">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-[#7BA7FF]/80 mb-1">{activity.label}</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-white tracking-tight">{activity.value}</span>
+                            {activity.badge && (
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase border ${activity.badgeColor}`}>
+                                {activity.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[9.5px] text-slate-400 mt-0.5 leading-normal font-normal">{activity.sub}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   
-                  <button className="mt-6 w-full py-3.5 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/55 hover:text-white hover:bg-white/10 transition-all cursor-pointer">
-                     Full System Diagnostic
-                  </button>
+                  <div className="pt-6 border-t border-white/5 mt-8">
+                    <p className="text-[8px] font-mono text-slate-500 text-center uppercase tracking-widest">
+                      KYRON OS V2.5 // COMPLIANCE CONTROL
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

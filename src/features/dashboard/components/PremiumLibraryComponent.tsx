@@ -190,7 +190,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
   const getCreatorLabel = (by: string) => {
     switch (by) {
       case 'rubi_ai':
-        return 'Rubi Intelligence';
+        return 'KYRON OS Engine';
       case 'coach_kyron':
         return 'Kyron Elite';
       case 'admin':
@@ -243,7 +243,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
             Biblioteca Premium
           </h1>
           <p className="text-xs sm:text-sm leading-relaxed text-slate-500 max-w-lg font-normal">
-            Protocolos desenvolvidos por especialistas e refinados pela <span className="text-[#7BA7FF] font-semibold">Rubi Intelligence</span>.
+            Protocolos desenvolvidos por especialistas e refinados pela inteligência adaptativa do <span className="text-[#7BA7FF] font-semibold">KYRON OS</span>.
           </p>
           <div className="text-[10px] sm:text-xs text-[#7BA7FF] font-medium tracking-normal pt-1 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#7BA7FF] animate-pulse" />
@@ -304,10 +304,19 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
               <p className="text-xs sm:text-sm font-normal text-slate-500 line-clamp-2 leading-relaxed">
                 {featuredProtocol.description}
               </p>
-              <div className="flex gap-2 pt-0.5">
-                <span className="inline-flex items-center gap-1 text-[8px] font-medium px-2 py-0.5 rounded-full bg-[#7BA7FF]/5 text-[#7BA7FF] border border-[#7BA7FF]/10">
-                  <Brain size={10} className="text-[#7BA7FF]" /> Rubi Intelligence
+              <div className="flex flex-wrap gap-2 pt-1.5">
+                <span className="rounded-full text-xs font-medium px-2.5 py-1 bg-[#7BA7FF]/10 border border-[#7BA7FF]/20 text-[#7BA7FF] select-none">
+                  Rubi
                 </span>
+                {featuredProtocol.premium ? (
+                  <span className="rounded-full text-xs font-medium px-2.5 py-1 bg-slate-900 border border-slate-900 text-white select-none">
+                    Premium
+                  </span>
+                ) : (
+                  <span className="rounded-full text-xs font-medium px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-700 select-none">
+                    Público
+                  </span>
+                )}
               </div>
             </div>
 
@@ -429,9 +438,22 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                   </div>
 
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100/60 mt-auto">
-                    <span className="inline-flex items-center gap-1 text-[8px] font-medium px-2 py-0.5 rounded-full bg-[#7BA7FF]/5 text-[#7BA7FF] border border-[#7BA7FF]/10 shrink-0">
-                      <Brain size={10} className="text-[#7BA7FF]" /> Rubi Intelligence
-                    </span>
+                    <div className="flex gap-1.5 shrink-0">
+                      {p.premium ? (
+                        <span className="rounded-full text-[10.5px] font-medium px-2.5 py-0.5 bg-slate-900 border border-slate-900 text-white select-none">
+                          Premium
+                        </span>
+                      ) : (
+                        <span className="rounded-full text-[10.5px] font-medium px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 select-none">
+                          Público
+                        </span>
+                      )}
+                      {p.featured && (
+                        <span className="rounded-full text-[10.5px] font-medium px-2.5 py-0.5 bg-emerald-50 border border-emerald-250 text-emerald-600 select-none">
+                          Novo
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[9px] font-black text-[#7BA7FF] uppercase tracking-widest flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                       Abrir protocolo →
                     </span>
@@ -474,17 +496,17 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
               <div className="space-y-4 pt-1 pb-6 border-b border-slate-100 pr-8">
                 <div className="flex flex-wrap gap-2">
                   {selectedProtocol.premium ? (
-                    <span className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase text-white bg-[#0F172A] px-3.5 py-1 rounded-full shadow-sm shrink-0">
-                      <Crown size={9} /> Premium
+                    <span className="rounded-full text-xs font-medium px-2.5 py-1 bg-slate-900 border border-slate-900 text-white select-none">
+                      Premium
                     </span>
                   ) : (
-                    <span className="text-[8px] font-[1000] uppercase text-[#0F172A] bg-slate-100 border border-slate-200 px-3 py-1 rounded-full shrink-0">
-                      Livre
+                    <span className="rounded-full text-xs font-medium px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-700 select-none">
+                      Público
                     </span>
                   )}
 
-                  <span className="text-[8px] font-black uppercase text-[#7BA7FF] bg-blue-50 border border-blue-100 px-3 py-1 rounded-full shrink-0">
-                    ✓ Validado por Rubi AI
+                  <span className="rounded-full text-xs font-medium px-2.5 py-1 bg-[#7BA7FF]/10 border border-[#7BA7FF]/20 text-[#7BA7FF] select-none">
+                    Rubi
                   </span>
                 </div>
 
@@ -653,7 +675,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                   <span className="text-[9px] font-black text-[#7BA7FF] uppercase tracking-[0.25em]">Acesso Exclusivo</span>
                   <h3 className="text-2xl font-light text-slate-900 tracking-tight uppercase">Kyron Premium Club</h3>
                   <p className="text-xs text-slate-505 leading-relaxed max-w-sm font-normal">
-                    Assine agora de forma livre simulada para desbloquear todo o repositório de elite monitorado pela Rubi Intelligence.
+                    Assine agora de forma livre simulada para desbloquear todo o repositório de elite monitorado pelo motor adaptativo do KYRON OS.
                   </p>
                 </div>
               </div>

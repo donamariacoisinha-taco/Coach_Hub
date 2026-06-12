@@ -579,8 +579,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     }}
                   >
                     <div className="flex items-center gap-1.5 text-indigo-300">
-                      <Sparkles size={11} className="text-[#7BA7FF] animate-pulse" />
-                      <span className="text-[9px] font-black uppercase tracking-widest">Rubi Intelligence</span>
+                      <Sparkles size={11} className="text-[#7BA7FF]" />
+                      <span className="text-[9px] font-black uppercase tracking-widest">KYRON OS Engine</span>
                     </div>
                     <p className="text-[10px] font-bold text-slate-100 tracking-tight leading-tight mt-1">
                       ✨ Descubra exercícios ideais para o seu objetivo
@@ -718,28 +718,28 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         </header>
         
         {/* NAVIGATION TAB CONTROLS */}
-        <div className="flex bg-white/50 backdrop-blur-md p-1 rounded-[2rem] border border-white/70 mb-8 shadow-inner">
+        <div className="flex bg-white/70 backdrop-blur-xl p-1 rounded-3xl border border-white/40 mb-8 shadow-sm">
           <button 
             onClick={() => { setActiveTab('protocols'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 py-3.5 rounded-[1.6rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === 'protocols' ? 'bg-white text-[#7BA7FF] shadow-sm font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex-1 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'protocols' ? 'bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white shadow-md shadow-[#7BA7FF]/15' : 'text-slate-500 hover:text-slate-855'}`}
           >
-            <Dumbbell size={13} className={activeTab === 'protocols' ? 'text-[#7BA7FF]' : 'text-slate-400'} />
+            <Dumbbell size={13} className={activeTab === 'protocols' ? 'text-white' : 'text-slate-400'} />
             Protocolos
           </button>
           {isAdmin(profile) && (
             <button 
               onClick={() => { setActiveTab('premium'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-              className={`flex-1 py-3.5 rounded-[1.6rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === 'premium' ? 'bg-slate-950 text-[#818CF8] bg-gradient-to-r from-slate-900 to-slate-950 shadow-sm font-extrabold border border-indigo-500/10' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex-1 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'premium' ? 'bg-gradient-to-r from-[#818CF8] to-[#9333EA] text-white shadow-md shadow-[#818CF8]/15' : 'text-slate-500 hover:text-slate-855'}`}
             >
-              <Crown size={12} className={activeTab === 'premium' ? 'text-amber-400' : 'text-slate-400'} />
+              <Crown size={12} className={activeTab === 'premium' ? 'text-white' : 'text-slate-400'} />
               Biblioteca Premium (Admin)
             </button>
           )}
           <button 
             onClick={() => { setActiveTab('evolution'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 py-3.5 rounded-[1.6rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === 'evolution' ? 'bg-[#7BA7FF] text-white shadow-md shadow-[#7BA7FF]/15 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex-1 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'evolution' ? 'bg-gradient-to-r from-[#059669] to-[#10B981] text-white shadow-md shadow-emerald-500/15' : 'text-slate-500 hover:text-slate-855'}`}
           >
-            <Activity size={13} className={activeTab === 'evolution' ? 'text-white animate-pulse' : 'text-slate-400'} />
+            <Activity size={13} className={activeTab === 'evolution' ? 'text-white' : 'text-slate-400'} />
             Evolução
           </button>
         </div>
@@ -869,10 +869,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               <div className="flex gap-3 overflow-x-auto no-scrollbar border-b border-slate-100 -mx-6 px-6 pb-2.5">
                 <button
                   onClick={() => setActiveFolderId(null)}
-                  className={`text-[9.5px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+                  className={`text-[9.5px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
                     activeFolderId === null 
-                      ? "bg-slate-900 text-white shadow-sm" 
-                      : "bg-white text-slate-400 hover:text-slate-700 border border-slate-200/40"
+                      ? "bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white shadow-md shadow-[#7BA7FF]/15 border-transparent font-extrabold" 
+                      : "bg-white/70 backdrop-blur-xl border border-slate-200/40 text-slate-400 hover:text-[#7BA7FF] hover:bg-white"
                   }`}
                 >
                   Todos
@@ -881,10 +881,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                   <div key={folder.id} className="relative flex items-center shrink-0">
                     <button
                       onClick={() => setActiveFolderId(folder.id)}
-                      className={`text-[9.5px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all whitespace-nowrap flex items-center gap-2 ${
+                      className={`text-[9.5px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
                         activeFolderId === folder.id 
-                          ? "bg-slate-900 text-white shadow-sm" 
-                          : "bg-white text-slate-400 hover:text-slate-700 border border-slate-200/40"
+                          ? "bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white shadow-md shadow-[#7BA7FF]/15 border-transparent font-extrabold" 
+                          : "bg-white/70 backdrop-blur-xl border border-slate-200/40 text-slate-400 hover:text-[#7BA7FF] hover:bg-white"
                       }`}
                     >
                       <span>{folder.name}</span>
@@ -1313,14 +1313,14 @@ const FolderCreateModal: React.FC<FolderCreateModalProps> = ({ isOpen, onClose, 
                 <button 
                   type="submit"
                   disabled={loading || !name.trim()}
-                  className="w-full py-6 bg-slate-900 rounded-3xl font-black text-white uppercase text-[11px] tracking-[0.4em] shadow-2xl shadow-slate-900/30 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  className="w-full py-4.5 bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] hover:opacity-95 text-white rounded-3xl font-black uppercase text-[11px] tracking-[0.4em] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-md shadow-[#7BA7FF]/15 cursor-pointer"
                 >
                   {loading ? <Loader2 size={16} className="animate-spin" /> : 'Criar Pasta'}
                 </button>
                 <button 
                   type="button" 
                   onClick={onClose} 
-                  className="w-full py-2 text-slate-300 font-black uppercase text-[10px] tracking-[0.2em] active:text-slate-900 transition-colors"
+                  className="w-full py-2 text-slate-400 hover:text-slate-700 font-bold uppercase text-[9px] tracking-[0.2em] transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1353,7 +1353,7 @@ const MagicBuildModal: React.FC<{
                                 <Sparkles size={32} />
                             </div>
                             <h3 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Exercise Knowledge Engine</h3>
-                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">A Rubi Intelligence montará o protocolo ideal agora</p>
+                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">O motor adaptivo do KYRON OS estruturará seu treino</p>
                         </div>
 
                         <div className="space-y-8">
