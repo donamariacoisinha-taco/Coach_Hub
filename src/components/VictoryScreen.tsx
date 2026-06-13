@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Trophy, ArrowRight, Share2, CheckCircle2, Flame, Star } from "lucide-react";
+import { Trophy, ArrowRight, Share2, CheckCircle2, Flame, Star, RotateCcw } from "lucide-react";
 import { useNavigation } from "../App";
 import { authApi } from "../lib/api/authApi";
 import { workoutApi } from "../lib/api/workoutApi";
@@ -19,9 +19,10 @@ interface VictoryScreenProps {
   duration: number;
   exercisesCount: number;
   onDone?: () => void;
+  onReturn?: () => void;
 }
 
-export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duration, exercisesCount, onDone }) => {
+export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duration, exercisesCount, onDone, onReturn }) => {
   const { navigate } = useNavigation();
   const [totalVolume, setTotalVolume] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -199,6 +200,15 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
         >
           Ir para Dashboard <ArrowRight size={16} />
         </button>
+        {onReturn && (
+          <button 
+            type="button"
+            onClick={onReturn}
+            className="w-full h-16 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-transform border border-slate-200"
+          >
+            <RotateCcw size={16} className="text-[#7BA7FF]" /> Retornar e Ajustar
+          </button>
+        )}
         <button 
           className="w-full h-16 bg-white border border-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-transform"
         >

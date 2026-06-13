@@ -46,6 +46,7 @@ import { useExercisePreview } from '../context/ExercisePreviewContext';
 import { workoutApi } from '../lib/api/workoutApi';
 import { exerciseApi } from '../lib/api/exerciseApi';
 import { authApi } from '../lib/api/authApi';
+import { cacheStore } from '../lib/cache/cacheStore';
 import { ExerciseReplaceScreen } from './ExerciseReplaceScreen';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { WorkoutExercise, Exercise, SetType, SetConfig, WorkoutCategory } from '../types';
@@ -487,6 +488,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   const { showError, showSuccess } = useErrorHandler();
 
   const [loading, setLoading] = useState(true);
+  const [savingToDb, setSavingToDb] = useState(false);
   const [workoutName, setWorkoutName] = useState('Preparando Treino');
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [category, setCategory] = useState<WorkoutCategory | null>(null);
@@ -511,23 +513,67 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   const [activeId, setActiveId] = useState<string | null>(null);
   const lastOverIdRef = React.useRef<string | null>(null);
 
-  // Setup sensors for dragging with tap-prevent criteria
+  // Setup sensors for dragging with tap-prevent criteria (adjusted sensitivity to prevent accidental reordering)
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 20, // Increased distance threshold to avoid accidental dragging on light scrolling
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 180,
-        tolerance: 8,
+        delay: 300, // Added press and hold requirement (300ms) on mobile to fully avoid accidental dragging
+        tolerance: 10,
       },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Unified callback to save modifications to state, localStorage fallback, and permanently to database
+  const updateAndSaveExercises = useCallback(async (getNewExercises: (prev: WorkoutExercise[]) => WorkoutExercise[]) => {
+    let nextList: WorkoutExercise[] = [];
+    setExercises(prev => {
+      nextList = getNewExercises(prev);
+      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(nextList));
+      return nextList;
+    });
+
+    setSavingToDb(true);
+    try {
+      // Delete existing exercises from database template
+      await workoutApi.deleteExercisesByCategory(workoutId);
+      
+      // Save new list to database
+      if (nextList.length > 0) {
+        const preparedPayload = nextList.map((ex, i) => ({
+          category_id: workoutId,
+          exercise_id: ex.exercise_id,
+          exercise_name_snapshot: ex.exercise_name,
+          sets: ex.sets_json?.length || ex.sets || 3,
+          sets_json: ex.sets_json || Array.from({ length: ex.sets || 3 }).map(() => ({
+            reps: ex.reps || '10',
+            weight: ex.weight || 0,
+            rest_time: ex.rest_time || 60,
+            type: SetType.NORMAL
+          })),
+          sort_order: i + 1,
+          superset_id: ex.superset_id || null
+        }));
+        await workoutApi.insertWorkoutExercises(preparedPayload);
+      }
+      
+      // Clear cache systems
+      cacheStore.clear(`workout_init_${workoutId}`);
+      cacheStore.clear(`editor_init_${workoutId}`);
+      cacheStore.clear('dashboard_data');
+    } catch (err) {
+      console.error('[WorkoutPreparation] Error persisting exercises to database:', err);
+    } finally {
+      setSavingToDb(false);
+    }
+  }, [workoutId]);
 
   // Load database workout & favorites
   useEffect(() => {
@@ -598,7 +644,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
     setActiveId(null);
     lastOverIdRef.current = null;
     if (over && active.id !== over.id) {
-      setExercises((prev) => {
+      updateAndSaveExercises((prev) => {
         const oldIdx = prev.findIndex((item) => item.id === active.id);
         const newIdx = prev.findIndex((item) => item.id === over.id);
         const next = arrayMove(prev, oldIdx, newIdx);
@@ -613,11 +659,11 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
     } else {
       playHapticFeedback('light');
     }
-  }, []);
+  }, [updateAndSaveExercises]);
 
   const handleMoveUp = useCallback((idx: number) => {
     if (idx > 0) {
-      setExercises((prev) => {
+      updateAndSaveExercises((prev) => {
         const next = [...prev];
         const temp = next[idx];
         next[idx] = next[idx - 1];
@@ -630,10 +676,10 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
       });
       if ('vibrate' in navigator) navigator.vibrate(10);
     }
-  }, []);
+  }, [updateAndSaveExercises]);
 
   const handleMoveDown = useCallback((idx: number) => {
-    setExercises((prev) => {
+    updateAndSaveExercises((prev) => {
       if (idx < prev.length - 1) {
         const next = [...prev];
         const temp = next[idx];
@@ -648,11 +694,9 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
       return prev;
     });
     if ('vibrate' in navigator) navigator.vibrate(10);
-  }, []);
-
-  // Update load of index
+  }, [updateAndSaveExercises]);
   const handleUpdateWeight = useCallback((idx: number, weight: number) => {
-    setExercises(prev => {
+    updateAndSaveExercises(prev => {
       const next = [...prev];
       next[idx] = {
         ...next[idx],
@@ -665,17 +709,14 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
             type: SetType.NORMAL
           }))
       };
-      
-      // Save instantly to session Cache
-      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(next));
       return next;
     });
     if ('vibrate' in navigator) navigator.vibrate(10);
-  }, [workoutId]);
+  }, [updateAndSaveExercises]);
 
   // Update reps of index
   const handleUpdateReps = useCallback((idx: number, reps: string) => {
-    setExercises(prev => {
+    updateAndSaveExercises(prev => {
       const next = [...prev];
       next[idx] = {
         ...next[idx],
@@ -688,14 +729,13 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
             type: SetType.NORMAL
           }))
       };
-      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(next));
       return next;
     });
-  }, [workoutId]);
+  }, [updateAndSaveExercises]);
 
   // Enable note editor
   const handleAddNote = useCallback((idx: number) => {
-    setExercises(prev => {
+    updateAndSaveExercises(prev => {
       const next = [...prev];
       next[idx] = {
         ...next[idx],
@@ -703,32 +743,30 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
       };
       return next;
     });
-  }, []);
+  }, [updateAndSaveExercises]);
 
   // Write Note
   const handleUpdateNote = useCallback((idx: number, notes: string) => {
-    setExercises(prev => {
+    updateAndSaveExercises(prev => {
       const next = [...prev];
       next[idx] = {
         ...next[idx],
         notes
       };
-      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(next));
       return next;
     });
-  }, [workoutId]);
+  }, [updateAndSaveExercises]);
 
   // Undo note
   const handleRemoveNote = useCallback((idx: number) => {
-    setExercises(prev => {
+    updateAndSaveExercises(prev => {
       const next = [...prev];
       const target = { ...next[idx] };
       delete target.notes;
       next[idx] = target;
-      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(next));
       return next;
     });
-  }, [workoutId]);
+  }, [updateAndSaveExercises]);
 
   // Substitute/Replace Exercise Selector open
   const handleOpenReplace = useCallback((idx: number) => {
@@ -746,7 +784,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
 
   // Duplicate target exercise
   const handleDuplicateExercise = useCallback((idx: number) => {
-    setExercises(prev => {
+    updateAndSaveExercises(prev => {
       const next = [...prev];
       const source = next[idx];
       const tempId = `dup-ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -759,17 +797,16 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
 
       next.splice(idx + 1, 0, duplicated);
       const reordered = next.map((item, i) => ({ ...item, order: i + 1 }));
-      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(reordered));
       return reordered;
     });
     showSuccess('Exercício duplicado', 'O exercício foi duplicado com sucesso.');
-  }, [workoutId, showSuccess]);
+  }, [updateAndSaveExercises, showSuccess]);
 
   // Substitute finalized selection or append/insert new exercise
   const handleSelectSubstitute = useCallback((exercise: Exercise | Exercise[]) => {
     if (replacingIndex !== null) {
       if (Array.isArray(exercise)) return; // Should not happen in replacing mode
-      setExercises(prev => {
+      updateAndSaveExercises(prev => {
         const next = [...prev];
         const target = next[replacingIndex];
 
@@ -782,7 +819,6 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
           type: exercise.type,
         };
 
-        localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(next));
         return next;
       });
       setShowExerciseSelector(false);
@@ -792,7 +828,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
       // Adding/Inserting a new exercise to the workout session
       const exerciseArray = Array.isArray(exercise) ? exercise : [exercise];
 
-      setExercises(prev => {
+      updateAndSaveExercises(prev => {
         let next = [...prev];
 
         exerciseArray.forEach((exItem, itemIdx) => {
@@ -835,7 +871,6 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
         });
 
         const reordered = next.map((item, i) => ({ ...item, order: i + 1 }));
-        localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(reordered));
         return reordered;
       });
 
@@ -848,20 +883,19 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
         : `${exerciseArray[0].name} adicionado ao treino de hoje.`;
       showSuccess(successTitle, successDesc);
     }
-  }, [replacingIndex, addAfterIndex, workoutId, showSuccess]);
+  }, [replacingIndex, addAfterIndex, updateAndSaveExercises, showSuccess, workoutId]);
 
   // Delete exercise
   const handleRemoveExercise = useCallback((idx: number) => {
-    setExercises(prev => {
+    updateAndSaveExercises(prev => {
       const next = prev.filter((_, i) => i !== idx).map((ex, i) => ({
         ...ex,
         order: i + 1
       }));
-      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(next));
       return next;
     });
     if ('vibrate' in navigator) navigator.vibrate([10, 20]);
-  }, [workoutId]);
+  }, [updateAndSaveExercises]);
 
   // Sets count click modal open
   const handleEditSetsReps = useCallback((idx: number) => {
@@ -876,7 +910,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   // Save detailed sets configuration
   const handleSaveSetsRepsModal = () => {
     if (editingSetsIndex === null) return;
-    setExercises(prev => {
+    updateAndSaveExercises(prev => {
       const next = [...prev];
       const ex = next[editingSetsIndex];
       const currentSets = ex.sets_json || [];
@@ -918,7 +952,6 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
         sets_json: nextSets
       };
 
-      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(next));
       return next;
     });
     setEditingSetsIndex(null);
@@ -947,6 +980,10 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
     try {
       // 1. Ensure any stale sessions in WorkoutPlayer has been cleaned
       useWorkoutStore.getState().resetWorkout();
+
+      // Clear cached data so the player is forced to fetch the freshly ordered DB data
+      cacheStore.clear(`workout_init_${workoutId}`);
+      cacheStore.clear(`editor_init_${workoutId}`);
 
       // 2. Clear old caches and trigger the session starting on workout view route
       // We explicitly leave `workout_session_temp_${workoutId}` persisted in localStorage.

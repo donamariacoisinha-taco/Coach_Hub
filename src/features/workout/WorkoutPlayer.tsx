@@ -181,7 +181,7 @@ const SetCard = ({
         default: transitionConfig
       } : transitionConfig}
       className={`flex flex-col items-stretch ${isAdvanced ? 'p-3' : 'p-4'} rounded-2xl transition-all duration-300 border-2 ${
-        isCompleted ? (focusMode ? "bg-slate-900/30 border-slate-900/60" : "bg-slate-50/50") : 
+        isCompleted ? (focusMode ? "bg-slate-900 border-slate-900/60" : "bg-slate-50") : 
         isPending ? "bg-slate-50 border-dashed animate-pulse cursor-wait" :
         (focusMode ? "bg-slate-900 border-slate-900/60" : "bg-white")
       } ${isCurrent && intensity === 'HIGH' && !isPending ? (focusMode ? 'border-[#7BA7FF] ring-4 ring-[#7BA7FF]/25 shadow-[0_0_30px_rgba(123,167,255,0.2)]' : 'border-[#7BA7FF] ring-4 ring-[#7BA7FF]/10') : ''}`}
@@ -387,7 +387,7 @@ const SwipeableSetCard: React.FC<SwipeableSetCardProps> = ({
       <div className="absolute inset-0 bg-rose-50 flex items-center justify-end px-6 text-rose-500 rounded-2xl border border-rose-100/50 z-0">
         <div className="flex items-center gap-1.5 font-extrabold text-[10px] uppercase tracking-wider">
           <span>Excluir Série {idx + 1}</span>
-          <Trash2 size={14} strokeWidth={2.5} className="animate-pulse" />
+          <Trash2 size={14} strokeWidth={2.5} />
         </div>
       </div>
 
@@ -429,14 +429,13 @@ const SwipeableSetRow: React.FC<SwipeableSetRowProps> = ({
   onDeleteRequest,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-
   return (
     <div ref={containerRef} className="relative overflow-hidden rounded-xl h-11 select-none">
       {/* Red Delete Background */}
       <div className="absolute inset-0 bg-rose-50 flex items-center justify-end px-4 text-rose-500 rounded-xl border border-rose-100 z-0">
         <div className="flex items-center gap-1.5 font-extrabold text-[9px] uppercase tracking-wider">
           <span>Excluir</span>
-          <Trash2 size={13} strokeWidth={2.5} className="animate-pulse" />
+          <Trash2 size={13} strokeWidth={2.5} />
         </div>
       </div>
 
@@ -456,9 +455,9 @@ const SwipeableSetRow: React.FC<SwipeableSetRowProps> = ({
         }}
         className={`absolute inset-0 flex justify-between items-center py-2 px-3 rounded-xl border cursor-grab active:cursor-grabbing transition-colors duration-155 z-10 ${
           isCompleted 
-            ? 'bg-emerald-50/20 border-emerald-100/55 text-emerald-900 shadow-sm' 
+            ? 'bg-emerald-50 border-emerald-100 text-emerald-900 shadow-sm' 
             : isCurrent 
-              ? 'bg-blue-50/20 border-blue-100/55 text-[#7BA7FF] shadow-sm' 
+              ? 'bg-blue-50 border-blue-100 text-[#7BA7FF] shadow-sm' 
               : 'bg-white border-slate-100 text-slate-600 shadow-sm'
         } text-xs font-bold font-mono`}
       >
@@ -507,21 +506,19 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const isAdvanced = userLevel === 'ADVANCED';
 
   type DockState = 'minimized' | 'compact' | 'expanded';
-  const [dockState, setDockState] = useState<DockState>('minimized');
+  const [dockState, setDockState] = useState<DockState>('compact');
   const userExpandedRef = useRef<boolean>(false);
+  const userDockPreferenceRef = useRef<DockState>('compact');
 
   useEffect(() => {
     if (isResting) {
-      setDockState('compact');
-    }
-  }, [isResting]);
-
-  useEffect(() => {
-    if (!isResting && !userExpandedRef.current) {
-      const timer = setTimeout(() => {
-        setDockState('minimized');
-      }, 3000);
-      return () => clearTimeout(timer);
+      if (userDockPreferenceRef.current !== 'expanded') {
+        setDockState('compact');
+      } else {
+        setDockState('expanded');
+      }
+    } else {
+      setDockState(userDockPreferenceRef.current);
     }
   }, [isResting]);
 
@@ -540,16 +537,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     if (isSwipeUp) {
       if (dockState === 'minimized') {
         setDockState('compact');
+        userDockPreferenceRef.current = 'compact';
       } else if (dockState === 'compact') {
         setDockState('expanded');
         userExpandedRef.current = true;
+        userDockPreferenceRef.current = 'expanded';
       }
     } else if (isSwipeDown) {
       if (dockState === 'expanded') {
         setDockState('compact');
         userExpandedRef.current = false;
+        userDockPreferenceRef.current = 'compact';
       } else if (dockState === 'compact') {
         setDockState('minimized');
+        userDockPreferenceRef.current = 'minimized';
       }
     }
   };
@@ -2464,6 +2465,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           duration={workoutDuration}
           exercisesCount={exercises.length}
           onDone={() => { resetWorkout(); navigate('dashboard'); }}
+          onReturn={() => setIsFinished(false)}
         />
       )}
 
@@ -2902,10 +2904,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 onClick={() => {
                   playSensoryTone?.('click');
                   playHapticFeedback?.('light');
-                  setDockState(current => 
-                    current === 'minimized' ? 'compact' : 
-                    current === 'compact' ? 'expanded' : 'minimized'
-                  );
+                  setDockState(current => {
+                    const next = current === 'minimized' ? 'compact' : 
+                                 current === 'compact' ? 'expanded' : 'minimized';
+                    userDockPreferenceRef.current = next;
+                    userExpandedRef.current = next === 'expanded';
+                    return next;
+                  });
                 }}
                 className="w-full py-1.5 flex items-center justify-center cursor-pointer group shrink-0"
               >
@@ -2986,7 +2991,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     )}
                   </button>
 
-                  <div className="flex flex-col items-end shrink-0 cursor-pointer" onClick={() => setDockState('compact')}>
+                  <div 
+                    className="flex flex-col items-end shrink-0 cursor-pointer" 
+                    onClick={() => {
+                      setDockState('compact');
+                      userDockPreferenceRef.current = 'compact';
+                    }}
+                  >
                     <span className="text-[7px] font-black uppercase tracking-[0.25em] text-slate-400 font-sans">DESCANSO</span>
                     <span className={`text-xs font-black tracking-tight font-mono ${isResting ? 'text-[#7BA7FF] animate-pulse' : 'text-slate-400'}`}>
                       {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
