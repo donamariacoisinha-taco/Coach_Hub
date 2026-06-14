@@ -312,34 +312,74 @@ export const workoutApi = {
   },
 
   async startWorkoutHistory(userId: string, workoutId: string, categoryName: string) {
-    const { data, error } = await supabase.from('workout_history').insert([{ 
-      user_id: userId, 
-      category_id: workoutId, 
-      category_name: categoryName 
-    }]).select().single();
-    
-    if (error) throw error;
-    return data as WorkoutHistory;
+    try {
+      const { data, error } = await supabase.from('workout_history').insert([{ 
+        user_id: userId, 
+        category_id: workoutId, 
+        category_name: categoryName 
+      }]).select().single();
+      
+      if (error) throw error;
+      return data as WorkoutHistory;
+    } catch (err: any) {
+      console.warn("[workoutApi] Failed to start workout history online. Using local mock history fallback.", err);
+      const mockHistory: WorkoutHistory = {
+        id: `mock-history-${Date.now()}`,
+        user_id: userId,
+        category_id: workoutId,
+        category_name: categoryName,
+        completed_at: null,
+        duration_minutes: 0,
+        exercises_count: 0,
+        created_at: new Date().toISOString()
+      };
+      
+      try {
+        localStorage.setItem(`rubi_mock_history_${mockHistory.id}`, JSON.stringify(mockHistory));
+      } catch (e) {
+        console.error("Local storage error in mock history fallback", e);
+      }
+      return mockHistory;
+    }
   },
 
   async upsertPartialSession(userId: string, workoutId: string, historyId: string, startTime: string) {
-    const { error } = await supabase.from('partial_workout_sessions').upsert({ 
-      user_id: userId, 
-      workout_id: workoutId, 
-      history_id: historyId, 
-      start_time: startTime,
-      updated_at: new Date().toISOString()
-    });
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from('partial_workout_sessions').upsert({ 
+        user_id: userId, 
+        workout_id: workoutId, 
+        history_id: historyId, 
+        start_time: startTime,
+        updated_at: new Date().toISOString()
+      });
+      if (error) throw error;
+    } catch (err) {
+      console.warn("[workoutApi] Failed to upsert partial session online. Using local storage fallback.", err);
+      try {
+        localStorage.setItem(`rubi_partial_session_${workoutId}`, JSON.stringify({
+          user_id: userId,
+          workout_id: workoutId,
+          history_id: historyId,
+          start_time: startTime,
+          updated_at: new Date().toISOString()
+        }));
+      } catch (e) {
+        console.error("Local storage error in partial session fallback", e);
+      }
+    }
   },
 
   async updatePartialSession(historyId: string, currentIndex: number, currentSet: number) {
-    const { error } = await supabase.from('partial_workout_sessions').update({
-      current_index: currentIndex,
-      current_set: currentSet,
-      updated_at: new Date().toISOString()
-    }).eq('history_id', historyId);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from('partial_workout_sessions').update({
+        current_index: currentIndex,
+        current_set: currentSet,
+        updated_at: new Date().toISOString()
+      }).eq('history_id', historyId);
+      if (error) throw error;
+    } catch (err) {
+      console.warn("[workoutApi] Failed to update partial session online. Tolerating offline state.", err);
+    }
   },
 
   async getLastSet(exerciseId: string) {
@@ -579,24 +619,38 @@ export const workoutApi = {
   },
 
   async upsertPartialWorkoutSession(payload: any) {
-    const { error } = await supabase.from('partial_workout_sessions').upsert(payload);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from('partial_workout_sessions').upsert(payload);
+      if (error) throw error;
+    } catch (err) {
+      console.warn("[workoutApi] Failed to upsert partial session (from payload). Tolerating offline.", err);
+    }
   },
 
   async getWorkoutLogsSimple(historyId: string) {
-    const { data, error } = await supabase.from('workout_sets_log').select('*').eq('history_id', historyId);
-    if (error) throw error;
-    return data || [];
+    try {
+      const { data, error } = await supabase.from('workout_sets_log').select('*').eq('history_id', historyId);
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn("[workoutApi] Failed to get simple workout logs. Returning empty list.", err);
+      return [];
+    }
   },
 
   async getPartialSession(userId: string) {
-    const { data, error } = await supabase
-      .from('partial_workout_sessions')
-      .select('workout_id, history_id')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('partial_workout_sessions')
+        .select('workout_id, history_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    } catch (err: any) {
+      console.warn("[workoutApi] Failed to get partial session. Returning null (offline/connection issue).", err);
+      return null;
+    }
   },
 
   async saveSetLog(payload: any) {

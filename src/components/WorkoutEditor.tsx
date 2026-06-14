@@ -16,6 +16,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent
@@ -436,7 +437,13 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 20, // Increased distance threshold to avoid accidental dragging on light scrolling
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 300, // Added press and hold requirement (300ms) on mobile to fully avoid accidental dragging
+        tolerance: 10,
       },
     }),
     useSensor(KeyboardSensor, {

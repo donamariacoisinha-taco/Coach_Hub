@@ -1,0 +1,8 @@
+{
+	"appId": "com.coach.digital.adaptativo",
+	"appName": "Coach Digital Adaptativo",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	}
+}
