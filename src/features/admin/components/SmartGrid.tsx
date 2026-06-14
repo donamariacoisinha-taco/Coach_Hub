@@ -15,7 +15,9 @@ import {
   EyeOff,
   Edit3,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  X,
+  Loader2
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
 import { useLibraryStore } from '../store/libraryStore';
@@ -24,6 +26,7 @@ import { Exercise } from '../../../types';
 import InlineCellEditor from './InlineCellEditor';
 import { adminApi } from '../../../lib/api/adminApi';
 import { VisibilityBadge, VisibilityToggle } from './VisibilityBadge';
+import { checkExerciseDependencies } from '../utils/dependencyTracking';
 
 interface SmartGridProps {
   selectedIds: string[];
@@ -46,6 +49,28 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
   const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Deletion Curation & Dependency states
+  const [deletingExercise, setDeletingExercise] = useState<Exercise | null>(null);
+  const [dependencies, setDependencies] = useState<{ protocols: any[], templates: any[], userWorkouts: any[] } | null>(null);
+  const [loadingDependencies, setLoadingDependencies] = useState(false);
+  const [confirmDeleteText, setConfirmDeleteText] = useState('');
+
+  // Handle request to delete
+  const handleDeleteRequest = async (ex: Exercise) => {
+    setDeletingExercise(ex);
+    setDependencies(null);
+    setConfirmDeleteText('');
+    setLoadingDependencies(true);
+    try {
+      const deps = await checkExerciseDependencies(ex.id);
+      setDependencies(deps);
+    } catch (err: any) {
+      showError('Erro ao carregar dependências', err.message || 'Erro inesperado.');
+    } finally {
+      setLoadingDependencies(false);
+    }
+  };
 
   // Column Filters state
   const [colFilters, setColFilters] = useState({
@@ -294,7 +319,159 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
   }
 
   return (
-    <div className="flex-1 overflow-auto no-scrollbar">
+    <>
+      {deletingExercise && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-2xl flex flex-col gap-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 tracking-tight uppercase">Remover Exercício</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase mt-1">Garantia de Integridade de Dados</p>
+              </div>
+              <button 
+                onClick={() => { setDeletingExercise(null); setDependencies(null); }} 
+                className="p-2 text-slate-400 hover:text-slate-900 rounded-lg cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex bg-slate-50 border border-slate-100 rounded-2xl p-4 gap-3">
+              <AlertCircle className="text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-xs font-bold text-slate-950 uppercase">Analisando Dependências...</p>
+                <p className="text-[11px] text-slate-500 mt-1">Verificando se o exercício &quot;{deletingExercise.name}&quot; é usado por programas ativos ou históricos.</p>
+              </div>
+            </div>
+
+            {loadingDependencies ? (
+              <div className="flex flex-col items-center justify-center py-6 gap-2">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Varrendo a base de dados...</span>
+              </div>
+            ) : dependencies ? (
+              <div className="space-y-4">
+                {(dependencies.protocols.length > 0 || dependencies.templates.length > 0 || dependencies.userWorkouts.length > 0) ? (
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-red-50/50 border border-red-100 text-red-800">
+                      <p className="text-xs font-black uppercase flex items-center gap-2">
+                        <Skull size={14} /> Remoção Proibida / Bloqueada
+                      </p>
+                      <p className="text-[11px] text-red-600 mt-1 font-medium">Este exercício possui vínculos ativos e NÃO deve ser excluído para evitar erros no aplicativo de alunos.</p>
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto space-y-3 pr-2">
+                      {dependencies.protocols.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Protocolos Vinculados ({dependencies.protocols.length})</span>
+                          <div className="space-y-1">
+                            {dependencies.protocols.map(p => (
+                              <div key={p.id} className="text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-lg">{p.name}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {dependencies.templates.length > 0 && (
+                        <div className="space-y-1 mt-2">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Templates Globais ({dependencies.templates.length})</span>
+                          <div className="space-y-1">
+                            {dependencies.templates.map(t => (
+                              <div key={t.id} className="text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-lg">{t.name}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {dependencies.userWorkouts.length > 0 && (
+                        <div className="space-y-1 mt-2">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Sessões de Treino de Alunos ({dependencies.userWorkouts.length})</span>
+                          <div className="space-y-1">
+                            {dependencies.userWorkouts.map(w => (
+                              <div key={w.id} className="text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-lg">{w.name}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-slate-400 font-bold uppercase text-center py-2">Recomendação: Arquive este exercício em vez de excluí-lo permanentemente.</p>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await updateExercise(deletingExercise.id, { curation_status: 'archived', is_active: false });
+                          showSuccess('Arquivado', 'Exercício foi movido para o Arquivo e desativado com segurança.');
+                          setDeletingExercise(null);
+                          setDependencies(null);
+                        } catch (err: any) {
+                          showError('Erro ao arquivar', err.message);
+                        }
+                      }}
+                      className="w-full py-4.5 bg-slate-900 border border-slate-800 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <ShieldCheck size={14} /> Arquivar Exercício (Seguro)
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 text-emerald-800">
+                      <p className="text-xs font-black uppercase flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-emerald-600" /> Sem Vínculos Ativos
+                      </p>
+                      <p className="text-[11px] text-emerald-600 mt-1">Este exercício não está sendo usado em protocolos, templates ou treinos do usuário. Pode ser excluído com segurança.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Confirme digitando o nome exato do exercício:</label>
+                      <input
+                        type="text"
+                        value={confirmDeleteText}
+                        onChange={e => setConfirmDeleteText(e.target.value)}
+                        placeholder={deletingExercise.name}
+                        className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl text-xs font-bold outline-none focus:border-red-500"
+                      />
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => { setDeletingExercise(null); setDependencies(null); }}
+                        className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={confirmDeleteText !== deletingExercise.name}
+                        onClick={async () => {
+                          try {
+                            await deleteExercise(deletingExercise.id);
+                            showSuccess('Excluído', 'Exercício excluído permanentemente da base.');
+                            setDeletingExercise(null);
+                            setDependencies(null);
+                          } catch (err: any) {
+                            showError('Erro ao excluir', err.message);
+                          }
+                        }}
+                        className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer ${
+                          confirmDeleteText === deletingExercise.name
+                            ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200'
+                            : 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                        }`}
+                      >
+                        Excluir Permanentemente
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+      <div className="flex-1 overflow-auto no-scrollbar">
        <table className="w-full text-left border-collapse min-w-[1300px]">
           <thead className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-sm shadow-slate-100/50">
              <tr className="bg-slate-50/20">
@@ -638,7 +815,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                           <button 
                             onClick={async (e) => {
                               e.stopPropagation();
-                              if (window.confirm(`Tem certeza de que deseja excluir permanentemente o exercício "${ex.name}"? Esta ação não pode ser desfeita.`)) {
+                               { handleDeleteRequest(ex); } if (false) {
                                 try {
                                   await deleteExercise(ex.id);
                                   showSuccess('Removido', 'Exercício excluído com sucesso.');
@@ -744,7 +921,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                                       onClick={async (e) => {
                                         e.stopPropagation();
                                         setMenuOpenId(null);
-                                        if (window.confirm(`Tem certeza de que deseja excluir permanentemente o exercício "${ex.name}"? Esta ação não pode ser desfeita.`)) {
+                                        { handleDeleteRequest(ex); } if (false) {
                                           try {
                                             await deleteExercise(ex.id);
                                             showSuccess('Removido', 'Exercício excluído com sucesso.');
@@ -770,6 +947,7 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
           </tbody>
        </table>
     </div>
+    </>
   );
 };
 

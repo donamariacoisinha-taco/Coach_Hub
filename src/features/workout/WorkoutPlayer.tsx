@@ -874,10 +874,25 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     playSensoryTone('click');
   };
 
-  const handleConfirmDeleteSet = async (sIdx: number) => {
-    if (!currentEx) return;
+  const handleDeleteSet = (sIdx: number) => {
+    // Commit any other pending deleted first
+    if (deleteTimeoutRef.current) {
+      clearTimeout(deleteTimeoutRef.current);
+      deleteTimeoutRef.current = null;
+    }
 
-    // 1. Remove set from activeSetsData React state
+    const backup = {
+      sIdx,
+      setData: activeSetsData[sIdx],
+      isCompleted: completedSetIndices.has(sIdx),
+      activeSetsDataBefore: [...activeSetsData],
+      completedSetIndicesBefore: new Set(completedSetIndices),
+      currentSetBefore: currentSet,
+      exercisesBefore: JSON.parse(JSON.stringify(exercises)) // deep copy
+    };
+    setLastDeletedBackup(backup);
+
+    // 1. Immediately remove from React state (pure local and performance)
     const updatedSetsData = activeSetsData.filter((_, idx) => idx !== sIdx);
     setActiveSetsData(updatedSetsData);
     setWorkoutPerformance(prev => ({
@@ -900,12 +915,31 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     });
     setCompletedSetIndices(updatedCompleted);
 
-    // 4. Update the exercises store
+    // 4. Start 6-second timer to commit in DB
+    deleteTimeoutRef.current = setTimeout(() => {
+      commitPendingDeletion(updatedSetsData, sIdx, updatedCompleted);
+    }, 6000);
+
+    showSuccess("Série excluída.");
+    playSensoryTone?.('click');
+    if ('vibrate' in navigator) navigator.vibrate(30);
+  };
+
+  const commitPendingDeletion = async (setsToCommit: any[], deletedIdx: number, updatedCompleted: Set<number>) => {
+    setLastDeletedBackup(null);
+    if (deleteTimeoutRef.current) {
+      clearTimeout(deleteTimeoutRef.current);
+      deleteTimeoutRef.current = null;
+    }
+
+    if (!currentEx) return;
+
+    // Persist changes to DB
     const updatedExercises = [...exercises];
     const target = updatedExercises[currentIndex];
     if (target) {
       const currentSetsJson = target.sets_json || [];
-      const updatedSetsJson = currentSetsJson.filter((_, idx) => idx !== sIdx);
+      const updatedSetsJson = currentSetsJson.filter((_, idx) => idx !== deletedIdx);
       updatedExercises[currentIndex] = {
         ...target,
         sets: updatedSetsJson.length,
@@ -913,7 +947,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       };
       useWorkoutStore.setState({ exercises: updatedExercises } as any);
 
-      // 5. Persist immediately in backend database (workout_exercises)
       try {
         if (target.id) {
           await supabase.from('workout_exercises').update({
@@ -922,7 +955,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           }).eq('id', target.id);
         }
 
-        // 6. Persist/Sync workout_sets_log by deleting and re-syncing
+        // Persist/Sync logs
         await supabase.from('workout_sets_log')
           .delete()
           .eq('history_id', historyId)
@@ -930,9 +963,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
         const insertPromises = [];
         const user = await authApi.getUser();
-        for (let i = 0; i < updatedSetsData.length; i++) {
+        for (let i = 0; i < setsToCommit.length; i++) {
           if (updatedCompleted.has(i)) {
-            const s = updatedSetsData[i];
+            const s = setsToCommit[i];
             insertPromises.push(
               supabase.from('workout_sets_log').insert({
                 history_id: historyId,
@@ -951,13 +984,34 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         if (insertPromises.length > 0) {
           await Promise.all(insertPromises);
         }
-        
-        showSuccess("Série excluída e estatísticas recalculadas.");
-        if ('vibrate' in navigator) navigator.vibrate(50);
       } catch (err) {
         console.error("Erro ao persistir exclusão da série:", err);
       }
     }
+  };
+
+  const handleUndoDeleteSet = () => {
+    if (!lastDeletedBackup) return;
+
+    if (deleteTimeoutRef.current) {
+      clearTimeout(deleteTimeoutRef.current);
+      deleteTimeoutRef.current = null;
+    }
+
+    const backup = lastDeletedBackup;
+    setActiveSetsData(backup.activeSetsDataBefore);
+    setWorkoutPerformance(prev => ({
+      ...prev,
+      [currentIndex]: backup.activeSetsDataBefore
+    }));
+    setCurrentSet(backup.currentSetBefore);
+    setCompletedSetIndices(backup.completedSetIndicesBefore);
+    useWorkoutStore.setState({ exercises: backup.exercisesBefore } as any);
+
+    setLastDeletedBackup(null);
+    showSuccess("Série restaurada.");
+    playSensoryTone?.('success');
+    if ('vibrate' in navigator) navigator.vibrate(50);
   };
 
   const getSmartSelectorContext = () => {
@@ -1013,6 +1067,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [completedSetIndices, setCompletedSetIndices] = useState<Set<number>>(new Set());
   const [isHydrating, setIsHydrating] = useState(false);
   const [completedSetsByExercise, setCompletedSetsByExercise] = useState<Record<number, Set<number>>>({});
+  const [lastDeletedBackup, setLastDeletedBackup] = useState<any | null>(null);
+  const deleteTimeoutRef = useRef<any>(null);
+  const restEndTimestampRef = useRef<number | null>(null);
 
   // Sync completedSetIndices with completedSetsByExercise
   useEffect(() => {
@@ -1164,6 +1221,60 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
     hydrate();
   }, [historyId, exercises.length]);
+
+  // Continuity Storage Engine
+  useEffect(() => {
+    if (!historyId || isHydrating) return;
+    try {
+      const stateToSave = {
+        currentIndex,
+        currentSet,
+        activeSetsData,
+        workoutPerformance,
+        completedSetIndices: Array.from(completedSetIndices),
+        completedSetsByExercise: Object.fromEntries(
+          Object.entries(completedSetsByExercise).map(([exIdx, setObj]) => [exIdx, Array.from(setObj as Set<number>)])
+        )
+      };
+      localStorage.setItem(`workout_continuity_state_${historyId}`, JSON.stringify(stateToSave));
+    } catch (e) {
+      console.warn("Continuity save failed", e);
+    }
+  }, [currentIndex, currentSet, activeSetsData, workoutPerformance, completedSetIndices, completedSetsByExercise, historyId, isHydrating]);
+
+  useEffect(() => {
+    if (!historyId) return;
+    const localSaved = localStorage.getItem(`workout_continuity_state_${historyId}`);
+    if (localSaved) {
+      try {
+        const parsed = JSON.parse(localSaved);
+        log("[CONTINUITY] Restoring exact point of exit from localStorage:", parsed);
+        setIsHydrating(true);
+        if (parsed.currentIndex !== undefined) setCurrentIndex(parsed.currentIndex);
+        if (parsed.currentSet !== undefined) setCurrentSet(parsed.currentSet);
+        if (parsed.activeSetsData) {
+          setActiveSetsData(parsed.activeSetsData);
+        }
+        if (parsed.workoutPerformance) {
+          setWorkoutPerformance(parsed.workoutPerformance);
+        }
+        if (parsed.completedSetIndices) {
+          setCompletedSetIndices(new Set(parsed.completedSetIndices));
+        }
+        if (parsed.completedSetsByExercise) {
+          const restoredCompleted: Record<number, Set<number>> = {};
+          Object.entries(parsed.completedSetsByExercise).forEach(([exId, list]) => {
+            restoredCompleted[parseInt(exId)] = new Set(list as number[]);
+          });
+          setCompletedSetsByExercise(restoredCompleted);
+        }
+      } catch (err) {
+        console.error("Failed to restore from continuity storage", err);
+      } finally {
+        setIsHydrating(false);
+      }
+    }
+  }, [historyId]);
 
   useEffect(() => {
     async function checkRecovery() {
@@ -1674,7 +1785,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const promptAndSaveExerciseData = async (exObj: any, setsData: any[]) => {
     if (!exObj || !setsData || setsData.length === 0) return;
     
-    const confirmSave = await new Promise<boolean>((resolve) => {
+    try {
       const firstSet = setsData[0] || { weight: exObj.weight || 0, reps: parseInt(exObj.reps) || 10, rpe: exObj.default_rpe || 8 };
       const setsJsonList = setsData.map((s) => ({
         reps: String(s.reps),
@@ -1683,64 +1794,45 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         type: 'NORMAL' as any,
         rpe: Number(s.rpe || 8)
       }));
-      setSavePrompt({
-        exObj,
-        firstSet,
-        setsJson: setsJsonList,
-        resolve
+
+      // 1. Save to database workout_exercises
+      const { error } = await supabase.from('workout_exercises').update({
+        sets_json: setsJsonList,
+        weight: Number(firstSet.weight),
+        reps: String(firstSet.reps),
+        sets: setsData.length,
+        rest_time: Number(exObj.rest_time || 60),
+        default_rpe: Number(firstSet.rpe || 8)
+      }).eq('id', exObj.id);
+
+      if (error) throw error;
+
+      // Clear query caches to ensure fresh data loads on next workout / editor run
+      cacheStore.clear(`workout_init_${workoutId}`);
+      cacheStore.clear(`editor_init_${workoutId}`);
+
+      // 2. State Sync: Update current in-memory store so it keeps updated
+      const updatedExercises = exercises.map(ex => {
+        if (ex.id === exObj.id) {
+          return {
+            ...ex,
+            sets: setsData.length,
+            weight: Number(firstSet.weight),
+            reps: String(firstSet.reps),
+            rest_time: Number(exObj.rest_time || 60),
+            default_rpe: Number(firstSet.rpe || 8),
+            sets_json: setsJsonList
+          };
+        }
+        return ex;
       });
-    });
-    
-    if (confirmSave) {
-      try {
-        const firstSet = setsData[0] || { weight: exObj.weight || 0, reps: parseInt(exObj.reps) || 10, rpe: exObj.default_rpe || 8 };
-        const setsJsonList = setsData.map((s) => ({
-          reps: String(s.reps),
-          weight: Number(s.weight),
-          rest_time: Number(exObj.rest_time || 60),
-          type: 'NORMAL' as any,
-          rpe: Number(s.rpe || 8)
-        }));
+      useWorkoutStore.setState({ exercises: updatedExercises } as any);
 
-        // 1. Save to database workout_exercises
-        const { error } = await supabase.from('workout_exercises').update({
-          sets_json: setsJsonList,
-          weight: Number(firstSet.weight),
-          reps: String(firstSet.reps),
-          sets: setsData.length,
-          rest_time: Number(exObj.rest_time || 60),
-          default_rpe: Number(firstSet.rpe || 8)
-        }).eq('id', exObj.id);
-
-        if (error) throw error;
-
-        // Clear query caches to ensure fresh data loads on next workout / editor run
-        cacheStore.clear(`workout_init_${workoutId}`);
-        cacheStore.clear(`editor_init_${workoutId}`);
-
-        // 2. State Sync: Update current in-memory store so it keeps updated
-        const updatedExercises = exercises.map(ex => {
-          if (ex.id === exObj.id) {
-            return {
-              ...ex,
-              sets: setsData.length,
-              weight: Number(firstSet.weight),
-              reps: String(firstSet.reps),
-              rest_time: Number(exObj.rest_time || 60),
-              default_rpe: Number(firstSet.rpe || 8),
-              sets_json: setsJsonList
-            };
-          }
-          return ex;
-        });
-        useWorkoutStore.setState({ exercises: updatedExercises } as any);
-
-        showSuccess(`Os novos padrões de "${exObj.exercise_name}" foram salvos com sucesso!`);
-        playSensoryTone('success');
-      } catch (err: any) {
-        console.error("Error saving exercise default data:", err);
-        showError(`Erro ao salvar dados padrão do exercício: ${err?.message || err}`);
-      }
+      // Light, unobtrusive visual feedback
+      showSuccess(`Novos padrões de "${exObj.exercise_name}" salvos.`);
+      playSensoryTone('success');
+    } catch (err: any) {
+      console.error("Error saving exercise default data:", err);
     }
   };
 
@@ -1820,7 +1912,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     if (!isResting) {
       vibratedAlert5s.current = false;
       hasTriggeredRef.current = false;
+      restEndTimestampRef.current = null;
       return;
+    }
+
+    if (restEndTimestampRef.current === null) {
+      restEndTimestampRef.current = Date.now() + timeLeft * 1000;
     }
     
     // Progression trigger at 0
@@ -1843,8 +1940,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       if ('vibrate' in navigator) navigator.vibrate(50);
     }
 
-    const timer = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
-    return () => clearTimeout(timer);
+    const interval = setInterval(() => {
+      if (restEndTimestampRef.current !== null) {
+        const remaining = Math.max(0, Math.round((restEndTimestampRef.current - Date.now()) / 1000));
+        setTimeLeft(remaining);
+      }
+    }, 200);
+
+    return () => clearInterval(interval);
   }, [isResting, timeLeft, restOvertime, pendingSetToComplete]);
 
   // 1. Fetch History Effect - Independent of data initialization
@@ -1874,6 +1977,25 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     };
     fetchHistory();
   }, [currentEx?.exercise_id, historyId]);
+
+  // Preloading engine for next exercise: prefetch image and cached data
+  useEffect(() => {
+    if (!exercises || currentIndex >= exercises.length - 1) return;
+    const nextEx = exercises[currentIndex + 1];
+    if (nextEx) {
+      // 1. Preload image
+      const imgSrc = nextEx.exercise_image || nextEx.image_url;
+      if (imgSrc) {
+        const img = new Image();
+        img.src = imgSrc;
+      }
+      // 2. Preload data
+      if (nextEx.exercise_id) {
+        workoutApi.getLastSet(nextEx.exercise_id).catch(() => {});
+        workoutApi.getHistoricalSets(nextEx.exercise_id, historyId || undefined).catch(() => {});
+      }
+    }
+  }, [currentIndex, exercises, historyId]);
 
   // 2. Initialize Sets Data Effect - Only run on major context changes (exercise, index, hydration)
   const lastInitializedIdx = useRef<number | null>(null);
@@ -2737,8 +2859,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       key={setData.id || `${currentIndex}_${idx}`}
                       idx={idx}
                       onDeleteRequest={(index) => {
-                        if ('vibrate' in navigator) navigator.vibrate(30);
-                        setSetToDelete(index);
+                        handleDeleteSet(index);
                       }}
                     >
                       <SetCard 
@@ -2963,45 +3084,95 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
               {/* STATE 1 — MINIMIZED */}
               {activeDockMode === 'minimized' && (
-                <div className="flex items-center justify-between h-[64px] px-1 gap-4">
-                  <div className="flex flex-col items-start shrink-0">
-                    <span className="text-[7px] font-black uppercase tracking-[0.25em] text-slate-400">SÉRIE</span>
-                    <span className="text-xs font-black text-slate-700 tracking-tighter">
-                      {currentSet} DE {activeSetsData.length}
-                    </span>
-                  </div>
+                <div className="flex flex-col gap-2">
+                  {/* NEXT EXERCISE PREVIEW (if resting and final set) */}
+                  {isResting && isFinalSetOfExercise && exercises[currentIndex + 1] && (
+                    <div className="bg-[#7BA7FF]/5 border border-[#7BA7FF]/15 rounded-xl p-2.5 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <div className="w-10 h-8 bg-white rounded-lg overflow-hidden shrink-0 shadow-sm border border-slate-100/60">
+                        {exercises[currentIndex + 1].exercise_image || exercises[currentIndex + 1].image_url ? (
+                          <img src={exercises[currentIndex + 1].exercise_image || exercises[currentIndex + 1].image_url} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Dumbbell size={12} className="text-slate-300" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-[7.5px] font-[1000] uppercase text-[#7BA7FF] tracking-wider leading-none mb-0.5">A SEGUIR</p>
+                        <p className="text-[11px] font-black text-slate-800 truncate leading-tight">{exercises[currentIndex + 1].exercise_name}</p>
+                        <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">{exercises[currentIndex + 1].sets || exercises[currentIndex + 1].sets_json?.length || 3} Séries • {exercises[currentIndex + 1].muscle_group}</p>
+                      </div>
+                    </div>
+                  )}
 
-                  <button
-                    onClick={isResting ? () => { 
-                      log("[REST_SKIPPED] Manual skip");
-                      if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
-                    } : handleCompleteSet}
-                    disabled={saving || isTransitioning}
-                    className="flex-1 h-11 bg-[#7BA7FF] hover:bg-[#6b97ee] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md shadow-[#7BA7FF]/20"
-                  >
-                    {saving ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        {isResting 
-                          ? (timeLeft <= 0 ? "PRÓXIMA SÉRIE" : "PULAR DESCANSO") 
-                          : (isWorkoutTerminal ? "FINALIZAR TREINO" : "CONCLUIR SÉRIE")}
-                        {!isResting && (isWorkoutTerminal ? <CheckCircle2 size={12} strokeWidth={4} /> : <ArrowRight size={12} strokeWidth={4} />)}
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center justify-between h-[64px] px-1 gap-4">
+                    <div className="flex flex-col items-start shrink-0">
+                      <span className="text-[7px] font-black uppercase tracking-[0.25em] text-slate-400">SÉRIE</span>
+                      <span className="text-xs font-black text-slate-700 tracking-tighter">
+                        {currentSet} DE {activeSetsData.length}
+                      </span>
+                    </div>
 
-                  <div 
-                    className="flex flex-col items-end shrink-0 cursor-pointer" 
-                    onClick={() => {
-                      setDockState('compact');
-                      userDockPreferenceRef.current = 'compact';
-                    }}
-                  >
-                    <span className="text-[7px] font-black uppercase tracking-[0.25em] text-slate-400 font-sans">DESCANSO</span>
-                    <span className={`text-xs font-black tracking-tight font-mono ${isResting ? 'text-[#7BA7FF] animate-pulse' : 'text-slate-400'}`}>
-                      {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
-                    </span>
+                    <div className="flex items-center gap-2 flex-1">
+                      <button
+                        disabled={currentIndex === 0}
+                        onClick={() => {
+                          if (currentIndex > 0) {
+                            setCurrentIndex(currentIndex - 1);
+                            if ('vibrate' in navigator) navigator.vibrate(12);
+                          }
+                        }}
+                        className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all active:scale-90"
+                      >
+                        <ChevronLeft size={16} strokeWidth={4} />
+                      </button>
+
+                      <button
+                        onClick={isResting ? () => { 
+                          log("[REST_SKIPPED] Manual skip");
+                          if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
+                        } : handleCompleteSet}
+                        disabled={saving || isTransitioning}
+                        className="flex-1 h-11 bg-[#7BA7FF] hover:bg-[#6b97ee] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md shadow-[#7BA7FF]/20"
+                      >
+                        {saving ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            {isResting 
+                              ? (timeLeft <= 0 ? "PRÓXIMA SÉRIE" : "PULAR") 
+                              : (isWorkoutTerminal ? "FINALIZAR" : "CONCLUIR")}
+                            {!isResting && (isWorkoutTerminal ? <CheckCircle2 size={12} strokeWidth={4} /> : <ArrowRight size={12} strokeWidth={4} />)}
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        disabled={currentIndex === exercises.length - 1}
+                        onClick={() => {
+                          if (currentIndex < exercises.length - 1) {
+                            setCurrentIndex(currentIndex + 1);
+                            if ('vibrate' in navigator) navigator.vibrate(12);
+                          }
+                        }}
+                        className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all active:scale-90"
+                      >
+                        <ChevronRight size={16} strokeWidth={4} />
+                      </button>
+                    </div>
+
+                    <div 
+                      className="flex flex-col items-end shrink-0 cursor-pointer" 
+                      onClick={() => {
+                        setDockState('compact');
+                        userDockPreferenceRef.current = 'compact';
+                      }}
+                    >
+                      <span className="text-[7px] font-black uppercase tracking-[0.25em] text-slate-400 font-sans">DESCANSO</span>
+                      <span className={`text-xs font-black tracking-tight font-mono ${isResting ? 'text-[#7BA7FF] animate-pulse' : 'text-slate-400'}`}>
+                        {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -3009,6 +3180,26 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               {/* STATE 2 — COMPACT */}
               {activeDockMode === 'compact' && (
                 <div className="flex flex-col gap-3.5 pt-1.5 pb-4">
+                  {/* NEXT EXERCISE PREVIEW (if resting and final set) */}
+                  {isResting && isFinalSetOfExercise && exercises[currentIndex + 1] && (
+                    <div className="bg-[#7BA7FF]/5 border border-[#7BA7FF]/15 rounded-xl p-2.5 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <div className="w-11 h-9 bg-white rounded-lg overflow-hidden shrink-0 shadow-sm border border-slate-100/60">
+                        {exercises[currentIndex + 1].exercise_image || exercises[currentIndex + 1].image_url ? (
+                          <img src={exercises[currentIndex + 1].exercise_image || exercises[currentIndex + 1].image_url} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Dumbbell size={14} className="text-slate-350" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-[8px] font-black uppercase text-[#7BA7FF] tracking-wider leading-none mb-0.5">A SEGUIR</p>
+                        <p className="text-xs font-black text-slate-800 truncate leading-tight">{exercises[currentIndex + 1].exercise_name}</p>
+                        <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">{exercises[currentIndex + 1].sets || exercises[currentIndex + 1].sets_json?.length || 3} Séries • {exercises[currentIndex + 1].muscle_group}</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* 1. Timer Block */}
                   <div className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-xl p-1 shadow-sm">
                     <button 
@@ -3037,7 +3228,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <div className="grid grid-cols-3 gap-2 items-center text-center">
                     {/* PESO */}
                     <div className="flex flex-col items-center">
-                      <span className="text-[7px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">Peso</span>
+                      <span className="text-[7px] font-black uppercase tracking-[0.14em] text-slate-400 mb-0.5">Peso</span>
                       <div className="flex items-center gap-1 bg-slate-50/80 py-0.5 px-1 rounded-xl border border-slate-100">
                         <button 
                           onClick={() => {
@@ -3065,7 +3256,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                     {/* REPS */}
                     <div className="flex flex-col items-center">
-                      <span className="text-[7px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">Reps</span>
+                      <span className="text-[7px] font-black uppercase tracking-[0.14em] text-slate-400 mb-0.5">Reps</span>
                       <div className="flex items-center gap-1 bg-slate-50/80 py-0.5 px-1 rounded-xl border border-slate-100">
                         <button 
                           onClick={() => {
@@ -3093,7 +3284,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                     {/* RPE */}
                     <div className="flex flex-col items-center">
-                      <span className="text-[7px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">Esforço RPE</span>
+                      <span className="text-[7px] font-black uppercase tracking-[0.14em] text-slate-400 mb-0.5">Esforço RPE</span>
                       <div className="flex gap-0.5 bg-slate-50 p-0.5 rounded-xl border border-slate-100">
                         {[8, 9, 10].map(rpeVal => {
                           const active = (activeSetsData[currentSet - 1]?.rpe || 8) === rpeVal;
@@ -3119,26 +3310,54 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     </div>
                   </div>
 
-                  {/* 3. Concluir button */}
-                  <button
-                    onClick={isResting ? () => { 
-                      log("[REST_SKIPPED] Manual skip");
-                      if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
-                    } : handleCompleteSet}
-                    disabled={saving || isTransitioning}
-                    className="w-full h-11 bg-[#7BA7FF] hover:bg-[#6b97ee] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md shadow-[#7BA7FF]/25"
-                  >
-                    {saving ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        {isResting 
-                          ? (timeLeft <= 0 ? "PRÓXIMA SÉRIE" : "PULAR DESCANSO") 
-                          : (isWorkoutTerminal ? "FINALIZAR TREINO" : "CONCLUIR SÉRIE")}
-                        {!isResting && (isWorkoutTerminal ? <CheckCircle2 size={12} strokeWidth={4} /> : <ArrowRight size={12} strokeWidth={4} />)}
-                      </>
-                    )}
-                  </button>
+                  {/* 3. Navigation & Complete button row */}
+                  <div className="flex items-center gap-2 w-full">
+                    <button
+                      disabled={currentIndex === 0}
+                      onClick={() => {
+                        if (currentIndex > 0) {
+                          setCurrentIndex(currentIndex - 1);
+                          if ('vibrate' in navigator) navigator.vibrate(12);
+                        }
+                      }}
+                      className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all active:scale-90"
+                    >
+                      <ChevronLeft size={16} strokeWidth={4} />
+                    </button>
+
+                    <button
+                      onClick={isResting ? () => { 
+                        log("[REST_SKIPPED] Manual skip");
+                        if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
+                      } : handleCompleteSet}
+                      disabled={saving || isTransitioning}
+                      className="flex-1 h-11 bg-[#7BA7FF] hover:bg-[#6b97ee] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md shadow-[#7BA7FF]/25"
+                    >
+                      {saving ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          {isResting 
+                            ? (timeLeft <= 0 ? "PRÓXIMA SÉRIE" : "PULAR DESCANSO") 
+                            : (isWorkoutTerminal ? "FINALIZAR TREINO" : "CONCLUIR SÉRIE")}
+                          {!isResting && (isWorkoutTerminal ? <CheckCircle2 size={12} strokeWidth={4} /> : <ArrowRight size={12} strokeWidth={4} />)}
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      disabled={currentIndex === exercises.length - 1}
+                      onClick={() => {
+                        if (currentIndex < exercises.length - 1) {
+                          setCurrentIndex(currentIndex + 1);
+                          if ('vibrate' in navigator) navigator.vibrate(12);
+                        }
+                      }}
+                      className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all active:scale-90"
+                    >
+                      <ChevronRight size={16} strokeWidth={4} />
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -4332,6 +4551,40 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* FLOATING UNDO BANNER */}
+      <AnimatePresence>
+        {lastDeletedBackup && (
+          <motion.div
+            initial={{ opacity: 0, y: 100, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 100, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 28 }}
+            className="fixed bottom-24 left-4 right-4 z-[9999] max-w-sm mx-auto"
+          >
+            <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between gap-4 backdrop-blur-md bg-opacity-95">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
+                  <Trash2 size={18} strokeWidth={2.5} />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-black text-slate-100 leading-tight">Série excluída</p>
+                  <p className="text-[10px] font-bold text-slate-400 leading-none mt-1 font-sans">
+                    Toque para desfazer antes que expire
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleUndoDeleteSet}
+                className="bg-[#7BA7FF] hover:bg-[#6b97ee] text-white px-4 py-2 rounded-xl text-[10px] font-[1000] uppercase tracking-wider transition active:scale-95 duration-100 shadow-lg shadow-[#7BA7FF]/20"
+              >
+                Desfazer
+              </button>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

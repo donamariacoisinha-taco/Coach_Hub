@@ -158,6 +158,7 @@ export interface Exercise {
   updated_at?: string;
   
   // Governance & Quality
+  curation_status?: 'draft' | 'approved' | 'premium' | 'archived';
   movement_pattern?: 'push' | 'pull' | 'hinge' | 'squat' | 'lunge' | 'carry' | 'isolation';
   plane?: 'horizontal' | 'vertical' | 'sagittal' | 'frontal' | 'transverse';
   training_goal?: 'strength' | 'hypertrophy' | 'power' | 'endurance';
@@ -525,4 +526,73 @@ export interface SystemTemplate {
     updated_by: string;
     changes: string[];
   }[];
+}
+
+export interface HealthScoreResult {
+  score: number;
+  rating: 'Excellent' | 'Good' | 'Needs Review';
+}
+
+export function calculateExerciseHealthScore(ex: Exercise | null | undefined): HealthScoreResult {
+  if (!ex) {
+    return { score: 0, rating: 'Needs Review' };
+  }
+  let score = 0;
+  
+  // 1. Thumbnail (15 pts)
+  if (ex.thumbnail_url || ex.image_url) {
+    score += 15;
+  }
+  
+  // 2. Video (15 pts)
+  if (ex.video_url && ex.video_url.trim().length > 0) {
+    score += 15;
+  }
+  
+  // 3. Instructions (20 pts)
+  const instrLen = (ex.instructions || '').trim().length;
+  if (instrLen > 30) {
+    score += 20;
+  } else if (instrLen > 0) {
+    score += 10;
+  }
+  
+  // 4. Equipment (10 pts)
+  if (ex.equipment && ex.equipment.trim().toLowerCase() !== 'nenhum' && ex.equipment.trim().length > 0) {
+    score += 10;
+  }
+  
+  // 5. Muscle Group (10 pts)
+  if (ex.muscle_group && ex.muscle_group.trim().length > 0) {
+    score += 10;
+  }
+  
+  // 6. Secondary Muscles (10 pts)
+  if (ex.secondary_muscles && ex.secondary_muscles.length > 0) {
+    score += 10;
+  }
+  
+  // 7. Difficulty (10 pts)
+  if (ex.difficulty_level) {
+    score += 10;
+  }
+  
+  // 8. Category/Type (5 pts)
+  if (ex.type && ex.type.trim().length > 0) {
+    score += 5;
+  }
+  
+  // 9. Tags (5 pts)
+  if (ex.movement_pattern || ex.plane || ex.training_goal) {
+    score += 5;
+  }
+  
+  let rating: 'Excellent' | 'Good' | 'Needs Review' = 'Needs Review';
+  if (score >= 85) {
+    rating = 'Excellent';
+  } else if (score >= 70) {
+    rating = 'Good';
+  }
+  
+  return { score, rating };
 }
