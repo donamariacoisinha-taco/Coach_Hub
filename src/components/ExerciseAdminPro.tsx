@@ -47,6 +47,7 @@ export default function ExerciseAdminPro({
     media: false,
     biomech: false,
     ai: false,
+    qualityFlags: false,
     history: false
   });
   const [conflict, setConflict] = useState<any>(null);
@@ -469,6 +470,136 @@ export default function ExerciseAdminPro({
                     </ul>
                 </div>
               )}
+            </Accordion>
+
+            {/* Exercise Quality Flags & Alternatives */}
+            <Accordion
+              title="Selo de Qualidade e Substitutos"
+              icon={<ShieldCheck className="h-4 w-4" />}
+              open={sections.qualityFlags}
+              onClick={() => toggleSection("qualityFlags")}
+            >
+              <div className="space-y-4">
+                <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                  Defina os selos de classificação e os substitutos alternativos de treino para guiar o motor de montagem automática de protocolos Kyron OS.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <label className="flex items-start gap-2.5 p-3 rounded-2xl border border-slate-150 bg-white hover:bg-slate-50 transition cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      id="quality-flag-beg"
+                      checked={!!exercise.recommended_for_beginners} 
+                      onChange={(e) => handleChange("recommended_for_beginners", e.target.checked)}
+                      className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 border-slate-300"
+                    />
+                    <div className="text-left">
+                      <p className="text-[11px] font-bold text-slate-900 leading-tight">Iniciante Rec.</p>
+                      <p className="text-[9px] text-slate-400 font-medium">Recomendado Iniciantes</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 p-3 rounded-2xl border border-slate-150 bg-white hover:bg-slate-50 transition cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      id="quality-flag-int"
+                      checked={!!exercise.recommended_for_intermediate} 
+                      onChange={(e) => handleChange("recommended_for_intermediate", e.target.checked)}
+                      className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 border-slate-300"
+                    />
+                    <div className="text-left">
+                      <p className="text-[11px] font-bold text-slate-900 leading-tight">Intermediário Rec.</p>
+                      <p className="text-[9px] text-slate-400 font-medium">Recomendado Intermed.</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 p-3 rounded-2xl border border-slate-150 bg-white hover:bg-slate-50 transition cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      id="quality-flag-adv"
+                      checked={!!exercise.recommended_for_advanced} 
+                      onChange={(e) => handleChange("recommended_for_advanced", e.target.checked)}
+                      className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 border-slate-300"
+                    />
+                    <div className="text-left">
+                      <p className="text-[11px] font-bold text-slate-900 leading-tight">Avançado Rec.</p>
+                      <p className="text-[9px] text-slate-400 font-medium">Recomendado Avançados</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 p-3 rounded-2xl border border-slate-150 bg-white hover:bg-slate-50 transition cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      id="quality-flag-feat"
+                      checked={!!exercise.featured_exercise} 
+                      onChange={(e) => handleChange("featured_exercise", e.target.checked)}
+                      className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 border-slate-300"
+                    />
+                    <div className="text-left">
+                      <p className="text-[11px] font-bold text-slate-900 leading-tight">Destaque</p>
+                      <p className="text-[9px] text-slate-400 font-medium">Exibir em Evidência</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 p-3 rounded-2xl border border-slate-150 bg-white hover:bg-slate-50 transition cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      id="quality-flag-fav"
+                      checked={!!exercise.administrator_favorite} 
+                      onChange={(e) => handleChange("administrator_favorite", e.target.checked)}
+                      className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 border-slate-300"
+                    />
+                    <div className="text-left">
+                      <p className="text-[11px] font-bold text-slate-900 leading-tight">Favorito Admin</p>
+                      <p className="text-[9px] text-slate-400 font-medium">Favorito da Liderança</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 p-3 rounded-2xl border border-slate-150 bg-white hover:bg-slate-50 transition cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      id="quality-flag-pri"
+                      checked={!!exercise.protocol_priority} 
+                      onChange={(e) => handleChange("protocol_priority", e.target.checked)}
+                      className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 border-slate-300"
+                    />
+                    <div className="text-left">
+                      <p className="text-[11px] font-bold text-slate-900 leading-tight">Prioridade Prod.</p>
+                      <p className="text-[9px] text-slate-400 font-medium">Prioridade em Builder</p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Substitution Engine */}
+                <div className="space-y-2 mt-2 pt-3 border-t border-slate-100">
+                  <label htmlFor="exercise-alts-input" className="block text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-400">
+                    Alternativas para Substituição Engine
+                  </label>
+                  <p className="text-[9px] text-slate-400 font-medium leading-normal">
+                    Adicione exercícios alternativos separados por vírgula (ex: Agachamento Goblet, Smith Squat, Leg Press Vertical). Isto garante a resiliência do Protocolo Kyron OS.
+                  </p>
+                  <input
+                    id="exercise-alts-input"
+                    type="text"
+                    value={(exercise.alternatives || []).join(", ")}
+                    onChange={(e) => {
+                      const list = e.target.value.split(",").map(val => val.trim()).filter(Boolean);
+                      handleChange("alternatives", list);
+                    }}
+                    placeholder="Ex: Leg Press 45º, Agachamento Smith, Cadeira Extensora"
+                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-xs font-semibold outline-none focus:border-slate-900 placeholder:text-slate-400"
+                  />
+                  {(exercise.alternatives && exercise.alternatives.length > 0) && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {exercise.alternatives.map((alt, altIdx) => (
+                        <span key={altIdx} className="inline-flex items-center gap-1 bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-semibold px-2.5 py-0.5 rounded-full">
+                          {alt}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </Accordion>
 
             {/* History */}

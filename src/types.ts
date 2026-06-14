@@ -199,6 +199,15 @@ export interface Exercise {
   auto_fixed?: boolean;
   needs_human_review?: boolean;
   version?: number;
+  
+  // Protocol Quality Flags
+  recommended_for_beginners?: boolean;
+  recommended_for_intermediate?: boolean;
+  recommended_for_advanced?: boolean;
+  featured_exercise?: boolean;
+  administrator_favorite?: boolean;
+  protocol_priority?: boolean;
+  alternatives?: string[];
 }
 
 export interface EKEContext {

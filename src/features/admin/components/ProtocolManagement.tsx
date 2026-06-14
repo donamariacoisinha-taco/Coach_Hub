@@ -372,6 +372,365 @@ export const ProtocolManagement: React.FC = () => {
   // AUTOMATED PROTOCOL BUILDER (ADMIN) ENGINES
   // ==========================================
 
+  // Exercise Scoring System
+  const getExerciseQualityScoreForLevel = (ex: any, level: 'beginner' | 'intermediate' | 'advanced'): number => {
+    const name = (ex.name || '').toLowerCase();
+    const type = (ex.type || '').toLowerCase();
+    const pattern = (ex.movement_pattern || '').toLowerCase();
+
+    // 1. Level Suitability (Base)
+    let levelBase = 70;
+    if (level === 'beginner') {
+      if (type === 'machine' || name.includes('máquina') || name.includes('machine') || name.includes('articulado') || name.includes('guiado') || name.includes('smith')) {
+        levelBase = 95;
+      } else if (type === 'cable' || name.includes('polia') || name.includes('cabo')) {
+        levelBase = 85;
+      } else if (type === 'bodyweight') {
+        levelBase = 80;
+      } else if (ex.difficulty_level === 'beginner') {
+        levelBase = 75;
+      } else if (name.includes('terra') || name.includes('deadlift') || name.includes('snatch') || name.includes('clean') || name.includes('arremesso') || name.includes('arranco') || name.includes('olympic') || name.includes('unstable') || name.includes('bosu') || ex.difficulty_level === 'advanced') {
+        levelBase = 15; // highly avoid for beginners
+      } else {
+        levelBase = 60;
+      }
+    } else if (level === 'intermediate') {
+      if (type === 'cable' || name.includes('polia')) {
+        levelBase = 95;
+      } else if (type === 'free_weight' && (pattern === 'push' || pattern === 'pull' || pattern === 'squat')) {
+        levelBase = 90;
+      } else if (type === 'machine') {
+        levelBase = 85;
+      } else if (name.includes('clean') || name.includes('snatch') || name.includes('arremesso') || name.includes('terra')) {
+        levelBase = 65;
+      } else {
+        levelBase = 80;
+      }
+    } else { // advanced
+      if (name.includes('terra') || name.includes('deadlift') || name.includes('snatch') || name.includes('clean') || name.includes('olympic') || pattern === 'squat' || pattern === 'hinge') {
+        levelBase = 98; // compounds prioritize
+      } else if (type === 'free_weight') {
+        levelBase = 92;
+      } else if (type === 'cable') {
+        levelBase = 85;
+      } else if (type === 'machine') {
+        levelBase = 75;
+      } else {
+        levelBase = 80;
+      }
+    }
+
+    // 2. Safety Score
+    let safety = 80;
+    if (type === 'machine' || name.includes('máquina') || name.includes('cabo') || type === 'cable' || name.includes('polia')) {
+      safety = 95;
+    } else if (type === 'bodyweight') {
+      safety = 90;
+    } else if (name.includes('agachamento') || name.includes('squat') || name.includes('terra') || name.includes('deadlift') || name.includes('supino') || name.includes('bench press')) {
+      safety = 70;
+    } else if (name.includes('unstable') || name.includes('clean') || name.includes('snatch')) {
+      safety = 55;
+    }
+
+    // Beginner penalizes unsafe movements heavily
+    let safetyModifier = 0;
+    if (level === 'beginner' && safety < 80) {
+      safetyModifier = -25;
+    } else if (level === 'beginner' && safety >= 95) {
+      safetyModifier = 5;
+    }
+
+    // 3. Complexity & Suitability
+    let complexity = 50; 
+    if (name.includes('clean') || name.includes('snatch') || name.includes('arremesso') || name.includes('arranco') || name.includes('olympic')) {
+      complexity = 95;
+    } else if (name.includes('terra') || name.includes('deadlift') || name.includes('agachamento com barra') || name.includes('barbell squat') || name.includes('desenvolvimento com barra')) {
+      complexity = 85;
+    } else if (type === 'free_weight') {
+      complexity = 70;
+    } else if (type === 'cable') {
+      complexity = 55;
+    } else if (type === 'machine') {
+      complexity = 35;
+    }
+
+    let complexityPenalty = 0;
+    if (level === 'beginner' && complexity > 70) {
+      complexityPenalty = -(complexity - 65) * 1.2;
+    } else if (level === 'advanced' && complexity < 50) {
+      complexityPenalty = -10;
+    }
+
+    // 4. Equipment availability 
+    let equipScore = 90;
+    if (ex.equipment) {
+      equipScore = 95;
+    }
+
+    // 5. Popularity & Quality Flags from Exercise DB
+    let popScore = ex.performance_score || ex.quality_score || 70;
+    if (ex.featured_exercise) popScore += 10;
+    if (ex.administrator_favorite) popScore += 12;
+    if (ex.protocol_priority) popScore += 15;
+    if (ex.recommended_for_beginners && level === 'beginner') popScore += 12;
+    if (ex.recommended_for_intermediate && level === 'intermediate') popScore += 10;
+    if (ex.recommended_for_advanced && level === 'advanced') popScore += 10;
+
+    let finalRating = (levelBase * 0.45) + (safety * 0.20) + (equipScore * 0.15) + (popScore * 0.20) + safetyModifier + complexityPenalty;
+    return Math.min(100, Math.max(10, Math.round(finalRating)));
+  };
+
+  // Duplication Control (Avoid multiple exercises with same pattern in same session)
+  const isDuplicatePattern = (ex: any, existingSession: any[]): boolean => {
+    const cleanName = (ex.name || '').toLowerCase();
+    
+    for (const existing of existingSession) {
+      // Find matching full exercise
+      const existingEx = exercises.find(e => e.id === existing.exercise_id);
+      if (!existingEx) continue;
+      const existingName = existingEx.name.toLowerCase();
+
+      // Avoid chest press duplicates (e.g. Supino Máquina + Supino Articulado)
+      const hasPressA = cleanName.includes('press') || cleanName.includes('supino') || cleanName.includes('crucifixo');
+      const hasPressB = existingName.includes('press') || existingName.includes('supino') || existingName.includes('crucifixo');
+      if (hasPressA && hasPressB && ex.movement_pattern === existingEx.movement_pattern && ex.muscle_group === existingEx.muscle_group) {
+        return true; 
+      }
+
+      // Avoid hamstring curl duplicates (Cadeira Flexora + Mesa Flexora)
+      const hasCurlA = cleanName.includes('flexor') || cleanName.includes('curvada') || cleanName.includes('hamstring');
+      const hasCurlB = existingName.includes('flexor') || existingName.includes('curvada') || existingName.includes('hamstring');
+      if (hasCurlA && hasCurlB && ex.muscle_group === existingEx.muscle_group) {
+        return true; 
+      }
+
+      // Avoid extensora duplicates
+      const hasExtA = cleanName.includes('extensor');
+      const hasExtB = existingName.includes('extensor');
+      if (hasExtA && hasExtB) return true;
+
+      // Unilateral/Goblet Squat duplicate (avoid Goblet squat + Agachamento frontal)
+      if (ex.movement_pattern === 'squat' && existingEx.movement_pattern === 'squat') {
+        const hasSquatA = cleanName.includes('squat') || cleanName.includes('agachamento') || cleanName.includes('leg press');
+        const hasSquatB = existingName.includes('squat') || existingName.includes('agachamento') || existingName.includes('leg press');
+        if (hasSquatA && hasSquatB) {
+          if (ex.muscle_group === existingEx.muscle_group) return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  // Automatically fetch/store substitutes
+  const getExerciseAlternativesEx = (ex: any): string[] => {
+    if (ex.alternatives && ex.alternatives.length > 0) {
+      return ex.alternatives;
+    }
+
+    const storedAltsKey = `kyron_custom_alts_${ex.id}`;
+    try {
+      const stored = localStorage.getItem(storedAltsKey);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (_) {}
+
+    // Fallbacks
+    const name = (ex.name || '').toLowerCase();
+    if (name.includes('leg press')) {
+      return ['Agachamento Hack Machine', 'Agachamento Smith Squat', 'Agachamento Goblet Squat'];
+    }
+    if (name.includes('supino') || name.includes('bench press') || name.includes('chest press')) {
+      return ['Supino Halteres', 'Chest Press Máquina', 'Supino Inclinado Articulado'];
+    }
+    if (name.includes('agachamento') || name.includes('squat')) {
+      return ['Smith Squat', 'Goblet Squat', 'Agachamento Hack'];
+    }
+    if (name.includes('extensora') || name.includes('extensao')) {
+      return ['Leg Press Unilateral', 'Agachamento Búlgaro', 'Passada Halteres'];
+    }
+    if (name.includes('flexora') || name.includes('flexao')) {
+      return ['Stiff Halteres', 'Mesa Flexora', 'Elevação Pélvica'];
+    }
+    if (name.includes('puxada') || name.includes('pulldown')) {
+      return ['Puxada Triângulo', 'Remada Alta polia', 'Barra Fixa Assistida'];
+    }
+    if (name.includes('remada') || name.includes('row')) {
+      return ['Remada Articulada', 'Remada Baixa Cabo', 'Remada Cavalinho'];
+    }
+    if (name.includes('desenvolvimento') || name.includes('shoulder press')) {
+      return ['Desenvolvimento Halteres', 'Desenvolvimento Máquina', 'Elevação Lateral'];
+    }
+
+    // Dynamic fallback matching same muscle group
+    const matches = exercises
+      .filter(e => e.id !== ex.id && e.is_active !== false && e.muscle_group === ex.muscle_group)
+      .slice(0, 3)
+      .map(e => e.name);
+
+    return matches.length > 0 ? matches : ['Exercício Livre de ' + ex.muscle_group, 'Máquina isoladora'];
+  };
+
+  // Comprehensive Protocol Quality Scoring System (0-100)
+  const calculateProtocolQualityScore = (workouts: PremiumTemplateWorkout[]): { score: number; rating: 'Excellent' | 'Good' | 'Needs Review'; statusLabel: string; breakdown: any } => {
+    if (!workouts || workouts.length === 0) {
+      return { score: 0, rating: 'Needs Review', statusLabel: 'Necessita Revisão', breakdown: { levelComp: 0, diversity: 0, balance: 0, recovery: 0, equipComp: 100 } };
+    }
+
+    const totalExCount = workouts.reduce((acc, w) => acc + (w.exercises?.length || 0), 0);
+    if (totalExCount === 0) {
+      return { score: 0, rating: 'Needs Review', statusLabel: 'Necessita Revisão', breakdown: { levelComp: 0, diversity: 0, balance: 0, recovery: 0, equipComp: 100 } };
+    }
+
+    // 1. Level Compatibility
+    let totalLevelScore = 0;
+    workouts.forEach(w => {
+      w.exercises?.forEach(ex => {
+        const matchingEx = exercises.find(e => e.id === ex.exercise_id);
+        if (matchingEx) {
+          totalLevelScore += getExerciseQualityScoreForLevel(matchingEx, builderLevel);
+        } else {
+          totalLevelScore += 75;
+        }
+      });
+    });
+    const levelComp = Math.round(totalLevelScore / totalExCount);
+
+    // 2. Exercise Diversity
+    let duplicationCount = 0;
+    workouts.forEach(w => {
+      const sessionExs: any[] = [];
+      w.exercises?.forEach(ex => {
+        const matchingEx = exercises.find(e => e.id === ex.exercise_id);
+        if (matchingEx) {
+          if (isDuplicatePattern(matchingEx, sessionExs)) {
+            duplicationCount++;
+          }
+          sessionExs.push(ex);
+        }
+      });
+    });
+    const diversity = Math.max(40, 100 - (duplicationCount * 15));
+
+    // 3. Muscle Balance Validation
+    const muscleSets: Record<string, number> = {
+      peito: 0, chest: 0,
+      costas: 0, back: 0,
+      quadríceps: 0, quadriceps: 0,
+      isquiotibiais: 0, hamstrings: 0,
+      glúteos: 0, glutes: 0,
+      ombros: 0, shoulders: 0,
+      bíceps: 0, biceps: 0,
+      tríceps: 0, triceps: 0,
+      abdominal: 0, core: 0,
+      panturrilha: 0, calves: 0
+    };
+
+    workouts.forEach(w => {
+      w.exercises?.forEach(ex => {
+        const matchingEx = exercises.find(e => e.id === ex.exercise_id);
+        const sets = ex.sets || 3;
+        if (matchingEx) {
+          const mg = matchingEx.muscle_group.toLowerCase();
+          Object.keys(muscleSets).forEach(key => {
+            if (mg.includes(key.toLowerCase())) {
+              muscleSets[key] += sets;
+            }
+          });
+        }
+      });
+    });
+
+    const normalizedSets = {
+      chest: muscleSets.peito + muscleSets.chest,
+      back: muscleSets.costas + muscleSets.back,
+      quads: muscleSets.quadríceps + muscleSets.quadriceps,
+      hams: muscleSets.isquiotibiais + muscleSets.hamstrings,
+      glutes: muscleSets.glúteos + muscleSets.glutes,
+      shoulders: muscleSets.ombros + muscleSets.shoulders,
+      biceps: muscleSets.bíceps + muscleSets.biceps,
+      triceps: muscleSets.tríceps + muscleSets.triceps,
+      core: muscleSets.abdominal + muscleSets.core,
+      calves: muscleSets.panturrilha + muscleSets.calves
+    };
+
+    let balanceScore = 100;
+    const chestBackDiff = Math.abs(normalizedSets.chest - normalizedSets.back);
+    if (chestBackDiff > 12 && (normalizedSets.chest > 0 || normalizedSets.back > 0)) {
+      balanceScore -= 15;
+    }
+    const quadsHamDiff = Math.abs(normalizedSets.quads - normalizedSets.hams);
+    if (quadsHamDiff > 12 && (normalizedSets.quads > 0 || normalizedSets.hams > 0)) {
+      balanceScore -= 15;
+    }
+    const armDiff = Math.abs(normalizedSets.biceps - normalizedSets.triceps);
+    if (armDiff > 8 && (normalizedSets.biceps > 0 || normalizedSets.triceps > 0)) {
+      balanceScore -= 10;
+    }
+
+    // Insufficient direct volume flags
+    if (builderFrequency >= 3) {
+      if (normalizedSets.chest === 0) balanceScore -= 10;
+      if (normalizedSets.back === 0) balanceScore -= 10;
+      if (normalizedSets.quads === 0) balanceScore -= 10;
+      if (normalizedSets.hams === 0) balanceScore -= 10;
+      if (normalizedSets.shoulders === 0) balanceScore -= 8;
+    }
+    balanceScore = Math.max(30, balanceScore);
+
+    // 4. Recovery Analysis
+    let consecutivePenalties = 0;
+    for (let i = 0; i < workouts.length - 1; i++) {
+      const currentMuscles = new Set(workouts[i].exercises?.map(ex => {
+        const matchingEx = exercises.find(e => e.id === ex.exercise_id);
+        return matchingEx ? matchingEx.muscle_group.toLowerCase() : '';
+      }).filter(Boolean));
+
+      const nextMuscles = new Set(workouts[i+1].exercises?.map(ex => {
+        const matchingEx = exercises.find(e => e.id === ex.exercise_id);
+        return matchingEx ? matchingEx.muscle_group.toLowerCase() : '';
+      }).filter(Boolean));
+
+      currentMuscles.forEach(m => {
+        if (nextMuscles.has(m) && (m.includes('peito') || m.includes('costas') || m.includes('quadríceps') || m.includes('isquiotibiais'))) {
+          consecutivePenalties += 1;
+        }
+      });
+    }
+    const recovery = Math.max(50, 100 - (consecutivePenalties * 15));
+
+    const finalScore = Math.round(
+      (levelComp * 0.35) + 
+      (diversity * 0.25) + 
+      (balanceScore * 0.20) + 
+      (recovery * 0.20)
+    );
+
+    let rating: 'Excellent' | 'Good' | 'Needs Review' = 'Needs Review';
+    let statusLabel = 'Necessita Revisão';
+    if (finalScore >= 85) {
+      rating = 'Excellent';
+      statusLabel = 'Excelente';
+    } else if (finalScore >= 70) {
+      rating = 'Good';
+      statusLabel = 'Bom';
+    }
+
+    return {
+      score: finalScore,
+      rating,
+      statusLabel,
+      breakdown: {
+        levelComp,
+        diversity,
+        balance: balanceScore,
+        recovery,
+        equipComp: 100,
+        normalizedSets
+      }
+    };
+  };
+
   const executeAutomatedAssembly = () => {
     let finalBuilderName = builderName.trim();
     if (!finalBuilderName) {
@@ -504,12 +863,11 @@ export const ProtocolManagement: React.FC = () => {
         return prim || sec;
       });
 
+      // SORT BY DEVELOPER LEVEL RATING
       const sortedMatched = [...matchedExercises].sort((a, b) => {
-        const aPattern = a.movement_pattern || '';
-        const bPattern = b.movement_pattern || '';
-        const compoundScoreA = ['squat', 'push', 'pull', 'hinge', 'lunge'].includes(aPattern) ? 2 : (aPattern === 'isolation' ? 0 : 1);
-        const compoundScoreB = ['squat', 'push', 'pull', 'hinge', 'lunge'].includes(bPattern) ? 2 : (bPattern === 'isolation' ? 0 : 1);
-        return compoundScoreB - compoundScoreA;
+        const scoreA = getExerciseQualityScoreForLevel(a, builderLevel);
+        const scoreB = getExerciseQualityScoreForLevel(b, builderLevel);
+        return scoreB - scoreA;
       });
 
       const selectedExercises: PremiumTemplateExercise[] = [];
@@ -518,6 +876,14 @@ export const ProtocolManagement: React.FC = () => {
       for (const ex of sortedMatched) {
         if (gatheredCount >= 5) break; 
         if (restNoRepeat && usedExIdsInProtocol.has(ex.id)) continue;
+
+        // Duplication pattern control
+        if (isDuplicatePattern(ex, selectedExercises)) continue;
+
+        // Skip really terrible exercises for beginners
+        if (builderLevel === 'beginner' && getExerciseQualityScoreForLevel(ex, 'beginner') < 45) {
+          continue;
+        }
 
         const exSets = builderLevel === 'beginner' ? 3 : 4;
         const exReps = builderLevel === 'beginner' ? '12' : builderLevel === 'intermediate' ? '8-12' : '6-10';
@@ -540,6 +906,7 @@ export const ProtocolManagement: React.FC = () => {
         gatheredCount++;
       }
 
+      // Safe fallback if duplication was too strict
       if (selectedExercises.length < 3) {
         for (const ex of sortedMatched) {
           if (selectedExercises.length >= 4) break;
@@ -1831,6 +2198,51 @@ export const ProtocolManagement: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Scout Engine Quality Scoring */}
+                      {(() => {
+                        const scoreInfo = calculateProtocolQualityScore(builderWorkouts);
+                        const isExcellent = scoreInfo.score >= 85;
+                        const isGood = scoreInfo.score >= 70 && scoreInfo.score < 85;
+
+                        // Check missing major muscles
+                        const warnings: string[] = [];
+                        if (scoreInfo.breakdown.normalizedSets.chest === 0) warnings.push('Peito');
+                        if (scoreInfo.breakdown.normalizedSets.back === 0) warnings.push('Costas');
+                        if (scoreInfo.breakdown.normalizedSets.quads === 0) warnings.push('Quadríceps');
+                        if (scoreInfo.breakdown.normalizedSets.hams === 0) warnings.push('Isquiotibiais');
+                        if (scoreInfo.breakdown.normalizedSets.shoulders === 0) warnings.push('Ombros');
+
+                        return (
+                          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5 mt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black uppercase tracking-wider bg-slate-200 text-slate-800 px-2.5 py-0.5 rounded font-mono">KYRON SCOUT_INTELLIGENCE</span>
+                                <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded ${
+                                  isExcellent ? 'bg-emerald-100 text-emerald-800' : isGood ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                                }`}>
+                                  TREINO {scoreInfo.statusLabel}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 font-medium">
+                                Compatibilidade para nível {builderLevel}: <strong className="text-slate-850">{scoreInfo.breakdown.levelComp}%</strong>. Diversidade do estímulo muscular: <strong className="text-slate-850">{scoreInfo.breakdown.diversity}%</strong>.
+                              </p>
+                              {warnings.length > 0 && (
+                                <p className="text-[10px] text-orange-600 font-extrabold">
+                                  ⚠️ ALERTA DE EQUILÍBRIO HEMISFÉRICO: Volume zerado detectado nos grupos: {warnings.join(', ')}.
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0 bg-white p-2.5 rounded-xl border border-slate-150">
+                              <span className="text-[10px] font-black text-slate-400 uppercase font-mono">QUALITY_SCORE:</span>
+                              <span className={`text-md font-black font-mono ${
+                                isExcellent ? 'text-emerald-600' : isGood ? 'text-amber-500' : 'text-rose-500'
+                              }`}>{scoreInfo.score}/100</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       {/* Render compiled splits */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                         {builderWorkouts.map((w, idx) => (
@@ -2029,6 +2441,161 @@ export const ProtocolManagement: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* DRAFT QUALITY ASSESSMENT ENGINE - DYNAMIC REVIEW */}
+                    {(() => {
+                      const report = calculateProtocolQualityScore(currentGeneratedDraft.workouts);
+                      const isExcellent = report.score >= 85;
+                      const isGood = report.score >= 70 && report.score < 85;
+
+                      // Calculate metrics for Exercise Distribution
+                      let compoundCount = 0;
+                      let isolationCount = 0;
+                      let machineCount = 0;
+                      let freeWeightCount = 0;
+                      let cableCount = 0;
+
+                      currentGeneratedDraft.workouts.forEach(w => {
+                        w.exercises?.forEach(ex => {
+                          const fullEx = exercises.find(e => e.id === ex.exercise_id);
+                          if (fullEx) {
+                            const p = (fullEx.movement_pattern || '').toLowerCase();
+                            const t = (fullEx.type || '').toLowerCase();
+                            if (['squat', 'push', 'pull', 'hinge', 'lunge'].includes(p)) {
+                              compoundCount++;
+                            } else {
+                              isolationCount++;
+                            }
+
+                            if (t === 'machine') machineCount++;
+                            else if (t === 'cable') cableCount++;
+                            else freeWeightCount++;
+                          } else {
+                            compoundCount++;
+                          }
+                        });
+                      });
+
+                      const totalExercises = compoundCount + isolationCount || 1;
+
+                      return (
+                        <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-7 space-y-6">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200/80 pb-4 gap-4">
+                            <div>
+                              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Kyron OS // Painel de Qualidade e Equilíbrio Hemisférico</h4>
+                              <p className="text-xs text-slate-500 mt-0.5 font-medium">Relatório automatizado com base nos critérios estabelecidos do treinador pro.</p>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-200">
+                              <div className="text-right">
+                                <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wide">Score Geral de Treino</span>
+                                <span className={`text-xs font-black uppercase tracking-wider ${isExcellent ? 'text-emerald-600' : isGood ? 'text-amber-500' : 'text-rose-500'}`}>
+                                  {report.statusLabel}
+                                </span>
+                              </div>
+                              <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center font-mono text-base font-black ${
+                                isExcellent 
+                                  ? 'border-emerald-500 text-emerald-600 bg-emerald-50' 
+                                  : isGood 
+                                    ? 'border-amber-400 text-amber-500 bg-amber-50' 
+                                    : 'border-rose-500 text-rose-500 bg-rose-50'
+                              }`}>
+                                {report.score}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            
+                            {/* Muscle Volume & Coverage */}
+                            <div className="bg-white p-5 rounded-2xl border border-slate-200/60 space-y-4 shadow-sm col-span-1 lg:col-span-2">
+                              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                <span className="text-xs font-black text-slate-800 uppercase tracking-wider block">Volume e Cobertura Muscular (Séries Semanais)</span>
+                                <span className="text-[10px] text-slate-400 font-bold">Mínimo recomendado: 4</span>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3.5">
+                                {[
+                                  { label: 'Chest (Peitoral)', val: report.breakdown.normalizedSets.chest },
+                                  { label: 'Back (Costas)', val: report.breakdown.normalizedSets.back },
+                                  { label: 'Quadriceps (Quadríceps)', val: report.breakdown.normalizedSets.quads },
+                                  { label: 'Hamstrings (Isquiotibiais)', val: report.breakdown.normalizedSets.hams },
+                                  { label: 'Glutes (Glúteos)', val: report.breakdown.normalizedSets.glutes },
+                                  { label: 'Shoulders (Ombros)', val: report.breakdown.normalizedSets.shoulders },
+                                  { label: 'Biceps (Bíceps)', val: report.breakdown.normalizedSets.biceps },
+                                  { label: 'Triceps (Tríceps)', val: report.breakdown.normalizedSets.triceps },
+                                  { label: 'Core (Abdominal)', val: report.breakdown.normalizedSets.core },
+                                  { label: 'Calves (Panturrilhas)', val: report.breakdown.normalizedSets.calves }
+                                ].map((item, id) => {
+                                  const pct = Math.min(100, (item.val / 16) * 100);
+                                  const isLow = item.val < 4;
+                                  return (
+                                    <div key={id} className="space-y-1">
+                                      <div className="flex justify-between text-[10px] font-bold">
+                                        <span className={isLow ? 'text-slate-500 flex items-center gap-1' : 'text-slate-700'}>
+                                          {isLow && <span className="text-amber-500 font-bold">⚠️</span>}
+                                          {item.label}
+                                        </span>
+                                        <span className={isLow ? 'text-amber-600 font-extrabold font-mono' : 'text-slate-500 font-mono'}>
+                                          {item.val} séries {isLow ? '(Baixo)' : '(Ok)'}
+                                        </span>
+                                      </div>
+                                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                        <div 
+                                          style={{ width: `${Math.max(4, pct)}%` }} 
+                                          className={`h-full rounded-full transition-all ${isLow ? 'bg-amber-400' : 'bg-emerald-500'}`}
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Recovery and Distribution Column */}
+                            <div className="space-y-4">
+                              
+                              {/* Recovery Diagnostics */}
+                              <div className="bg-white p-4 rounded-2xl border border-slate-200/60 space-y-3 shadow-sm">
+                                <span className="text-xs font-black text-slate-800 uppercase tracking-wider block">Análise de Recuperação</span>
+                                {report.breakdown.recovery >= 85 ? (
+                                  <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-[11px] text-emerald-800 font-semibold leading-relaxed">
+                                    ✅ <strong>Divisão Perfeita:</strong> Sem sobreposições consecutivas de peito, costas ou quadríceps. Janela ideal estruturada.
+                                  </div>
+                                ) : (
+                                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-[11px] text-amber-800 font-semibold leading-relaxed">
+                                    ⚠️ <strong>Alerta de Fadiga:</strong> Sobrecarga de grandes grupos musculares em dias consecutivos detectada. Considere alternar a frequência de treinos.
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Exercise Distribution */}
+                              <div className="bg-white p-4 rounded-2xl border border-slate-200/60 space-y-3.5 shadow-sm">
+                                <span className="text-xs font-black text-slate-800 uppercase tracking-wider block">Distribuição de Estímulo</span>
+                                
+                                <div className="space-y-2 text-[10px] font-bold text-slate-600">
+                                  <div className="flex justify-between items-center">
+                                    <span>Compostos vs Isoladores</span>
+                                    <span className="font-mono">{Math.round((compoundCount/totalExercises)*105) > 100 ? 100 : Math.round((compoundCount/totalExercises)*100)}% / {Math.round((isolationCount/totalExercises)*100)}%</span>
+                                  </div>
+                                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden flex">
+                                    <div style={{ width: `${(compoundCount/totalExercises)*100}%` }} className="bg-blue-500 h-full" />
+                                    <div style={{ width: `${(isolationCount/totalExercises)*100}%` }} className="bg-orange-400 h-full" />
+                                  </div>
+
+                                  <div className="pt-1 flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-slate-400">
+                                    <span>⚙️ Máquinas: {machineCount}</span>
+                                    <span>🔌 Cabos: {cableCount}</span>
+                                    <span>🏋️ Peso Livre: {freeWeightCount}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div className="space-y-8">
                       {currentGeneratedDraft.workouts?.map((w, wIdx) => {
                         const isOverlayActiveForWorkout = builderActiveWorkoutId === w.id;
@@ -2070,117 +2637,126 @@ export const ProtocolManagement: React.FC = () => {
                               </button>
                             </div>
 
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-left text-xs min-w-[650px]">
-                                <thead>
-                                  <tr className="border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400">
-                                    <th className="py-2.5">Exercício</th>
-                                    <th className="py-2.5 w-16 text-center">Séries</th>
-                                    <th className="py-2.5 w-24 text-center">Repetições</th>
-                                    <th className="py-2.5 w-20 text-center">Intervalo (s)</th>
-                                    <th className="py-2.5 w-20 text-center">Carga (kg)</th>
-                                    <th className="py-2.5">Observações</th>
-                                    <th className="py-2.5 text-right w-24">Ações</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {w.exercises?.map((ex, exIdx) => (
-                                    <tr key={ex.exercise_id || exIdx} className="border-b border-slate-100/70 hover:bg-slate-50/50">
-                                      <td className="py-3 font-bold text-slate-900">
-                                        <div className="flex flex-col">
-                                          <span>{ex.exercise_name}</span>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setBuilderActiveWorkoutId(w.id);
-                                              setBuilderReplacingIndex(exIdx);
-                                              setBuilderExSearchQuery('');
-                                            }}
-                                            className="text-[9px] text-blue-500 font-extrabold flex items-center mt-0.5"
-                                          >
-                                            [ Substituir Exercício ]
-                                          </button>
-                                        </div>
-                                      </td>
-                                      
-                                      <td className="py-3 text-center">
-                                        <input
-                                          type="number"
-                                          value={ex.sets || 4}
-                                          onChange={(e) => updateDraftExField(w.id, exIdx, { sets: Number(e.target.value) })}
-                                          className="w-12 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center font-bold focus:outline-none"
-                                        />
-                                      </td>
+                             <div className="overflow-x-auto">
+                               <table className="w-full text-left text-xs min-w-[650px]">
+                                 <thead>
+                                   <tr className="border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400">
+                                     <th className="py-2.5">Exercício</th>
+                                     <th className="py-2.5 w-16 text-center">Séries</th>
+                                     <th className="py-2.5 w-24 text-center">Repetições</th>
+                                     <th className="py-2.5 w-20 text-center">Intervalo (s)</th>
+                                     <th className="py-2.5 w-20 text-center">Carga (kg)</th>
+                                     <th className="py-2.5">Observações</th>
+                                     <th className="py-2.5 text-right w-24">Ações</th>
+                                   </tr>
+                                 </thead>
+                                 <tbody>
+                                   {w.exercises?.map((ex, exIdx) => {
+                                     const matchingEx = exercises.find(e => e.id === ex.exercise_id);
+                                     const recommendedAlts = matchingEx ? getExerciseAlternativesEx(matchingEx) : [];
+                                     return (
+                                       <tr key={ex.exercise_id || exIdx} className="border-b border-slate-100/70 hover:bg-slate-50/50">
+                                         <td className="py-3 font-bold text-slate-900">
+                                           <div className="flex flex-col">
+                                             <span>{ex.exercise_name}</span>
+                                             <button
+                                               type="button"
+                                               onClick={() => {
+                                                 setBuilderActiveWorkoutId(w.id);
+                                                 setBuilderReplacingIndex(exIdx);
+                                                 setBuilderExSearchQuery('');
+                                               }}
+                                               className="text-[9px] text-blue-500 font-extrabold flex items-center mt-1 text-left"
+                                             >
+                                               [ Substituir Exercício ]
+                                             </button>
+                                             {recommendedAlts.length > 0 && (
+                                               <span className="text-[9px] text-slate-400 font-medium mt-1">
+                                                 Substitutos: <strong className="text-slate-500 font-semibold italic">{recommendedAlts.slice(0, 3).join(', ')}</strong>
+                                               </span>
+                                             )}
+                                          </div>
+                                        </td>
+                                        
+                                        <td className="py-3 text-center">
+                                          <input
+                                            type="number"
+                                            value={ex.sets || 4}
+                                            onChange={(e) => updateDraftExField(w.id, exIdx, { sets: Number(e.target.value) })}
+                                            className="w-12 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center font-bold focus:outline-none"
+                                          />
+                                        </td>
 
-                                      <td className="py-3 text-center">
-                                        <input
-                                          type="text"
-                                          value={ex.reps || '10'}
-                                          onChange={(e) => updateDraftExField(w.id, exIdx, { reps: e.target.value })}
-                                          className="w-20 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center focus:outline-none"
-                                        />
-                                      </td>
+                                        <td className="py-3 text-center">
+                                          <input
+                                            type="text"
+                                            value={ex.reps || '10'}
+                                            onChange={(e) => updateDraftExField(w.id, exIdx, { reps: e.target.value })}
+                                            className="w-20 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center focus:outline-none"
+                                          />
+                                        </td>
 
-                                      <td className="py-3 text-center">
-                                        <input
-                                          type="number"
-                                          value={ex.rest_time || 60}
-                                          onChange={(e) => updateDraftExField(w.id, exIdx, { rest_time: Number(e.target.value) })}
-                                          className="w-16 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center focus:outline-none"
-                                        />
-                                      </td>
+                                        <td className="py-3 text-center">
+                                          <input
+                                            type="number"
+                                            value={ex.rest_time || 60}
+                                            onChange={(e) => updateDraftExField(w.id, exIdx, { rest_time: Number(e.target.value) })}
+                                            className="w-16 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center focus:outline-none"
+                                          />
+                                        </td>
 
-                                      <td className="py-3 text-center">
-                                        <input
-                                          type="number"
-                                          value={ex.weight || 10}
-                                          onChange={(e) => updateDraftExField(w.id, exIdx, { weight: Number(e.target.value) })}
-                                          className="w-16 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center focus:outline-none"
-                                        />
-                                      </td>
+                                        <td className="py-3 text-center">
+                                          <input
+                                            type="number"
+                                            value={ex.weight || 10}
+                                            onChange={(e) => updateDraftExField(w.id, exIdx, { weight: Number(e.target.value) })}
+                                            className="w-16 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center focus:outline-none"
+                                          />
+                                        </td>
 
-                                      <td className="py-3">
-                                        <input
-                                          type="text"
-                                          value={ex.notes || ''}
-                                          onChange={(e) => updateDraftExField(w.id, exIdx, { notes: e.target.value })}
-                                          placeholder="Ex: Pegada Neutra"
-                                          className="w-full h-8 px-2 bg-slate-50 border border-slate-200 rounded text-xs focus:outline-none"
-                                        />
-                                      </td>
+                                        <td className="py-3">
+                                          <input
+                                            type="text"
+                                            value={ex.notes || ''}
+                                            onChange={(e) => updateDraftExField(w.id, exIdx, { notes: e.target.value })}
+                                            placeholder="Ex: Pegada Neutra"
+                                            className="w-full h-8 px-2 bg-slate-50 border border-slate-200 rounded text-xs focus:outline-none"
+                                          />
+                                        </td>
 
-                                      <td className="py-3 text-right">
-                                        <div className="flex items-center justify-end gap-1">
-                                          <button
-                                            type="button"
-                                            disabled={exIdx === 0}
-                                            onClick={() => moveDraftEx(w.id, exIdx, 'up')}
-                                            className="p-1 text-slate-400 hover:text-slate-900 transition-all disabled:opacity-30"
-                                          >
-                                            <ArrowUp size={13} />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            disabled={exIdx === (w.exercises?.length - 1)}
-                                            onClick={() => moveDraftEx(w.id, exIdx, 'down')}
-                                            className="p-1 text-slate-400 hover:text-slate-900 transition-all disabled:opacity-30"
-                                          >
-                                            <ArrowDown size={13} />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => removeDraftEx(w.id, exIdx)}
-                                            className="p-1 text-red-400 hover:text-red-600 transition-all ml-1"
-                                          >
-                                            <Trash2 size={13} />
-                                          </button>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
+                                        <td className="py-3 text-right">
+                                          <div className="flex items-center justify-end gap-1">
+                                            <button
+                                              type="button"
+                                              disabled={exIdx === 0}
+                                              onClick={() => moveDraftEx(w.id, exIdx, 'up')}
+                                              className="p-1 text-slate-400 hover:text-slate-900 transition-all disabled:opacity-30"
+                                            >
+                                              <ArrowUp size={13} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              disabled={exIdx === (w.exercises?.length - 1)}
+                                              onClick={() => moveDraftEx(w.id, exIdx, 'down')}
+                                              className="p-1 text-slate-400 hover:text-slate-900 transition-all disabled:opacity-30"
+                                            >
+                                              <ArrowDown size={13} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => removeDraftEx(w.id, exIdx)}
+                                              className="p-1 text-red-400 hover:text-red-600 transition-all ml-1"
+                                            >
+                                              <Trash2 size={13} />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                 </tbody>
+                               </table>
+                             </div>
 
                             {/* Inline Overlay Search to add/replace exercise to workout */}
                             {isOverlayActiveForWorkout && (
