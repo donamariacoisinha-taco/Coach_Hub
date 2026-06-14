@@ -25,11 +25,13 @@ import {
   Play,
   Dumbbell,
   Flame,
-  Shield
+  Shield,
+  Edit
 } from 'lucide-react';
 import { premiumProtocolsApi, PremiumProtocol, PremiumTemplateWorkout } from '../../../lib/api/premiumProtocolsApi';
 import { authApi } from '../../../lib/api/authApi';
 import { UserProfile } from '../../../types';
+import { isAdmin } from '../../../lib/utils/auth';
 
 interface PremiumLibraryProps {
   profile: UserProfile | null;
@@ -53,6 +55,36 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
   const featuredRef = useRef<HTMLDivElement>(null);
   const newRef = useRef<HTMLDivElement>(null);
   const popularRef = useRef<HTMLDivElement>(null);
+
+  // Editing Workout Names states & helpers
+  const [isEditingWorkoutId, setIsEditingWorkoutId] = useState<string | null>(null);
+  const [editingWorkoutName, setEditingWorkoutName] = useState<string>('');
+
+  const handleSaveWorkoutName = async (workoutId: string) => {
+    if (!selectedProtocol) return;
+    if (!editingWorkoutName.trim()) return;
+
+    const updatedWorkouts = selectedProtocol.workouts.map(w => 
+      w.id === workoutId ? { ...w, name: editingWorkoutName } : w
+    );
+
+    const updatedProtocol = {
+      ...selectedProtocol,
+      workouts: updatedWorkouts
+    };
+
+    try {
+      await premiumProtocolsApi.createOrUpdateProtocol(updatedProtocol);
+      setSelectedProtocol(updatedProtocol);
+      setProtocols(prev => prev.map(p => p.id === selectedProtocol.id ? updatedProtocol : p));
+      setIsEditingWorkoutId(null);
+      setToastMessage("Nome do treino atualizado com sucesso!");
+      onRefreshDashboard();
+    } catch (e) {
+      console.error("Erro ao atualizar nome do treino:", e);
+      setToastMessage("Ocorreu um erro ao atualizar.");
+    }
+  };
 
   // Load state on mount
   useEffect(() => {
@@ -670,7 +702,51 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                       <div key={w.id} className="relative space-y-3">
                         <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-white border-2 border-[#7BA7FF]" />
                         <div>
-                          <h5 className="text-sm font-extrabold uppercase text-slate-800 tracking-tight leading-none">{w.name}</h5>
+                          {isEditingWorkoutId === w.id ? (
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <input
+                                type="text"
+                                value={editingWorkoutName}
+                                onChange={(e) => setEditingWorkoutName(e.target.value)}
+                                className="bg-white border border-[#7BA7FF] rounded-xl px-2 py-1 text-xs text-slate-800 font-bold uppercase tracking-tight focus:outline-none focus:ring-1 focus:ring-[#7BA7FF]"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveWorkoutName(w.id);
+                                  if (e.key === 'Escape') setIsEditingWorkoutId(null);
+                                }}
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => handleSaveWorkoutName(w.id)}
+                                className="p-1 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg shrink-0"
+                                title="Salvar"
+                              >
+                                <Check size={12} />
+                              </button>
+                              <button
+                                onClick={() => setIsEditingWorkoutId(null)}
+                                className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg shrink-0"
+                                title="Cancelar"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 group/title">
+                              <h5 className="text-sm font-extrabold uppercase text-slate-800 tracking-tight leading-none">{w.name}</h5>
+                              {isAdmin(profile) && (
+                                <button
+                                  onClick={() => {
+                                    setIsEditingWorkoutId(w.id);
+                                    setEditingWorkoutName(w.name);
+                                  }}
+                                  className="opacity-0 group-hover/title:opacity-100 p-0.5 text-[#7BA7FF] hover:text-[#7BA7FF]/85 transition-opacity hover:scale-105"
+                                  title="Editar Nome do Treino"
+                                >
+                                  <Edit size={10} />
+                                </button>
+                              )}
+                            </div>
+                          )}
                           {w.description && <p className="text-[10px] text-slate-400 mt-1 font-semibold">{w.description}</p>}
                         </div>
 

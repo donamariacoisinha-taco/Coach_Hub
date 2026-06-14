@@ -23,7 +23,8 @@ import {
   Eye, 
   ShieldCheck, 
   Lock, 
-  Globe 
+  Globe,
+  Paperclip
 } from 'lucide-react';
 import { systemTemplatesApi, SystemTemplate } from '../../../lib/api/systemTemplatesApi';
 import { premiumProtocolsApi, PremiumProtocol, PremiumTemplateWorkout, PremiumTemplateExercise } from '../../../lib/api/premiumProtocolsApi';
@@ -298,6 +299,28 @@ export const ProtocolManagement: React.FC = () => {
         await premiumProtocolsApi.archiveProtocol(id);
         const updated = await premiumProtocolsApi.getProtocols();
         setProtocols(updated);
+      }
+    }
+  };
+
+  const toggleProtocolActive = async (id: string, isFromDrafts = false) => {
+    if (isFromDrafts) {
+      const updatedDrafts = drafts.map(d => {
+        if (d.id === id) {
+          return { ...d, is_active: d.is_active === false ? true : false };
+        }
+        return d;
+      });
+      saveDraftsToStorage(updatedDrafts);
+    } else {
+      const pIndex = protocols.findIndex(p => p.id === id);
+      if (pIndex > -1) {
+        const pCurrent = protocols[pIndex];
+        const updatedItem = { ...pCurrent, is_active: pCurrent.is_active === false ? true : false };
+        const updatedList = [...protocols];
+        updatedList[pIndex] = updatedItem;
+        setProtocols(updatedList);
+        await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
       }
     }
   };
@@ -622,8 +645,9 @@ export const ProtocolManagement: React.FC = () => {
                       {[...protocols, ...drafts].map(p => {
                         const isD = drafts.some(d => d.id === p.id);
                         const isPub = !p.premium && !isD;
+                        const isInactive = p.is_active === false;
                         return (
-                          <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
+                          <tr key={p.id} className={`transition-colors hover:bg-slate-50/40 ${isInactive ? 'opacity-60 bg-slate-50/20' : ''}`}>
                             <td className="p-5">
                               <div>
                                 <span className="font-bold text-slate-900 hover:text-[#7BA7FF] cursor-pointer" onClick={() => handleStartEdit(p, isD)}>{p.name}</span>
@@ -661,22 +685,40 @@ export const ProtocolManagement: React.FC = () => {
                             </td>
 
                             <td className="p-5">
-                              {isD ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-amber-50 ring-1 ring-amber-200 text-amber-600 rounded-full">
-                                  <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" /> Rascunho
-                                </span>
-                              ) : isPub ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-emerald-50 ring-1 ring-emerald-200 text-emerald-600 rounded-full">
-                                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Público
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-blue-50 ring-1 ring-blue-200 text-blue-600 rounded-full">
-                                  <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> Premium
-                                </span>
-                              )}
+                              <div className="flex flex-col gap-1.5 items-start">
+                                {isD ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-amber-50 ring-1 ring-amber-200 text-amber-600 rounded-full">
+                                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" /> Rascunho
+                                  </span>
+                                ) : isPub ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-emerald-50 ring-1 ring-emerald-200 text-emerald-600 rounded-full">
+                                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Público
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-blue-50 ring-1 ring-blue-200 text-blue-600 rounded-full">
+                                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> Premium
+                                  </span>
+                                )}
+                                {isInactive && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-rose-50 ring-1 ring-rose-200 text-rose-600 rounded-full">
+                                    Inativo
+                                  </span>
+                                )}
+                              </div>
                             </td>
 
                             <td className="p-5 text-right space-x-1 whitespace-nowrap">
+                              <button
+                                onClick={() => toggleProtocolActive(p.id, isD)}
+                                className={`p-1.5 border rounded-lg transition ${
+                                  !isInactive 
+                                    ? 'text-emerald-500 bg-emerald-50 border-emerald-100 hover:bg-emerald-100' 
+                                    : 'text-slate-405 bg-slate-50 border-slate-205 hover:bg-slate-100'
+                                }`}
+                                title={!isInactive ? "Desativar Protocolo com o Clipe (Ativo)" : "Ativar Protocolo com o Clipe (Desativado)"}
+                              >
+                                <Paperclip size={11} className={!isInactive ? "rotate-45" : ""} />
+                              </button>
                               <button
                                 onClick={() => handleStartEdit(p, isD)}
                                 className="p-1.5 text-slate-500 hover:text-slate-900 bg-slate-50 border rounded-lg transition"
@@ -718,6 +760,7 @@ export const ProtocolManagement: React.FC = () => {
                     onEdit={() => handleStartEdit(p, false)}
                     onDuplicate={() => handleDuplicate(p, false)}
                     onArchive={() => handleArchive(p.id, false)}
+                    onToggleActive={() => toggleProtocolActive(p.id, false)}
                     onViewTimeline={() => {
                       setSelectedProtocolForVersion(p);
                       setSelectedVersionIndex(3);
@@ -737,6 +780,7 @@ export const ProtocolManagement: React.FC = () => {
                     onEdit={() => handleStartEdit(p, false)}
                     onDuplicate={() => handleDuplicate(p, false)}
                     onArchive={() => handleArchive(p.id, false)}
+                    onToggleActive={() => toggleProtocolActive(p.id, false)}
                     isPublic
                     onViewTimeline={() => {
                       setSelectedProtocolForVersion(p);
@@ -785,6 +829,7 @@ export const ProtocolManagement: React.FC = () => {
                     onEdit={() => handleStartEdit(p, true)}
                     onDuplicate={() => handleDuplicate(p, true)}
                     onArchive={() => handleArchive(p.id, true)}
+                    onToggleActive={() => toggleProtocolActive(p.id, true)}
                     isDraft
                     onViewTimeline={() => {
                       setSelectedProtocolForVersion(p);
@@ -1089,32 +1134,36 @@ export const ProtocolManagement: React.FC = () => {
                   {/* List of workout segments */}
                   {workouts.map((ws, wIdx) => (
                     <div key={ws.id} className="border border-slate-200 rounded-2xl p-6 relative bg-slate-50 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 w-2/3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5 text-left">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Nome da Ficha</label>
                           <input 
                             type="text" 
                             value={ws.name} 
                             onChange={(e) => updateWorkoutName(ws.id, e.target.value)}
                             placeholder="Ex: Treino A - Costas" 
-                            className="bg-transparent font-black text-slate-900 border-none outline-none focus:ring-0 uppercase text-sm w-full"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 font-bold text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-[#7BA7FF]/50 uppercase"
                           />
                         </div>
-                        
-                        <button
-                          onClick={() => removeWorkoutSegment(ws.id)}
-                          className="text-red-500 hover:text-red-700 text-[10px] font-black uppercase tracking-wider"
-                        >
-                          Excluir Ficha
-                        </button>
+                        <div className="space-y-1.5 text-left">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Metodologia / Descrição</label>
+                            <button
+                              onClick={() => removeWorkoutSegment(ws.id)}
+                              className="text-red-500 hover:text-red-700 text-[9px] font-black uppercase tracking-wider"
+                            >
+                              Excluir Ficha
+                            </button>
+                          </div>
+                          <input 
+                            type="text" 
+                            value={ws.description || ''} 
+                            onChange={(e) => updateWorkoutDesc(ws.id, e.target.value)}
+                            placeholder="Ex: Método de saturação miofibrilar..." 
+                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-650 text-xs focus:outline-none focus:ring-2 focus:ring-[#7BA7FF]/50"
+                          />
+                        </div>
                       </div>
-
-                      <input 
-                        type="text" 
-                        value={ws.description || ''} 
-                        onChange={(e) => updateWorkoutDesc(ws.id, e.target.value)}
-                        placeholder="Método de saturação miofibrilar..." 
-                        className="bg-transparent text-xs text-slate-400 border-none outline-none w-full"
-                      />
 
                       {/* Display added exercises */}
                       <div className="space-y-2.5 pt-2">
@@ -1618,12 +1667,14 @@ interface ProtocolCardProps {
   isDraft?: boolean;
   isPublic?: boolean;
   onViewTimeline?: () => void;
+  onToggleActive?: () => void;
 }
 
-const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onArchive, isDraft, isPublic, onViewTimeline }) => {
+const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onArchive, isDraft, isPublic, onViewTimeline, onToggleActive }) => {
   const [showMenu, setShowMenu] = useState(false);
   
   const totalExercises = p.workouts?.reduce((acc, w) => acc + (w.exercises?.length || 0), 0) || 0;
+  const isInactive = p.is_active === false;
 
   const getGoalTheme = (g: string) => {
     const goals: Record<string, string> = {
@@ -1670,7 +1721,7 @@ const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onA
 
   return (
     <div 
-      className="bg-white/70 backdrop-blur-xl border border-white/40 p-6 rounded-3xl text-left flex flex-col justify-between h-[245px] shadow-sm relative group select-none hover:border-slate-300 transition-all duration-200"
+      className={`bg-white/70 backdrop-blur-xl border border-white/40 p-6 rounded-3xl text-left flex flex-col justify-between h-[245px] shadow-sm relative group select-none hover:border-slate-300 transition-all duration-200 ${isInactive ? 'opacity-60 bg-slate-50/20' : ''}`}
     >
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -1679,6 +1730,12 @@ const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onA
               {getGoalLabel(p.goal)}
             </span>
             
+            {isInactive && (
+              <span className="inline-flex items-center text-[7.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded border bg-rose-50 text-rose-700 border-rose-250">
+                Inativo
+              </span>
+            )}
+
             {smartBadge && (
               <span className={`inline-flex items-center text-[7.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${smartBadge.class}`}>
                 {smartBadge.label}
@@ -1686,7 +1743,21 @@ const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onA
             )}
           </div>
           
-          <div className="relative">
+          <div className="flex items-center gap-2 relative">
+            {onToggleActive && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
+                className={`p-1 border rounded-lg transition ${
+                  !isInactive 
+                    ? 'text-emerald-500 bg-emerald-50 border-emerald-100 hover:bg-emerald-100' 
+                    : 'text-slate-400 bg-slate-100 border-slate-205 hover:bg-slate-200'
+                }`}
+                title={!isInactive ? "Desativar com o Clipe (Ativo)" : "Ativar com o Clipe (Desativado)"}
+              >
+                <Paperclip size={11} className={!isInactive ? "rotate-45" : ""} />
+              </button>
+            )}
+
             <button 
               onClick={() => setShowMenu(!showMenu)}
               className="text-slate-400 hover:text-slate-900 text-sm font-black tracking-widest px-1"
