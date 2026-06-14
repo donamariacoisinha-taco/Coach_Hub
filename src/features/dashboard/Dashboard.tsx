@@ -726,15 +726,13 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             <Dumbbell size={13} className={activeTab === 'protocols' ? 'text-white' : 'text-slate-400'} />
             Protocolos
           </button>
-          {isAdmin(profile) && (
-            <button 
-              onClick={() => { setActiveTab('premium'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-              className={`flex-1 pt-[11px] pb-3 px-3 h-[47px] rounded-2xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'premium' ? 'bg-gradient-to-r from-[#818CF8] to-[#9333EA] text-white shadow-md shadow-[#818CF8]/15' : 'text-slate-500 hover:text-slate-855'}`}
-            >
-              <Sliders size={12} className={activeTab === 'premium' ? 'text-white' : 'text-slate-400'} />
-              Biblioteca Premium (Admin)
-            </button>
-          )}
+          <button 
+            onClick={() => { setActiveTab('premium'); if ('vibrate' in navigator) navigator.vibrate(5); }}
+            className={`flex-1 pt-[11px] pb-3 px-3 h-[47px] rounded-2xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'premium' ? 'bg-gradient-to-r from-[#818CF8] to-[#9333EA] text-white shadow-md shadow-[#818CF8]/15' : 'text-slate-500 hover:text-slate-855'}`}
+          >
+            <Crown size={12} className={activeTab === 'premium' ? 'text-white' : 'text-slate-400'} />
+            Biblioteca Premium
+          </button>
           <button 
             onClick={() => { setActiveTab('evolution'); if ('vibrate' in navigator) navigator.vibrate(5); }}
             className={`flex-1 h-[47px] w-[127px] py-3 rounded-2xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'evolution' ? 'bg-gradient-to-r from-[#059669] to-[#10B981] text-white shadow-md shadow-emerald-500/15' : 'text-slate-500 hover:text-slate-855'}`}
@@ -744,7 +742,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           </button>
         </div>
 
-        {activeTab === 'premium' && isAdmin(profile) ? (
+        {activeTab === 'premium' ? (
           <PremiumLibraryComponent 
             profile={profile || null} 
             onRefreshDashboard={refresh} 
