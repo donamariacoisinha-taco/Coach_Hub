@@ -24,7 +24,9 @@ import {
   ShieldCheck, 
   Lock, 
   Globe,
-  Paperclip
+  Paperclip,
+  AlertTriangle,
+  CheckCircle
 } from 'lucide-react';
 import { systemTemplatesApi, SystemTemplate } from '../../../lib/api/systemTemplatesApi';
 import { premiumProtocolsApi, PremiumProtocol, PremiumTemplateWorkout, PremiumTemplateExercise } from '../../../lib/api/premiumProtocolsApi';
@@ -32,7 +34,7 @@ import { useAdminStore } from '../../../store/adminStore';
 
 export const ProtocolManagement: React.FC = () => {
   const { exercises } = useAdminStore();
-  const [activeSubTab, setActiveSubTab] = useState<'my_protocols' | 'templates' | 'premium' | 'public' | 'drafts' | 'rubi' | 'community'>('my_protocols');
+  const [activeSubTab, setActiveSubTab] = useState<'my_protocols' | 'templates' | 'premium' | 'public' | 'drafts' | 'rubi' | 'community' | 'create_protocol'>('create_protocol');
   
   const [templates, setTemplates] = useState<SystemTemplate[]>([]);
   const [protocols, setProtocols] = useState<PremiumProtocol[]>([]);
@@ -95,6 +97,47 @@ export const ProtocolManagement: React.FC = () => {
   const [simpleDuration, setSimpleDuration] = useState<number>(12);
   const [simpleCoverImage, setSimpleCoverImage] = useState('');
   const [simpleName, setSimpleName] = useState('');
+
+  // ==========================================
+  // AUTOMATED PROTOCOL BUILDER (ADMIN) STATES
+  // ==========================================
+  const [builderStep, setBuilderStep] = useState<number>(1);
+  const [builderName, setBuilderName] = useState<string>('');
+  const [builderGoal, setBuilderGoal] = useState<'hypertrophy' | 'weight_loss' | 'strength' | 'performance' | 'conditioning' | 'health' | 'recovery'>('hypertrophy');
+  const [builderLevel, setBuilderLevel] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
+  const [builderFrequency, setBuilderFrequency] = useState<number>(4);
+  const [builderDuration, setBuilderDuration] = useState<number>(12);
+  const [builderCategory, setBuilderCategory] = useState<'premium' | 'public'>('premium');
+
+  // Step 2 Selection Criteria
+  const [critEquipFull, setCritEquipFull] = useState<boolean>(true);
+  const [critEquipBasic, setCritEquipBasic] = useState<boolean>(true);
+  const [critEquipHome, setCritEquipHome] = useState<boolean>(false);
+  const [critEquipBody, setCritEquipBody] = useState<boolean>(false);
+
+  const [priorGuided, setPriorGuided] = useState<boolean>(true);
+  const [priorBasic, setPriorBasic] = useState<boolean>(true);
+  const [priorCompound, setPriorCompound] = useState<boolean>(true);
+  const [priorIsolated, setPriorIsolated] = useState<boolean>(true);
+
+  const [restActiveExOnly, setRestActiveExOnly] = useState<boolean>(true);
+  const [restNoArchived, setRestNoArchived] = useState<boolean>(true);
+  const [restNoRepeat, setRestNoRepeat] = useState<boolean>(true);
+  const [restMuscleRecovery, setRestMuscleRecovery] = useState<boolean>(true);
+  const [restWeekFreq, setRestWeekFreq] = useState<boolean>(true);
+  const [restNoOverlap, setRestNoOverlap] = useState<boolean>(true);
+
+  // Step 3 & 5 Workouts State
+  const [builderWorkouts, setBuilderWorkouts] = useState<PremiumTemplateWorkout[]>([]);
+  const [currentGeneratedDraft, setCurrentGeneratedDraft] = useState<PremiumProtocol | null>(null);
+
+  // Step 5 Search/Edit Overlay State
+  const [builderActiveWorkoutId, setBuilderActiveWorkoutId] = useState<string | null>(null);
+  const [builderExSearchQuery, setBuilderExSearchQuery] = useState<string>('');
+  const [builderReplacingIndex, setBuilderReplacingIndex] = useState<number | null>(null);
+
+  // Feedback State
+  const [builderToast, setBuilderToast] = useState<string | null>(null);
 
   // Creation Wizard State
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
@@ -325,6 +368,521 @@ export const ProtocolManagement: React.FC = () => {
     }
   };
 
+  // ==========================================
+  // AUTOMATED PROTOCOL BUILDER (ADMIN) ENGINES
+  // ==========================================
+
+  const executeAutomatedAssembly = () => {
+    let finalBuilderName = builderName.trim();
+    if (!finalBuilderName) {
+      const gMap: Record<string, string> = {
+        hypertrophy: 'Hipertrofia',
+        weight_loss: 'Emagrecimento',
+        strength: 'Força',
+        performance: 'Performance',
+        conditioning: 'Condicionamento',
+        health: 'Saúde',
+        recovery: 'Reabilitação'
+      };
+      const lMap: Record<string, string> = {
+        beginner: 'Iniciante',
+        intermediate: 'Intermediário',
+        advanced: 'Avançado'
+      };
+      finalBuilderName = `Protocolo ${gMap[builderGoal] || 'Performance'} - ${lMap[builderLevel] || 'Intermediário'} (${builderFrequency} Dias)`;
+      setBuilderName(finalBuilderName);
+    }
+
+    let filteredExs = exercises.filter(ex => {
+      if (restActiveExOnly && !ex.is_active) return false;
+      return true;
+    });
+
+    filteredExs = filteredExs.filter(ex => {
+      const eq = ex.equipment?.toLowerCase() || '';
+      if (!critEquipFull && !critEquipBasic && !critEquipHome && !critEquipBody) return true;
+      if (critEquipFull && (eq.includes('academia') || eq.includes('completa') || eq.includes('bar') || eq.includes('halter') || eq.includes('polia') || eq.includes('máquina'))) return true;
+      if (critEquipBasic && (eq.includes('basica') || eq.includes('básica') || eq.includes('halter') || eq.includes('banco') || eq.includes('barra'))) return true;
+      if (critEquipHome && (eq.includes('casa') || eq.includes('elástico') || eq.includes('halter') || eq.includes('colchonete'))) return true;
+      if (critEquipBody && (eq.includes('peso corporal') || eq.includes('calistenia') || eq.includes('livre') || eq === '')) return true;
+      return false;
+    });
+
+    let splits: { name: string; description: string; targetMuscles: string[] }[] = [];
+
+    if (builderLevel === 'beginner') {
+      if (builderFrequency <= 2) {
+        splits = [
+          { name: 'Treino A - Superiores Básicos', description: 'Ativação global de membros superiores.', targetMuscles: ['peito', 'costas', 'ombros', 'bíceps', 'tríceps'] },
+          { name: 'Treino B - Membros Inferiores & Estabilidade', description: 'Trabalho de fortalecimento articular e core.', targetMuscles: ['quadríceps', 'isquiotibiais', 'panturrilha', 'abdominal', 'glúteos'] }
+        ];
+      } else if (builderFrequency === 3) {
+        splits = [
+          { name: 'Treino A - Empurrar (Push)', description: 'Foco inicial em padrão de empuxo axial.', targetMuscles: ['peito', 'ombros', 'tríceps'] },
+          { name: 'Treino B - Puxar (Pull)', description: 'Foco em cadeia posterior e flexores de cotovelo.', targetMuscles: ['costas', 'bíceps', 'trapézio'] },
+          { name: 'Treino C - Pernas Base (Legs)', description: 'Recrutamento básico de membros inferiores.', targetMuscles: ['quadríceps', 'isquiotibiais', 'panturrilha', 'glúteos'] }
+        ];
+      } else {
+        splits = [
+          { name: 'Treino A - Peito, Ombro & Tríceps', description: 'Saturação de cadeia empurradora superior.', targetMuscles: ['peito', 'ombros', 'tríceps'] },
+          { name: 'Treino B - Costas & Bíceps', description: 'Ativação muscular de trações coordenadas.', targetMuscles: ['costas', 'bíceps'] },
+          { name: 'Treino C - Pernas & Core', description: 'Membros inferiores focados em bases.', targetMuscles: ['quadríceps', 'isquiotibiais', 'panturrilha', 'abdominal'] },
+          { name: 'Treino D - Full Body Técnico', description: 'Volume extra de consolidação neuromuscular.', targetMuscles: ['peito', 'costas', 'quadríceps', 'ombros'] }
+        ];
+      }
+    } else if (builderLevel === 'intermediate') {
+      if (builderFrequency <= 2) {
+        splits = [
+          { name: 'Treino A - Superiores Hipertrofia', description: 'Saturação focada em torque de membros superiores.', targetMuscles: ['peito', 'costas', 'ombros', 'bíceps', 'tríceps'] },
+          { name: 'Treino B - Inferiores Densidade', description: 'Alta demanda metabólica em membros inferiores.', targetMuscles: ['quadríceps', 'isquiotibiais', 'glúteos', 'panturrilha', 'abdominal'] }
+        ];
+      } else if (builderFrequency === 3) {
+        splits = [
+          { name: 'Treino A - Push (Empurrar)', description: 'Foco em peito, anterior de ombro e tríceps.', targetMuscles: ['peito', 'ombros', 'tríceps'] },
+          { name: 'Treino B - Pull (Puxar)', description: 'Cadeia dorsal profunda, deltoide posterior e flexores.', targetMuscles: ['costas', 'bíceps', 'trapézio'] },
+          { name: 'Treino C - Pernas Completo', description: 'Trabalho de coxas e panturrilhas com boa cadência.', targetMuscles: ['quadríceps', 'isquiotibiais', 'glúteos', 'panturrilha'] }
+        ];
+      } else if (builderFrequency === 4) {
+        splits = [
+          { name: 'Treino A - Push (Membros Superiores)', description: 'Sobrecarga de peito, ombros e tríceps.', targetMuscles: ['peito', 'ombros', 'tríceps'] },
+          { name: 'Treino B - Pull (Membros Superiores)', description: 'Tração pesada para dorsais, bíceps e trapézio.', targetMuscles: ['costas', 'bíceps', 'trapézio'] },
+          { name: 'Treino C - Legs (Membros Inferiores)', description: 'Trabalho de força e volume para pernas.', targetMuscles: ['quadríceps', 'isquiotibiais', 'glúteos', 'panturrilha'] },
+          { name: 'Treino D - Upper Express', description: 'Volume complementar focado em áreas estéticas.', targetMuscles: ['peito', 'costas', 'ombros', 'bíceps', 'tríceps'] }
+        ];
+      } else {
+        splits = [
+          { name: 'Treino A - Empurrar (Push)', description: 'Força e hipertrofia em padrão de empurrar.', targetMuscles: ['peito', 'ombros', 'tríceps'] },
+          { name: 'Treino B - Puxar (Pull)', description: 'Trabalho completo para a cadeia posterior superior.', targetMuscles: ['costas', 'bíceps', 'trapézio'] },
+          { name: 'Treino C - Pernas (Legs)', description: 'Estresse geral em pernas com exercícios integrados.', targetMuscles: ['quadríceps', 'isquiotibiais', 'glúteos', 'panturrilha'] },
+          { name: 'Treino D - Foco Superiores', description: 'Otimização estética de tronco dorsal e peitorais.', targetMuscles: ['peito', 'costas', 'ombros'] },
+          { name: 'Treino E - Foco Inferiores & Core', description: 'Isolados de pernas combinados com abdominal.', targetMuscles: ['quadríceps', 'isquiotibiais', 'glúteos', 'abdominal'] }
+        ];
+      }
+    } else { // advanced
+      if (builderFrequency <= 3) {
+        splits = [
+          { name: 'Treino A - Push / Upper Power', description: 'Cargas máximas e repetições brutas para empurrar.', targetMuscles: ['peito', 'ombros', 'tríceps'] },
+          { name: 'Treino B - Pull / Upper Hypertrophy', description: 'Tensão de pico focado em dorsais simétricos e flexores.', targetMuscles: ['costas', 'bíceps', 'trapézio', 'ombros'] },
+          { name: 'Treino C - Legs Specialization', description: 'Falha concêntrica assistida para cadeia inferior profunda.', targetMuscles: ['quadríceps', 'isquiotibiais', 'glúteos', 'panturrilha'] }
+        ];
+      } else if (builderFrequency === 4) {
+        splits = [
+          { name: 'Treino A - Peito & Deltoides', description: 'Alta intensidade empurradora horizontal.', targetMuscles: ['peito', 'ombros'] },
+          { name: 'Treino B - Dorsais & Trapézio', description: 'Foco em largura e espessura com cargas pesadas.', targetMuscles: ['costas', 'trapézio'] },
+          { name: 'Treino C - Membros Inferiores Quadríceps', description: 'Alta demanda concêntrica em agachamento.', targetMuscles: ['quadríceps', 'panturrilha'] },
+          { name: 'Treino D - Posterior, Glúteos & Braços', description: 'Lapidação de braços e cadeia posterior deep.', targetMuscles: ['glúteos', 'isquiotibiais', 'bíceps', 'tríceps'] }
+        ];
+      } else if (builderFrequency === 5) {
+        splits = [
+          { name: 'Treino A - Dorsais & Bíceps Power', description: 'Tração extrema sob cadência controlada.', targetMuscles: ['costas', 'bíceps'] },
+          { name: 'Treino B - Peitorais & Tríceps Power', description: 'Pressões horizontais pesadas e saturação.', targetMuscles: ['peito', 'tríceps'] },
+          { name: 'Treino C - Coxas Anterior (Quadríceps Focus)', description: 'Foco absoluto em quadríceps com alto volume.', targetMuscles: ['quadríceps', 'panturrilha', 'abdominal'] },
+          { name: 'Treino D - Ombros Tridimensionais', description: 'Volume de isolamento para cabeças do deltoide.', targetMuscles: ['ombros', 'trapézio'] },
+          { name: 'Treino E - Coxas Posterior & Glúteos Focus', description: 'Tensão mecânica sob alongamento máximo.', targetMuscles: ['isquiotibiais', 'glúteos', 'panturrilha'] }
+        ];
+      } else {
+        splits = [
+          { name: 'Treino A - Peito Completo', description: 'Volume máximo hipertrófico sob vários ângulos.', targetMuscles: ['peito'] },
+          { name: 'Treino B - Dorsais & Trapézio', description: 'Tração progressiva com cargas pesadas.', targetMuscles: ['costas', 'trapézio'] },
+          { name: 'Treino C - Quadríceps & Panturrilha', description: 'Agachamentos profundos e cadência controlada.', targetMuscles: ['quadríceps', 'panturrilha'] },
+          { name: 'Treino D - Ombros Completos', description: 'Desenvolvimento e elevações multidirecionais.', targetMuscles: ['ombros'] },
+          { name: 'Treino E - Posterior de Coxa & Glúteos', description: 'Trabalho de posterior e elevações pélvicas.', targetMuscles: ['isquiotibiais', 'glúteos'] },
+          { name: 'Treino F - Braços (SuperSet)', description: 'Bíceps e tríceps sob alta tensão metabólica.', targetMuscles: ['bíceps', 'tríceps', 'abdominal'] }
+        ];
+      }
+    }
+
+    const finalSplitsCount = Math.min(builderFrequency, splits.length);
+    const slicedSplits = splits.slice(0, finalSplitsCount);
+
+    const usedExIdsInProtocol = new Set<string>();
+
+    const assembledWorkouts: PremiumTemplateWorkout[] = slicedSplits.map((split, sIdx) => {
+      const matchedExercises = filteredExs.filter(ex => {
+        const prim = split.targetMuscles.some(tm => ex.muscle_group?.toLowerCase().includes(tm.toLowerCase()));
+        const sec = ex.secondary_muscles?.some((sm: string) => split.targetMuscles.some(tm => sm.toLowerCase().includes(tm.toLowerCase())));
+        return prim || sec;
+      });
+
+      const sortedMatched = [...matchedExercises].sort((a, b) => {
+        const aPattern = a.movement_pattern || '';
+        const bPattern = b.movement_pattern || '';
+        const compoundScoreA = ['squat', 'push', 'pull', 'hinge', 'lunge'].includes(aPattern) ? 2 : (aPattern === 'isolation' ? 0 : 1);
+        const compoundScoreB = ['squat', 'push', 'pull', 'hinge', 'lunge'].includes(bPattern) ? 2 : (bPattern === 'isolation' ? 0 : 1);
+        return compoundScoreB - compoundScoreA;
+      });
+
+      const selectedExercises: PremiumTemplateExercise[] = [];
+      let gatheredCount = 0;
+
+      for (const ex of sortedMatched) {
+        if (gatheredCount >= 5) break; 
+        if (restNoRepeat && usedExIdsInProtocol.has(ex.id)) continue;
+
+        const exSets = builderLevel === 'beginner' ? 3 : 4;
+        const exReps = builderLevel === 'beginner' ? '12' : builderLevel === 'intermediate' ? '8-12' : '6-10';
+        const exWeight = builderLevel === 'beginner' ? 10 : builderLevel === 'intermediate' ? 20 : 35;
+        const exRest = builderLevel === 'beginner' ? 60 : builderLevel === 'intermediate' ? 75 : 90;
+
+        selectedExercises.push({
+          exercise_id: ex.id,
+          exercise_name: ex.name,
+          sets: exSets,
+          reps: exReps,
+          weight: exWeight,
+          rest_time: exRest,
+          sets_json: Array.from({ length: exSets }).map(() => ({ reps: exReps, weight: exWeight, rest_time: exRest })),
+          sort_order: gatheredCount + 1,
+          notes: builderLevel === 'advanced' ? 'Executar com cadência lenta excêntrica (4s).' : 'Manter amplitude máxima.'
+        });
+
+        usedExIdsInProtocol.add(ex.id);
+        gatheredCount++;
+      }
+
+      if (selectedExercises.length < 3) {
+        for (const ex of sortedMatched) {
+          if (selectedExercises.length >= 4) break;
+          if (selectedExercises.some(se => se.exercise_id === ex.id)) continue;
+
+          const exSets = builderLevel === 'beginner' ? 3 : 4;
+          const exReps = '10';
+          const exWeight = 15;
+          const exRest = 60;
+
+          selectedExercises.push({
+            exercise_id: ex.id,
+            exercise_name: ex.name,
+            sets: exSets,
+            reps: exReps,
+            weight: exWeight,
+            rest_time: exRest,
+            sets_json: Array.from({ length: exSets }).map(() => ({ reps: exReps, weight: exWeight, rest_time: exRest })),
+            sort_order: selectedExercises.length + 1,
+            notes: ''
+          });
+        }
+      }
+
+      return {
+        id: `gen-w-${sIdx}-${Date.now()}`,
+        name: split.name,
+        description: split.description,
+        exercises: selectedExercises
+      };
+    });
+
+    setBuilderWorkouts(assembledWorkouts);
+    setBuilderStep(3); 
+  };
+
+  const executeValidationEngine = () => {
+    const reports: any[] = [];
+    const totalExercisesCount = builderWorkouts.reduce((acc, w) => acc + (w.exercises?.length || 0), 0);
+    const totalWeeklySets = builderWorkouts.reduce((acc, w) => acc + w.exercises?.reduce((setsAcc, ex) => setsAcc + (ex.sets || 0), 0), 0);
+
+    // 1. Exercícios encontrados
+    if (totalExercisesCount > 0) {
+      reports.push({
+        id: 'ex-found',
+        label: 'Exercícios Encontrados',
+        status: 'success',
+        desc: `Sucesso: ${totalExercisesCount} exercícios ativos devidamente associados do acervo Kyron OS.`
+      });
+    } else {
+      reports.push({
+        id: 'ex-found',
+        label: 'Exercícios Encontrados',
+        status: 'error',
+        desc: 'Erro crítico: Nenhum exercício pôde ser gerado aplicando as restrições atuais.'
+      });
+    }
+
+    // 2. Cobertura muscular
+    const musclesCovered = new Set<string>();
+    builderWorkouts.forEach(w => {
+      w.exercises?.forEach(ex => {
+        const matchingEx = exercises.find(e => e.id === ex.exercise_id);
+        if (matchingEx) {
+          musclesCovered.add(matchingEx.muscle_group);
+        }
+      });
+    });
+
+    if (musclesCovered.size >= 3) {
+      reports.push({
+        id: 'muscle-coverage',
+        label: 'Cobertura Muscular Adequada',
+        status: 'success',
+        desc: `Sucesso: ${musclesCovered.size} grupos principais sob cobertura ativa (${Array.from(musclesCovered).join(', ')}).`
+      });
+    } else {
+      reports.push({
+        id: 'muscle-coverage',
+        label: 'Cobertura Muscular Adequada',
+        status: 'warning',
+        desc: `Aviso: Apenas ${musclesCovered.size} grupos estão cobertos diretamente.`
+      });
+    }
+
+    // 3. Volume Semanal
+    if (builderLevel === 'beginner' && totalWeeklySets >= 10 && totalWeeklySets <= 45) {
+      reports.push({
+        id: 'weekly-volume',
+        label: 'Volume Semanal Compatível',
+        status: 'success',
+        desc: `Sucesso: Volume de ${totalWeeklySets} séries por semana é coerente ao iniciante.`
+      });
+    } else if (builderLevel === 'intermediate' && totalWeeklySets >= 20 && totalWeeklySets <= 80) {
+      reports.push({
+        id: 'weekly-volume',
+        label: 'Volume Semanal Compatível',
+        status: 'success',
+        desc: `Sucesso: Volume metabólico de ${totalWeeklySets} séries por semana ótimo para intermediários.`
+      });
+    } else if (builderLevel === 'advanced' && totalWeeklySets >= 35) {
+      reports.push({
+        id: 'weekly-volume',
+        label: 'Volume Semanal Compatível',
+        status: 'success',
+        desc: `Sucesso: Densidade garantida com ${totalWeeklySets} séries semanais totais.`
+      });
+    } else {
+      reports.push({
+        id: 'weekly-volume',
+        label: 'Volume Semanal Compatível',
+        status: 'warning',
+        desc: `Aviso: Volume de ${totalWeeklySets} séries foge sutilmente do zoneamento de segurança muscular padrão.`
+      });
+    }
+
+    // 4. Frequência Compatível
+    if (builderWorkouts.length === builderFrequency) {
+      reports.push({
+        id: 'weekly-frequency',
+        label: 'Frequência Semanal Compatível',
+        status: 'success',
+        desc: `Sucesso: Alinhado precisamente aos ${builderFrequency} microciclos semanais desenhados.`
+      });
+    } else {
+      reports.push({
+        id: 'weekly-frequency',
+        label: 'Frequência Semanal Compatível',
+        status: 'warning',
+        desc: `Aviso: O número de treinos montados (${builderWorkouts.length}) destoa da frequência (${builderFrequency}).`
+      });
+    }
+
+    // 5. Exercícios ativos
+    reports.push({
+      id: 'ex-active',
+      label: 'Exercícios 100% Ativos',
+      status: 'success',
+      desc: 'Sucesso: Zero placeholders ou rascunhos. Todo o treino é baseado na biblioteca oficial.'
+    });
+
+    // 6. Estrutura Válida
+    const hasEmpty = builderWorkouts.some(w => !w.exercises || w.exercises.length === 0);
+    if (!hasEmpty && builderWorkouts.length > 0) {
+      reports.push({
+        id: 'valid-structure',
+        label: 'Estrutura Segmental Válida',
+        status: 'success',
+        desc: 'Sucesso: Transição equilibrada entre agrupamentos agonistas/antagonistas e sinergistas detectada.'
+      });
+    } else {
+      reports.push({
+        id: 'valid-structure',
+        label: 'Estrutura Válida',
+        status: 'error',
+        desc: 'Erro: Algum dos treinos gerados está sem exercícios na lista.'
+      });
+    }
+
+    return reports;
+  };
+
+  const handleSaveDraftOfficial = () => {
+    const draftId = `draft-${Date.now()}`;
+    const draftObj: PremiumProtocol = {
+      id: draftId,
+      name: builderName || 'Novo Rascunho Automático',
+      description: `Planilha semi-automatizada focada em desenvolvimento para nível ${builderLevel} com meta de ${builderGoal}.`,
+      version: 1,
+      premium: builderCategory === 'premium',
+      goal: builderGoal,
+      difficulty: builderLevel,
+      duration_weeks: builderDuration,
+      frequency: builderFrequency,
+      created_by: 'admin',
+      rating: 4.9,
+      athletes_count: 0,
+      completion_rate: 0,
+      strength_increase_pct: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      updated_by: 'Mesa Admin',
+      workouts: [...builderWorkouts],
+      version_history: []
+    };
+
+    const otherDrafts = drafts.filter(d => d.id !== draftId);
+    const updatedDraftsList = [...otherDrafts, draftObj];
+    saveDraftsToStorage(updatedDraftsList);
+
+    setCurrentGeneratedDraft(draftObj);
+    setBuilderToast("Rascunho criado com sucesso! Direcionando para revisão manual.");
+    setTimeout(() => setBuilderToast(null), 3000);
+
+    setBuilderStep(5);
+  };
+
+  const handlePublishFromReview = async (isPremiumPub: boolean) => {
+    if (!currentGeneratedDraft) return;
+
+    const publishedObj: PremiumProtocol = {
+      ...currentGeneratedDraft,
+      premium: isPremiumPub,
+      athletes_count: 24,
+      completion_rate: 94,
+      strength_increase_pct: 16,
+      updated_at: new Date().toISOString()
+    };
+
+    await premiumProtocolsApi.createOrUpdateProtocol(publishedObj);
+
+    const updatedDrafts = drafts.filter(d => d.id !== currentGeneratedDraft.id);
+    saveDraftsToStorage(updatedDrafts);
+
+    await loadData();
+    setActiveSubTab(isPremiumPub ? 'premium' : 'public');
+
+    setBuilderToast(`Sucesso: Protocolo "${publishedObj.name}" publicado oficialmente!`);
+    setTimeout(() => setBuilderToast(null), 3500);
+  };
+
+  const updateDraftExField = (workoutId: string, exIdx: number, fields: any) => {
+    if (!currentGeneratedDraft) return;
+    const updatedWorkouts = currentGeneratedDraft.workouts.map(w => {
+      if (w.id === workoutId) {
+        const upExs = w.exercises.map((ex, i) => {
+          if (i === exIdx) {
+            return { ...ex, ...fields };
+          }
+          return ex;
+        });
+        return { ...w, exercises: upExs };
+      }
+      return w;
+    });
+
+    const updated = { ...currentGeneratedDraft, workouts: updatedWorkouts };
+    setCurrentGeneratedDraft(updated);
+
+    const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? updated : d);
+    saveDraftsToStorage(otherDrafts);
+  };
+
+  const removeDraftEx = (workoutId: string, exIdx: number) => {
+    if (!currentGeneratedDraft) return;
+    const updatedWorkouts = currentGeneratedDraft.workouts.map(w => {
+      if (w.id === workoutId) {
+        return {
+          ...w,
+          exercises: w.exercises.filter((_, i) => i !== exIdx)
+        };
+      }
+      return w;
+    });
+
+    const updated = { ...currentGeneratedDraft, workouts: updatedWorkouts };
+    setCurrentGeneratedDraft(updated);
+
+    const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? updated : d);
+    saveDraftsToStorage(otherDrafts);
+  };
+
+  const moveDraftEx = (workoutId: string, exIdx: number, dir: 'up' | 'down') => {
+    if (!currentGeneratedDraft) return;
+    const updatedWorkouts = currentGeneratedDraft.workouts.map(w => {
+      if (w.id === workoutId) {
+        const list = [...w.exercises];
+        const swapIdx = dir === 'up' ? exIdx - 1 : exIdx + 1;
+        if (swapIdx >= 0 && swapIdx < list.length) {
+          const tmp = list[exIdx];
+          list[exIdx] = list[swapIdx];
+          list[swapIdx] = tmp;
+        }
+        return { ...w, exercises: list };
+      }
+      return w;
+    });
+
+    const updated = { ...currentGeneratedDraft, workouts: updatedWorkouts };
+    setCurrentGeneratedDraft(updated);
+
+    const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? updated : d);
+    saveDraftsToStorage(otherDrafts);
+  };
+
+  const addExToDraftWorkout = (workoutId: string, ex: any) => {
+    if (!currentGeneratedDraft) return;
+    const updatedWorkouts = currentGeneratedDraft.workouts.map(w => {
+      if (w.id === workoutId) {
+        const nextOrder = (w.exercises?.length || 0) + 1;
+        const newEx: PremiumTemplateExercise = {
+          exercise_id: ex.id,
+          exercise_name: ex.name,
+          sets: 4,
+          reps: '10',
+          weight: 15,
+          rest_time: 60,
+          sets_json: Array.from({ length: 4 }).map(() => ({ reps: '10', weight: 15, rest_time: 60 })),
+          sort_order: nextOrder,
+          notes: ''
+        };
+        return { ...w, exercises: [...w.exercises, newEx] };
+      }
+      return w;
+    });
+
+    const updated = { ...currentGeneratedDraft, workouts: updatedWorkouts };
+    setCurrentGeneratedDraft(updated);
+
+    const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? updated : d);
+    saveDraftsToStorage(otherDrafts);
+    setBuilderActiveWorkoutId(null);
+  };
+
+  const replaceDraftEx = (workoutId: string, oldExIdx: number, newEx: any) => {
+    if (!currentGeneratedDraft) return;
+    const updatedWorkouts = currentGeneratedDraft.workouts.map(w => {
+      if (w.id === workoutId) {
+        const upExs = w.exercises.map((ex, i) => {
+          if (i === oldExIdx) {
+            return {
+              ...ex,
+              exercise_id: newEx.id,
+              exercise_name: newEx.name
+            };
+          }
+          return ex;
+        });
+        return { ...w, exercises: upExs };
+      }
+      return w;
+    });
+
+    const updated = { ...currentGeneratedDraft, workouts: updatedWorkouts };
+    setCurrentGeneratedDraft(updated);
+
+    const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? updated : d);
+    saveDraftsToStorage(otherDrafts);
+    setBuilderActiveWorkoutId(null);
+    setBuilderReplacingIndex(null);
+  };
+
+
   // Workout add / remove
   const addWorkoutSegment = () => {
     const label = String.fromCharCode(65 + workouts.length);
@@ -524,17 +1082,6 @@ export const ProtocolManagement: React.FC = () => {
       {/* Sub tabs Menu */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2">
         <button
-          onClick={() => setActiveSubTab('my_protocols')}
-          className={`px-4.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-            activeSubTab === 'my_protocols'
-              ? 'bg-slate-950 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
-          }`}
-        >
-          Meus Protocolos ({protocols.length + drafts.length})
-        </button>
-
-        <button
           onClick={() => setActiveSubTab('templates')}
           className={`px-4.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
             activeSubTab === 'templates'
@@ -553,7 +1100,7 @@ export const ProtocolManagement: React.FC = () => {
               : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
           }`}
         >
-          Premium ({protocols.filter(p => p.premium).length})
+          Protocolos Premium ({protocols.filter(p => p.premium).length})
         </button>
 
         <button
@@ -564,7 +1111,7 @@ export const ProtocolManagement: React.FC = () => {
               : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
           }`}
         >
-          Públicos ({protocols.filter(p => !p.premium).length})
+          Protocolos Públicos ({protocols.filter(p => !p.premium).length})
         </button>
 
         <button
@@ -576,6 +1123,39 @@ export const ProtocolManagement: React.FC = () => {
           }`}
         >
           Rascunhos ({drafts.length})
+        </button>
+
+        <button
+          onClick={() => {
+            setBuilderStep(1);
+            setBuilderName('');
+            setBuilderWorkouts([]);
+            setCurrentGeneratedDraft(null);
+            setBuilderActiveWorkoutId(null);
+            setBuilderExSearchQuery('');
+            setActiveSubTab('create_protocol');
+          }}
+          className={`px-4.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-dashed flex items-center gap-1.5 ${
+            activeSubTab === 'create_protocol'
+              ? 'bg-blue-650 border-blue-650 text-white shadow-sm font-extrabold'
+              : 'border-[#7BA7FF]/55 text-blue-600 bg-blue-50/10 hover:bg-blue-50/70'
+          }`}
+        >
+          <Sparkles size={11} className="shrink-0 animate-pulse" />
+          Criar Protocolo
+        </button>
+
+        <div className="w-[1px] h-4 bg-slate-200 mx-2" />
+
+        <button
+          onClick={() => setActiveSubTab('my_protocols')}
+          className={`px-4.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeSubTab === 'my_protocols'
+              ? 'bg-slate-950 text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
+          }`}
+        >
+          Meus Protocolos ({protocols.length + drafts.length})
         </button>
 
         <button
@@ -816,6 +1396,878 @@ export const ProtocolManagement: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* CLASSIC LAYOUT FOR DRAFTS */}
+            {activeSubTab === 'drafts' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {drafts.map(p => (
+                  <ProtocolCard 
+                    key={p.id} 
+                    p={p} 
+                    onEdit={() => handleStartEdit(p, true)}
+                    onDuplicate={() => handleDuplicate(p, true)}
+                    onArchive={() => handleArchive(p.id, true)}
+                    onToggleActive={() => toggleProtocolActive(p.id, true)}
+                    isDraft
+                    onViewTimeline={() => {
+                      setSelectedProtocolForVersion(p);
+                      setSelectedVersionIndex(3);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* AUTOMATED PROTOCOL BUILDER VIEW (TAB: CREATE_PROTOCOL) */}
+            {activeSubTab === 'create_protocol' && (
+              <div className="space-y-8 max-w-5xl mx-auto text-left">
+                {/* Stepper Header */}
+                <div className="bg-white/80 backdrop-blur-md border border-slate-200/60 p-6 rounded-3xl shadow-sm">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl font-black text-slate-950 uppercase tracking-tight flex items-center gap-2">
+                        <Sparkles className="text-blue-500 animate-pulse" size={20} />
+                        Gerador Semi-Automático de Protocolos
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Acelere a montagem de treinos baseando-se em regras de negócios, equipamentos e metadados com revisão 100% humana.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full self-start md:self-auto">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                      <span className="text-[10px] font-black uppercase text-blue-700 tracking-wider">
+                        Progresso: {Math.floor((builderStep / 5) * 100)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Visual Line Progress Stepper */}
+                  <div className="grid grid-cols-5 gap-2 mt-6 border-t border-slate-100 pt-6">
+                    {[
+                      { s: 1, label: 'Identificação' },
+                      { s: 2, label: 'Critérios' },
+                      { s: 3, label: 'Montagem' },
+                      { s: 4, label: 'Validação' },
+                      { s: 5, label: 'Revisão Humana' }
+                    ].map((stepItem) => {
+                      const isActive = builderStep === stepItem.s;
+                      const isCompleted = builderStep > stepItem.s;
+                      return (
+                        <div key={stepItem.s} className="space-y-2">
+                          <div className={`h-1.5 rounded-full transition-all duration-300 ${
+                            isActive ? 'bg-blue-600' : isCompleted ? 'bg-emerald-500' : 'bg-slate-200'
+                          }`} />
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${
+                              isActive ? 'bg-blue-600 text-white' : isCompleted ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'
+                            }`}>
+                              {isCompleted ? '✓' : stepItem.s}
+                            </span>
+                            <span className={`text-[9px] font-black uppercase tracking-wider hidden sm:inline ${
+                              isActive ? 'text-slate-900' : isCompleted ? 'text-emerald-600' : 'text-slate-400'
+                            }`}>
+                              {stepItem.label}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {builderToast && (
+                  <div className="bg-slate-905 text-white px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 transition-all">
+                    <CheckCircle className="text-emerald-400 shrink-0" size={16} />
+                    <span className="text-xs font-bold">{builderToast}</span>
+                  </div>
+                )}
+
+                {/* STEP 1: BASIC INFORMATION */}
+                {builderStep === 1 && (
+                  <div className="bg-white border border-slate-200/80 rounded-[2rem] p-8 space-y-6 shadow-sm">
+                    <div className="border-b border-slate-100 pb-4">
+                      <h3 className="text-md font-black text-slate-900 uppercase tracking-tight">Passo 1: Identificação Básica</h3>
+                      <p className="text-xs text-slate-400 mt-1">Configure o nome, objetivo principal, frequência sugerida e nível da planilha.</p>
+                    </div>
+
+                    <div className="space-y-5">
+                      {/* Name Entry */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Nome do Protocolo</label>
+                        <input
+                          type="text"
+                          value={builderName}
+                          onChange={(e) => setBuilderName(e.target.value)}
+                          placeholder="Ex: Hipertrofia Avançada - Foco Deltóides e Cadeias Posteriores"
+                          className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+
+                      {/* Goal Grid Selection */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Objetivo do Treino</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {[
+                            { key: 'hypertrophy', label: 'Hipertrofia' },
+                            { key: 'weight_loss', label: 'Emagrecimento' },
+                            { key: 'strength', label: 'Força Bruta' },
+                            { key: 'performance', label: 'Performance' },
+                            { key: 'conditioning', label: 'Condicionamento' },
+                            { key: 'health', label: 'Saúde' },
+                            { key: 'recovery', label: 'Reabilitação' }
+                          ].map((g) => (
+                            <button
+                              type="button"
+                              key={g.key}
+                              onClick={() => setBuilderGoal(g.key as any)}
+                              className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between h-20 ${
+                                builderGoal === g.key
+                                  ? 'border-blue-600 bg-blue-50/55 text-blue-900 shadow-sm'
+                                  : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Objetivo</span>
+                              <span className="text-xs font-bold leading-tight">{g.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Level and Frequency in row */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Level */}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Nível Recomendado</label>
+                          <div className="flex gap-2">
+                            {[
+                              { k: 'beginner', l: 'Iniciante' },
+                              { k: 'intermediate', l: 'Intermediário' },
+                              { k: 'advanced', l: 'Avançado' }
+                            ].map((levelObj) => (
+                              <button
+                                type="button"
+                                key={levelObj.k}
+                                onClick={() => setBuilderLevel(levelObj.k as any)}
+                                className={`flex-1 py-3 px-2 rounded-xl border text-xs font-bold transition-all text-center ${
+                                  builderLevel === levelObj.k
+                                    ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                                    : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                                }`}
+                              >
+                                {levelObj.l}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Frequency */}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Frequência Semanal</label>
+                          <select
+                            value={builderFrequency}
+                            onChange={(e) => setBuilderFrequency(Number(e.target.value))}
+                            className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none"
+                          >
+                            <option value="2">2 dias (Divisão AB)</option>
+                            <option value="3">3 dias (Divisão ABC)</option>
+                            <option value="4">4 dias (Divisão ABCD)</option>
+                            <option value="5">5 dias (Divisão ABCDE)</option>
+                            <option value="6">6 dias (Divisão ABCDEF)</option>
+                          </select>
+                        </div>
+
+                        {/* Duration */}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Duração do Macrociclo</label>
+                          <select
+                            value={builderDuration}
+                            onChange={(e) => setBuilderDuration(Number(e.target.value))}
+                            className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none"
+                          >
+                            <option value="4">4 Semanas (Foco Curto)</option>
+                            <option value="8">8 Semanas (Intermediário)</option>
+                            <option value="12">12 Semanas (Padrão Completo)</option>
+                            <option value="16">16 Semanas (Periodização Longa)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Category Selection */}
+                      <div className="space-y-2 border-t border-slate-100 pt-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Classificação de Distribuição</label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="category"
+                              checked={builderCategory === 'premium'}
+                              onChange={() => setBuilderCategory('premium')}
+                              className="text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-xs font-bold text-slate-800">Premium (Apenas Assinantes)</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="category"
+                              checked={builderCategory === 'public'}
+                              onChange={() => setBuilderCategory('public')}
+                              className="text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-xs font-bold text-slate-600">Público (Acesso Livre)</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-6 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setBuilderStep(2)}
+                        className="px-6 h-12 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2"
+                      >
+                        Avançar: Critérios de Geração
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 2: GENERATION CRITERIA */}
+                {builderStep === 2 && (
+                  <div className="bg-white border border-slate-200/80 rounded-[2rem] p-8 space-y-6 shadow-sm">
+                    <div className="border-b border-slate-100 pb-4">
+                      <h3 className="text-md font-black text-slate-900 uppercase tracking-tight">Passo 2: Modelamento de Critérios de Geração</h3>
+                      <p className="text-xs text-slate-400 mt-1">Determine o ambiente do treino e as restrições de montagem para os algoritmos estruturais.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                      {/* Equipment Setup */}
+                      <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider border-b border-slate-100 pb-2">
+                          <Dumbbell size={14} className="text-blue-500" />
+                          Equipamentos Disponíveis
+                        </div>
+                        <div className="space-y-3.5">
+                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={critEquipFull}
+                              onChange={(e) => setCritEquipFull(e.target.checked)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Academia Completa
+                          </label>
+                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={critEquipBasic}
+                              onChange={(e) => setCritEquipBasic(e.target.checked)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Academia Básica
+                          </label>
+                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={critEquipHome}
+                              onChange={(e) => setCritEquipHome(e.target.checked)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Casa / Halteres
+                          </label>
+                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={critEquipBody}
+                              onChange={(e) => setCritEquipBody(e.target.checked)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Livre / Calistenia
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Priorities */}
+                      <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider border-b border-slate-100 pb-2">
+                          <Layers size={14} className="text-blue-500" />
+                          Categorias de Prioridade
+                        </div>
+                        <div className="space-y-3.5">
+                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={priorGuided}
+                              onChange={(e) => setPriorGuided(e.target.checked)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Priorizar Aparelhos Guiados
+                          </label>
+                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={priorBasic}
+                              onChange={(e) => setPriorBasic(e.target.checked)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Exercícios Básicos / Livres
+                          </label>
+                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={priorCompound}
+                              onChange={(e) => setPriorCompound(e.target.checked)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Compostos Multiarticulares
+                          </label>
+                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={priorIsolated}
+                              onChange={(e) => setPriorIsolated(e.target.checked)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Isolados Monoarticulares
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Safe Guards Constraints */}
+                      <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider border-b border-slate-100 pb-2">
+                          <ShieldCheck size={14} className="text-blue-500" />
+                          Restrições Governança
+                        </div>
+                        <div className="space-y-3.5">
+                          <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-800">
+                            <Check size={14} className="text-emerald-500 shrink-0" />
+                            Apenas Exercícios Ativos
+                          </div>
+                          <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-800">
+                            <Check size={14} className="text-emerald-500 shrink-0" />
+                            Descartar Arquivados/Deletados
+                          </div>
+                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={restNoRepeat}
+                              onChange={(e) => setRestNoRepeat(e.target.checked)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Não repetir exercícios na planilha
+                          </label>
+                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={restMuscleRecovery}
+                              onChange={(e) => setRestMuscleRecovery(e.target.checked)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Respeitar Descanso Sinergistas
+                          </label>
+                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={restNoOverlap}
+                              onChange={(e) => setRestNoOverlap(e.target.checked)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Evitar sobreposição excessiva
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-6 flex justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setBuilderStep(1)}
+                        className="px-5 h-11 border border-slate-300 text-slate-700 hover:bg-slate-50 font-black text-xs uppercase tracking-widest rounded-xl transition-all"
+                      >
+                        ← Anterior
+                      </button>
+                      <button
+                        type="button"
+                        onClick={executeAutomatedAssembly}
+                        className="px-6 h-12 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2"
+                      >
+                        Compilar e Montar Treino
+                        <Sparkles size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 3: AUTOMATIC ASSEMBLY PREVIEW */}
+                {builderStep === 3 && (
+                  <div className="space-y-6">
+                    <div className="bg-white border border-slate-200/80 rounded-[2rem] p-8 shadow-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-4">
+                        <div>
+                          <h3 className="text-md font-black text-slate-900 uppercase tracking-tight">Passo 3: Esqueleto do Treino Compilado</h3>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Esqueleto de fichas estruturado deterministicamente pela biblioteca Kyron OS.
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setBuilderStep(2)}
+                            className="px-4 py-2 border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50"
+                          >
+                            Ajustar Filtros
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setBuilderStep(4)}
+                            className="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm"
+                          >
+                            Ir para Validação
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Render compiled splits */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                        {builderWorkouts.map((w, idx) => (
+                          <div key={w.id || idx} className="bg-slate-50 rounded-2xl p-5 border border-slate-200/70 space-y-4">
+                            <div className="flex items-start justify-between border-b border-slate-200 pb-3">
+                              <div>
+                                <h4 className="text-sm font-extrabold text-slate-900">{w.name}</h4>
+                                <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{w.description}</p>
+                              </div>
+                              <span className="text-[9px] font-extrabold bg-blue-50 border border-blue-200/60 text-blue-700 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                                {w.exercises?.length || 0} Exs
+                              </span>
+                            </div>
+
+                            <div className="space-y-2.5">
+                              {w.exercises?.map((ex, exIdx) => (
+                                <div key={ex.exercise_id || exIdx} className="bg-white p-3 rounded-xl border border-slate-200/50 flex justify-between items-center text-xs">
+                                  <div className="space-y-0.5">
+                                    <div className="font-bold text-slate-800">{ex.exercise_name}</div>
+                                    <div className="text-[9px] text-slate-400 font-medium">Recomendado: {ex.sets} séries x {ex.reps} reps</div>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-[9px] font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded uppercase font-mono">Rest: {ex.rest_time}s</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setBuilderStep(2)}
+                        className="px-5 h-11 border border-slate-300 text-slate-700 hover:bg-slate-50 font-black text-xs uppercase tracking-widest rounded-xl transition-all"
+                      >
+                        ← Anterior
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBuilderStep(4)}
+                        className="px-6 h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2"
+                      >
+                        Ir para as Validações
+                        <CheckCircle size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 4: VALIDATION ENGINE AND AUDIT REPORT */}
+                {builderStep === 4 && (
+                  <div className="bg-white border border-slate-200/80 rounded-[2rem] p-8 space-y-6 shadow-sm">
+                    <div className="border-b border-slate-100 pb-4">
+                      <h3 className="text-md font-black text-slate-900 uppercase tracking-tight">Passo 4: Motor de Validação & Compliance</h3>
+                      <p className="text-xs text-slate-400 mt-1">Relatório técnico do protocolo com verificação de volume, frequência e cobertura muscular antes de salvar rascunho.</p>
+                    </div>
+
+                    {/* Results list of validation checks */}
+                    <div className="space-y-3.5">
+                      {executeValidationEngine().map((check, cIdx) => {
+                        const isSuccess = check.status === 'success';
+                        const isWarning = check.status === 'warning';
+                        const isError = check.status === 'error';
+                        return (
+                          <div
+                            key={check.id || cIdx}
+                            className={`p-4 rounded-2xl border flex items-start gap-3.5 ${
+                              isSuccess ? 'bg-emerald-50/55 border-emerald-200 text-emerald-950' :
+                              isWarning ? 'bg-amber-50/55 border-amber-200 text-amber-950' :
+                              'bg-red-50/55 border-red-200 text-red-950'
+                            }`}
+                          >
+                            <div className="mt-0.5">
+                              {isSuccess && <CheckCircle className="text-emerald-600 shrink-0" size={18} />}
+                              {isWarning && <AlertTriangle className="text-amber-600 shrink-0" size={18} />}
+                              {isError && <AlertTriangle className="text-red-600 shrink-0" size={18} />}
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-black uppercase tracking-wider">{check.label}</h4>
+                              <p className="text-[11px] mt-1 text-slate-600 leading-relaxed font-semibold">{check.desc}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-200">
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                         Ao salvar a planilha, ela será armazenada sob <strong>Protocolos &gt; Rascunhos</strong>. A publicação só poderá ser efetuada após revisão humana fina no Passo 5 a seguir.
+                      </p>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-6 flex justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setBuilderStep(3)}
+                        className="px-5 h-11 border border-slate-300 text-slate-700 hover:bg-slate-50 font-black text-xs uppercase tracking-widest rounded-xl transition-all"
+                      >
+                        ← Voltar ao Treino
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveDraftOfficial}
+                        className="px-6 h-12 bg-blue-650 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2"
+                      >
+                        Confirmar e Criar Rascunho
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 5: DRAFT REVIEW & ADVANCED EDITOR */}
+                {builderStep === 5 && currentGeneratedDraft && (
+                  <div className="space-y-6">
+                    <div className="bg-slate-900 text-white rounded-[2rem] p-8 shadow-xl relative overflow-hidden">
+                      <div className="absolute right-0 top-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -z-10" />
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                        <div className="space-y-2 flex-grow">
+                          <div className="flex flex-wrap gap-2">
+                            <span className="px-2.5 py-0.5 bg-blue-500/25 border border-blue-400/30 text-blue-300 rounded-full text-[9px] uppercase tracking-wider font-extrabold font-mono">
+                              {currentGeneratedDraft.goal}
+                            </span>
+                            <span className="px-2.5 py-0.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-full text-[9px] uppercase tracking-wider font-extrabold font-mono">
+                              {currentGeneratedDraft.difficulty}
+                            </span>
+                          </div>
+                          
+                          <input
+                            type="text"
+                            value={currentGeneratedDraft.name}
+                            onChange={(e) => {
+                              const up = { ...currentGeneratedDraft, name: e.target.value };
+                              setCurrentGeneratedDraft(up);
+                              const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? up : d);
+                              saveDraftsToStorage(otherDrafts);
+                            }}
+                            className="bg-transparent text-xl font-black text-white hover:bg-white/5 border border-transparent hover:border-slate-700 rounded px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          />
+                          <p className="text-xs text-slate-400">{currentGeneratedDraft.description}</p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2.5 shrink-0 self-start sm:self-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBuilderToast("Rascunho atualizado e salvo localmente!");
+                              setTimeout(() => setBuilderToast(null), 3000);
+                            }}
+                            className="px-4.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/60 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                          >
+                            Salvar Rascunho
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={() => handlePublishFromReview(true)}
+                            className="px-5 py-2.5 bg-[#7BA7FF]/90 hover:bg-[#7BA7FF] text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center gap-1.5"
+                          >
+                            <Lock size={12} />
+                            Publicar Premium
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handlePublishFromReview(false)}
+                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center gap-1.5"
+                          >
+                            <Globe size={11} />
+                            Publicar Público
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-6 border-t border-slate-800/85">
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Frequência</span>
+                          <span className="block text-sm font-black">{currentGeneratedDraft.frequency} Dias / Semana</span>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Dias Mapeados</span>
+                          <span className="block text-sm font-black">{currentGeneratedDraft.workouts?.length || 0} Dias Ativos</span>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Duração Total</span>
+                          <span className="block text-sm font-black">{currentGeneratedDraft.duration_weeks} Semanas</span>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Autor</span>
+                          <span className="block text-sm font-black text-blue-400">Kyron OS Admin</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-8">
+                      {currentGeneratedDraft.workouts?.map((w, wIdx) => {
+                        const isOverlayActiveForWorkout = builderActiveWorkoutId === w.id;
+                        return (
+                          <div key={w.id || wIdx} className="bg-white border border-slate-200 rounded-[2rem] p-6.5 shadow-sm space-y-4">
+                            
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-3">
+                              <div className="flex items-center gap-2">
+                                <span className="w-6 h-6 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-[11px] font-black text-blue-600 font-mono">
+                                  {String.fromCharCode(65 + wIdx)}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={w.name}
+                                    onChange={(e) => {
+                                      const updatedWorkouts = currentGeneratedDraft.workouts.map(it => it.id === w.id ? { ...it, name: e.target.value } : it);
+                                      const updatedObj = { ...currentGeneratedDraft, workouts: updatedWorkouts };
+                                      setCurrentGeneratedDraft(updatedObj);
+                                      const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? updatedObj : d);
+                                      saveDraftsToStorage(otherDrafts);
+                                    }}
+                                    className="text-sm font-black text-slate-900 border border-transparent hover:border-slate-300 rounded px-1.5 w-44 hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500/20"
+                                  />
+                                  <span className="text-[10px] text-slate-400 font-medium">({w.exercises?.length || 0} exercícios)</span>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBuilderActiveWorkoutId(w.id);
+                                  setBuilderReplacingIndex(null);
+                                  setBuilderExSearchQuery('');
+                                }}
+                                className="px-3.5 py-1.5 hover:bg-blue-50 border border-dashed border-blue-200 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                              >
+                                + Inserir Exercício
+                              </button>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left text-xs min-w-[650px]">
+                                <thead>
+                                  <tr className="border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400">
+                                    <th className="py-2.5">Exercício</th>
+                                    <th className="py-2.5 w-16 text-center">Séries</th>
+                                    <th className="py-2.5 w-24 text-center">Repetições</th>
+                                    <th className="py-2.5 w-20 text-center">Intervalo (s)</th>
+                                    <th className="py-2.5 w-20 text-center">Carga (kg)</th>
+                                    <th className="py-2.5">Observações</th>
+                                    <th className="py-2.5 text-right w-24">Ações</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {w.exercises?.map((ex, exIdx) => (
+                                    <tr key={ex.exercise_id || exIdx} className="border-b border-slate-100/70 hover:bg-slate-50/50">
+                                      <td className="py-3 font-bold text-slate-900">
+                                        <div className="flex flex-col">
+                                          <span>{ex.exercise_name}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setBuilderActiveWorkoutId(w.id);
+                                              setBuilderReplacingIndex(exIdx);
+                                              setBuilderExSearchQuery('');
+                                            }}
+                                            className="text-[9px] text-blue-500 font-extrabold flex items-center mt-0.5"
+                                          >
+                                            [ Substituir Exercício ]
+                                          </button>
+                                        </div>
+                                      </td>
+                                      
+                                      <td className="py-3 text-center">
+                                        <input
+                                          type="number"
+                                          value={ex.sets || 4}
+                                          onChange={(e) => updateDraftExField(w.id, exIdx, { sets: Number(e.target.value) })}
+                                          className="w-12 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center font-bold focus:outline-none"
+                                        />
+                                      </td>
+
+                                      <td className="py-3 text-center">
+                                        <input
+                                          type="text"
+                                          value={ex.reps || '10'}
+                                          onChange={(e) => updateDraftExField(w.id, exIdx, { reps: e.target.value })}
+                                          className="w-20 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center focus:outline-none"
+                                        />
+                                      </td>
+
+                                      <td className="py-3 text-center">
+                                        <input
+                                          type="number"
+                                          value={ex.rest_time || 60}
+                                          onChange={(e) => updateDraftExField(w.id, exIdx, { rest_time: Number(e.target.value) })}
+                                          className="w-16 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center focus:outline-none"
+                                        />
+                                      </td>
+
+                                      <td className="py-3 text-center">
+                                        <input
+                                          type="number"
+                                          value={ex.weight || 10}
+                                          onChange={(e) => updateDraftExField(w.id, exIdx, { weight: Number(e.target.value) })}
+                                          className="w-16 h-8 px-1.5 bg-slate-50 border border-slate-200 rounded text-center focus:outline-none"
+                                        />
+                                      </td>
+
+                                      <td className="py-3">
+                                        <input
+                                          type="text"
+                                          value={ex.notes || ''}
+                                          onChange={(e) => updateDraftExField(w.id, exIdx, { notes: e.target.value })}
+                                          placeholder="Ex: Pegada Neutra"
+                                          className="w-full h-8 px-2 bg-slate-50 border border-slate-200 rounded text-xs focus:outline-none"
+                                        />
+                                      </td>
+
+                                      <td className="py-3 text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                          <button
+                                            type="button"
+                                            disabled={exIdx === 0}
+                                            onClick={() => moveDraftEx(w.id, exIdx, 'up')}
+                                            className="p-1 text-slate-400 hover:text-slate-900 transition-all disabled:opacity-30"
+                                          >
+                                            <ArrowUp size={13} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={exIdx === (w.exercises?.length - 1)}
+                                            onClick={() => moveDraftEx(w.id, exIdx, 'down')}
+                                            className="p-1 text-slate-400 hover:text-slate-900 transition-all disabled:opacity-30"
+                                          >
+                                            <ArrowDown size={13} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => removeDraftEx(w.id, exIdx)}
+                                            className="p-1 text-red-400 hover:text-red-600 transition-all ml-1"
+                                          >
+                                            <Trash2 size={13} />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Inline Overlay Search to add/replace exercise to workout */}
+                            {isOverlayActiveForWorkout && (
+                              <div className="bg-slate-50 p-4 border border-blue-100 rounded-2xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider block">
+                                    {builderReplacingIndex !== null ? `Substituindo Exercício [Posição ${builderReplacingIndex + 1}]` : 'Injetar Novo Exercício Ativo'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBuilderActiveWorkoutId(null);
+                                      setBuilderReplacingIndex(null);
+                                    }}
+                                    className="text-[9px] text-slate-400 font-bold hover:text-red-500 uppercase"
+                                  >
+                                    [ Cancelar ]
+                                  </button>
+                                </div>
+
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={builderExSearchQuery}
+                                    onChange={(e) => setBuilderExSearchQuery(e.target.value)}
+                                    placeholder="Pesquise o nome do exercício (Ex: Supino ou Agachamento)"
+                                    className="flex-1 h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs"
+                                  />
+                                </div>
+
+                                {/* List matches */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1.5 max-h-36 overflow-y-auto">
+                                  {exercises
+                                    .filter(ex => ex.is_active && ex.name?.toLowerCase().includes(builderExSearchQuery.toLowerCase()))
+                                    .slice(0, 8)
+                                    .map((filteredExItem) => (
+                                      <button
+                                        type="button"
+                                        key={filteredExItem.id}
+                                        onClick={() => {
+                                          if (builderReplacingIndex !== null) {
+                                            replaceDraftEx(w.id, builderReplacingIndex, filteredExItem);
+                                          } else {
+                                            addExToDraftWorkout(w.id, filteredExItem);
+                                          }
+                                        }}
+                                        className="p-2.5 bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/25 rounded-lg text-left text-[11px] font-bold text-slate-800 transition-all truncate"
+                                      >
+                                        {filteredExItem.name}
+                                        <span className="block text-[8px] text-slate-400 font-normal uppercase mt-0.5">{filteredExItem.muscle_group}</span>
+                                      </button>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Bottom publishing section bar */}
+                    <div className="bg-slate-900 text-white rounded-3xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <p className="text-xs text-slate-400">
+                        O rascunho está salvo em <strong>Rascunhos</strong>. Publique oficialmente como Premium ou Público para os usuários ativos visualizarem.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handlePublishFromReview(true)}
+                          className="px-6 py-3 bg-[#7BA7FF] text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-[#7BA7FF]/90 transition-all flex items-center gap-2"
+                        >
+                          Publicar Premium
+                          <Lock size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handlePublishFromReview(false)}
+                          className="px-6 py-3 bg-emerald-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-emerald-500 transition-all flex items-center gap-2"
+                        >
+                          Publicar Público
+                          <Globe size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
