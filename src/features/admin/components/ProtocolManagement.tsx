@@ -138,6 +138,7 @@ export const ProtocolManagement: React.FC = () => {
 
   // Feedback State
   const [builderToast, setBuilderToast] = useState<string | null>(null);
+  const [saving, setSaving] = useState<boolean>(false);
 
   // Creation Wizard State
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
@@ -296,22 +297,72 @@ export const ProtocolManagement: React.FC = () => {
   };
 
   const handleStartEdit = (p: PremiumProtocol, isFromDrafts = false) => {
-    setEditingProtocolId(p.id);
-    setName(p.name);
-    setDescription(p.description);
-    setGoal(p.goal as any);
-    setDifficulty(p.difficulty);
-    setDurationWeeks(p.duration_weeks);
-    setFrequency(p.frequency);
-    setImageUrl('');
-    setWorkouts(p.workouts || []);
-    setIsPremium(p.premium);
-    setIsPublic(!p.premium);
-    setIsRecommended(p.featured || false);
-    setIsFeatured(p.featured || false);
-    setIsNew(true);
-    setWizardStep(1);
-    setIsWizardOpen(true);
+    // Direct routing to Step 5 Advanced Editor for all drafts and live protocols!
+    // This unifies the editing workspace under a single high-agency panel.
+    setCurrentGeneratedDraft({
+      ...p,
+      workouts: p.workouts || []
+    });
+    setBuilderStep(5);
+    setBuilderActiveWorkoutId(p.workouts?.[0]?.id || null);
+    setBuilderExSearchQuery('');
+    setBuilderReplacingIndex(null);
+    setActiveSubTab('create_protocol');
+    setBuilderToast(`Modo Edição: "${p.name}" carregado no Construtor Avançado!`);
+    setTimeout(() => setBuilderToast(null), 3000);
+  };
+
+  const handleCloneTemplateToDraft = (t: SystemTemplate) => {
+    const draftId = `draft-${Date.now()}`;
+    const draftObj: PremiumProtocol = {
+      id: draftId,
+      name: `${t.name} (Cópia Modificada)`,
+      description: t.description || `Planilha copiada do template global ${t.name}.`,
+      version: 1,
+      premium: true,
+      goal: 'hypertrophy',
+      difficulty: 'intermediate',
+      duration_weeks: 4,
+      frequency: t.workouts?.length || 3,
+      created_by: 'admin',
+      rating: 5.0,
+      athletes_count: 0,
+      completion_rate: 0,
+      strength_increase_pct: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      updated_by: 'Mesa Admin',
+      workouts: t.workouts.map((w, wIdx) => ({
+        id: w.id || `w-${wIdx}-${Date.now()}`,
+        name: w.name,
+        description: w.description || '',
+        exercises: w.exercises.map((e, eIdx) => ({
+          exercise_id: e.exercise_id,
+          exercise_name: e.exercise_name,
+          sets: e.sets || 4,
+          reps: e.reps || '10',
+          weight: e.weight || 15,
+          rest_time: e.rest_time || 60,
+          sets_json: e.sets_json || Array.from({ length: e.sets || 4 }).map(() => ({ reps: e.reps || '10', weight: e.weight || 15, rest_time: e.rest_time || 60 })),
+          sort_order: e.sort_order || (eIdx + 1),
+          notes: e.notes || ''
+        }))
+      })),
+      version_history: []
+    };
+
+    const updatedDraftsList = [...drafts, draftObj];
+    saveDraftsToStorage(updatedDraftsList);
+
+    setCurrentGeneratedDraft(draftObj);
+    setBuilderStep(5);
+    setBuilderActiveWorkoutId(draftObj.workouts?.[0]?.id || null);
+    setBuilderExSearchQuery('');
+    setBuilderReplacingIndex(null);
+    setActiveSubTab('create_protocol');
+
+    setBuilderToast(`Template "${t.name}" clonado em Rascunho! Editando no construtor avançado.`);
+    setTimeout(() => setBuilderToast(null), 3500);
   };
 
   const handleDuplicate = async (p: PremiumProtocol, isFromDrafts = false) => {
@@ -1110,22 +1161,66 @@ export const ProtocolManagement: React.FC = () => {
     const publishedObj: PremiumProtocol = {
       ...currentGeneratedDraft,
       premium: isPremiumPub,
-      athletes_count: 24,
-      completion_rate: 94,
-      strength_increase_pct: 16,
+      athletes_count: currentGeneratedDraft.athletes_count || 24,
+      completion_rate: currentGeneratedDraft.completion_rate || 94,
+      strength_increase_pct: currentGeneratedDraft.strength_increase_pct || 16,
       updated_at: new Date().toISOString()
     };
 
-    await premiumProtocolsApi.createOrUpdateProtocol(publishedObj);
+    setSaving(true);
+    try {
+      await premiumProtocolsApi.createOrUpdateProtocol(publishedObj);
 
-    const updatedDrafts = drafts.filter(d => d.id !== currentGeneratedDraft.id);
-    saveDraftsToStorage(updatedDrafts);
+      // If it was a draft, delete from drafts storage
+      const isADraft = currentGeneratedDraft.id.startsWith('draft-') || drafts.some(d => d.id === currentGeneratedDraft.id);
+      if (isADraft) {
+        const updatedDrafts = drafts.filter(d => d.id !== currentGeneratedDraft.id);
+        saveDraftsToStorage(updatedDrafts);
+      }
 
-    await loadData();
-    setActiveSubTab(isPremiumPub ? 'premium' : 'public');
+      await loadData();
+      setActiveSubTab(isPremiumPub ? 'premium' : 'public');
 
-    setBuilderToast(`Sucesso: Protocolo "${publishedObj.name}" publicado oficialmente!`);
-    setTimeout(() => setBuilderToast(null), 3500);
+      setBuilderToast(`Sucesso: Protocolo "${publishedObj.name}" publicado oficialmente!`);
+      setTimeout(() => setBuilderToast(null), 3500);
+    } catch (err) {
+      console.error('Error publishing protocol:', err);
+      setBuilderToast('Erro ao tentar publicar o protocolo.');
+      setTimeout(() => setBuilderToast(null), 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveWorkInProgress = async () => {
+    if (!currentGeneratedDraft) return;
+
+    const isCurrentDraftOnly = currentGeneratedDraft.id.startsWith('draft-') || drafts.some(d => d.id === currentGeneratedDraft.id);
+
+    setSaving(true);
+    try {
+      if (isCurrentDraftOnly) {
+        // Update local drafts list
+        const updatedDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? currentGeneratedDraft : d);
+        if (!drafts.some(d => d.id === currentGeneratedDraft.id)) {
+          updatedDrafts.push(currentGeneratedDraft);
+        }
+        saveDraftsToStorage(updatedDrafts);
+        setBuilderToast("Rascunho atualizado e salvo localmente!");
+      } else {
+        // Published protocol - live update directly in DB via API
+        await premiumProtocolsApi.createOrUpdateProtocol(currentGeneratedDraft);
+        await loadData();
+        setBuilderToast("Protocolo oficial atualizado ao vivo com sucesso!");
+      }
+      setTimeout(() => setBuilderToast(null), 3000);
+    } catch (err: any) {
+      console.error("Error saving work in progress:", err);
+      setBuilderToast("Erro ao tentar salvar alterações.");
+      setTimeout(() => setBuilderToast(null), 3000);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateDraftExField = (workoutId: string, exIdx: number, fields: any) => {
@@ -1744,22 +1839,31 @@ export const ProtocolManagement: React.FC = () => {
                 {templates.map(p => (
                   <div 
                     key={p.id}
-                    className="bg-white/70 backdrop-blur-xl border border-white/40 p-6 rounded-3xl text-left flex flex-col justify-between h-[210px] shadow-sm relative group"
+                    className="bg-white/80 backdrop-blur-xl border border-slate-200/60 p-6 rounded-3xl text-left flex flex-col justify-between h-[235px] shadow-sm relative group hover:border-[#7BA7FF]/50 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
                   >
                     <div className="space-y-2">
-                      <span className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-[#7BA7FF] bg-blue-50 border border-blue-105 px-2.5 py-1 rounded-full">
-                        Global Template
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-[#7BA7FF] bg-blue-50/70 border border-blue-100 px-2.5 py-1 rounded-full">
+                          Global Template
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-400 font-mono">v{p.version}</span>
+                      </div>
                       <h3 className="text-md font-black text-slate-900 uppercase tracking-tight mt-2 line-clamp-1">
                         {p.name}
                       </h3>
-                      <p className="text-xs text-slate-400 leading-normal line-clamp-2">
+                      <p className="text-xs text-slate-400 leading-normal line-clamp-3">
                         {p.description}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between border-t border-slate-100/60 pt-4 mt-4 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                      <span>{p.workouts?.length || 0} Treinos</span>
-                      <span className="text-slate-300">v{p.version}</span>
+                    <div className="flex items-center justify-between border-t border-slate-100/80 pt-4 mt-4">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{p.workouts?.length || 0} Treinos Ativos</span>
+                      <button
+                        onClick={() => handleCloneTemplateToDraft(p)}
+                        className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-1.5 hover:scale-[1.02] active:scale-[0.98]"
+                      >
+                        <Copy size={9} />
+                        Clonar em Rascunho
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -2392,13 +2496,15 @@ export const ProtocolManagement: React.FC = () => {
                         <div className="flex flex-wrap gap-2.5 shrink-0 self-start sm:self-auto">
                           <button
                             type="button"
-                            onClick={() => {
-                              setBuilderToast("Rascunho atualizado e salvo localmente!");
-                              setTimeout(() => setBuilderToast(null), 3000);
-                            }}
-                            className="px-4.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/60 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                            onClick={handleSaveWorkInProgress}
+                            disabled={saving}
+                            className={`px-4.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/60 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
-                            Salvar Rascunho
+                            {saving ? "Salvando..." : (
+                              currentGeneratedDraft.id.startsWith('draft-') || drafts.some(d => d.id === currentGeneratedDraft.id)
+                                ? "Salvar Rascunho"
+                                : "Salvar Alterações Ao Vivo"
+                            )}
                           </button>
                           
                           <button
