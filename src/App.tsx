@@ -38,6 +38,8 @@ type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'prepa
 type Theme = 'classic' | 'light' | 'aggressive' | 'bloom' | 'neon-strike';
 
 interface NavigationState { view: View; params: any; }
+
+const PROTECTED_VIEWS: View[] = ['dashboard', 'workout', 'editor', 'history', 'admin', 'profile', 'library', 'dieta', 'preparation'];
 interface NavigationContextType {
   current: NavigationState;
   navigate: (view: View, params?: any) => void;
@@ -216,8 +218,7 @@ const App: React.FC = () => {
       } else {
         setProfile(null);
         setLoading(false);
-        const protectedViews: View[] = ['dashboard', 'workout', 'editor', 'history', 'admin', 'profile', 'library'];
-        if (protectedViews.includes(getStateFromUrl().view)) {
+        if (PROTECTED_VIEWS.includes(getStateFromUrl().view)) {
           navigate('landing');
         }
       }
@@ -421,19 +422,28 @@ const App: React.FC = () => {
                 transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                 className="min-h-full"
               >
-                {navState.view === 'landing' && <LandingPage onStart={() => navigate('auth')} onLogin={() => navigate('auth')} />}
-                {navState.view === 'auth' && <Auth onBack={() => navigate('landing')} />}
-                {navState.view === 'onboarding' && <SmartOnboarding />}
-                {navState.view === 'dashboard' && <Dashboard />}
-                {navState.view === 'workout' && <WorkoutPlayer workoutId={navState.params.id} />}
-                {navState.view === 'preparation' && <WorkoutPreparation workoutId={navState.params.id} />}
-                {navState.view === 'editor' && <WorkoutEditor workoutId={navState.params.id} />}
-                {navState.view === 'history' && <HistoryView />}
-                {navState.view === 'library' && <ExerciseLibrary />}
-                {navState.view === 'dieta' && <MinhaDieta />}
-                {navState.view === 'profile' && <ProfileViewV2 />}
-                {navState.view === 'admin' && (
-                  isAdmin(profile) ? <AdminPanelV2 onBack={goBack} /> : <Dashboard />
+                {PROTECTED_VIEWS.includes(navState.view) && !session ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[50vh]">
+                    <div className="w-8 h-8 border-4 border-[#7BA7FF] border-t-transparent rounded-full animate-spin mb-4" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Sessão...</p>
+                  </div>
+                ) : (
+                  <>
+                    {navState.view === 'landing' && <LandingPage onStart={() => navigate('auth')} onLogin={() => navigate('auth')} />}
+                    {navState.view === 'auth' && <Auth onBack={() => navigate('landing')} />}
+                    {navState.view === 'onboarding' && <SmartOnboarding />}
+                    {navState.view === 'dashboard' && <Dashboard />}
+                    {navState.view === 'workout' && <WorkoutPlayer workoutId={navState.params.id} />}
+                    {navState.view === 'preparation' && <WorkoutPreparation workoutId={navState.params.id} />}
+                    {navState.view === 'editor' && <WorkoutEditor workoutId={navState.params.id} />}
+                    {navState.view === 'history' && <HistoryView />}
+                    {navState.view === 'library' && <ExerciseLibrary />}
+                    {navState.view === 'dieta' && <MinhaDieta />}
+                    {navState.view === 'profile' && <ProfileViewV2 />}
+                    {navState.view === 'admin' && (
+                      isAdmin(profile) ? <AdminPanelV2 onBack={goBack} /> : <Dashboard />
+                    )}
+                  </>
                 )}
               </motion.div>
             </AnimatePresence>

@@ -65,6 +65,33 @@ export const profileApi = {
               console.error('[PROFILE_API] Error hydrating preferred_training_days', e);
             }
           }
+
+          // Hydrate Onboarding 2.1 fields from local storage
+          const storedOnboarding = localStorage.getItem(`kyron_onboarding_v21_${userId}`);
+          if (storedOnboarding) {
+            try {
+              const onboardingObj = JSON.parse(storedOnboarding);
+              profileData.sex = onboardingObj.sex;
+              profileData.primary_goal = onboardingObj.primary_goal;
+              profileData.training_experience = onboardingObj.training_experience;
+              profileData.weekly_availability = onboardingObj.weekly_availability;
+              profileData.training_environment = onboardingObj.training_environment;
+              profileData.restrictions = onboardingObj.restrictions;
+              profileData.exercise_dislikes = onboardingObj.exercise_dislikes;
+              profileData.onboarding_version = onboardingObj.onboarding_version;
+              profileData.updated_at = onboardingObj.updated_at;
+            } catch (e) {
+              console.error('[PROFILE_API] Error hydrating onboarding v21 data', e);
+            }
+          }
+
+          // Backwards compatibility fallback mappings for missing local hydration
+          if (!profileData.sex && profileData.gender) profileData.sex = profileData.gender;
+          if (!profileData.primary_goal && profileData.goal) profileData.primary_goal = profileData.goal as string;
+          if (!profileData.training_experience && profileData.experience_level) profileData.training_experience = profileData.experience_level;
+          if (!profileData.weekly_availability && profileData.frequency) {
+            profileData.weekly_availability = parseInt(profileData.frequency, 10) || 3;
+          }
         }
         return profileData;
       } catch (err: any) {
@@ -108,13 +135,77 @@ export const profileApi = {
         localStorage.setItem(`rubi_preferred_training_days_${userId}`, JSON.stringify(payload.preferred_training_days));
       }
 
-      // Strip preferred_training_days before pushing to the profiles table
-      const { preferred_training_days, ...cleanPayload } = payload as any;
+      // 1. Persist Onboarding 2.1 values to local storage
+      const storedOnboarding = localStorage.getItem(`kyron_onboarding_v21_${userId}`);
+      let onboardingObj: any = {};
+      if (storedOnboarding) {
+        try {
+          onboardingObj = JSON.parse(storedOnboarding);
+        } catch (e) {
+          console.error('[PROFILE_API] Error parsing onboarding storage', e);
+        }
+      }
+
+      const onboardingKeys: Array<keyof UserProfile> = [
+        'sex', 'primary_goal', 'training_experience', 'weekly_availability',
+        'training_environment', 'restrictions', 'exercise_dislikes',
+        'onboarding_version', 'updated_at'
+      ];
+
+      onboardingKeys.forEach(key => {
+        if (payload[key] !== undefined) {
+          onboardingObj[key] = payload[key];
+        }
+      });
+
+      localStorage.setItem(`kyron_onboarding_v21_${userId}`, JSON.stringify(onboardingObj));
+
+      // 2. Draft safe DB schema values mapping only columns present in profiles table
+      const dbPayload: any = {
+        id: userId
+      };
+
+      const columnsInTable = [
+        'email', 'role', 'is_admin', 'name', 'full_name', 'avatar_url',
+        'weight', 'height', 'age', 'birth_date', 'onboarding_completed',
+        'workout_streak', 'created_at'
+      ];
+
+      columnsInTable.forEach(col => {
+        if ((payload as any)[col] !== undefined) {
+          dbPayload[col] = (payload as any)[col];
+        }
+      });
+
+      // Map Onboarding 2.1 conceptual properties to real SQL columns
+      if (payload.sex !== undefined) {
+        dbPayload.gender = payload.sex;
+      } else if (payload.gender !== undefined) {
+        dbPayload.gender = payload.gender;
+      }
+
+      if (payload.primary_goal !== undefined) {
+        dbPayload.goal = payload.primary_goal;
+      } else if (payload.goal !== undefined) {
+        dbPayload.goal = payload.goal;
+      }
+
+      if (payload.training_experience !== undefined) {
+        dbPayload.experience_level = payload.training_experience;
+      } else if (payload.experience_level !== undefined) {
+        dbPayload.experience_level = payload.experience_level;
+      }
+
+      if (payload.weekly_availability !== undefined) {
+        dbPayload.frequency = payload.weekly_availability.toString();
+      } else if (payload.frequency !== undefined) {
+        dbPayload.frequency = payload.frequency;
+      }
 
       // We use upsert to ensure it works even if the profile was not yet created
       const { error } = await supabase
         .from('profiles')
-        .upsert({ ...cleanPayload, id: userId });
+        .upsert(dbPayload);
       if (error) throw error;
     });
   },

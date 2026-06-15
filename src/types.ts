@@ -60,6 +60,18 @@ export interface UserProfile {
   is_admin?: boolean; // Keep for backward compatibility if needed, but role is preferred
   last_deload_at?: string;
   
+  // Onboarding 2.1 specific fields for persistence and recommendation
+  sex?: string;
+  primary_goal?: string;
+  training_experience?: string;
+  weekly_availability?: number;
+  training_environment?: string;
+  restrictions?: string[];
+  exercise_dislikes?: string[];
+  onboarding_version?: string;
+  created_at?: string;
+  updated_at?: string;
+  
   // Tracking Stats
   workouts_completed?: number;
   workout_streak?: number;
