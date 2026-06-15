@@ -188,13 +188,20 @@ const SetCard = ({
     >
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-4">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
-            isCompleted ? "bg-emerald-500 text-white" : 
-            isCurrent ? "bg-[#7BA7FF] text-white shadow-md shadow-[#7BA7FF]/15" : 
-            "bg-slate-200 text-slate-400"
-          }`}>
+          <motion.div 
+            initial={isCompleted ? { scale: 0.8 } : { scale: 1 }}
+            animate={isCompleted ? { scale: [0.8, 1.1, 1] } : { scale: 1 }}
+            transition={isCompleted ? { type: "keyframes", ease: "easeOut", duration: 0.3 } : { type: "spring", stiffness: 450, damping: 15 }}
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${
+              isCompleted 
+                ? "bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.35)]" 
+                : isCurrent 
+                  ? "bg-[#7BA7FF] text-white shadow-md shadow-[#7BA7FF]/15 ring-2 ring-[#7BA7FF]/30" 
+                  : "bg-slate-200 text-slate-400"
+            }`}
+          >
             {isCompleted ? <Check size={16} strokeWidth={4} /> : idx + 1}
-          </div>
+          </motion.div>
           
           <div className="flex items-center gap-6 relative">
              <div className="text-center group">
@@ -476,6 +483,49 @@ const SwipeableSetRow: React.FC<SwipeableSetRowProps> = ({
   );
 };
 
+const PlayerSkeleton = () => (
+  <div className="w-full max-w-sm mx-auto h-screen bg-[#F7F8FA] flex flex-col p-4 space-y-5 animate-pulse">
+    {/* Header */}
+    <div className="flex items-center justify-between py-3 border-b border-slate-100">
+      <div className="w-11 h-11 rounded-full bg-slate-200/50" />
+      <div className="h-8 w-24 bg-slate-200/30 rounded-2xl" />
+      <div className="w-11 h-11 bg-slate-200/50 rounded-full" />
+    </div>
+
+    {/* Big Active Exercise Card Shimmer */}
+    <div className="flex gap-4 p-4 bg-white rounded-3xl border border-slate-100 shadow-sm">
+      <div className="w-16 h-12 bg-slate-200/60 rounded-xl" />
+      <div className="space-y-2 flex-1">
+        <div className="h-3 w-16 bg-slate-200/40 rounded" />
+        <div className="h-4 w-32 bg-slate-200/20 rounded" />
+        <div className="h-3 w-24 bg-slate-200/20 rounded" />
+      </div>
+    </div>
+
+    {/* Set list shimmers */}
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100">
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 rounded-full bg-slate-200/30" />
+            <div className="space-y-2">
+              <div className="h-3 w-10 bg-slate-200/40 rounded" />
+              <div className="h-2.5 w-8 bg-slate-200/20 rounded" />
+            </div>
+          </div>
+          <div className="w-16 h-8 bg-slate-200/30 rounded-lg" />
+        </div>
+      ))}
+    </div>
+
+    {/* Bottom Dock Shimmer */}
+    <div className="h-[215px] bg-white rounded-t-[2.2rem] p-4 flex flex-col justify-between border-t border-slate-100 shadow-xl mt-auto">
+      <div className="w-12 h-1.5 bg-slate-200/40 rounded-full mx-auto" />
+      <div className="h-10 bg-slate-200/30 rounded-2xl w-full" />
+    </div>
+  </div>
+);
+
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { navigate, goBack } = useNavigation();
   const { openExercisePreview } = useExercisePreview();
@@ -492,6 +542,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     exercises, currentIndex, currentSet, historyId, startTime,
     setWorkout, nextStep, prevStep, setCurrentSet, setCurrentIndex, resetWorkout 
   } = useWorkoutStore();
+
+  // Preload next exercise image
+  useEffect(() => {
+    if (exercises && currentIndex !== undefined) {
+      const nextEx = exercises[currentIndex + 1];
+      const nextImg = nextEx?.exercise_image || (nextEx as any)?.image_url;
+      if (nextImg) {
+        const img = new Image();
+        img.src = nextImg;
+      }
+    }
+  }, [currentIndex, exercises]);
 
   // Local UI State
   const [saving, setSaving] = useState(false);
@@ -1984,7 +2046,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const nextEx = exercises[currentIndex + 1];
     if (nextEx) {
       // 1. Preload image
-      const imgSrc = nextEx.exercise_image || nextEx.image_url;
+      const imgSrc = nextEx.exercise_image || (nextEx as any).image_url;
       if (imgSrc) {
         const img = new Image();
         img.src = imgSrc;
@@ -2595,6 +2657,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         status={queryStatus}
         isFetching={isFetching}
         onRetry={() => refresh()}
+        skeleton={<PlayerSkeleton />}
       >
         {!isAdvanced && (
           <div className={`transition-all duration-500 overflow-hidden ${isResting ? 'h-0' : 'h-auto border-b border-slate-50 bg-[#F8FAFC]'}`}>
@@ -2627,9 +2690,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setShowExitModal(true)}
-                  className="p-1 -ml-1 text-slate-400 hover:text-slate-900 active:scale-90 transition-all font-bold flex items-center justify-center shrink-0"
+                  className="w-11 h-11 -ml-2 text-slate-400 hover:text-slate-900 bg-slate-50/50 hover:bg-slate-100/80 active:scale-95 transition-all rounded-full flex items-center justify-center shrink-0 border border-slate-200/20"
                 >
-                  <X size={24} strokeWidth={3} />
+                  <X size={20} strokeWidth={3} />
                 </button>
 
                 {/* VOLUME DYNAMIC TELEMETRY BADGE */}
@@ -2672,9 +2735,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </div>
                 )}
                 
-                <div className="flex flex-col items-end text-right shrink-0">
-                   <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Tempo</p>
-                   <p className="text-xs font-black tabular-nums text-slate-800 leading-none">{formatTime(workoutDuration)}</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-end text-right shrink-0 select-none">
+                     <p className="text-[7.5px] font-black text-[#7BA7FF] uppercase tracking-widest leading-none mb-0.5 animate-pulse">Treino</p>
+                     <p className="text-xs font-black tabular-nums text-slate-800 leading-none">{currentIndex + 1}<span className="text-[9px] text-slate-400 font-bold">/{exercises.length}</span></p>
+                  </div>
+
+                  <div className="flex flex-col items-end text-right shrink-0 select-none border-l border-slate-100 pl-3">
+                     <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Tempo</p>
+                     <p className="text-xs font-black tabular-nums text-slate-800 leading-none">{formatTime(workoutDuration)}</p>
+                  </div>
                 </div>
 
                 <motion.button 
@@ -2723,7 +2793,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                           if ('vibrate' in navigator) navigator.vibrate(12);
                         }
                       }}
-                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-150 shrink-0 active:scale-90 hover:bg-slate-50/80 ${
+                      className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all duration-150 shrink-0 active:scale-95 hover:bg-slate-50/80 ${
                         focusMode 
                           ? 'border-slate-800 bg-slate-900/80 text-slate-400 hover:text-white disabled:opacity-10' 
                           : 'border-slate-200/60 bg-slate-50/60 text-slate-500 disabled:opacity-30 p-0'
@@ -2793,7 +2863,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                           if ('vibrate' in navigator) navigator.vibrate(12);
                         }
                       }}
-                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-150 shrink-0 active:scale-90 hover:bg-slate-50/80 ${
+                      className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all duration-150 shrink-0 active:scale-95 hover:bg-slate-50/80 ${
                         focusMode 
                           ? 'border-slate-800 bg-slate-900/80 text-slate-400 hover:text-white disabled:opacity-10' 
                           : 'border-slate-200/60 bg-slate-50/60 text-slate-500 disabled:opacity-30 p-0'
@@ -2838,7 +2908,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       setCurrentIndex(currentIndex - 1);
                       setCurrentSet(1);
                     }}
-                    className="w-full bg-slate-50 hover:bg-slate-100 active:scale-98 transition-all border border-slate-200/50 rounded-xl py-2 px-3 text-[10px] font-black tracking-[0.05em] text-slate-500 hover:text-slate-800 uppercase flex items-center justify-center gap-1.5 h-[38px] shadow-sm"
+                    className="w-full bg-slate-50 hover:bg-slate-100 active:scale-95 transition-all border border-slate-200/50 rounded-xl py-2 px-3 text-[10px] font-black tracking-[0.05em] text-slate-500 hover:text-slate-800 uppercase flex items-center justify-center gap-1.5 h-[44px] shadow-sm duration-100"
                   >
                     <ChevronLeft size={14} strokeWidth={4} /> Voltar ao anterior: {exercises[currentIndex - 1]?.exercise_name}
                   </button>
@@ -3089,8 +3159,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   {isResting && isFinalSetOfExercise && exercises[currentIndex + 1] && (
                     <div className="bg-[#7BA7FF]/5 border border-[#7BA7FF]/15 rounded-xl p-2.5 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <div className="w-10 h-8 bg-white rounded-lg overflow-hidden shrink-0 shadow-sm border border-slate-100/60">
-                        {exercises[currentIndex + 1].exercise_image || exercises[currentIndex + 1].image_url ? (
-                          <img src={exercises[currentIndex + 1].exercise_image || exercises[currentIndex + 1].image_url} className="w-full h-full object-cover" />
+                        {exercises[currentIndex + 1].exercise_image || (exercises[currentIndex + 1] as any).image_url ? (
+                          <img src={exercises[currentIndex + 1].exercise_image || (exercises[currentIndex + 1] as any).image_url} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <Dumbbell size={12} className="text-slate-300" />
@@ -3122,7 +3192,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             if ('vibrate' in navigator) navigator.vibrate(12);
                           }
                         }}
-                        className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all active:scale-90"
+                        className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all duration-100 active:scale-[0.93]"
                       >
                         <ChevronLeft size={16} strokeWidth={4} />
                       </button>
@@ -3133,7 +3203,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                           if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
                         } : handleCompleteSet}
                         disabled={saving || isTransitioning}
-                        className="flex-1 h-11 bg-[#7BA7FF] hover:bg-[#6b97ee] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md shadow-[#7BA7FF]/20"
+                        className="flex-1 h-11 bg-[#7BA7FF] hover:bg-[#6b97ee] hover:scale-[1.01] active:scale-[0.96] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-100 flex items-center justify-center gap-2 shadow-md shadow-[#7BA7FF]/20"
                       >
                         {saving ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -3155,7 +3225,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             if ('vibrate' in navigator) navigator.vibrate(12);
                           }
                         }}
-                        className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all active:scale-90"
+                        className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all duration-100 active:scale-[0.93]"
                       >
                         <ChevronRight size={16} strokeWidth={4} />
                       </button>
@@ -3184,8 +3254,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   {isResting && isFinalSetOfExercise && exercises[currentIndex + 1] && (
                     <div className="bg-[#7BA7FF]/5 border border-[#7BA7FF]/15 rounded-xl p-2.5 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <div className="w-11 h-9 bg-white rounded-lg overflow-hidden shrink-0 shadow-sm border border-slate-100/60">
-                        {exercises[currentIndex + 1].exercise_image || exercises[currentIndex + 1].image_url ? (
-                          <img src={exercises[currentIndex + 1].exercise_image || exercises[currentIndex + 1].image_url} className="w-full h-full object-cover" />
+                        {exercises[currentIndex + 1].exercise_image || (exercises[currentIndex + 1] as any).image_url ? (
+                          <img src={exercises[currentIndex + 1].exercise_image || (exercises[currentIndex + 1] as any).image_url} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <Dumbbell size={14} className="text-slate-350" />
@@ -3235,7 +3305,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             const currentVal = activeSetsData[currentSet - 1]?.weight || 0;
                             updateSetData(currentSet - 1, 'weight', Math.max(0, currentVal - 2));
                           }}
-                          className="w-6 h-6 rounded-md bg-white border border-slate-100 shadow-sm font-bold text-slate-500 flex items-center justify-center hover:bg-slate-50"
+                          className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm font-black text-slate-600 flex items-center justify-center hover:bg-slate-50 active:scale-90 active:bg-slate-100 transition-all"
                         >
                           -
                         </button>
@@ -3247,7 +3317,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             const currentVal = activeSetsData[currentSet - 1]?.weight || 0;
                             updateSetData(currentSet - 1, 'weight', currentVal + 2);
                           }}
-                          className="w-6 h-6 rounded-md bg-white border border-slate-100 shadow-sm font-bold text-slate-500 flex items-center justify-center hover:bg-slate-50"
+                          className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm font-black text-slate-600 flex items-center justify-center hover:bg-slate-50 active:scale-90 active:bg-slate-100 transition-all"
                         >
                           +
                         </button>
@@ -3263,7 +3333,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             const currentVal = activeSetsData[currentSet - 1]?.reps || 10;
                             updateSetData(currentSet - 1, 'reps', Math.max(1, currentVal - 1));
                           }}
-                          className="w-6 h-6 rounded-md bg-white border border-slate-100 shadow-sm font-bold text-slate-500 flex items-center justify-center hover:bg-slate-50"
+                          className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm font-black text-slate-600 flex items-center justify-center hover:bg-slate-50 active:scale-90 active:bg-slate-100 transition-all"
                         >
                           -
                         </button>
@@ -3275,7 +3345,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             const currentVal = activeSetsData[currentSet - 1]?.reps || 10;
                             updateSetData(currentSet - 1, 'reps', currentVal + 1);
                           }}
-                          className="w-6 h-6 rounded-md bg-white border border-slate-100 shadow-sm font-bold text-slate-500 flex items-center justify-center hover:bg-slate-50"
+                          className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm font-black text-slate-600 flex items-center justify-center hover:bg-slate-50 active:scale-90 active:bg-slate-100 transition-all"
                         >
                           +
                         </button>
@@ -4541,7 +4611,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </button>
                 <button
                   onClick={() => {
-                    handleConfirmDeleteSet(setToDelete);
+                    handleDeleteSet(setToDelete!);
                     setSetToDelete(null);
                   }}
                   className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg shadow-rose-200 transition active:scale-95 duration-150"

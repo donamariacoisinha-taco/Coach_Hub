@@ -39,135 +39,115 @@ function setLocalCache(exercises: Exercise[]): void {
 
 export const exerciseApi = {
   async getExercises() {
-    return fetchWithRetry(async () => {
-      let data: any[] | null = null;
-      let error: any = null;
-
-      try {
-        const response = await supabase.from('exercises').select('*').order('name');
-        data = response.data;
-        error = response.error;
-        if (error) throw error;
-      } catch (err: any) {
-        console.error('[ExerciseApi] Erro principal ao carregar exercícios:', err?.message || err);
-        const isSchemaError = err.message?.includes('column') && err.message?.includes('schema cache');
-        if (isSchemaError) {
-          console.warn('[DB] Fallback ativado devido a erro de schema cache:', err.message);
-          const response = await supabase.from('exercises')
-            .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
-            .order('name');
-          data = response.data;
-          error = response.error;
-          if (error) throw error;
-        } else {
-          // If a general network/auth error happens, load from local cache or static backup
-          const cached = getLocalCache();
-          if (cached.length > 0) {
-            return cached;
+    try {
+      return await fetchWithRetry(async () => {
+        let response = await supabase.from('exercises').select('*').order('name');
+        
+        if (response.error) {
+          const isSchemaError = response.error.message?.includes('column') && response.error.message?.includes('schema cache');
+          if (isSchemaError) {
+            console.warn('[DB] Fallback de cache do schema acionado no select principal:', response.error.message);
+            response = await supabase.from('exercises')
+              .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
+              .order('name');
           }
-          console.warn('[ExerciseApi] Sem cache local, retornando banco estático de backup devido a falha.');
-          return fallbackExercises;
+          if (response.error) throw response.error;
         }
-      }
 
-      // If data is empty (P0 newly created user issue / empty library), load cache/static backup
-      if (!data || data.length === 0) {
-        console.warn('[ExerciseApi] Consulta ao Supabase retornou vazia. Ativando recuperação.');
-        const cached = getLocalCache();
-        if (cached.length > 0) {
-          return cached;
+        const data = response.data;
+        if (!data || data.length === 0) {
+          throw new Error('Consulta de exercicios vazia no banco');
         }
-        console.warn('[ExerciseApi] Usando biblioteca estática de fábrica.');
-        return fallbackExercises;
+
+        const normalizedExercises = data.map((ex) => ({
+          ...ex,
+          muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros'),
+          anatomical_cut: ex.anatomical_cut || getVirtualAnatomicalCut(ex.muscle_group || '', ex.name)
+        })) as Exercise[];
+
+        setLocalCache(normalizedExercises);
+
+        if (import.meta.env.DEV) {
+          console.log(`[ExerciseApi] Exercícios carregados com sucesso online: ${normalizedExercises.length} registros.`);
+        }
+
+        return normalizedExercises;
+      });
+    } catch (err: any) {
+      console.warn('[ExerciseApi] Erro ao carregar exercícios após retentativas. Usando caches e backups offline:', err?.message || err);
+      const cached = getLocalCache();
+      if (cached.length > 0) {
+        if (import.meta.env.DEV) {
+          console.log(`[ExerciseApi] Carregado cache persistente local de ${cached.length} exercícios.`);
+        }
+        return cached;
       }
-
-      // Normalize muscle groups on the fly to avoid taxonomy bugs
-      const normalizedExercises = data.map((ex) => ({
-        ...ex,
-        muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros'),
-        anatomical_cut: ex.anatomical_cut || getVirtualAnatomicalCut(ex.muscle_group || '', ex.name)
-      })) as Exercise[];
-
-      // Populate local cache for offline/fresh users
-      setLocalCache(normalizedExercises);
-
-      if (import.meta.env.DEV) {
-        console.log(`[ExerciseApi] exercises carregados com sucesso: ${normalizedExercises.length} registros.`);
-      }
-
-      return normalizedExercises;
-    });
+      console.warn('[ExerciseApi] Sem cache local, retornando banco estático de backup devido a falha geral.');
+      return fallbackExercises;
+    }
   },
 
   async getPublicExercises() {
-    return fetchWithRetry(async () => {
-      let data: any[] | null = null;
-      let error: any = null;
-
-      try {
-        const response = await supabase.from('exercises')
+    try {
+      return await fetchWithRetry(async () => {
+        let response = await supabase.from('exercises')
           .select('*')
           .eq('is_active', true)
           .order('name');
-        data = response.data;
-        error = response.error;
-        if (error) throw error;
-      } catch (err: any) {
-        console.error('[ExerciseApi] Erro principal ao carregar exercícios públicos:', err?.message || err);
-        const isSchemaError = err.message?.includes('column') && err.message?.includes('schema cache');
-        if (isSchemaError) {
-          const response = await supabase.from('exercises')
-            .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
-            .eq('is_active', true)
-            .order('name');
-          data = response.data;
-          error = response.error;
-          if (error) throw error;
-        } else {
-          const cached = getLocalCache().filter(e => e.is_active);
-          if (cached.length > 0) {
-            return cached;
+
+        if (response.error) {
+          const isSchemaError = response.error.message?.includes('column') && response.error.message?.includes('schema cache');
+          if (isSchemaError) {
+            console.warn('[DB] Fallback de cache do schema no select publico:', response.error.message);
+            response = await supabase.from('exercises')
+              .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
+              .eq('is_active', true)
+              .order('name');
           }
-          return fallbackExercises.filter(e => e.is_active);
+          if (response.error) throw response.error;
         }
-      }
 
-      if (!data || data.length === 0) {
-        const cached = getLocalCache().filter(e => e.is_active);
-        if (cached.length > 0) {
-          return cached;
+        const data = response.data;
+        if (!data || data.length === 0) {
+          throw new Error('Consulta de public_exercises vazia no banco');
         }
-        return fallbackExercises.filter(e => e.is_active);
+
+        const normalizedExercises = data.map((ex) => ({
+          ...ex,
+          muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros'),
+          anatomical_cut: ex.anatomical_cut || getVirtualAnatomicalCut(ex.muscle_group || '', ex.name)
+        })) as Exercise[];
+
+        return normalizedExercises;
+      });
+    } catch (err: any) {
+      console.warn('[ExerciseApi] Erro ao carregar exercícios públicos após retentativas. Usando caches offline:', err?.message || err);
+      const cached = getLocalCache().filter(e => e.is_active);
+      if (cached.length > 0) {
+        return cached;
       }
-
-      const normalizedExercises = data.map((ex) => ({
-        ...ex,
-        muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros'),
-        anatomical_cut: ex.anatomical_cut || getVirtualAnatomicalCut(ex.muscle_group || '', ex.name)
-      })) as Exercise[];
-
-      return normalizedExercises;
-    });
+      return fallbackExercises.filter(e => e.is_active);
+    }
   },
 
   async getMuscleGroups() {
-    return fetchWithRetry(async () => {
-      try {
+    try {
+      return await fetchWithRetry(async () => {
         const { data, error } = await supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true });
         if (error) throw error;
         return (data || []) as MuscleGroup[];
-      } catch (err) {
-        console.warn('[ExerciseApi] Failed to fetch muscle groups from Supabase, using fallback.', err);
-        return [
-          { id: 'peito', name: 'Peito', sort_order: 1 },
-          { id: 'costas', name: 'Costas', sort_order: 2 },
-          { id: 'pernas', name: 'Pernas', sort_order: 3 },
-          { id: 'ombros', name: 'Ombros', sort_order: 4 },
-          { id: 'braços', name: 'Bíceps/Tríceps', sort_order: 5 },
-          { id: 'abdômen', name: 'Core', sort_order: 6 }
-        ] as any[];
-      }
-    });
+      });
+    } catch (err) {
+      console.warn('[ExerciseApi] Erro ao buscar grupos musculares do Supabase, utilizando fallback estático local.', err);
+      return [
+        { id: 'peito', name: 'Peito', sort_order: 1 },
+        { id: 'costas', name: 'Costas', sort_order: 2 },
+        { id: 'pernas', name: 'Pernas', sort_order: 3 },
+        { id: 'ombros', name: 'Ombros', sort_order: 4 },
+        { id: 'braços', name: 'Bíceps/Tríceps', sort_order: 5 },
+        { id: 'abdômen', name: 'Core', sort_order: 6 }
+      ] as any[];
+    }
   },
 
   async getFavorites(userId: string) {
