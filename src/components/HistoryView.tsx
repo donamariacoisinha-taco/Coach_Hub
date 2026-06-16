@@ -44,6 +44,14 @@ const HistoryView: React.FC = () => {
   const { current, navigate } = useNavigation();
   const [activeTab, setActiveTab] = useState<TabType>(current.params?.tab || 'journey');
 
+  const getDaysSince = (dateString: string) => {
+    const recordDate = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - recordDate.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
   useEffect(() => {
     if (current.params?.tab) {
       setActiveTab(current.params.tab);
@@ -77,6 +85,7 @@ const HistoryView: React.FC = () => {
   const [top5Strongest, setTop5Strongest] = useState<any[]>([]);
   const [exerciseEvolutions, setExerciseEvolutions] = useState<any[]>([]);
   const [beforeVsNow, setBeforeVsNow] = useState<any | null>(null);
+  const [longestStandingRecord, setLongestStandingRecord] = useState<any | null>(null);
 
   useEffect(() => {
     const loadJourneyData = async () => {
@@ -190,9 +199,59 @@ const HistoryView: React.FC = () => {
                    lower.includes('squat');
           };
 
-          // 1. List of all PRs per exercise
+          // 1. List of all PRs per exercise with 30-day evolution, progress, and momentum
           const prsList = Array.from(prsMap.values()).map(log => {
             const exName = log.exercises?.name || 'Exercício';
+            const logs = exerciseLogsOrdered.get(log.exercise_id) || [];
+            
+            // Calculate 30-day window from current time
+            const nowMs = Date.now();
+            const thirtyDaysAgoMs = nowMs - 30 * 24 * 60 * 60 * 1000;
+            
+            // Filter logs which are within the last 30 days and those before
+            const logs30 = logs.filter(l => new Date(l.created_at).getTime() >= thirtyDaysAgoMs);
+            const logsBefore = logs.filter(l => new Date(l.created_at).getTime() < thirtyDaysAgoMs);
+            
+            let recentStartWeight = 0;
+            let recentStartReps = 0;
+            let recentEndWeight = 0;
+            let recentEndReps = 0;
+            let momentum: 'Em evolução' | 'Estável' | 'Sem registros recentes' = 'Sem registros recentes';
+            let has30DayProgress = false;
+            let weightDiff30 = 0;
+            
+            if (logs30.length > 0) {
+              // We have activity in the last 30 days
+              let startLog = logs30[0];
+              if (logsBefore.length > 0) {
+                // If there's prior history, progress should start from the latest log before 30 days
+                startLog = logsBefore[logsBefore.length - 1];
+              }
+              const endLog = logs30[logs30.length - 1];
+              
+              recentStartWeight = Number(startLog.weight_achieved || 0);
+              recentStartReps = Number(startLog.reps_achieved || 0);
+              recentEndWeight = Number(endLog.weight_achieved || 0);
+              recentEndReps = Number(endLog.reps_achieved || 0);
+              
+              const start1RM = recentStartWeight * (1 + recentStartReps / 30.0);
+              const end1RM = recentEndWeight * (1 + recentEndReps / 30.0);
+              
+              weightDiff30 = recentEndWeight - recentStartWeight;
+              
+              if (end1RM > start1RM + 0.1 || recentEndWeight > recentStartWeight) {
+                momentum = 'Em evolução';
+              } else {
+                momentum = 'Estável';
+              }
+              
+              if (startLog.id !== endLog.id) {
+                has30DayProgress = true;
+              }
+            } else {
+              momentum = 'Sem registros recentes';
+            }
+            
             return {
               exerciseId: log.exercise_id,
               exerciseName: exName,
@@ -200,7 +259,14 @@ const HistoryView: React.FC = () => {
               bestReps: Number(log.reps_achieved),
               date: log.created_at,
               isRecentPR: detectedRecentPRs.has(log.exercise_id),
-              isCompound: isCompound(exName)
+              isCompound: isCompound(exName),
+              recentStartWeight,
+              recentStartReps,
+              recentEndWeight,
+              recentEndReps,
+              weightDiff30,
+              momentum,
+              has30DayProgress
             };
           });
 
@@ -211,6 +277,14 @@ const HistoryView: React.FC = () => {
             return b.bestWeight - a.bestWeight;
           });
           setPersonalRecords(sortedPRs);
+
+          // Find longest standing record among the PR list (oldest PR by date)
+          let lsr = null;
+          if (prsList.length > 0) {
+            const sortedByDate = [...prsList].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            lsr = sortedByDate[0];
+          }
+          setLongestStandingRecord(lsr);
 
           // 2. Seus Melhores Resultados (Top 5 Strongest Exercises based on weight & compound status)
           const top5 = [...prsList]
@@ -478,27 +552,120 @@ const HistoryView: React.FC = () => {
                   </div>
                 )}
 
+                {/* Compact Highlight Cards Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Maior Evolução Card */}
+                  {beforeVsNow && (
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Maior Evolução</h3>
+                      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between h-full min-h-[160px] relative overflow-hidden">
+                        <div className="space-y-4">
+                          <h4 className="text-base font-black uppercase text-slate-900 tracking-tight leading-none">{beforeVsNow.exerciseName}</h4>
+                          
+                          <div className="grid grid-cols-2 gap-4 pt-2">
+                            <div>
+                              <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block leading-none">Primeiro Registro:</span>
+                              <p className="text-xs font-extrabold text-slate-555 mt-1.5 tracking-tight tabular-nums">{beforeVsNow.firstWeight} kg × {beforeVsNow.firstReps}</p>
+                            </div>
+                            <div>
+                              <span className="text-[7.5px] font-black text-[#5C8CFF] uppercase tracking-widest block leading-none">Melhor Resultado:</span>
+                              <p className="text-xs font-black text-slate-900 mt-1.5 tracking-tight tabular-nums">{beforeVsNow.bestWeight} kg × {beforeVsNow.bestReps}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-50 mt-4 flex justify-between items-center bg-slate-50/50 -mx-6 -mb-6 px-6 py-4.5 rounded-b-3xl">
+                          <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest leading-none">Evolução:</span>
+                          <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full tabular-nums">
+                            +{beforeVsNow.weightDiff} kg
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recorde Mantido Card */}
+                  {longestStandingRecord && (
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Recorde Mantido</h3>
+                      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between h-full min-h-[160px] relative overflow-hidden">
+                        <div className="space-y-4">
+                          <h4 className="text-base font-black uppercase text-slate-900 tracking-tight leading-none">{longestStandingRecord.exerciseName}</h4>
+                          
+                          <div className="pt-2">
+                            <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block leading-none">Carga Alcançada:</span>
+                            <p className="text-xs font-extrabold text-slate-800 tracking-tight mt-1.5 tabular-nums inline-block bg-slate-50 border border-slate-100 px-3 py-1 rounded-xl">
+                              {longestStandingRecord.bestWeight} kg <span className="text-[9.5px] text-slate-400 font-medium select-none">×</span> {longestStandingRecord.bestReps}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-50 mt-4 flex justify-between items-center bg-slate-100/30 -mx-6 -mb-6 px-6 py-4.5 rounded-b-3xl">
+                          <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest leading-none">Tempo Invicto:</span>
+                          <span className="text-[11px] font-black text-slate-700 bg-slate-50 border border-slate-100/80 px-3 py-1 rounded-full tabular-nums">
+                            {getDaysSince(longestStandingRecord.date) === 0 ? 'Feito hoje' : `Há ${getDaysSince(longestStandingRecord.date)} dias`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Section B: Personal Records (PRs) */}
                 {personalRecords && personalRecords.length > 0 && (
                   <div className="space-y-4">
                     <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Recordes Pessoais (PRs)</h3>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {personalRecords.slice(0, 8).map((pr) => (
-                        <div key={pr.exerciseId} className="bg-white rounded-2xl p-5 border border-slate-100 flex justify-between items-center shadow-sm hover:shadow-md transition-all duration-300">
-                          <div className="space-y-1 pr-2">
-                            <h4 className="text-xs font-black text-slate-800 tracking-tight uppercase line-clamp-1">{pr.exerciseName}</h4>
-                            <p className="text-[8.5px] font-[1000] text-slate-400 uppercase tracking-wider block">
-                              {new Date(pr.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            </p>
+                        <div key={pr.exerciseId} className="bg-white rounded-2xl p-5 border border-slate-100 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 space-y-4">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="space-y-1.5">
+                              <h4 className="text-xs font-black text-slate-800 tracking-tight uppercase line-clamp-1">{pr.exerciseName}</h4>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-wider">
+                                  {new Date(pr.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                </span>
+                                <span className="text-slate-300 text-[8px] select-none">•</span>
+                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded tracking-wider uppercase inline-block leading-none select-none border ${
+                                  pr.momentum === 'Em evolução' ? 'bg-slate-50 text-slate-650 border-slate-100' :
+                                  pr.momentum === 'Estável' ? 'bg-slate-50 text-slate-500 border-slate-100' :
+                                  'bg-slate-50/50 text-slate-400 border-slate-100/50'
+                                }`}>
+                                  {pr.momentum}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="text-right flex flex-col items-end shrink-0">
+                              <span className="text-[8.5px] font-[1000] text-slate-405 uppercase tracking-wide leading-none">PR</span>
+                              <span className="text-xs font-[1000] text-slate-900 tabular-nums bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-xl mt-1 leading-none inline-block">
+                                {pr.bestWeight} kg <span className="text-[9.5px] text-slate-400 font-medium select-none">×</span> {pr.bestReps}
+                              </span>
+                              {pr.isRecentPR && (
+                                <span className="text-[7px] font-[1000] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 tracking-wider uppercase inline-block leading-none select-none mt-1.5">
+                                  Recente
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-right flex flex-col items-end shrink-0 gap-1.5">
-                            <span className="text-xs font-[1000] text-slate-900 tabular-nums bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-xl">
-                              {pr.bestWeight} kg <span className="text-[9.5px] text-slate-400 font-medium select-none">×</span> {pr.bestReps}
-                            </span>
-                            {pr.isRecentPR && (
-                              <span className="text-[7px] font-[1000] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 tracking-wider uppercase inline-block leading-none select-none">
-                                Novo Recorde
+
+                          <div className="pt-3 border-t border-slate-50">
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-1">Últimos 30 dias:</span>
+                            {pr.has30DayProgress ? (
+                              <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 mt-1">
+                                <div className="flex items-center gap-1.5 text-slate-500">
+                                  <span>{pr.recentStartWeight} kg <span className="text-[9px] text-slate-300 font-medium select-none">×</span> {pr.recentStartReps}</span>
+                                  <span className="text-slate-400 select-none font-medium">↓</span>
+                                  <span className="text-slate-900 font-extrabold">{pr.recentEndWeight} kg <span className="text-[9px] text-slate-400 font-medium select-none">×</span> {pr.recentEndReps}</span>
+                                </div>
+                                <span className={`text-[9.5px] font-[1000] px-2 py-0.5 rounded tracking-wide ${pr.weightDiff30 > 0 ? 'text-emerald-600 bg-emerald-50 border border-emerald-100/50' : 'text-slate-500 bg-slate-50 border border-slate-100'}`}>
+                                  {pr.weightDiff30 > 0 ? `+${pr.weightDiff30}` : pr.weightDiff30} kg
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-slate-400 block mt-1 select-none">
+                                {pr.momentum === 'Sem registros recentes' ? 'Sem registros recentes neste período' : 'Estável sem alteração de carga'}
                               </span>
                             )}
                           </div>
