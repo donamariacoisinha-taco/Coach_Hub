@@ -86,6 +86,7 @@ const HistoryView: React.FC = () => {
   const [exerciseEvolutions, setExerciseEvolutions] = useState<any[]>([]);
   const [beforeVsNow, setBeforeVsNow] = useState<any | null>(null);
   const [longestStandingRecord, setLongestStandingRecord] = useState<any | null>(null);
+  const [showDetailedAnalysis, setShowDetailedAnalysis] = useState<boolean>(false);
 
   useEffect(() => {
     const loadJourneyData = async () => {
@@ -497,9 +498,9 @@ const HistoryView: React.FC = () => {
                   
                   <div className="space-y-2">
                     <span className="text-[9px] font-black text-[#5C8CFF] uppercase tracking-[0.25em] block leading-none">Início da Sua Evolução</span>
-                    <h3 className="text-xl font-[1000] text-slate-900 tracking-tighter uppercase leading-tight mt-1.5">Evolução de Força</h3>
+                    <h3 className="text-xl font-[1000] text-slate-900 tracking-tighter uppercase leading-tight mt-1.5">Sua evolução começa no primeiro treino</h3>
                     <p className="text-xs text-slate-500 font-semibold leading-relaxed mt-2 mx-auto max-w-xs">
-                      Complete seus primeiros treinos para acompanhar seus recordes de força e evolução ao longo do tempo.
+                      Conclua seu primeiro treino para começar a acompanhar seus recordes pessoais e sua progressão de força.
                     </p>
                   </div>
 
@@ -517,180 +518,55 @@ const HistoryView: React.FC = () => {
               </div>
             ) : (
               /* ACTIVE JOURNEY NARRATIVE */
-              <div className="space-y-10">
-                {/* Section A: Before vs Now */}
+              <div className="space-y-10 animate-in fade-in duration-500">
+                {/* Block 1: SEU MAIOR PROGRESSO */}
                 {beforeVsNow && (
                   <div className="space-y-4">
-                    <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Antes vs Agora</h3>
-                    <div className="bg-slate-900 text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
+                      Seu Maior Progresso
+                    </h3>
+                    <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden flex flex-col items-center justify-center text-center py-12">
+                      <div className="absolute top-0 right-0 w-48 h-48 bg-[#7BA7FF]/10 rounded-full blur-[80px] pointer-events-none" />
                       
-                      <div className="relative space-y-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="text-[8px] font-black text-[#7BA7FF] uppercase tracking-[0.2em] block leading-none">Maior Evolução de Força</span>
-                            <h4 className="text-sm font-black uppercase text-white mt-2 leading-none">{beforeVsNow.exerciseName}</h4>
-                          </div>
-                          <span className="text-[8.5px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0 select-none">
-                            +{beforeVsNow.weightDiff} kg Ganho
-                          </span>
-                        </div>
+                      <h4 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white mb-6">
+                        {beforeVsNow.exerciseName}
+                      </h4>
 
-                        <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/5">
-                          <div className="bg-white/5 p-3 rounded-2xl">
-                            <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block leading-none">Primeiro Treino</span>
-                            <p className="text-xs font-bold text-slate-200 mt-2 tracking-tight tabular-nums">{beforeVsNow.firstWeight} kg × {beforeVsNow.firstReps} reps</p>
-                          </div>
-                          
-                          <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
-                            <span className="text-[7.5px] font-black text-[#5C8CFF] uppercase tracking-widest block leading-none">Melhor Resultado</span>
-                            <p className="text-xs font-bold text-white mt-2 tracking-tight tabular-nums">{beforeVsNow.bestWeight} kg × {beforeVsNow.bestReps} reps</p>
-                          </div>
+                      <div className="flex flex-col items-center justify-center space-y-2.5">
+                        <div className="text-sm font-semibold text-slate-400">
+                          {beforeVsNow.firstWeight}kg <span className="text-slate-500 font-medium select-none">×</span> {beforeVsNow.firstReps}
                         </div>
+                        
+                        <div className="text-[#7BA7FF] select-none text-lg font-black leading-none">
+                          ↓
+                        </div>
+                        
+                        <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                          {beforeVsNow.bestWeight}kg <span className="text-slate-400 font-normal select-none">×</span> {beforeVsNow.bestReps}
+                        </div>
+                      </div>
+
+                      <div className="mt-6 px-6 py-2 bg-emerald-500/10 border border-emerald-500/20 text-[#7BA7FF] text-xs font-black rounded-full uppercase tracking-wider">
+                        +{beforeVsNow.weightDiff}kg Força Ganha
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Compact Highlight Cards Section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Maior Evolução Card */}
-                  {beforeVsNow && (
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Maior Evolução</h3>
-                      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between h-full min-h-[160px] relative overflow-hidden">
-                        <div className="space-y-4">
-                          <h4 className="text-base font-black uppercase text-slate-900 tracking-tight leading-none">{beforeVsNow.exerciseName}</h4>
-                          
-                          <div className="grid grid-cols-2 gap-4 pt-2">
-                            <div>
-                              <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block leading-none">Primeiro Registro:</span>
-                              <p className="text-xs font-extrabold text-slate-555 mt-1.5 tracking-tight tabular-nums">{beforeVsNow.firstWeight} kg × {beforeVsNow.firstReps}</p>
-                            </div>
-                            <div>
-                              <span className="text-[7.5px] font-black text-[#5C8CFF] uppercase tracking-widest block leading-none">Melhor Resultado:</span>
-                              <p className="text-xs font-black text-slate-900 mt-1.5 tracking-tight tabular-nums">{beforeVsNow.bestWeight} kg × {beforeVsNow.bestReps}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="pt-4 border-t border-slate-50 mt-4 flex justify-between items-center bg-slate-50/50 -mx-6 -mb-6 px-6 py-4.5 rounded-b-3xl">
-                          <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest leading-none">Evolução:</span>
-                          <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full tabular-nums">
-                            +{beforeVsNow.weightDiff} kg
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Recorde Mantido Card */}
-                  {longestStandingRecord && (
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Recorde Mantido</h3>
-                      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between h-full min-h-[160px] relative overflow-hidden">
-                        <div className="space-y-4">
-                          <h4 className="text-base font-black uppercase text-slate-900 tracking-tight leading-none">{longestStandingRecord.exerciseName}</h4>
-                          
-                          <div className="pt-2">
-                            <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block leading-none">Carga Alcançada:</span>
-                            <p className="text-xs font-extrabold text-slate-800 tracking-tight mt-1.5 tabular-nums inline-block bg-slate-50 border border-slate-100 px-3 py-1 rounded-xl">
-                              {longestStandingRecord.bestWeight} kg <span className="text-[9.5px] text-slate-400 font-medium select-none">×</span> {longestStandingRecord.bestReps}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="pt-4 border-t border-slate-50 mt-4 flex justify-between items-center bg-slate-100/30 -mx-6 -mb-6 px-6 py-4.5 rounded-b-3xl">
-                          <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest leading-none">Tempo Invicto:</span>
-                          <span className="text-[11px] font-black text-slate-700 bg-slate-50 border border-slate-100/80 px-3 py-1 rounded-full tabular-nums">
-                            {getDaysSince(longestStandingRecord.date) === 0 ? 'Feito hoje' : `Há ${getDaysSince(longestStandingRecord.date)} dias`}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Section B: Personal Records (PRs) */}
-                {personalRecords && personalRecords.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Recordes Pessoais (PRs)</h3>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {personalRecords.slice(0, 8).map((pr) => (
-                        <div key={pr.exerciseId} className="bg-white rounded-2xl p-5 border border-slate-100 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 space-y-4">
-                          <div className="flex justify-between items-start gap-2">
-                            <div className="space-y-1.5">
-                              <h4 className="text-xs font-black text-slate-800 tracking-tight uppercase line-clamp-1">{pr.exerciseName}</h4>
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-wider">
-                                  {new Date(pr.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                </span>
-                                <span className="text-slate-300 text-[8px] select-none">•</span>
-                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded tracking-wider uppercase inline-block leading-none select-none border ${
-                                  pr.momentum === 'Em evolução' ? 'bg-slate-50 text-slate-650 border-slate-100' :
-                                  pr.momentum === 'Estável' ? 'bg-slate-50 text-slate-500 border-slate-100' :
-                                  'bg-slate-50/50 text-slate-400 border-slate-100/50'
-                                }`}>
-                                  {pr.momentum}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <div className="text-right flex flex-col items-end shrink-0">
-                              <span className="text-[8.5px] font-[1000] text-slate-405 uppercase tracking-wide leading-none">PR</span>
-                              <span className="text-xs font-[1000] text-slate-900 tabular-nums bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-xl mt-1 leading-none inline-block">
-                                {pr.bestWeight} kg <span className="text-[9.5px] text-slate-400 font-medium select-none">×</span> {pr.bestReps}
-                              </span>
-                              {pr.isRecentPR && (
-                                <span className="text-[7px] font-[1000] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 tracking-wider uppercase inline-block leading-none select-none mt-1.5">
-                                  Recente
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="pt-3 border-t border-slate-50">
-                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-1">Últimos 30 dias:</span>
-                            {pr.has30DayProgress ? (
-                              <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 mt-1">
-                                <div className="flex items-center gap-1.5 text-slate-500">
-                                  <span>{pr.recentStartWeight} kg <span className="text-[9px] text-slate-300 font-medium select-none">×</span> {pr.recentStartReps}</span>
-                                  <span className="text-slate-400 select-none font-medium">↓</span>
-                                  <span className="text-slate-900 font-extrabold">{pr.recentEndWeight} kg <span className="text-[9px] text-slate-400 font-medium select-none">×</span> {pr.recentEndReps}</span>
-                                </div>
-                                <span className={`text-[9.5px] font-[1000] px-2 py-0.5 rounded tracking-wide ${pr.weightDiff30 > 0 ? 'text-emerald-600 bg-emerald-50 border border-emerald-100/50' : 'text-slate-500 bg-slate-50 border border-slate-100'}`}>
-                                  {pr.weightDiff30 > 0 ? `+${pr.weightDiff30}` : pr.weightDiff30} kg
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] font-semibold text-slate-400 block mt-1 select-none">
-                                {pr.momentum === 'Sem registros recentes' ? 'Sem registros recentes neste período' : 'Estável sem alteração de carga'}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Section C: Top 5 Strongest Exercises */}
+                {/* Block 2: SEUS MELHORES RESULTADOS */}
                 {top5Strongest && top5Strongest.length > 0 && (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Award size={15} className="text-indigo-500" />
-                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Seus Melhores Resultados</h3>
-                    </div>
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-50">
-                      {top5Strongest.map((item, idx) => (
-                        <div key={item.exerciseId} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0">
-                          <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-black text-indigo-500 w-5 bg-indigo-50 border border-indigo-100 rounded-lg h-5 flex items-center justify-center select-none">{idx + 1}</span>
-                            <span className="text-xs font-bold text-slate-800 uppercase tracking-tight line-clamp-1">{item.exerciseName}</span>
-                          </div>
-                          <span className="text-xs font-[1000] text-slate-800 tabular-nums">
-                            {item.bestWeight} kg <span className="text-[10px] text-slate-400 font-medium select-none">×</span> {item.bestReps}
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
+                      Seus Melhores Resultados
+                    </h3>
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
+                      {top5Strongest.slice(0, 5).map((item) => (
+                        <div key={item.exerciseId} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-tight line-clamp-1">
+                            {item.exerciseName}
+                          </span>
+                          <span className="text-xs font-black text-slate-900 tabular-nums">
+                            {item.bestWeight}kg <span className="text-slate-400 font-medium select-none">×</span> {item.bestReps}
                           </span>
                         </div>
                       ))}
@@ -698,183 +574,272 @@ const HistoryView: React.FC = () => {
                   </div>
                 )}
 
-                {/* Section D: Exercise Evolution */}
-                {exerciseEvolutions && exerciseEvolutions.length > 0 && (
+                {/* Block 3: EVOLUÇÃO DOS ÚLTIMOS 30 DIAS */}
+                {((personalRecords && personalRecords.filter(pr => pr.recentStartWeight > 0 && pr.recentEndWeight > 0).length > 0) || (exerciseEvolutions && exerciseEvolutions.length > 0)) && (
                   <div className="space-y-4">
-                    <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Evolução dos Exercícios</h3>
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 space-y-4.5">
-                      {exerciseEvolutions.slice(0, 5).map((evol) => (
-                        <div key={evol.exerciseId} className="flex justify-between items-center py-2 first:pt-0 last:pb-0 border-b border-slate-50 last:border-0">
-                          <div className="space-y-1 pr-2">
-                            <h4 className="text-xs font-black text-slate-800 tracking-tight uppercase line-clamp-1">{evol.exerciseName}</h4>
-                            <div className="flex items-center gap-2 text-[9px] text-slate-400 font-black tracking-wide uppercase select-none">
-                              <span>Inicial: {evol.firstWeight} kg</span>
-                              <span>→</span>
-                              <span className="text-slate-500">Recorde: {evol.bestWeight} kg</span>
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
+                      Evolução dos Últimos 30 Dias
+                    </h3>
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
+                      {(() => {
+                        const logs30 = personalRecords.filter(pr => pr.recentStartWeight > 0 && pr.recentEndWeight > 0);
+                        const displayItems = logs30.length > 0 
+                          ? logs30.slice(0, 5) 
+                          : exerciseEvolutions.slice(0, 5).map(e => ({
+                              exerciseId: e.exerciseId,
+                              exerciseName: e.exerciseName,
+                              recentStartWeight: e.firstWeight,
+                              recentEndWeight: e.bestWeight
+                            }));
+
+                        return displayItems.map((r) => (
+                          <div key={r.exerciseId} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
+                            <span className="text-xs font-black text-slate-800 uppercase tracking-tight line-clamp-1">
+                              {r.exerciseName}
+                            </span>
+                            <span className="text-xs font-bold text-slate-600 font-mono">
+                              {r.recentStartWeight}kg → <span className="text-slate-950 font-black">{r.recentEndWeight}kg</span>
+                            </span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Progressive Disclosure Action */}
+                <div className="flex justify-center pt-2">
+                  <button
+                    onClick={() => {
+                      if ('vibrate' in navigator) navigator.vibrate(5);
+                      setShowDetailedAnalysis(!showDetailedAnalysis);
+                    }}
+                    className="px-6 py-3.5 bg-white border border-slate-200 text-slate-850 hover:bg-slate-50 transition-all text-[10px] font-black uppercase tracking-widest rounded-full cursor-pointer flex items-center gap-2 hover:shadow-xs active:scale-95"
+                  >
+                    <span>{showDetailedAnalysis ? 'Fechar análise detalhada' : 'Ver análise completa →'}</span>
+                  </button>
+                </div>
+
+                {/* SECONDARY INFORMATION (Moved to Progressive Disclosure container) */}
+                {showDetailedAnalysis && (
+                  <div className="space-y-10 pt-4 border-t border-slate-200/50 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    
+                    {/* Section A: Antes vs Agora detalhado */}
+                    {beforeVsNow && (
+                      <div className="space-y-4">
+                        <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Antes vs Agora Detalhado</h3>
+                        <div className="bg-slate-900 text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden">
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+                          
+                          <div className="relative space-y-4">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className="text-[8px] font-black text-[#7BA7FF] uppercase tracking-[0.2em] block leading-none">Maior Evolução de Força</span>
+                                <h4 className="text-sm font-black uppercase text-white mt-2 leading-none">{beforeVsNow.exerciseName}</h4>
+                              </div>
+                              <span className="text-[8.5px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0 select-none">
+                                +{beforeVsNow.weightDiff} kg Ganho
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/5">
+                              <div className="bg-white/5 p-3 rounded-2xl">
+                                <span className="text-[7.5px] font-black text-slate-400 tracking-widest block leading-none">Primeiro Treino</span>
+                                <p className="text-xs font-bold text-slate-200 mt-2 tracking-tight tabular-nums">{beforeVsNow.firstWeight} kg × {beforeVsNow.firstReps} reps</p>
+                              </div>
+                              
+                              <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
+                                <span className="text-[7.5px] font-black text-[#5C8CFF] tracking-widest block leading-none">Melhor Resultado</span>
+                                <p className="text-xs font-bold text-white mt-2 tracking-tight tabular-nums">{beforeVsNow.bestWeight} kg × {beforeVsNow.bestReps} reps</p>
+                              </div>
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <span className="inline-block text-[10px] font-[1000] px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100/50 tabular-nums leading-none">
-                              +{evol.weightDiff} kg
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recorde Mantido Card */}
+                    {longestStandingRecord && (
+                      <div className="space-y-4">
+                        <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest font-sans">Recorde Mantido</h3>
+                        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between h-full min-h-[160px] relative overflow-hidden">
+                          <div className="space-y-4">
+                            <h4 className="text-base font-black uppercase text-slate-900 tracking-tight leading-none">{longestStandingRecord.exerciseName}</h4>
+                            
+                            <div className="pt-2">
+                              <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block leading-none">Carga Alcançada:</span>
+                              <p className="text-xs font-extrabold text-slate-800 tracking-tight mt-1.5 tabular-nums inline-block bg-slate-50 border border-slate-100 px-3 py-1 rounded-xl">
+                                {longestStandingRecord.bestWeight} kg <span className="text-[9.5px] text-slate-400 font-medium select-none">×</span> {longestStandingRecord.bestReps}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="pt-4 border-t border-slate-50 mt-4 flex justify-between items-center bg-slate-100/30 -mx-6 -mb-6 px-6 py-4.5 rounded-b-3xl">
+                            <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest leading-none">Tempo Invicto:</span>
+                            <span className="text-[11px] font-black text-slate-700 bg-slate-50 border border-slate-100/80 px-3 py-1 rounded-full tabular-nums">
+                              {getDaysSince(longestStandingRecord.date) === 0 ? 'Feito hoje' : `Há ${getDaysSince(longestStandingRecord.date)} dias`}
                             </span>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                    )}
+
+                    {/* Recordes Pessoais (PRs) */}
+                    {personalRecords && personalRecords.length > 0 && (
+                      <div className="space-y-4">
+                        <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Todos os Recordes Pessoais (PRs)</h3>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {personalRecords.slice(0, 8).map((pr) => (
+                            <div key={pr.exerciseId} className="bg-white rounded-2xl p-5 border border-slate-100 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 space-y-4">
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="space-y-1.5">
+                                  <h4 className="text-xs font-black text-slate-800 tracking-tight uppercase line-clamp-1">{pr.exerciseName}</h4>
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-wider">
+                                      {new Date(pr.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </span>
+                                    <span className="text-slate-300 text-[8px] select-none">•</span>
+                                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded tracking-wider uppercase inline-block leading-none select-none border bg-slate-50 text-slate-500 border-slate-100">
+                                      {pr.momentum}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="text-right flex flex-col items-end shrink-0">
+                                  <span className="text-[8.5px] font-[1000] text-slate-405 uppercase tracking-wide leading-none">PR</span>
+                                  <span className="text-xs font-[1000] text-slate-900 tabular-nums bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-xl mt-1 leading-none inline-block">
+                                    {pr.bestWeight} kg <span className="text-[9.5px] text-slate-400 font-medium select-none">×</span> {pr.bestReps}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Evolução Corporal */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Evolução Corporal</h3>
+                      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 grid grid-cols-2 gap-4 relative">
+                        <div className="absolute top-4 bottom-4 left-1/2 -translate-x-1/2 w-px bg-slate-50" />
+                        
+                        <div className="text-center py-3 bg-slate-50/50 rounded-2xl flex flex-col justify-center">
+                          <span className="text-[7.5px] font-[1000] text-slate-400 uppercase tracking-wider leading-none">Peso Inicial</span>
+                          <p className="text-base font-[1000] text-slate-800 tracking-tight mt-2.5 tabular-nums">{startingWeight ? `${startingWeight} kg` : '--'}</p>
+                        </div>
+
+                        <div className="text-center py-4 bg-[#5C8CFF]/5 border border-[#5C8CFF]/10 rounded-2xl flex flex-col justify-center">
+                          <span className="text-[7.5px] font-[1000] text-[#5C8CFF] uppercase tracking-wider leading-none font-bold">Peso Atual</span>
+                          <p className="text-base font-[1000] text-slate-900 tracking-tight mt-2.5 tabular-nums">{profile?.weight ? `${profile.weight} kg` : '--'}</p>
+                          {startingWeight && profile?.weight && (
+                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase mt-2 inline-block mx-auto leading-none ${(profile.weight - startingWeight) >= 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' : 'bg-blue-50 text-blue-600 border border-blue-100/50'}`}>
+                              {(profile.weight - startingWeight) >= 0 ? `+${(profile.weight - startingWeight).toFixed(1)}kg` : `${(profile.weight - startingWeight).toFixed(1)}kg`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Carga Útil Total (Volume/Tonnage) & Frequência e Fidelização */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Carga Útil Total</h3>
+                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex flex-col justify-between space-y-4">
+                          <div className="flex justify-between items-center bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                            <div className="space-y-1">
+                              <span className="text-[7.5px] font-[1000] text-slate-400 uppercase tracking-wider leading-none">Carga Acumulada</span>
+                              <p className="text-base font-[1000] text-slate-800 tracking-tight mt-1.5 tabular-nums">{volumeData?.latVol ? `${volumeData.latVol} kg` : '--'}</p>
+                            </div>
+                            {volumeData?.earVol && volumeData?.latVol && (
+                              <span className={`text-[8px] font-[1000] px-2 py-1 rounded-xl uppercase tracking-wider font-bold leading-none shrink-0 ${(volumeData.latVol - volumeData.earVol) >= 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' : 'bg-red-50 text-red-500 border border-red-100/50'}`}>
+                                {(volumeData.latVol - volumeData.earVol) >= 0 
+                                  ? `▲ +${(((volumeData.latVol - volumeData.earVol) / volumeData.earVol) * 100).toFixed(0)}% Força`
+                                  : `▼ ${(((volumeData.latVol - volumeData.earVol) / volumeData.earVol) * 100).toFixed(0)}%`
+                                }
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                            Carga útil (Tonnage) representa o peso total transferido sob contração muscular nas sessões principais.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Fidelização & Compromisso</h3>
+                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 space-y-4 h-full flex flex-col justify-between">
+                          <div className="grid grid-cols-2 gap-2 text-center h-full items-center">
+                            <div className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+                              <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block leading-none">Frequência</span>
+                              <p className="text-base font-[1000] text-[#5C8CFF] leading-none mt-1.5">{profile?.days_per_week || 3}x/Semana</p>
+                            </div>
+                            
+                            <div className="bg-emerald-50/45 p-2.5 rounded-xl border border-emerald-100/50">
+                              <span className="text-[7px] font-black text-emerald-600 uppercase tracking-widest block leading-none">Adesão</span>
+                              <p className="text-base font-[1000] text-emerald-600 leading-none mt-1.5">Excelente</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Safe Merge / Protocol Updates */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Evolução do Protocolo</h3>
+                      
+                      {protocolUpdates && protocolUpdates.length > 0 ? (
+                        protocolUpdates.map((up, upIdx) => (
+                          <div key={upIdx} className="bg-gradient-to-br from-[#121926] to-[#0A0F19] text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden space-y-4">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
+                            
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className="text-[7.5px] font-black text-[#7BA7FF] uppercase tracking-widest block leading-none">Alterações Científicas Disponíveis</span>
+                                <h4 className="text-[15px] font-black uppercase tracking-tight text-white mt-2 leading-none">{up.templateName}</h4>
+                                <p className="text-[9px] font-bold text-slate-400 mt-1.5">Evolução da Versão v{up.currentVersion} para v{up.latestVersion}</p>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={async () => {
+                                if ('vibrate' in navigator) navigator.vibrate(10);
+                                const success = await systemTemplatesApi.mergeTemplate(
+                                  profile.id,
+                                  up.folderId,
+                                  up.templateId,
+                                  up.latestVersion,
+                                  'safe'
+                                );
+                                if (success) {
+                                  alert('Protocolo sincronizado para a nova versão com absoluto sucesso! Suas anotações personalizadas foram protegidas.');
+                                  window.location.reload();
+                                }
+                              }}
+                              className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all text-center"
+                            >
+                              <RefreshCw size={11} className="animate-pulse" />
+                              <span>Atualizar Protocolo para v{up.latestVersion} (Safe Merge)</span>
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex gap-4 items-center">
+                          <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shrink-0 shadow-sm">
+                            <CheckCircle2 size={20} />
+                          </div>
+                          <div className="flex-1">
+                            <h5 className="text-xs font-black text-slate-800 uppercase leading-none">Protocolo Pristine Ativo</h5>
+                            <p className="text-[10px] font-semibold text-slate-500 mt-1.5 leading-relaxed">
+                              Sua pasta está rodando plenamente de acordo com os modelos biomecânicos e científicos mais recentes do Kyron.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
-
-                {/* Section E: Narrative & Body weight metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Weight Evolution Panel */}
-                  <div className="space-y-4">
-                    <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Evolução Corporal</h3>
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 grid grid-cols-2 gap-4 relative">
-                      <div className="absolute top-4 bottom-4 left-1/2 -translate-x-1/2 w-px bg-slate-50" />
-                      
-                      <div className="text-center py-3 bg-slate-50/50 rounded-2xl flex flex-col justify-center">
-                        <span className="text-[7.5px] font-[1000] text-slate-400 uppercase tracking-wider leading-none">Peso Inicial</span>
-                        <p className="text-base font-[1000] text-slate-800 tracking-tight mt-2.5 tabular-nums">{startingWeight ? `${startingWeight} kg` : '--'}</p>
-                      </div>
-
-                      <div className="text-center py-4 bg-[#5C8CFF]/5 border border-[#5C8CFF]/10 rounded-2xl flex flex-col justify-center">
-                        <span className="text-[7.5px] font-[1000] text-[#5C8CFF] uppercase tracking-wider leading-none font-bold">Peso Atual</span>
-                        <p className="text-base font-[1000] text-slate-900 tracking-tight mt-2.5 tabular-nums">{profile?.weight ? `${profile.weight} kg` : '--'}</p>
-                        {startingWeight && profile?.weight && (
-                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase mt-2 inline-block mx-auto leading-none ${profile.weight - startingWeight >= 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' : 'bg-blue-50 text-blue-600 border border-blue-100/50'}`}>
-                            {(profile.weight - startingWeight) >= 0 ? `+${(profile.weight - startingWeight).toFixed(1)}kg` : `${(profile.weight - startingWeight).toFixed(1)}kg`}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Volume level progress */}
-                  <div className="space-y-4">
-                    <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Carga Útil Total</h3>
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex flex-col justify-between space-y-4">
-                      <div className="flex justify-between items-center bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-                        <div className="space-y-1">
-                          <span className="text-[7.5px] font-[1000] text-slate-400 uppercase tracking-wider leading-none">Carga Acumulada</span>
-                          <p className="text-base font-[1000] text-slate-800 tracking-tight mt-1.5 tabular-nums">{volumeData?.latVol ? `${volumeData.latVol} kg` : '--'}</p>
-                        </div>
-                        {volumeData?.earVol && volumeData?.latVol && (
-                          <span className={`text-[8px] font-[1000] px-2 py-1 rounded-xl uppercase tracking-wider font-bold leading-none shrink-0 ${volumeData.latVol - volumeData.earVol >= 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' : 'bg-red-50 text-red-500 border border-red-100/50'}`}>
-                            {(volumeData.latVol - volumeData.earVol) >= 0 
-                              ? `▲ +${(((volumeData.latVol - volumeData.earVol) / volumeData.earVol) * 100).toFixed(0)}% Força`
-                              : `▼ ${(((volumeData.latVol - volumeData.earVol) / volumeData.earVol) * 100).toFixed(0)}%`
-                            }
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                        Carga útil (Tonnage) representa o peso total transferido sob contração muscular nas sessões principais.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section F: Consistency Adherence Grid */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Fidelização & Compromisso</h3>
-                  
-                  <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 space-y-5">
-                    <div className="grid grid-cols-3 gap-2.5 text-center">
-                      <div className="bg-slate-50/70 p-3 rounded-2xl border border-slate-100">
-                        <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block leading-none">Adesão de Foco</span>
-                        <p className="text-lg font-[1000] text-slate-800 leading-none mt-2">100%</p>
-                        <span className="text-[6.5px] font-black text-[#5C8CFF] uppercase tracking-widest block mt-1.5 leading-none">Planejado</span>
-                      </div>
-                      
-                      <div className="bg-indigo-50/40 p-3 rounded-2xl border border-indigo-100/50">
-                        <span className="text-[7.5px] font-black text-[#5C8CFF] uppercase tracking-widest block leading-none">Frequência</span>
-                        <p className="text-lg font-[1000] text-[#5C8CFF] leading-none mt-2">{profile?.days_per_week || 3}x</p>
-                        <span className="text-[6.5px] font-black text-[#5C8CFF] uppercase tracking-widest block mt-1.5 leading-none">Por Semana</span>
-                      </div>
-
-                      <div className="bg-emerald-50/45 p-3 rounded-2xl border border-emerald-100/50">
-                        <span className="text-[7.5px] font-black text-emerald-600 uppercase tracking-widest block leading-none">Regularidade</span>
-                        <p className="text-lg font-[1000] text-emerald-600 leading-none mt-2">Excelente</p>
-                        <span className="text-[6.5px] font-black text-emerald-500 uppercase tracking-widest block mt-1.5 leading-none">Adesão Sec</span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-slate-500 font-semibold leading-relaxed text-center bg-slate-50/50 py-3 px-4.5 rounded-2xl">
-                      Sua constância e disciplina semanal são os pilares científicos para a evolução saudável de força e recomposição.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Section G: Protocol versioning / safe merge updates */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Evolução do Protocolo</h3>
-                  
-                  {protocolUpdates && protocolUpdates.length > 0 ? (
-                    protocolUpdates.map((up, upIdx) => (
-                      <div key={upIdx} className="bg-gradient-to-br from-[#121926] to-[#0A0F19] text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden space-y-4">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
-                        
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="text-[7.5px] font-black text-[#7BA7FF] uppercase tracking-widest block leading-none">Alterações Científicas Disponíveis</span>
-                            <h4 className="text-[15px] font-black uppercase tracking-tight text-white mt-2 leading-none">{up.templateName}</h4>
-                            <p className="text-[9px] font-bold text-slate-400 mt-1.5">Evolução da Versão v{up.currentVersion} para v{up.latestVersion}</p>
-                          </div>
-                          <span className="text-[7.5px] font-black text-indigo-300 bg-indigo-500/20 border border-indigo-500/20 px-2 py-0.5 rounded uppercase tracking-wider shrink-0 mt-0.5">Versão Atualizada</span>
-                        </div>
-
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4.5 space-y-3">
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block leading-none">Refinamentos Científicos da Equipe Médica</span>
-                          <div className="space-y-2">
-                            {up.changes && up.changes.length > 0 ? (
-                              up.changes.map((ch: string, cIdx: number) => (
-                                <div key={cIdx} className="flex gap-2 text-xs text-slate-300 font-semibold leading-relaxed">
-                                  <CornerDownRight size={14} className="text-[#7BA7FF] shrink-0 mt-0.5" />
-                                  <span>{ch}</span>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="text-xs text-slate-400 font-medium pb-1">Refinamento geral de cadência, tempo sob tensão e segurança articular.</p>
-                            )}
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={async () => {
-                            if ('vibrate' in navigator) navigator.vibrate(10);
-                            const success = await systemTemplatesApi.mergeTemplate(
-                              profile.id,
-                              up.folderId,
-                              up.templateId,
-                              up.latestVersion,
-                              'safe'
-                            );
-                            if (success) {
-                              alert('Protocolo sincronizado para a nova versão com absoluto sucesso! Suas anotações personalizadas foram protegidas.');
-                              window.location.reload();
-                            }
-                          }}
-                          className="w-full py-4.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all text-center shadow-lg shadow-indigo-650/15"
-                        >
-                          <RefreshCw size={11} className="animate-pulse" />
-                          <span>Atualizar Protocolo para v{up.latestVersion} (Safe Merge)</span>
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex gap-4 items-center">
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shrink-0 shadow-sm">
-                        <CheckCircle2 size={20} />
-                      </div>
-                      <div className="flex-1">
-                        <h5 className="text-xs font-black text-slate-800 uppercase leading-none">Protocolo Pristine Ativo</h5>
-                        <p className="text-[10px] font-semibold text-slate-500 mt-1.5 leading-relaxed">
-                          Sua pasta está rodando plenamente de acordo com os modelos biomecânicos e científicos mais recentes do Kyron.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             )}
           </div>
