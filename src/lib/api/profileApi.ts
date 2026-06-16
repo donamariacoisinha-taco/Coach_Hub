@@ -56,6 +56,13 @@ export const profileApi = {
           if (!profileData.email && currentUserEmail && profileData.id === userId) {
             profileData.email = currentUserEmail;
           }
+          // Hydrate user-specific premium status securely from local storage
+          const localPremium = localStorage.getItem(`kyron_is_premium_${userId}`);
+          if (localPremium !== null) {
+            profileData.is_premium = localPremium === 'true';
+          } else {
+            profileData.is_premium = (data as any)?.is_premium || false;
+          }
           // Hydrate preferred_training_days from local storage since it is not a DB column
           const stored = localStorage.getItem(`rubi_preferred_training_days_${userId}`);
           if (stored) {
@@ -130,6 +137,17 @@ export const profileApi = {
 
   async updateProfile(userId: string, payload: Partial<UserProfile>) {
     return fetchWithRetry(async () => {
+      // Manage account premium status via robust local cache persistence
+      if (payload.is_premium !== undefined) {
+        localStorage.setItem(`kyron_is_premium_${userId}`, payload.is_premium ? 'true' : 'false');
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user?.id === userId) {
+            localStorage.setItem('kyron_premium_subscription_active', payload.is_premium ? 'true' : 'false');
+          }
+        } catch (e) {}
+      }
+
       // Save preferred training days safely to localStorage to protect column constraints and maintain offline sync
       if (payload.preferred_training_days) {
         localStorage.setItem(`rubi_preferred_training_days_${userId}`, JSON.stringify(payload.preferred_training_days));
@@ -300,7 +318,14 @@ export const profileApi = {
     try {
       const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []).map(p => ({ ...p, _is_mock: false }));
+      return (data || []).map(p => {
+        const localPremium = localStorage.getItem(`kyron_is_premium_${p.id}`);
+        return {
+          ...p,
+          is_premium: localPremium !== null ? localPremium === 'true' : !!(p as any).is_premium,
+          _is_mock: false
+        };
+      });
     } catch (e) {
       console.warn('[profileApi] getAllProfiles connection failed, returning fallback mock profiles');
       return [
@@ -310,7 +335,13 @@ export const profileApi = {
         { id: '4', name: 'Beatriz Costa', email: 'beatriz.c@email.com', role: 'user', is_admin: false, onboarding_completed: true, workout_streak: 0, created_at: '2026-04-05T17:00:00Z', last_access: '2026-06-05T10:00:00Z', is_premium: false, _is_mock: true },
         { id: '5', name: 'Mariana Lima', email: 'mariana.lima@email.com', role: 'user', is_admin: false, onboarding_completed: true, workout_streak: 15, created_at: '2026-05-12T11:20:00Z', last_access: '2026-06-11T07:44:00Z', is_premium: true, _is_mock: true },
         { id: '6', name: 'Gabriel Alencar', email: 'gabriel.alencar@email.com', role: 'user', is_admin: false, onboarding_completed: true, workout_streak: 4, created_at: '2026-05-20T15:40:00Z', last_access: '2026-06-11T06:10:00Z', is_premium: false, _is_mock: true }
-      ];
+      ].map(p => {
+        const localPremium = localStorage.getItem(`kyron_is_premium_${p.id}`);
+        return {
+          ...p,
+          is_premium: localPremium !== null ? localPremium === 'true' : p.is_premium
+        };
+      });
     }
   }
 };

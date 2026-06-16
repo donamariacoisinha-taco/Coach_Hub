@@ -78,6 +78,7 @@ export interface UserProfile {
   total_minutes?: number;
   preferred_training_days?: string[];
   training_adherence_score?: number;
+  is_premium?: boolean;
 }
 
 export interface PersonalBest {
