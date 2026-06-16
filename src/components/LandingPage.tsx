@@ -164,36 +164,44 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
   // Exclusive curriculum protocols mapped to create curiosity
   const protocolsList = [
     {
-      titleKey: "strengthProg" as const,
-      num: 14,
-      difficultyKey: "difficultyBeginner" as const,
-      objectiveKey: "strengthDesc" as const,
-      bgGradient: "from-slate-900 via-slate-800 to-slate-950",
-      accentColor: "border-[#7BA7FF]/35"
+      titlePT: "Força Progressiva",
+      titleEN: "Progressive Strength",
+      difficultyPT: "Iniciante • Avançado",
+      difficultyEN: "Beginner • Advanced",
+      objectivePT: "Foco em sobrecarga progressiva",
+      objectiveEN: "Focus on progressive overload",
+      durationPT: "8 sem",
+      durationEN: "8 wks"
     },
     {
-      titleKey: "hyperProg" as const,
-      num: 22,
-      difficultyKey: "difficultyIntermediate" as const,
-      objectiveKey: "hyperDesc" as const,
-      bgGradient: "from-slate-900 via-indigo-950 to-slate-950",
-      accentColor: "border-[#818CF8]/35"
+      titlePT: "Hipertrofia Essencial",
+      titleEN: "Essential Hypertrophy",
+      difficultyPT: "Intermediário",
+      difficultyEN: "Intermediate",
+      objectivePT: "Ganho de massa muscular sólida",
+      objectiveEN: "Solid muscle mass gain",
+      durationPT: "12 sem",
+      durationEN: "12 wks"
     },
     {
-      titleKey: "metCutProg" as const,
-      num: 12,
-      difficultyKey: "difficultyAll" as const,
-      objectiveKey: "metCutDesc" as const,
-      bgGradient: "from-slate-900 via-cyan-950 to-slate-950",
-      accentColor: "border-[#60A5FA]/35"
+      titlePT: "Primeiro Programa",
+      titleEN: "First Program",
+      difficultyPT: "Iniciante",
+      difficultyEN: "Beginner",
+      objectivePT: "Fundamentos e adaptação neuro",
+      objectiveEN: "Fundamentals and neuro adaptation",
+      durationPT: "6 sem",
+      durationEN: "6 wks"
     },
     {
-      titleKey: "athPerfProg" as const,
-      num: 18,
-      difficultyKey: "difficultyElite" as const,
-      objectiveKey: "athPerfDesc" as const,
-      bgGradient: "from-slate-900 via-violet-950 to-slate-950",
-      accentColor: "border-[#34D399]/35"
+      titlePT: "4 Dias por Semana",
+      titleEN: "4 Days per Week",
+      difficultyPT: "Geral",
+      difficultyEN: "General",
+      objectivePT: "Divisão híbrida de alta eficiência",
+      objectiveEN: "High-efficiency hybrid split",
+      durationPT: "10 sem",
+      durationEN: "10 wks"
     }
   ];
 
@@ -267,30 +275,40 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           
           {/* Left Column: Premium Transformative Hook */}
-          <div className="lg:col-span-5 text-left space-y-8 relative z-10">
+          <div className="lg:col-span-5 text-left space-y-6 relative z-10">
             
             {/* Elegant Tagline Badge */}
             <motion.div 
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={springConfig}
-              className="inline-flex items-center gap-2.5 px-4.5 py-1.5 bg-white/70 backdrop-blur-md border border-slate-200/50 rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.01)]"
+              className="inline-flex items-center gap-2 px-3 py-1 bg-[#7BA7FF]/10 border border-[#7BA7FF]/20 rounded-full"
             >
               <span className="w-1.5 h-1.5 bg-[#7BA7FF] rounded-full animate-pulse"></span>
-              <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#64748B]">
-                {t('badge')}
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 font-mono">
+                KYRON OS
               </span>
             </motion.div>
             
-            {/* Headline focus: "Built Around Your Biology." */}
-            <div className="space-y-4">
+            {/* Headline focus: "Treinos inteligentes. Evolução real." */}
+            <div className="space-y-3">
               <motion.h1 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ ...springConfig, delay: 0.1 }}
-                className="text-4xl sm:text-5xl md:text-[3.8rem] font-light tracking-tight leading-[1.08] text-[#0F172A]"
+                className="text-4xl sm:text-5xl md:text-[3.2rem] font-light tracking-tight leading-[1.1] text-[#0F172A]"
               >
-                {t('headline')}
+                {lang === 'PT' ? (
+                  <>
+                    Treinos inteligentes.<br />
+                    <span className="font-semibold text-slate-900">Evolução real.</span>
+                  </>
+                ) : (
+                  <>
+                    Smart workouts.<br />
+                    <span className="font-semibold text-slate-900">Real evolution.</span>
+                  </>
+                )}
               </motion.h1>
               
               {/* Subheadline focus: Unified Intelligent Ecosystem */}
@@ -298,9 +316,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ ...springConfig, delay: 0.2 }}
-                className="text-base sm:text-lg text-[#334155] font-light leading-relaxed max-w-xl"
+                className="text-sm sm:text-base text-[#334155] font-light leading-relaxed max-w-xl"
               >
-                {t('subheadline')}
+                {lang === 'PT' 
+                  ? "Monte seu plano e acompanhe sua progressão de força em um único lugar."
+                  : "Build your plan and track your strength progression in one single place."
+                }
               </motion.p>
             </div>
             
@@ -309,70 +330,39 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ ...springConfig, delay: 0.3 }}
-              className="space-y-4"
+              className="pt-2"
             >
-              <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-center gap-3">
                 <motion.button 
                   id="hero-cta-start"
                   onClick={onStart}
-                  whileHover="hover"
+                  whileHover={{ y: -1, scale: 1.01 }}
                   whileTap={{ scale: 0.98 }}
-                  animate={{ y: 0 }}
-                  variants={{
-                    hover: { y: -2, scale: 1.01 }
-                  }}
-                  transition={{ type: "spring", stiffness: 180, damping: 22, mass: 0.8 }}
-                  className="w-full sm:w-auto h-14 px-9 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-[#0F172A] hover:shadow-[0_8px_25px_rgba(123,167,255,0.45)] rounded-full font-bold uppercase text-[11px] tracking-[0.22em] flex items-center justify-center gap-2 cursor-pointer shadow-sm relative overflow-hidden"
+                  transition={{ type: "spring", stiffness: 180, damping: 22 }}
+                  className="w-full sm:w-auto h-13 px-8 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-[#0F172A] hover:shadow-[0_8px_25px_rgba(123,167,255,0.45)] border-none rounded-full font-bold uppercase text-[10.5px] tracking-[0.18em] flex items-center justify-center gap-2 cursor-pointer shadow-sm relative overflow-hidden"
                 >
-                  <span className="relative z-10 text-[#0F172A]">{t('ctaStart')}</span>
-                  <motion.span
-                    className="relative z-10"
-                    variants={{
-                      hover: { x: 4 }
-                    }}
-                    transition={{ type: "spring", stiffness: 180, damping: 22, mass: 0.8 }}
-                  >
-                    <ArrowRight size={13} className="text-[#0F172A]" />
-                  </motion.span>
+                  <span>{lang === 'PT' ? 'Começar Agora' : 'Get Started Now'}</span>
+                  <ArrowRight size={13} className="text-[#0F172A]" />
                 </motion.button>
                 
                 <motion.button 
-                  onClick={onStart}
-                  whileHover={{ y: -2 }}
+                  onClick={() => {
+                    const el = document.getElementById('protocols-preview');
+                    if (el) {
+                      el.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                      onStart();
+                    }
+                  }}
+                  whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 180, damping: 22, mass: 0.8 }}
-                  className="w-full sm:w-auto h-14 px-9 bg-[#EAF2FF] text-[#0F172A] hover:bg-[#D5E6FF] rounded-full font-medium uppercase text-[11px] tracking-[0.22em] shadow-xs flex items-center justify-center gap-1 cursor-pointer border border-blue-100/30"
+                  transition={{ type: "spring", stiffness: 180, damping: 22 }}
+                  className="w-full sm:w-auto h-13 px-8 bg-[#EAF2FF] text-[#0F172A] hover:bg-[#D5E6FF] rounded-full font-bold uppercase text-[10.5px] tracking-[0.18em] flex items-center justify-center gap-1 cursor-pointer border border-blue-150"
                 >
-                  {t('heroExplore')}
+                  {lang === 'PT' ? 'Ver Protocolos' : 'View Protocols'}
                 </motion.button>
               </div>
-
-              {/* THREE MICRO-BENEFITS (STRICTLY SUBTLE, BELOW CTA) */}
-              <div className="flex flex-wrap gap-x-6 gap-y-2 pt-2 text-[#64748B]">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[#7BA7FF] text-xs font-semibold">✓</span>
-                  <span className="font-mono text-[10.5px] font-medium tracking-tight uppercase">{t('benefit1')}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[#7BA7FF] text-xs font-semibold">✓</span>
-                  <span className="font-mono text-[10.5px] font-medium tracking-tight uppercase">{t('benefit2')}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[#7BA7FF] text-xs font-semibold">✓</span>
-                  <span className="font-mono text-[10.5px] font-medium tracking-tight uppercase">{t('benefit3')}</span>
-                </div>
-              </div>
             </motion.div>
-
-            {/* Premium Emotional Statement */}
-            <motion.p 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="text-[11.5px] text-[#475569] italic leading-relaxed max-w-md pt-2"
-            >
-              {t('quote')}
-            </motion.p>
           </div>
 
           {/* Right Column: Premium Interactive Simulator DOMINATING first screen */}
@@ -681,92 +671,69 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
         </div>
       </section>
 
-      {/* SECTION 02 — ECOSSISTEMA KYRON (Highly Compact 4x1/2x2 Grid) */}
-      <section className="py-12 px-6 sm:px-12 max-w-7xl mx-auto border-t border-slate-200/40">
-        <div className="text-center mb-8 space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#7BA7FF] font-mono block">
-            {lang === 'PT' ? 'DASHBOARD INTEGRADO' : 'INTEGRATED DASHBOARD'}
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-light text-[#0F172A] tracking-tight">
-            {lang === 'PT' ? 'Ecossistema KYRON' : 'KYRON Ecosystem'}
-          </h2>
-          <p className="text-sm text-slate-500 font-light max-w-md mx-auto">
-            {lang === 'PT' ? 'Treino, nutrição, memória e evolução conectados em tempo real.' : 'Training, nutrition, memory, and evolution connected in real-time.'}
-          </p>
+      {/* SECTION 02 — BENEFITS & HOW IT WORKS */}
+      <section className="py-8 px-6 sm:px-12 max-w-7xl mx-auto border-t border-slate-200/40 space-y-8 select-none">
+        
+        {/* BENEFITS: Compact Horizontal Layout */}
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-center">
+          {[
+            { label: lang === 'PT' ? 'Protocolos prontos' : 'Ready protocols' },
+            { label: lang === 'PT' ? 'Progressão de cargas' : 'Load progression' },
+            { label: lang === 'PT' ? 'Histórico completo' : 'Full history' },
+            { label: lang === 'PT' ? 'Evolução de força' : 'Strength evolution' }
+          ].map((item, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-[#7BA7FF]/10 text-[#7BA7FF] flex items-center justify-center font-bold text-xs shrink-0 select-none">✓</span>
+              <span className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-800 font-mono">{item.label}</span>
+            </div>
+          ))}
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 max-w-6xl mx-auto">
-          {[
-            {
-              category: lang === 'PT' ? 'TREINAMENTO' : 'TRAINING',
-              title: lang === 'PT' ? 'Treino Adaptativo' : 'Adaptive Training',
-              desc: lang === 'PT' ? 'Ajusta seu volume e rest-pause.' : 'Adjusts your volume and rest-pause.',
-              icon: Dumbbell
-            },
-            {
-              category: lang === 'PT' ? 'METABOLISMO' : 'METABOLISM',
-              title: lang === 'PT' ? 'Nutrição Inteligente' : 'Intelligent Nutrition',
-              desc: lang === 'PT' ? 'Metas recalculadas continuamente.' : 'Metabolic targets continuously updated.',
-              icon: Apple
-            },
-            {
-              category: lang === 'PT' ? 'MEMÓRIA' : 'MEMORY',
-              title: lang === 'PT' ? 'Memória do Atleta' : 'Athlete Memory',
-              desc: lang === 'PT' ? 'Aprende seus hábitos e constância.' : 'Learns your habits and consistency.',
-              icon: Brain
-            },
-            {
-              category: lang === 'PT' ? 'PERFORMANCE' : 'PERFORMANCE',
-              title: lang === 'PT' ? 'Performance Real' : 'Real Performance',
-              desc: lang === 'PT' ? 'Mapeamento de carga e biometria.' : 'Mapping load and biometrics.',
-              icon: LineChart
-            }
-          ].map((card, idx) => {
-            const Icon = card.icon;
-            return (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-100px" }}
-                transition={{ type: "spring", stiffness: 180, damping: 22, mass: 0.8, delay: idx * 0.05 }}
-                whileHover={{ y: -2 }}
-                className="bg-white border border-slate-200/50 p-4 rounded-3xl shadow-xs flex flex-col justify-between h-[125px] sm:h-[130px] group transition-all"
+        {/* Divider */}
+        <div className="w-24 h-[1px] bg-slate-200/60 mx-auto" />
+
+        {/* HOW IT WORKS: Compact 3-Step Row with No Large Cards / Illustrations */}
+        <div className="space-y-4">
+          <div className="text-center">
+            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#7BA7FF] font-mono block">
+              {lang === 'PT' ? 'PASSO A PASSO' : 'STEP BY STEP'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+            {[
+              { num: '1', title: lang === 'PT' ? 'Crie sua conta' : 'Create your account' },
+              { num: '2', title: lang === 'PT' ? 'Escolha um protocolo' : 'Choose a protocol' },
+              { num: '3', title: lang === 'PT' ? 'Comece a treinar' : 'Start training' }
+            ].map((step, idx) => (
+              <div 
+                key={idx} 
+                className="flex items-center justify-start md:justify-center gap-4 bg-white border border-slate-200/40 p-3.5 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.01)]"
               >
-                <div className="flex items-center justify-between w-full">
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-50/70 rounded-xl flex items-center justify-center text-[#7BA7FF] shrink-0">
-                    <Icon size={16} />
-                  </div>
-                  <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-slate-400 font-mono">
-                    {card.category}
-                  </span>
+                <div className="w-8 h-8 rounded-full bg-[#7BA7FF] text-[#0F172A] font-bold flex items-center justify-center text-xs shrink-0 font-mono">
+                  {step.num}
                 </div>
-                <div className="space-y-0.5">
-                  <h3 className="text-sm sm:text-base font-semibold text-slate-900 tracking-tight leading-snug">
-                    {card.title}
-                  </h3>
-                  <p className="text-[11px] sm:text-xs text-slate-500 font-light truncate">
-                    {card.desc}
-                  </p>
-                </div>
-              </motion.div>
-            );
-          })}
+                <span className="text-sm font-semibold text-slate-900 tracking-tight">{step.title}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* SECTION 03 — BIBLIOTECA PREMIUM (Compact Horizontal Netflix/Apple TV Carousel) */}
-      <section className="py-12 bg-white border-y border-slate-200/40 text-[#0F172A]">
+      <section id="protocols-preview" className="py-12 bg-white border-y border-slate-200/40 text-[#0F172A]">
         <div className="max-w-7xl mx-auto px-6 sm:px-12">
           
           <div className="flex items-end justify-between mb-6">
             <div className="space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#7BA7FF] font-mono block">{t('libBadge')}</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#7BA7FF] font-mono block">
+                {lang === 'PT' ? 'SISTEMA DE PLANILHAS' : 'SYSTEM SPREADSHEETS'}
+              </span>
               <h2 className="text-2xl sm:text-3xl font-light tracking-tight text-[#0F172A]">
-                {t('libTitle')}
+                {lang === 'PT' ? 'Biblioteca de Protocolos' : 'Protocol Library'}
               </h2>
-              <p className="text-slate-500 font-mono text-[9px] uppercase tracking-wider block">
-                {t('libSub')}
+              <p className="text-slate-505 font-mono text-[9px] uppercase tracking-wider block">
+                {lang === 'PT' ? 'PROGRAMAS VALIDADOS' : 'VALIDATED PROGRAMS'}
               </p>
             </div>
             <span className="text-slate-400 text-[10px] font-mono uppercase tracking-widest hidden sm:block">
@@ -774,42 +741,41 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             </span>
           </div>
 
-          {/* Elegant Horizontal Carousel with Netflix/Apple TV Vibes */}
+          {/* Elegant Horizontal Carousel with Premium Design */}
           <div className="flex overflow-x-auto gap-4 pb-4 px-1 -mx-4 sm:-mx-12 sm:px-12 scrollbar-none snap-x snap-mandatory pt-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {protocolsList.map((prot, idx) => {
-              const duration = lang === 'PT' 
-                ? (idx === 0 ? "8 sem" : idx === 1 ? "12 sem" : idx === 2 ? "6 sem" : "10 sem") 
-                : (idx === 0 ? "8 wks" : idx === 1 ? "12 wks" : idx === 2 ? "6 wks" : "10 wks");
-              
-              const levelLabel = lang === 'PT' ? t(prot.difficultyKey) : t(prot.difficultyKey);
+              const title = lang === 'PT' ? prot.titlePT : prot.titleEN;
+              const difficulty = lang === 'PT' ? prot.difficultyPT : prot.difficultyEN;
+              const objective = lang === 'PT' ? prot.objectivePT : prot.objectiveEN;
+              const duration = lang === 'PT' ? prot.durationPT : prot.durationEN;
 
               return (
                 <motion.div 
                   key={idx}
                   onClick={onStart}
-                  className="bg-slate-50 border border-slate-200/60 p-4.5 rounded-3xl shrink-0 w-[260px] sm:w-[290px] h-[145px] snap-align-start flex flex-col justify-between cursor-pointer hover:border-[#7BA7FF]/50 transition-all shadow-xs"
+                  className="bg-slate-50 border border-slate-200/60 p-4.5 rounded-3xl shrink-0 w-[260px] sm:w-[290px] h-[130px] snap-align-start flex flex-col justify-between cursor-pointer hover:border-[#7BA7FF]/50 transition-all shadow-xs"
                   whileHover={{ y: -3 }}
                   transition={springConfig}
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[8px] uppercase tracking-wider font-bold bg-[#7BA7FF]/10 text-[#7BA7FF] px-2 py-0.5 rounded-full">
-                        {levelLabel}
+                        {difficulty}
                       </span>
                       <span className="text-[9.5px] font-mono text-slate-400 font-medium">{duration}</span>
                     </div>
 
-                    <h3 className="text-sm sm:text-base font-semibold text-[#0F172A] tracking-tight leading-snug">
-                      {t(prot.titleKey)}
+                    <h3 className="text-sm sm:text-base font-semibold text-[#0F172A] tracking-tight leading-snug font-sans">
+                      {title}
                     </h3>
                   </div>
 
                   <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between">
-                    <span className="text-[10px] text-slate-500 font-medium truncate max-w-[140px]">
-                      {t(prot.objectiveKey)}
+                    <span className="text-[10px] text-slate-500 font-medium truncate">
+                      {objective}
                     </span>
-                    <span className="text-[8px] font-black text-[#7BA7FF] uppercase tracking-wide flex items-center gap-1 shrink-0">
-                      ✓ Validado por Rubi AI
+                    <span className="text-[8.5px] font-bold text-[#7BA7FF] uppercase tracking-wide shrink-0">
+                      → {lang === 'PT' ? 'Acessar' : 'Access'}
                     </span>
                   </div>
                 </motion.div>
@@ -820,83 +786,65 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
         </div>
       </section>
 
-      {/* SECTION 04 — RUBI INTELLIGENCE (Compact, minimalist real insights) */}
-      <section className="py-12 px-6 sm:px-12 bg-slate-50/50 border-b border-slate-200/40 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#7BA7FF]/3 rounded-full blur-[120px] pointer-events-none" />
+      {/* SECTION 04 — STRENGTH EVOLUTION */}
+      <section className="py-12 px-6 sm:px-12 bg-slate-50 border-b border-slate-200/40 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-[#7BA7FF]/5 rounded-full blur-[100px] pointer-events-none" />
 
-        <div className="max-w-6xl mx-auto space-y-6 relative z-10">
+        <div className="max-w-4xl mx-auto space-y-6 relative z-10 text-center">
           
-          <div className="text-center space-y-1 max-w-xl mx-auto">
+          <div className="space-y-1 max-w-xl mx-auto">
             <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#7BA7FF] font-mono block">
-              {lang === 'PT' ? 'PROCESSAMENTO NEURAL' : 'NEURAL PROCESSING'}
+              {lang === 'PT' ? 'EVOLUÇÃO DO ATLETA' : 'ATHLETE EVOLUTION'}
             </span>
             <h2 className="text-2xl sm:text-3xl font-light text-[#0F172A] tracking-tight">
-              Rubi Intelligence
+              {lang === 'PT' ? 'Evolução de Força' : 'Strength Evolution'}
             </h2>
             <p className="text-xs text-slate-500 font-light">
-              {lang === 'PT' ? 'Exemplos reais de análises e feedbacks biológicos calibrados:' : 'Real examples of calibrated biological analysis and feedbacks:'}
+              {lang === 'PT' ? 'O único sistema que calcula e otimiza sua progressão real de carga.' : 'The only system that calculates and optimizes your actual load progression.'}
             </p>
           </div>
 
-          {/* 4 Minimalistic Insight Cards (simulating Apple Health / WHOOP metrics) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 max-w-5xl mx-auto">
-            {[
-              {
-                title: lang === 'PT' ? 'Foco Cronotrópico' : 'Chronotropic Focus',
-                insight: lang === 'PT' ? '"Seu melhor horário de treino é entre 18h e 20h."' : '"Your best workout window is between 6 PM and 8 PM."',
-                badge: lang === 'PT' ? 'Padrão Circadiano' : 'Circadian Pattern',
-                color: 'text-[#7BA7FF] bg-[#7BA7FF]/5 border-[#7BA7FF]/10'
-              },
-              {
-                title: lang === 'PT' ? 'Carga Evolutiva' : 'Evolutionary Load',
-                insight: lang === 'PT' ? '"Seu volume semanal evoluiu de forma sustentável."' : '"Your weekly volume evolved sustainably."',
-                badge: lang === 'PT' ? 'Micro-Sobrecarga' : 'Micro-Overload',
-                color: 'text-[#818CF8] bg-[#818CF8]/5 border-[#818CF8]/10'
-              },
-              {
-                title: lang === 'PT' ? 'Equilíbrio Homeostático' : 'Homeostatic Balance',
-                insight: lang === 'PT' ? '"Seu padrão de recuperação melhorou esta semana."' : '"Your recovery pattern improved this week."',
-                badge: lang === 'PT' ? 'Mapeamento Nervoso' : 'Neural Mapping',
-                color: 'text-[#34D399] bg-[#34D399]/5 border-[#34D399]/10'
-              },
-              {
-                title: lang === 'PT' ? 'Aferição Neuromuscular' : 'Neuromuscular Assessment',
-                insight: lang === 'PT' ? '"Hoje é um bom dia para progressão de carga."' : '"Today is a great day for load progression."',
-                badge: lang === 'PT' ? 'Prontidão de Fibra' : 'Fiber Readiness',
-                color: 'text-[#60A5FA] bg-[#60A5FA]/5 border-[#60A5FA]/10'
-              }
-            ].map((card, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 12 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                whileHover={{ y: -2 }}
-                className="bg-white border border-slate-200/60 p-4.5 rounded-3xl shadow-xs flex flex-col justify-between h-[135px] sm:h-[140px] relative overflow-hidden group"
-              >
-                <div className="space-y-1.5 relative z-10">
-                  <div className="flex items-center justify-between">
-                    <span className={`text-[8px] uppercase tracking-wider font-semibold px-2 py-0.5 border rounded-full font-mono ${card.color}`}>
-                      {card.badge}
-                    </span>
-                    <span className="text-[8px] font-bold text-[#10B981] flex items-center gap-1 font-mono uppercase">
-                      <span className="w-1 h-1 rounded-full bg-[#10B981] animate-pulse" />
-                      {lang === 'PT' ? 'CALIBRADO' : 'CALIBRATED'}
-                    </span>
-                  </div>
+          {/* Compact visual progression card */}
+          <div className="max-w-md mx-auto bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-sm flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#7BA7FF] bg-[#7BA7FF]/10 px-3 py-1 rounded-full font-mono">
+                {lang === 'PT' ? 'Seu melhor resultado' : 'Your best result'}
+              </span>
+              <span className="text-xs font-mono font-bold text-[#10B981] bg-[#10B981]/10 px-3 py-1 rounded-full">
+                +20kg
+              </span>
+            </div>
 
-                  <h3 className="text-xs font-semibold text-slate-800 tracking-tight">
-                    {card.title}
-                  </h3>
-                </div>
+            <div className="flex flex-col items-start gap-1 py-1">
+              <h3 className="text-lg font-black uppercase tracking-wider text-slate-900 font-mono">
+                {lang === 'PT' ? 'Supino' : 'Bench Press'}
+              </h3>
+              <p className="text-xs text-slate-400 font-light">
+                {lang === 'PT' ? 'Protocolo Força Progressiva — Semana 6' : 'Progressive Strength Protocol — Week 6'}
+              </p>
+            </div>
 
-                <div className="relative z-10 pt-1">
-                  <p className="text-[11.5px] font-medium italic text-[#0F172A] leading-relaxed">
-                    {card.insight}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+            {/* Visual Arrow representation */}
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200/50 p-4 rounded-2xl">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] uppercase font-bold text-slate-400 font-mono tracking-wider">
+                  {lang === 'PT' ? 'Carga Inicial' : 'Initial Load'}
+                </span>
+                <span className="text-xl font-bold text-slate-700 font-mono mt-1">60kg × 8</span>
+              </div>
+
+              {/* Glowing arrow */}
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#7BA7FF]/10">
+                <ArrowRight size={18} className="text-[#7BA7FF]" />
+              </div>
+
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] uppercase font-bold text-[#10B981] font-mono tracking-wider">
+                  {lang === 'PT' ? 'Carga Atual' : 'Current Load'}
+                </span>
+                <span className="text-xl font-bold text-slate-900 font-mono mt-1">80kg × 8</span>
+              </div>
+            </div>
           </div>
 
         </div>
@@ -908,34 +856,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
           <div className="absolute top-[-50px] right-[-50px] w-64 h-64 bg-[#7BA7FF]/8 rounded-full blur-3xl pointer-events-none" />
           
           <div className="space-y-6 relative z-10">
-            <span className="uppercase tracking-[0.2em] text-[9px] font-bold text-[#7BA7FF] font-mono block">{t('finalBadge')}</span>
+            <span className="uppercase tracking-[0.2em] text-[10px] font-bold text-[#7BA7FF] font-mono block">KYRON OS</span>
             
             <h2 className="text-3xl sm:text-4xl font-light tracking-tight text-[#0F172A] leading-tight">
-              {t('finalTitle1')}<br/>
-              <span className="font-semibold text-slate-900">{t('finalTitle2')}</span>
+              {lang === 'PT' ? 'Pronto para começar?' : 'Ready to start?'}
             </h2>
 
             <div className="space-y-1 max-w-md mx-auto">
               <p className="text-slate-600 text-sm font-light italic">
-                {t('finalSupport')}
+                {lang === 'PT' 
+                  ? 'Plano personalizado e evolução de força real em um só lugar.'
+                  : 'Personalized plan and real strength evolution in one place.'
+                }
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-2">
+            <div className="flex items-center justify-center pt-2">
               <button 
                 id="footer-cta-start"
                 onClick={onStart}
-                className="w-full sm:w-auto px-10 h-13 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-[#0F172A] hover:shadow-[0_8px_30px_rgba(123,167,255,0.4)] transition-all font-bold uppercase text-[10.5px] tracking-[0.2em] rounded-full cursor-pointer shadow-xs"
+                className="w-full sm:w-auto px-12 h-13 bg-[#7BA7FF] hover:bg-[#8FBCFF] text-[#0F172A] hover:shadow-[0_8px_30px_rgba(123,167,255,0.4)] transition-all font-bold uppercase text-[10.5px] tracking-[0.2em] border-none rounded-full cursor-pointer shadow-xs"
               >
-                {t('finalStartBtn')}
-              </button>
-
-              <button 
-                id="footer-cta-login"
-                onClick={onLogin}
-                className="w-full sm:w-auto px-10 h-13 bg-transparent hover:bg-[#EAF2FF]/50 border border-slate-300 text-[#0F172A] rounded-full font-bold uppercase text-[10.5px] tracking-[0.2em] transition-all cursor-pointer"
-              >
-                {t('finalLoginBtn')}
+                {lang === 'PT' ? 'Criar Conta' : 'Create Account'}
               </button>
             </div>
           </div>
