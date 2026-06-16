@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Settings, 
@@ -18,7 +18,8 @@ import {
   Zap,
   BarChart3,
   BrainCircuit,
-  ListTodo
+  ListTodo,
+  CheckCircle2
 } from 'lucide-react';
 
 // Import technical sub-components
@@ -32,80 +33,107 @@ type ConfigSubTab = 'core' | 'analytics' | 'autofix' | 'review' | 'ai';
 
 const SettingsLogs: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ConfigSubTab>('core');
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
+  const [adminLogs, setAdminLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    try {
+      const logs = JSON.parse(localStorage.getItem('kyron_admin_operations_log_v2') || '[]');
+      setAdminLogs(logs);
+    } catch {
+      setAdminLogs([]);
+    }
+  }, [activeTab]);
 
   return (
     <div className="space-y-8 pb-32">
-      {/* Settings Sub navigation menu */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
-        <button
-          onClick={() => setActiveTab('core')}
-          className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-            activeTab === 'core'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-950'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Settings size={13} />
-            Parâmetros do Sistema
-          </div>
-        </button>
+      {/* Settings Navigation Menu */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-4 gap-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setActiveTab('core');
+              setShowAdvancedTools(false);
+            }}
+            className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all cursor-pointer ${
+              activeTab === 'core' && !showAdvancedTools
+                ? 'bg-slate-950 text-white shadow-md'
+                : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-950'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Settings size={13} />
+              Geral / Painel de Parâmetros
+            </div>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('analytics')}
-          className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-            activeTab === 'analytics'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-950'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <BarChart3 size={13} />
-            Analytics & Crescimento
-          </div>
-        </button>
+          <button
+            onClick={() => {
+              setShowAdvancedTools(!showAdvancedTools);
+              if (!showAdvancedTools) {
+                setActiveTab('analytics');
+              } else {
+                setActiveTab('core');
+              }
+            }}
+            className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all cursor-pointer ${
+              showAdvancedTools
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-white border border-slate-200 text-slate-400 hover:text-blue-600'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <BrainCircuit size={13} />
+              {showAdvancedTools ? 'Ocultar Diagnósticos' : 'Ver Ferramentas Avançadas'}
+            </div>
+          </button>
+        </div>
 
-        <button
-          onClick={() => setActiveTab('autofix')}
-          className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-            activeTab === 'autofix'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-950'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Zap size={13} />
-            Auto-Fix Engine
+        {/* Technical Navigation Submenu - Secondary Section */}
+        {showAdvancedTools && (
+          <div className="flex flex-wrap items-center gap-1.5 bg-slate-100/60 p-1.5 rounded-2xl border border-slate-200">
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                activeTab === 'analytics'
+                  ? 'bg-white text-slate-950 shadow-sm border border-slate-200'
+                  : 'text-slate-400 hover:text-slate-950'
+              }`}
+            >
+              Analytics
+            </button>
+            <button
+              onClick={() => setActiveTab('autofix')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                activeTab === 'autofix'
+                  ? 'bg-white text-slate-950 shadow-sm border border-slate-200'
+                  : 'text-slate-400 hover:text-slate-950'
+              }`}
+            >
+              Auto-Fix
+            </button>
+            <button
+              onClick={() => setActiveTab('review')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                activeTab === 'review'
+                  ? 'bg-white text-slate-950 shadow-sm border border-slate-200'
+                  : 'text-slate-400 hover:text-slate-950'
+              }`}
+            >
+              Hub de Revisão
+            </button>
+            <button
+              onClick={() => setActiveTab('ai')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                activeTab === 'ai'
+                  ? 'bg-white text-slate-950 shadow-sm border border-slate-200'
+                  : 'text-slate-400 hover:text-slate-950'
+              }`}
+            >
+              Rubi AI Operator
+            </button>
           </div>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('review')}
-          className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-            activeTab === 'review'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-950'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <ListTodo size={13} />
-            Hub de Revisão
-          </div>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('ai')}
-          className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-            activeTab === 'ai'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-950'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <BrainCircuit size={13} />
-            Operador Rubi AI
-          </div>
-        </button>
+        )}
       </div>
 
       {/* Main Container */}
@@ -118,7 +146,7 @@ const SettingsLogs: React.FC = () => {
           transition={{ duration: 0.2 }}
         >
           {activeTab === 'core' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 text-left">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 text-left animate-fade-in">
               {/* Settings Configuration Card */}
               <div className="lg:col-span-8 space-y-12">
                 <section className="bg-white rounded-3xl border border-slate-200 p-10 shadow-sm">
@@ -127,8 +155,8 @@ const SettingsLogs: React.FC = () => {
                       <Settings size={22} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-black uppercase tracking-tight text-slate-900">Configurações Gerais</h3>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Parâmetros Operacionais do KYRON OS</p>
+                      <h3 className="text-lg font-black uppercase tracking-tight text-slate-900">Configurações de Produção</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Parâmetros Ativos do Aplicativo</p>
                     </div>
                   </div>
 
@@ -155,7 +183,7 @@ const SettingsLogs: React.FC = () => {
                   </div>
 
                   <div className="mt-8 pt-8 border-t border-slate-100 flex justify-end">
-                     <button className="px-8 h-12 bg-slate-950 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-950/10 hover:scale-101 hover:bg-slate-850 active:scale-98 transition-all">
+                     <button className="px-8 h-12 bg-slate-950 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-950/10 hover:scale-101 hover:bg-slate-850 active:scale-98 transition-all cursor-pointer">
                         Salvar Configurações
                      </button>
                   </div>
@@ -185,21 +213,22 @@ const SettingsLogs: React.FC = () => {
 
               {/* Core Activity Sidebar */}
               <div className="lg:col-span-4">
-                <div className="bg-slate-950 rounded-[3rem] p-8 text-white shadow-2xl shadow-slate-950/10 flex flex-col justify-between min-h-[450px]">
+                <div className="bg-slate-950 rounded-[3rem] p-8 text-white shadow-2xl shadow-slate-950/10 flex flex-col justify-between min-h-[500px]">
                   <div>
                     <div className="flex items-center gap-3 mb-8">
                       <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-[#7BA7FF]">
                         <FileText size={15} />
                       </div>
-                      <h4 className="text-[10px] font-black uppercase tracking-widest italic">Core Activity</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest italic">Core Status & Activity</h4>
                     </div>
 
                     <div className="space-y-6">
                       {[
-                        { label: 'Status do Sistema', value: 'Totalmente Operacional', sub: 'Todos os módulos inteligentes online', badge: 'Online', badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-                        { label: 'Última Atualização', value: 'Hoje, às 04:13', sub: 'Sincronização de banco concluída por completo' },
-                        { label: 'Atletas Ativos', value: '1,248 Usuários Ativos', sub: 'Logados nas últimas 24 horas' },
-                        { label: 'Novos Protocolos', value: '12 Adicionados', sub: 'Programas de hipertrofia refinados nesta semana' }
+                        { label: 'Status do Sistema', value: 'Operacional', sub: 'Todos os módulos de aluno e admin ativos', badge: 'Saudável', badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+                        { label: 'Status da Base de Dados', value: 'Conectado em tempo real', sub: '/production postgres pool ativo', badge: 'Produção', badgeColor: 'bg-blue-500/20 text-[#7BA7FF] border-[#7BA7FF]/30' },
+                        { label: 'Último Backup', value: 'Hoje às 03:00', sub: 'Redundância física local concluída' },
+                        { label: 'Versão da Plataforma', value: 'KYRON OS v3.0 stable', sub: 'Último build de produção implantado' },
+                        { label: 'Atividade do Núcleo', value: '1,248 atletas ativos', sub: 'Sincronizados nas últimas 24 horas' }
                       ].map((activity, i) => (
                         <div key={i} className="border-b border-white/5 pb-4 last:border-0 last:pb-0">
                           <p className="text-[9px] font-black uppercase tracking-widest text-[#7BA7FF]/80 mb-1">{activity.label}</p>
@@ -211,15 +240,39 @@ const SettingsLogs: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <p className="text-[9.5px] text-slate-400 mt-0.5 leading-normal font-normal">{activity.sub}</p>
+                          <p className="text-[9px] text-slate-400 mt-0.5 leading-normal font-normal">{activity.sub}</p>
                         </div>
                       ))}
                     </div>
+
+                    {adminLogs.length > 0 && (
+                      <div className="pt-6 border-t border-white/10 mt-6 space-y-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.125em] text-blue-400 flex items-center gap-1.5 leading-none">
+                          <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                          Operações Administrativas
+                        </p>
+                        <div className="space-y-3.5 max-h-[190px] overflow-y-auto pr-2 no-scrollbar">
+                          {adminLogs.map((log: any, i: number) => (
+                            <div key={i} className="border-b border-white/5 pb-3 last:border-0 last:pb-0 text-left">
+                              <p className="text-[9px] font-black uppercase tracking-widest flex items-center justify-between">
+                                <span className={
+                                  log.action === 'Suspensão' ? 'text-amber-400' :
+                                  log.action === 'Reativação' ? 'text-emerald-400' : 'text-rose-450'
+                                }>{log.action}</span>
+                                <span className="font-mono text-[8px] text-slate-500">{log.date} {log.time}</span>
+                              </p>
+                              <p className="text-[11px] font-bold text-white tracking-tight mt-1 truncate">{log.athlete}</p>
+                              <p className="text-[8px] font-bold text-slate-500 mt-0.5">Por: {log.admin}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="pt-6 border-t border-white/5 mt-8">
                     <p className="text-[8px] font-mono text-slate-500 text-center uppercase tracking-widest">
-                      KYRON OS V2.5 // COMPLIANCE CONTROL
+                      KYRON OS V3.0 // SECURITY & METRICS COMPLIANT
                     </p>
                   </div>
                 </div>
@@ -229,7 +282,7 @@ const SettingsLogs: React.FC = () => {
 
           {activeTab === 'analytics' && <AnalyticsGrowth />}
           {activeTab === 'autofix' && (
-            <div className="space-y-12">
+            <div className="space-y-12 animate-fade-in">
                <AutoFixDashboard />
                <AutoFixQueue />
             </div>
@@ -271,35 +324,16 @@ function ActionCard({ title, icon, desc, actions }: { title: string, icon: React
           {actions.map((act, i) => (
              <button 
                 key={i}
-                className={`h-11 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                  act.variant === 'default' 
-                    ? 'bg-slate-950 text-white hover:bg-slate-850' 
-                    : 'bg-white border border-slate-200 text-slate-900 hover:border-slate-300'
+                className={`h-11 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer border-none ${
+                   act.variant === 'default' 
+                     ? 'bg-slate-950 text-white hover:bg-slate-850' 
+                     : 'bg-white border border-slate-200 text-slate-900 hover:border-slate-300'
                 }`}
              >
                 {act.icon}
                 {act.label}
              </button>
           ))}
-       </div>
-    </div>
-  );
-}
-
-function LogEntry({ time, user, action, target, error }: { time: string, user: string, action: string, target: string, error?: boolean }) {
-  return (
-    <div className="flex items-start gap-3 group text-left">
-       <div className="pt-1 shrink-0">
-          <div className={`w-1.5 h-1.5 rounded-full ${error ? 'bg-red-500' : 'bg-blue-500'} opacity-50 group-hover:opacity-100 transition-all`} />
-       </div>
-       <div className="flex-1">
-          <div className="flex items-center justify-between mb-0.5">
-             <span className="text-[10px] font-black text-white/50 uppercase tracking-widest group-hover:text-blue-400 transition-colors">{user}</span>
-             <span className="text-[8px] font-bold text-white/20 uppercase tracking-tight">{time}</span>
-          </div>
-          <p className="text-[10px] font-bold text-white uppercase tracking-tight">
-             {action} <span className="text-white/40">→</span> <span className={`${error ? 'text-red-400' : 'text-slate-200'}`}>{target}</span>
-          </p>
        </div>
     </div>
   );

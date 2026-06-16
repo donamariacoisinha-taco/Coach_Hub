@@ -285,6 +285,54 @@ const App: React.FC = () => {
     </div>
   );
 
+  const isSuspended = session?.user?.id && !isAdmin(profile) && (() => {
+    try {
+      const suspendedIds = JSON.parse(localStorage.getItem('kyron_suspended_user_ids') || '[]');
+      return suspendedIds.includes(session.user.id);
+    } catch (e) {
+      return false;
+    }
+  })();
+
+  if (isSuspended) {
+    return (
+      <div className="h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white relative overflow-hidden font-sans">
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden select-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full blur-[120px] bg-[#818CF8]/5" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[120px] bg-rose-500/5" />
+        </div>
+
+        <div className="relative z-10 max-w-md w-full bg-slate-900 border border-slate-800 p-10 rounded-[3rem] shadow-2xl flex flex-col items-center">
+          <div className="w-16 h-16 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl flex items-center justify-center mb-6">
+            <Lock size={28} />
+          </div>
+          
+          <h2 className="text-2xl font-black text-white tracking-tight uppercase">Acesso Bloqueado</h2>
+          <p className="text-[10px] font-bold text-[#7BA7FF] uppercase tracking-widest mt-2">Kyron OS // Segurança de Base de Dados</p>
+          
+          <p className="text-xs text-slate-450 mt-6 leading-relaxed font-semibold">
+            Seu perfil de atleta foi classificado com estado <span className="text-amber-400 font-black uppercase">Suspenso</span> por um administrador do sistema.
+          </p>
+          <p className="text-xs text-slate-450 mt-3 leading-relaxed font-semibold">
+            Suas preferências, treinos, e histórico de evolução permanecem <span className="text-emerald-400 font-black">protegidos e intactos</span> em nossos servidores, mas o acesso ativo aos recursos premium e rotinas está bloqueado temporariamente.
+          </p>
+
+          <div className="w-full pt-8 mt-8 border-t border-slate-800">
+            <button 
+              onClick={async () => {
+                await authApi.signOut();
+                window.location.reload();
+              }}
+              className="w-full h-12 bg-white hover:bg-slate-100 text-slate-950 font-black text-xs uppercase tracking-widest rounded-2xl transition-all active:scale-98 cursor-pointer"
+            >
+              Entrar com Outro Usuário
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const isImmersive = ['workout', 'preparation', 'onboarding', 'editor', 'landing', 'auth'].includes(navState.view);
 
   const streakValue = profile?.workout_streak || 0;

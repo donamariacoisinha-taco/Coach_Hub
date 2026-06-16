@@ -419,6 +419,94 @@ export const ProtocolManagement: React.FC = () => {
     }
   };
 
+  const handleConvertPremium = async (id: string, isFromDrafts = false) => {
+    if (isFromDrafts) {
+      const updatedDrafts = drafts.map(d => d.id === id ? { ...d, premium: true } : d);
+      saveDraftsToStorage(updatedDrafts);
+    } else {
+      const pIndex = protocols.findIndex(p => p.id === id);
+      if (pIndex > -1) {
+        const updatedItem = { ...protocols[pIndex], premium: true };
+        const updatedList = [...protocols];
+        updatedList[pIndex] = updatedItem;
+        setProtocols(updatedList);
+        await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+      }
+    }
+  };
+
+  const handleConvertPublic = async (id: string, isFromDrafts = false) => {
+    if (isFromDrafts) {
+      const updatedDrafts = drafts.map(d => d.id === id ? { ...d, premium: false } : d);
+      saveDraftsToStorage(updatedDrafts);
+    } else {
+      const pIndex = protocols.findIndex(p => p.id === id);
+      if (pIndex > -1) {
+        const updatedItem = { ...protocols[pIndex], premium: false };
+        const updatedList = [...protocols];
+        updatedList[pIndex] = updatedItem;
+        setProtocols(updatedList);
+        await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+      }
+    }
+  };
+
+  const handlePublishPublic = async (id: string, isFromDrafts = false) => {
+    if (isFromDrafts) {
+      const draftToPublish = drafts.find(d => d.id === id);
+      if (draftToPublish) {
+        const published: PremiumProtocol = {
+          ...draftToPublish,
+          premium: false,
+          is_active: true,
+          updated_at: new Date().toISOString()
+        };
+        const newDrafts = drafts.filter(d => d.id !== id);
+        saveDraftsToStorage(newDrafts);
+        await premiumProtocolsApi.createOrUpdateProtocol(published);
+        const updated = await premiumProtocolsApi.getProtocols();
+        setProtocols(updated);
+      }
+    } else {
+      const pIndex = protocols.findIndex(p => p.id === id);
+      if (pIndex > -1) {
+        const updatedItem = { ...protocols[pIndex], premium: false, is_active: true };
+        const updatedList = [...protocols];
+        updatedList[pIndex] = updatedItem;
+        setProtocols(updatedList);
+        await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+      }
+    }
+  };
+
+  const handlePublishPremium = async (id: string, isFromDrafts = false) => {
+    if (isFromDrafts) {
+      const draftToPublish = drafts.find(d => d.id === id);
+      if (draftToPublish) {
+        const published: PremiumProtocol = {
+          ...draftToPublish,
+          premium: true,
+          is_active: true,
+          updated_at: new Date().toISOString()
+        };
+        const newDrafts = drafts.filter(d => d.id !== id);
+        saveDraftsToStorage(newDrafts);
+        await premiumProtocolsApi.createOrUpdateProtocol(published);
+        const updated = await premiumProtocolsApi.getProtocols();
+        setProtocols(updated);
+      }
+    } else {
+      const pIndex = protocols.findIndex(p => p.id === id);
+      if (pIndex > -1) {
+        const updatedItem = { ...protocols[pIndex], premium: true, is_active: true };
+        const updatedList = [...protocols];
+        updatedList[pIndex] = updatedItem;
+        setProtocols(updatedList);
+        await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+      }
+    }
+  };
+
   // ==========================================
   // AUTOMATED PROTOCOL BUILDER (ADMIN) ENGINES
   // ==========================================
@@ -1803,6 +1891,7 @@ export const ProtocolManagement: React.FC = () => {
                     onDuplicate={() => handleDuplicate(p, false)}
                     onArchive={() => handleArchive(p.id, false)}
                     onToggleActive={() => toggleProtocolActive(p.id, false)}
+                    onConvertPublic={() => handleConvertPublic(p.id, false)}
                     onViewTimeline={() => {
                       setSelectedProtocolForVersion(p);
                       setSelectedVersionIndex(3);
@@ -1823,6 +1912,7 @@ export const ProtocolManagement: React.FC = () => {
                     onDuplicate={() => handleDuplicate(p, false)}
                     onArchive={() => handleArchive(p.id, false)}
                     onToggleActive={() => toggleProtocolActive(p.id, false)}
+                    onConvertPremium={() => handleConvertPremium(p.id, false)}
                     isPublic
                     onViewTimeline={() => {
                       setSelectedProtocolForVersion(p);
@@ -1881,6 +1971,8 @@ export const ProtocolManagement: React.FC = () => {
                     onDuplicate={() => handleDuplicate(p, true)}
                     onArchive={() => handleArchive(p.id, true)}
                     onToggleActive={() => toggleProtocolActive(p.id, true)}
+                    onPublishPremium={() => handlePublishPremium(p.id, true)}
+                    onPublishPublic={() => handlePublishPublic(p.id, true)}
                     isDraft
                     onViewTimeline={() => {
                       setSelectedProtocolForVersion(p);
@@ -3802,9 +3894,13 @@ interface ProtocolCardProps {
   isPublic?: boolean;
   onViewTimeline?: () => void;
   onToggleActive?: () => void;
+  onConvertPremium?: () => void;
+  onConvertPublic?: () => void;
+  onPublishPremium?: () => void;
+  onPublishPublic?: () => void;
 }
 
-const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onArchive, isDraft, isPublic, onViewTimeline, onToggleActive }) => {
+const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onArchive, isDraft, isPublic, onViewTimeline, onToggleActive, onConvertPremium, onConvertPublic, onPublishPremium, onPublishPublic }) => {
   const [showMenu, setShowMenu] = useState(false);
   
   const totalExercises = p.workouts?.reduce((acc, w) => acc + (w.exercises?.length || 0), 0) || 0;
@@ -3841,7 +3937,7 @@ const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onA
         return { label: '⭐ Destaque da Semana', class: 'bg-yellow-50 text-yellow-700 border-yellow-250' };
       }
       if (p.athletes_count && p.athletes_count > 8) {
-        return { label: '⭐ Mais Copiado', class: 'bg-indigo-50 text-indigo-700 border-indigo-250' };
+        return { label: '⭐ Mais Copiado', class: 'bg-indigo-50 text-[#818CF8] border-indigo-250' };
       }
       if (p.completion_rate && p.completion_rate >= 85) {
         return { label: '⭐ Mais Utilizado', class: 'bg-rose-50 text-rose-700 border-rose-250' };
@@ -3855,7 +3951,7 @@ const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onA
 
   return (
     <div 
-      className={`bg-white/70 backdrop-blur-xl border border-white/40 p-6 rounded-3xl text-left flex flex-col justify-between h-[245px] shadow-sm relative group select-none hover:border-slate-300 transition-all duration-200 ${isInactive ? 'opacity-60 bg-slate-50/20' : ''}`}
+      className={`bg-white/70 backdrop-blur-xl border border-slate-200 p-6 rounded-3xl text-left flex flex-col justify-between h-[245px] shadow-sm relative group select-none hover:border-slate-300 transition-all duration-200 ${isInactive ? 'opacity-60 bg-slate-50/20' : ''}`}
     >
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -3899,33 +3995,69 @@ const ProtocolCard: React.FC<ProtocolCardProps> = ({ p, onEdit, onDuplicate, onA
               •••
             </button>
             {showMenu && (
-              <div className="absolute right-0 top-6 w-36 bg-white border border-slate-205 rounded-xl shadow-lg z-10 py-1.5 text-xs text-slate-700">
+              <div className="absolute right-0 top-6 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1.5 text-xs text-slate-700">
                 <button 
                   onClick={() => { onEdit(); setShowMenu(false); }}
                   className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2"
                 >
-                  <Edit size={12} /> Editar
+                  <Edit size={12} strokeWidth={2.5} /> Editar
                 </button>
                 <button 
                   onClick={() => { onDuplicate(); setShowMenu(false); }}
                   className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2"
                 >
-                  <Copy size={12} /> Duplicar
+                  <Copy size={12} strokeWidth={2.5} /> Duplicar
                 </button>
                 {onViewTimeline && (
                   <button 
                     onClick={() => { onViewTimeline(); setShowMenu(false); }}
                     className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2"
                   >
-                    <Clock size={12} /> Ver Versões
+                    <Clock size={12} strokeWidth={2.5} /> Ver Versões
                   </button>
                 )}
+
+                {/* Direct COMPACT Quick Actions */}
+                {isDraft && onPublishPremium && (
+                  <button 
+                    onClick={() => { onPublishPremium(); setShowMenu(false); }}
+                    className="w-full text-left px-4 py-2 hover:bg-indigo-50 text-indigo-600 font-bold flex items-center gap-2 border-t border-slate-100/60"
+                  >
+                    <CheckCircle size={12} strokeWidth={2.5} /> Publicar Premium
+                  </button>
+                )}
+                {isDraft && onPublishPublic && (
+                  <button 
+                    onClick={() => { onPublishPublic(); setShowMenu(false); }}
+                    className="w-full text-left px-4 py-2 hover:bg-emerald-50 text-emerald-600 font-bold flex items-center gap-2"
+                  >
+                    <CheckCircle size={12} strokeWidth={2.5} /> Publicar Livre
+                  </button>
+                )}
+
+                {!isDraft && p.premium && onConvertPublic && (
+                  <button 
+                    onClick={() => { onConvertPublic(); setShowMenu(false); }}
+                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-650 flex items-center gap-2 border-t border-slate-100/60"
+                  >
+                    <Globe size={12} strokeWidth={2.5} /> Tornar Livre
+                  </button>
+                )}
+                {!isDraft && !p.premium && onConvertPremium && (
+                  <button 
+                    onClick={() => { onConvertPremium(); setShowMenu(false); }}
+                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-indigo-600 font-bold flex items-center gap-2 border-t border-slate-100/60"
+                  >
+                    <Lock size={12} strokeWidth={2.5} /> Tornar Premium
+                  </button>
+                )}
+
                 <div className="border-t border-slate-100 my-1" />
                 <button 
                   onClick={() => { onArchive(); setShowMenu(false); }}
                   className="w-full text-left px-4 py-2 hover:bg-slate-50 text-red-500 flex items-center gap-2"
                 >
-                  <Trash2 size={12} /> Arquivar
+                  <Trash2 size={12} strokeWidth={2.5} /> Arquivar
                 </button>
               </div>
             )}

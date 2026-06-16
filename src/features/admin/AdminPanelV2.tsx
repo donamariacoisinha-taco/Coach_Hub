@@ -261,11 +261,20 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
              </button>
            );
          })}
-         <button className="flex flex-col items-center gap-1.5 min-w-[72px] text-slate-300">
-            <div className="p-2.5 rounded-2xl bg-slate-50 text-slate-300">
-               <Settings size={22} />
+         <button 
+            onClick={() => setActiveTab('settings')}
+            className={`flex flex-col items-center gap-1.5 min-w-[72px] transition-all relative ${activeTab === 'settings' ? 'text-blue-600' : 'text-slate-300'}`}
+         >
+            {activeTab === 'settings' && (
+               <motion.div 
+                 layoutId="mobileNavActive"
+                 className="absolute -top-3 w-1.5 h-1.5 bg-blue-600 rounded-full"
+               />
+            )}
+            <div className={`p-2.5 rounded-2xl transition-all ${activeTab === 'settings' ? 'bg-blue-50 text-blue-600' : 'text-slate-300'}`}>
+               <Settings size={22} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
             </div>
-            <span className="text-[9px] font-black uppercase tracking-widest leading-none">More</span>
+            <span className="text-[9px] font-black uppercase tracking-widest leading-none">Ajustes</span>
          </button>
       </nav>
 

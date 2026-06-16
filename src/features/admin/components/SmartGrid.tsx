@@ -769,9 +769,15 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                     </div>
                   </td>
 
-                  {visibleColumns.includes('difficulty_level') && (
-                    <td className="px-6 py-6">
-                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{ex.difficulty_level || 'Beginner'}</span>
+                  {visibleColumns.includes('updated_at') && (
+                    <td className="px-6 py-6 text-xs font-bold text-slate-600 font-mono">
+                      {ex.updated_at ? new Date(ex.updated_at).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      }) : 'N/A'}
                     </td>
                   )}
 
