@@ -102,6 +102,13 @@ const HistoryView: React.FC = () => {
   const [beforeVsNow, setBeforeVsNow] = useState<any | null>(null);
   const [longestStandingRecord, setLongestStandingRecord] = useState<any | null>(null);
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState<boolean>(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    recordes: false,
+    evolucao_corporal: false,
+    consistencia: false,
+    volume_treino: false,
+    historico_protocolos: false,
+  });
   const [maxWorkoutVolume, setMaxWorkoutVolume] = useState<number>(0);
   const [maxStreak, setMaxStreak] = useState<number>(0);
 
@@ -642,7 +649,7 @@ const HistoryView: React.FC = () => {
                 {(() => {
                   const logs30 = personalRecords.filter(pr => pr.recentStartWeight > 0 && pr.recentEndWeight > 0 && (pr.recentEndWeight - pr.recentStartWeight) > 0);
                   const displayItems = logs30.length > 0 
-                    ? logs30.slice(0, 5) 
+                    ? logs30.slice(0, 3) 
                     : (exerciseEvolutions || [])
                         .filter(e => (e.bestWeight - e.firstWeight) > 0)
                         .map(e => ({
@@ -651,7 +658,7 @@ const HistoryView: React.FC = () => {
                           recentStartWeight: e.firstWeight,
                           recentEndWeight: e.bestWeight
                         }))
-                        .slice(0, 5);
+                        .slice(0, 3);
 
                   if (!displayItems || displayItems.length === 0) return null;
 
@@ -699,285 +706,378 @@ const HistoryView: React.FC = () => {
 
                 {/* SECONDARY INFORMATION (Moved to Progressive Disclosure container) */}
                 {showDetailedAnalysis && (
-                  <div className="space-y-10 pt-4 border-t border-slate-200/50 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="space-y-6 pt-4 border-t border-slate-200/50 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     
-                    {/* Section A: Antes vs Agora detalhado */}
-                    {beforeVsNow && (
-                      <div className="space-y-4">
-                        <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Antes vs Agora Detalhado</h3>
-                        <div className="bg-slate-900 text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden">
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
-                          
-                          <div className="relative space-y-4">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <span className="text-[8px] font-black text-[#7BA7FF] uppercase tracking-[0.2em] block leading-none">Maior Evolução de Força</span>
-                                <h4 className="text-sm font-black uppercase text-white mt-2 leading-none">{beforeVsNow.exerciseName}</h4>
-                              </div>
-                              <span className="text-[8.5px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0 select-none">
-                                +{beforeVsNow.weightDiff} kg Ganho
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/5">
-                              <div className="bg-white/5 p-3 rounded-2xl">
-                                <span className="text-[7.5px] font-black text-slate-400 tracking-widest block leading-none">Primeiro Treino</span>
-                                <p className="text-xs font-bold text-slate-200 mt-2 tracking-tight tabular-nums">{beforeVsNow.firstWeight} kg × {beforeVsNow.firstReps} reps</p>
-                              </div>
-                              
-                              <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
-                                <span className="text-[7.5px] font-black text-[#5C8CFF] tracking-widest block leading-none">Melhor Resultado</span>
-                                <p className="text-xs font-bold text-white mt-2 tracking-tight tabular-nums">{beforeVsNow.bestWeight} kg × {beforeVsNow.bestReps} reps</p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Recorde Mantido Card */}
-                    {longestStandingRecord && (
-                      <div className="space-y-4">
-                        <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest font-sans">Recorde Mantido</h3>
-                        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between h-full min-h-[160px] relative overflow-hidden">
-                          <div className="space-y-4">
-                            <h4 className="text-base font-black uppercase text-slate-900 tracking-tight leading-none">{longestStandingRecord.exerciseName}</h4>
-                            
-                            <div className="pt-2">
-                              <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block leading-none">Carga Alcançada:</span>
-                              <p className="text-xs font-extrabold text-slate-800 tracking-tight mt-1.5 tabular-nums inline-block bg-slate-50 border border-slate-100 px-3 py-1 rounded-xl">
-                                {longestStandingRecord.bestWeight} kg <span className="text-[9.5px] text-slate-400 font-medium select-none">×</span> {longestStandingRecord.bestReps}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="pt-4 border-t border-slate-50 mt-4 flex justify-between items-center bg-slate-100/30 -mx-6 -mb-6 px-6 py-4.5 rounded-b-3xl">
-                            <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest leading-none">Tempo Invicto:</span>
-                            <span className="text-[11px] font-black text-slate-700 bg-slate-50 border border-slate-100/80 px-3 py-1 rounded-full tabular-nums">
-                              {getDaysSince(longestStandingRecord.date) === 0 ? 'Feito hoje' : `Há ${getDaysSince(longestStandingRecord.date)} dias`}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 4. NOVO RECORDE SECTION */}
-                    {(() => {
-                      const recentPR = personalRecords?.find(p => p.isRecentPR || (p.date && getDaysSince(p.date) <= 5));
-                      if (!recentPR) return null;
-                      const daysAgo = getDaysSince(recentPR.date);
-                      const relativeTimeStr = daysAgo === 0 ? 'Feito hoje' : daysAgo === 1 ? 'Ontem' : `há ${daysAgo} dias`;
-                      return (
-                        <div className="space-y-4">
-                          <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">
-                            Novo Recorde
-                          </h3>
-                          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex items-center justify-between font-sans">
-                            <div className="space-y-1">
-                              <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">
-                                {recentPR.exerciseName}
-                              </h4>
-                              <span className="text-[10px] font-semibold text-slate-400 block leading-none mt-1">
-                                {relativeTimeStr}
-                              </span>
-                            </div>
-                            <span className="text-xs font-black text-slate-900 tabular-nums bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl leading-none">
-                              {recentPR.bestWeight}kg <span className="text-[10px] text-slate-400 font-medium select-none">×</span> {recentPR.bestReps}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Suas Melhores Marcas (Formerly Hall de Recordes) */}
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">
-                        Suas Melhores Marcas
-                      </h3>
-                      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100 font-sans">
-                        {(() => {
-                          const getBestPRByKeywords = (keywords: string[]) => {
-                            const pr = personalRecords?.find(p => 
-                              keywords.some(k => p.exerciseName.toLowerCase().includes(k))
-                            );
-                            if (pr) {
-                              return {
-                                value: `${pr.bestWeight}kg × ${pr.bestReps}`,
-                                dateStr: new Date(pr.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }),
-                                hasValue: true
-                              };
-                            }
-                            return {
-                              value: '--',
-                              dateStr: '',
-                              hasValue: false
-                            };
-                          };
-
-                          const strengthAchievements = [
-                            { 
-                              label: 'Seu melhor Supino', 
-                              conquistaText: 'Melhor marca',
-                              ...getBestPRByKeywords(['supino', 'bench press'])
-                            },
-                            { 
-                              label: 'Seu melhor Agachamento', 
-                              conquistaText: 'Recorde atual',
-                              ...getBestPRByKeywords(['agachamento', 'squat', 'agacha'])
-                            },
-                            { 
-                              label: 'Seu melhor Leg Press', 
-                              conquistaText: 'Melhor marca',
-                              ...getBestPRByKeywords(['leg press'])
-                            },
-                            { 
-                              label: 'Sua melhor Remada', 
-                              conquistaText: 'Recorde atual',
-                              ...getBestPRByKeywords(['remada', 'row'])
-                            },
-                            { 
-                              label: 'Seu melhor Desenvolvimento', 
-                              conquistaText: 'Melhor marca',
-                              ...getBestPRByKeywords(['desenvolvimento', 'shoulder press', 'overhead'])
-                            }
-                          ];
-
-                          return strengthAchievements.map((rec, rIdx) => (
-                            <div key={rIdx} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
-                              <div className="space-y-1">
-                                <span className="text-xs font-black text-slate-800 uppercase tracking-tight block">
-                                  {rec.label}
-                                </span>
-                                {rec.hasValue && (
-                                  <span className="text-[10px] font-semibold text-slate-400 block tracking-tight leading-none mt-1">
-                                    {rec.conquistaText} • {rec.dateStr}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-xs font-black text-slate-900 tabular-nums shrink-0">
-                                {rec.value}
-                              </span>
-                            </div>
-                          ));
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* Evolução Corporal */}
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">Evolução Corporal</h3>
-                      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 grid grid-cols-2 gap-4 relative">
-                        <div className="absolute top-4 bottom-4 left-1/2 -translate-x-1/2 w-px bg-slate-50" />
-                        
-                        <div className="text-center py-3 bg-slate-50/50 rounded-2xl flex flex-col justify-center">
-                          <span className="text-[7.5px] font-[1000] text-slate-400 uppercase tracking-wider leading-none">Peso Inicial</span>
-                          <p className="text-base font-[1000] text-slate-800 tracking-tight mt-2.5 tabular-nums">{startingWeight ? `${startingWeight} kg` : '--'}</p>
-                        </div>
-
-                        <div className="text-center py-4 bg-[#5C8CFF]/5 border border-[#5C8CFF]/10 rounded-2xl flex flex-col justify-center">
-                          <span className="text-[7.5px] font-[1000] text-[#5C8CFF] uppercase tracking-wider leading-none font-bold">Peso Atual</span>
-                          <p className="text-base font-[1000] text-slate-900 tracking-tight mt-2.5 tabular-nums">{profile?.weight ? `${profile.weight} kg` : '--'}</p>
-                          {startingWeight && profile?.weight && (
-                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase mt-2 inline-block mx-auto leading-none ${(profile.weight - startingWeight) >= 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' : 'bg-blue-50 text-blue-600 border border-blue-100/50'}`}>
-                              {(profile.weight - startingWeight) >= 0 ? `+${(profile.weight - startingWeight).toFixed(1)}kg` : `${(profile.weight - startingWeight).toFixed(1)}kg`}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Carga Útil Total (Volume/Tonnage) */}
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">Volume Total de Treino</h3>
-                      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
-                        <div className="flex justify-between py-4 first:pt-2 last:pb-2">
-                          <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Carga Acumulada</span>
-                          <span className="text-xs font-black text-slate-900 tabular-nums">
-                            {volumeData?.latVol ? `${volumeData.latVol.toLocaleString('pt-BR')} kg` : '--'}
+                    {/* Collapsible Section 1: Recordes */}
+                    <div className="bg-white rounded-3xl border border-slate-150 overflow-hidden shadow-xs">
+                      <button
+                        onClick={() => {
+                          if ('vibrate' in navigator) navigator.vibrate(5);
+                          setExpandedSections(prev => ({ ...prev, recordes: !prev.recordes }));
+                        }}
+                        className="w-full px-6 py-5 flex items-center justify-between text-slate-800 hover:bg-slate-50 transition-all font-sans cursor-pointer h-full"
+                      >
+                        <span className="text-xs font-black uppercase tracking-widest flex items-center gap-3 text-slate-700">
+                          <span className="text-xs text-[#5C8CFF] font-extrabold select-none shrink-0">
+                            {expandedSections.recordes ? '▼' : '▶'}
                           </span>
-                        </div>
-                        <p className="text-[10px] text-slate-400 font-semibold leading-relaxed pt-2">
-                          O volume total de treino (tonnage) representa o peso total deslocado sob contração muscular nas suas sessões principais.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Consistência de Treino (Secondary achievements moved to bottom of analysis) */}
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">Consistência e Volume</h3>
-                      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100 font-sans">
-                        <div className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
-                          <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
-                            Maior Volume em uma Sessão
-                          </span>
-                          <span className="text-xs font-black text-slate-900 tabular-nums">
-                            {maxWorkoutVolume > 0 ? `${Math.round(maxWorkoutVolume).toLocaleString('pt-BR')} kg` : '--'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
-                          <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
-                            Maior Sequência de Treinos
-                          </span>
-                          <span className="text-xs font-black text-slate-900 tabular-nums">
-                            {maxStreak > 0 ? `${maxStreak} ${maxStreak === 1 ? 'treino' : 'treinos'}` : '--'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 6. Histórico de Protocolos */}
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">Histórico de Protocolos</h3>
+                          Recordes
+                        </span>
+                      </button>
                       
-                      {protocolUpdates && protocolUpdates.length > 0 ? (
-                        protocolUpdates.map((up, upIdx) => (
-                          <div key={upIdx} className="bg-slate-900 text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden space-y-4">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-[#7BA7FF]/10 rounded-full blur-xl pointer-events-none" />
-                            
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <span className="text-[7.5px] font-black text-[#5C8CFF] uppercase tracking-widest block leading-none">Alterações de Protocolo</span>
-                                <h4 className="text-[15px] font-black uppercase tracking-tight text-white mt-1.5 leading-none">{up.templateName}</h4>
-                                <p className="text-[9px] font-bold text-slate-400 mt-1.5 font-mono">v{up.currentVersion} → v{up.latestVersion}</p>
+                      {expandedSections.recordes && (
+                        <div className="px-6 pb-6 pt-3 border-t border-slate-100/50 space-y-6 bg-slate-50/10">
+                          
+                          {/* Inner: Novo Recorde */}
+                          {(() => {
+                            const recentPR = personalRecords?.find(p => p.isRecentPR || (p.date && getDaysSince(p.date) <= 5));
+                            if (!recentPR) return null;
+                            const daysAgo = getDaysSince(recentPR.date);
+                            const relativeTimeStr = daysAgo === 0 ? 'Feito hoje' : daysAgo === 1 ? 'Ontem' : `há ${daysAgo} dias`;
+                            return (
+                              <div className="space-y-3">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 leading-none mt-2">
+                                  Novo Recorde
+                                </h4>
+                                <div className="bg-white rounded-3xl p-6 border border-slate-100 flex items-center justify-between font-sans shadow-xs">
+                                  <div className="space-y-1">
+                                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                                      {recentPR.exerciseName}
+                                    </h4>
+                                    <span className="text-[10px] font-semibold text-slate-400 block leading-none mt-1">
+                                      {relativeTimeStr}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs font-black text-slate-900 tabular-nums bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl leading-none">
+                                    {recentPR.bestWeight}kg <span className="text-[10px] text-slate-400 font-medium select-none">×</span> {recentPR.bestReps}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Inner: Suas Melhores Marcas */}
+                          <div className="space-y-3">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 leading-none">
+                              Suas Melhores Marcas
+                            </h4>
+                            <div className="bg-white rounded-3xl p-6 border border-slate-100 divide-y divide-slate-100 font-sans shadow-xs">
+                              {(() => {
+                                const getBestPRByKeywords = (keywords: string[]) => {
+                                  const pr = personalRecords?.find(p => 
+                                    keywords.some(k => p.exerciseName.toLowerCase().includes(k))
+                                  );
+                                  if (pr) {
+                                    return {
+                                      value: `${pr.bestWeight}kg × ${pr.bestReps}`,
+                                      dateStr: new Date(pr.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }),
+                                      hasValue: true
+                                    };
+                                  }
+                                  return {
+                                    value: '--',
+                                    dateStr: '',
+                                    hasValue: false
+                                  };
+                                };
+
+                                const strengthAchievements = [
+                                  { 
+                                    label: 'Seu melhor Supino', 
+                                    conquistaText: 'Melhor marca',
+                                    ...getBestPRByKeywords(['supino', 'bench press'])
+                                  },
+                                  { 
+                                    label: 'Seu melhor Agachamento', 
+                                    conquistaText: 'Recorde atual',
+                                    ...getBestPRByKeywords(['agachamento', 'squat', 'agacha'])
+                                  },
+                                  { 
+                                    label: 'Seu melhor Leg Press', 
+                                    conquistaText: 'Melhor marca',
+                                    ...getBestPRByKeywords(['leg press'])
+                                  },
+                                  { 
+                                    label: 'Sua melhor Remada', 
+                                    conquistaText: 'Recorde atual',
+                                    ...getBestPRByKeywords(['remada', 'row'])
+                                  },
+                                  { 
+                                    label: 'Seu melhor Desenvolvimento', 
+                                    conquistaText: 'Melhor marca',
+                                    ...getBestPRByKeywords(['desenvolvimento', 'shoulder press', 'overhead'])
+                                  }
+                                ];
+
+                                return strengthAchievements.map((rec, rIdx) => (
+                                  <div key={rIdx} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
+                                    <div className="space-y-1">
+                                      <span className="text-xs font-black text-slate-800 uppercase tracking-tight block">
+                                        {rec.label}
+                                      </span>
+                                      {rec.hasValue && (
+                                        <span className="text-[10px] font-semibold text-slate-400 block tracking-tight leading-none mt-1">
+                                          {rec.conquistaText} • {rec.dateStr}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-xs font-black text-slate-900 tabular-nums shrink-0">
+                                      {rec.value}
+                                    </span>
+                                  </div>
+                                ));
+                              })()}
+                            </div>
+                          </div>
+
+                          {/* Inner: Antes vs Agora Detalhado */}
+                          {beforeVsNow && (
+                            <div className="space-y-3">
+                              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 leading-none">
+                                Antes vs Agora Detalhado
+                              </h4>
+                              <div className="bg-slate-900 text-white rounded-[2rem] p-6 shadow-md relative overflow-hidden font-sans">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+                                <div className="relative space-y-4 font-sans">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <span className="text-[8px] font-black text-[#7BA7FF] uppercase tracking-[0.2em] block leading-none">Maior Evolução de Força</span>
+                                      <h4 className="text-sm font-black uppercase text-white mt-2 leading-none">{beforeVsNow.exerciseName}</h4>
+                                    </div>
+                                    <span className="text-[8.5px] font-black text-emerald-400 bg-emerald-50/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0 select-none">
+                                      +{beforeVsNow.weightDiff} kg Ganho
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/5 font-sans">
+                                    <div className="bg-white/5 p-3 rounded-2xl">
+                                      <span className="text-[7.5px] font-black text-slate-400 tracking-widest block leading-none">Primeiro Treino</span>
+                                      <p className="text-xs font-bold text-slate-200 mt-2 tracking-tight tabular-nums">{beforeVsNow.firstWeight} kg × {beforeVsNow.firstReps} reps</p>
+                                    </div>
+                                    <div className="bg-white/10 p-3 rounded-2xl border border-white/5 font-sans">
+                                      <span className="text-[7.5px] font-black text-[#5C8CFF] tracking-widest block leading-none">Melhor Resultado</span>
+                                      <p className="text-xs font-bold text-white mt-2 tracking-tight tabular-nums">{beforeVsNow.bestWeight} kg × {beforeVsNow.bestReps} reps</p>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             </div>
+                          )}
 
-                            <button
-                              onClick={async () => {
-                                if ('vibrate' in navigator) navigator.vibrate(10);
-                                const success = await systemTemplatesApi.mergeTemplate(
-                                  profile.id,
-                                  up.folderId,
-                                  up.templateId,
-                                  up.latestVersion,
-                                  'safe'
-                                );
-                                if (success) {
-                                  alert('Protocolo sincronizado para a nova versão com absoluto sucesso!');
-                                  window.location.reload();
-                                }
-                              }}
-                              className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all text-center"
-                            >
-                              <RefreshCw size={11} className="animate-pulse" />
-                              <span>Atualizar Protocolo (Safe Merge)</span>
-                            </button>
+                          {/* Inner: Recorde Mantido */}
+                          {longestStandingRecord && (
+                            <div className="space-y-3">
+                              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 leading-none">
+                                Recorde Mantido
+                              </h4>
+                              <div className="bg-white rounded-3xl p-6 border border-slate-100 flex flex-col justify-between h-full min-h-[160px] relative overflow-hidden shadow-xs">
+                                <div className="space-y-4">
+                                  <h4 className="text-base font-black uppercase text-slate-900 tracking-tight leading-none">{longestStandingRecord.exerciseName}</h4>
+                                  <div className="pt-2">
+                                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block leading-none">Carga Alcançada:</span>
+                                    <p className="text-xs font-extrabold text-slate-800 tracking-tight mt-1.5 tabular-nums inline-block bg-slate-50 border border-slate-100 px-3 py-1 rounded-xl">
+                                      {longestStandingRecord.bestWeight} kg <span className="text-[9.5px] text-slate-400 font-medium select-none">×</span> {longestStandingRecord.bestReps}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="pt-4 border-t border-slate-150 mt-4 flex justify-between items-center bg-slate-100/30 -mx-6 -mb-6 px-6 py-4.5 rounded-b-3xl">
+                                  <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest leading-none">Tempo Invicto:</span>
+                                  <span className="text-[11px] font-black text-slate-700 bg-slate-50 border border-slate-100/80 px-3 py-1 rounded-full tabular-nums">
+                                    {getDaysSince(longestStandingRecord.date) === 0 ? 'Feito hoje' : `Há ${getDaysSince(longestStandingRecord.date)} dias`}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Collapsible Section 2: Evolução Corporal */}
+                    <div className="bg-white rounded-3xl border border-slate-150 overflow-hidden shadow-xs">
+                      <button
+                        onClick={() => {
+                          if ('vibrate' in navigator) navigator.vibrate(5);
+                          setExpandedSections(prev => ({ ...prev, evolucao_corporal: !prev.evolucao_corporal }));
+                        }}
+                        className="w-full px-6 py-5 flex items-center justify-between text-slate-800 hover:bg-slate-50 transition-all font-sans cursor-pointer h-full"
+                      >
+                        <span className="text-xs font-black uppercase tracking-widest flex items-center gap-3 text-slate-700">
+                          <span className="text-xs text-[#5C8CFF] font-extrabold select-none shrink-0">
+                            {expandedSections.evolucao_corporal ? '▼' : '▶'}
+                          </span>
+                          Evolução Corporal
+                        </span>
+                      </button>
+                      
+                      {expandedSections.evolucao_corporal && (
+                        <div className="px-6 pb-6 pt-3 border-t border-slate-100/50 space-y-4 bg-slate-50/10">
+                          <div className="bg-white rounded-[2rem] p-6 border border-slate-100 grid grid-cols-2 gap-4 relative shadow-xs mt-2">
+                            <div className="absolute top-4 bottom-4 left-1/2 -translate-x-1/2 w-px bg-slate-50" />
+                            <div className="text-center py-3 bg-slate-50/50 rounded-2xl flex flex-col justify-center">
+                              <span className="text-[7.5px] font-[1000] text-slate-400 uppercase tracking-wider leading-none">Peso Inicial</span>
+                              <p className="text-base font-[1000] text-slate-800 tracking-tight mt-2.5 tabular-nums">{startingWeight ? `${startingWeight} kg` : '--'}</p>
+                            </div>
+                            <div className="text-center py-4 bg-[#5C8CFF]/5 border border-[#5C8CFF]/10 rounded-2xl flex flex-col justify-center">
+                              <span className="text-[7.5px] font-[1000] text-[#5C8CFF] uppercase tracking-wider leading-none font-bold">Peso Atual</span>
+                              <p className="text-base font-[1000] text-slate-900 tracking-tight mt-2.5 tabular-nums">{profile?.weight ? `${profile.weight} kg` : '--'}</p>
+                              {startingWeight && profile?.weight && (
+                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase mt-2 inline-block mx-auto leading-none ${(profile.weight - startingWeight) >= 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' : 'bg-blue-50 text-blue-600 border border-blue-100/50'}`}>
+                                  {(profile.weight - startingWeight) >= 0 ? `+${(profile.weight - startingWeight).toFixed(1)}kg` : `${(profile.weight - startingWeight).toFixed(1)}kg`}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        ))
-                      ) : (
-                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex gap-4 items-center">
-                          <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-slate-100 flex items-center justify-center text-emerald-500 shrink-0 shadow-sm">
-                            <CheckCircle2 size={20} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Collapsible Section 3: Consistência */}
+                    <div className="bg-white rounded-3xl border border-slate-150 overflow-hidden shadow-xs">
+                      <button
+                        onClick={() => {
+                          if ('vibrate' in navigator) navigator.vibrate(5);
+                          setExpandedSections(prev => ({ ...prev, consistencia: !prev.consistencia }));
+                        }}
+                        className="w-full px-6 py-5 flex items-center justify-between text-slate-800 hover:bg-slate-50 transition-all font-sans cursor-pointer h-full"
+                      >
+                        <span className="text-xs font-black uppercase tracking-widest flex items-center gap-3 text-slate-700">
+                          <span className="text-xs text-[#5C8CFF] font-extrabold select-none shrink-0">
+                            {expandedSections.consistencia ? '▼' : '▶'}
+                          </span>
+                          Consistência
+                        </span>
+                      </button>
+                      
+                      {expandedSections.consistencia && (
+                        <div className="px-6 pb-6 pt-3 border-t border-slate-100/50 space-y-4 bg-slate-50/10">
+                          <div className="bg-white rounded-[2rem] p-6 border border-slate-100 divide-y divide-slate-100 font-sans shadow-xs mt-2">
+                            <div className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
+                              <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                                Maior Volume em uma Sessão
+                              </span>
+                              <span className="text-xs font-black text-slate-900 tabular-nums">
+                                {maxWorkoutVolume > 0 ? `${Math.round(maxWorkoutVolume).toLocaleString('pt-BR')} kg` : '--'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between py-4 first:pt-2 last:pb-2 font-sans">
+                              <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                                Maior Sequência de Treinos
+                              </span>
+                              <span className="text-xs font-black text-slate-900 tabular-nums">
+                                {maxStreak > 0 ? `${maxStreak} ${maxStreak === 1 ? 'treino' : 'treinos'}` : '--'}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h5 className="text-xs font-black text-slate-800 uppercase leading-none">Protocolo Ativo e Atualizado</h5>
-                            <p className="text-[10px] font-semibold text-slate-500 mt-1.5 leading-relaxed">
-                              Sua rotina está perfeitamente alinhada com as recomendações de biomecânica do Kyron.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Collapsible Section 4: Volume de Treino */}
+                    <div className="bg-white rounded-3xl border border-slate-150 overflow-hidden shadow-xs">
+                      <button
+                        onClick={() => {
+                          if ('vibrate' in navigator) navigator.vibrate(5);
+                          setExpandedSections(prev => ({ ...prev, volume_treino: !prev.volume_treino }));
+                        }}
+                        className="w-full px-6 py-5 flex items-center justify-between text-slate-800 hover:bg-slate-50 transition-all font-sans cursor-pointer h-full"
+                      >
+                        <span className="text-xs font-black uppercase tracking-widest flex items-center gap-3 text-slate-700">
+                          <span className="text-xs text-[#5C8CFF] font-extrabold select-none shrink-0">
+                            {expandedSections.volume_treino ? '▼' : '▶'}
+                          </span>
+                          Volume de Treino
+                        </span>
+                      </button>
+                      
+                      {expandedSections.volume_treino && (
+                        <div className="px-6 pb-6 pt-3 border-t border-slate-100/50 space-y-4 bg-slate-50/10">
+                          <div className="bg-white rounded-[2rem] p-6 border border-slate-100 divide-y divide-slate-100 shadow-xs mt-2">
+                            <div className="flex justify-between py-4 first:pt-2 last:pb-2 font-sans">
+                              <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Carga Acumulada</span>
+                              <span className="text-xs font-black text-slate-900 tabular-nums">
+                                {volumeData?.latVol ? `${volumeData.latVol.toLocaleString('pt-BR')} kg` : '--'}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-semibold leading-relaxed pt-2">
+                              O volume total de treino (tonnage) representa o peso total deslocado sob contração muscular nas suas sessões principais.
                             </p>
                           </div>
                         </div>
                       )}
                     </div>
+
+                    {/* Collapsible Section 5: Histórico de Protocolos */}
+                    <div className="bg-white rounded-3xl border border-slate-150 overflow-hidden shadow-xs">
+                      <button
+                        onClick={() => {
+                          if ('vibrate' in navigator) navigator.vibrate(5);
+                          setExpandedSections(prev => ({ ...prev, historico_protocolos: !prev.historico_protocolos }));
+                        }}
+                        className="w-full px-6 py-5 flex items-center justify-between text-slate-800 hover:bg-slate-50 transition-all font-sans cursor-pointer h-full"
+                      >
+                        <span className="text-xs font-black uppercase tracking-widest flex items-center gap-3 text-slate-700">
+                          <span className="text-xs text-[#5C8CFF] font-extrabold select-none shrink-0">
+                            {expandedSections.historico_protocolos ? '▼' : '▶'}
+                          </span>
+                          Histórico de Protocolos
+                        </span>
+                      </button>
+                      
+                      {expandedSections.historico_protocolos && (
+                        <div className="px-6 pb-6 pt-3 border-t border-slate-100/50 space-y-4 bg-slate-50/10 font-sans">
+                          <div className="space-y-4 mt-2 font-sans">
+                            {protocolUpdates && protocolUpdates.length > 0 ? (
+                              protocolUpdates.map((up, upIdx) => (
+                                <div key={upIdx} className="bg-slate-900 text-white rounded-[2rem] p-6 shadow-md relative overflow-hidden space-y-4">
+                                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#7BA7FF]/10 rounded-full blur-xl pointer-events-none" />
+                                  <div className="flex justify-between items-start font-sans">
+                                    <div>
+                                      <span className="text-[7.5px] font-black text-[#5C8CFF] uppercase tracking-widest block leading-none">Alterações de Protocolo</span>
+                                      <h4 className="text-[15px] font-black uppercase tracking-tight text-white mt-1.5 leading-none">{up.templateName}</h4>
+                                      <p className="text-[9px] font-bold text-slate-400 mt-1.5 font-mono">v{up.currentVersion} → v{up.latestVersion}</p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={async () => {
+                                      if ('vibrate' in navigator) navigator.vibrate(10);
+                                      const success = await systemTemplatesApi.mergeTemplate(
+                                        profile.id,
+                                        up.folderId,
+                                        up.templateId,
+                                        up.latestVersion,
+                                        'safe'
+                                      );
+                                      if (success) {
+                                        alert('Protocolo sincronizado para a nova versão com absoluto sucesso!');
+                                        window.location.reload();
+                                      }
+                                    }}
+                                    className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all text-center cursor-pointer font-sans"
+                                  >
+                                    <RefreshCw size={11} className="animate-pulse" />
+                                    <span>Atualizar Protocolo (Safe Merge)</span>
+                                  </button>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="bg-white rounded-[2rem] p-6 border border-slate-100 flex gap-4 items-center shadow-xs">
+                                <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-slate-100 flex items-center justify-center text-emerald-500 shrink-0 shadow-sm">
+                                  <CheckCircle2 size={20} />
+                                </div>
+                                <div className="flex-1">
+                                  <h5 className="text-xs font-black text-slate-800 uppercase leading-none font-sans">Protocolo Ativo e Atualizado</h5>
+                                  <p className="text-[10px] font-semibold text-slate-500 mt-1.5 leading-relaxed">
+                                    Sua rotina está perfeitamente alinhada com as recomendações de biomecânica do Kyron.
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                   </div>
                 )}
               </div>
