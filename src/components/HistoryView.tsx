@@ -521,7 +521,7 @@ const HistoryView: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F7F8FA] pb-32">
       <header className="px-6 pt-12 pb-8">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Performance</p>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Evolução de Força</p>
         <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Evolução</h2>
         
         <div className="flex gap-8 mt-10 overflow-x-auto no-scrollbar border-b border-slate-100">
@@ -549,7 +549,7 @@ const HistoryView: React.FC = () => {
             {loadingJourney ? (
               <div className="flex-1 flex flex-col items-center justify-center py-24 text-center">
                 <div className="w-8 h-8 border-2 border-[#5C8CFF] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Analisando Métricas de Evolução...</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Recuperando seus recordes de força...</span>
               </div>
             ) : (personalRecords.length === 0) ? (
               /* JOURNEY EMPTY STATE */
@@ -761,10 +761,38 @@ const HistoryView: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Hall de Recordes */}
+                    {/* 4. NOVO RECORDE SECTION */}
+                    {(() => {
+                      const recentPR = personalRecords?.find(p => p.isRecentPR || (p.date && getDaysSince(p.date) <= 5));
+                      if (!recentPR) return null;
+                      const daysAgo = getDaysSince(recentPR.date);
+                      const relativeTimeStr = daysAgo === 0 ? 'Feito hoje' : daysAgo === 1 ? 'Ontem' : `há ${daysAgo} dias`;
+                      return (
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">
+                            Novo Recorde
+                          </h3>
+                          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex items-center justify-between font-sans">
+                            <div className="space-y-1">
+                              <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                                {recentPR.exerciseName}
+                              </h4>
+                              <span className="text-[10px] font-semibold text-slate-400 block leading-none mt-1">
+                                {relativeTimeStr}
+                              </span>
+                            </div>
+                            <span className="text-xs font-black text-slate-900 tabular-nums bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl leading-none">
+                              {recentPR.bestWeight}kg <span className="text-[10px] text-slate-400 font-medium select-none">×</span> {recentPR.bestReps}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Suas Melhores Marcas (Formerly Hall de Recordes) */}
                     <div className="space-y-4">
                       <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">
-                        Hall de Recordes
+                        Suas Melhores Marcas
                       </h3>
                       <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100 font-sans">
                         {(() => {
@@ -773,23 +801,60 @@ const HistoryView: React.FC = () => {
                               keywords.some(k => p.exerciseName.toLowerCase().includes(k))
                             );
                             if (pr) {
-                              return `${pr.bestWeight}kg × ${pr.bestReps}`;
+                              return {
+                                value: `${pr.bestWeight}kg × ${pr.bestReps}`,
+                                dateStr: new Date(pr.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }),
+                                hasValue: true
+                              };
                             }
-                            return '--';
+                            return {
+                              value: '--',
+                              dateStr: '',
+                              hasValue: false
+                            };
                           };
 
-                          return [
-                            { label: 'Maior Supino', value: getBestPRByKeywords(['supino', 'bench press']) },
-                            { label: 'Maior Agachamento', value: getBestPRByKeywords(['agachamento', 'squat']) },
-                            { label: 'Maior Leg Press', value: getBestPRByKeywords(['leg press']) },
-                            { label: 'Maior Volume de Treino', value: maxWorkoutVolume > 0 ? `${Math.round(maxWorkoutVolume).toLocaleString('pt-BR')} kg` : '--' },
-                            { label: 'Maior Sequência', value: maxStreak > 0 ? `${maxStreak} ${maxStreak === 1 ? 'treino' : 'treinos'}` : '--' }
-                          ].map((rec, rIdx) => (
+                          const strengthAchievements = [
+                            { 
+                              label: 'Seu melhor Supino', 
+                              conquistaText: 'Melhor marca',
+                              ...getBestPRByKeywords(['supino', 'bench press'])
+                            },
+                            { 
+                              label: 'Seu melhor Agachamento', 
+                              conquistaText: 'Recorde atual',
+                              ...getBestPRByKeywords(['agachamento', 'squat', 'agacha'])
+                            },
+                            { 
+                              label: 'Seu melhor Leg Press', 
+                              conquistaText: 'Melhor marca',
+                              ...getBestPRByKeywords(['leg press'])
+                            },
+                            { 
+                              label: 'Sua melhor Remada', 
+                              conquistaText: 'Recorde atual',
+                              ...getBestPRByKeywords(['remada', 'row'])
+                            },
+                            { 
+                              label: 'Seu melhor Desenvolvimento', 
+                              conquistaText: 'Melhor marca',
+                              ...getBestPRByKeywords(['desenvolvimento', 'shoulder press', 'overhead'])
+                            }
+                          ];
+
+                          return strengthAchievements.map((rec, rIdx) => (
                             <div key={rIdx} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
-                              <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
-                                {rec.label}
-                              </span>
-                              <span className="text-xs font-black text-slate-900 tabular-nums">
+                              <div className="space-y-1">
+                                <span className="text-xs font-black text-slate-800 uppercase tracking-tight block">
+                                  {rec.label}
+                                </span>
+                                {rec.hasValue && (
+                                  <span className="text-[10px] font-semibold text-slate-400 block tracking-tight leading-none mt-1">
+                                    {rec.conquistaText} • {rec.dateStr}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs font-black text-slate-900 tabular-nums shrink-0">
                                 {rec.value}
                               </span>
                             </div>
@@ -800,7 +865,7 @@ const HistoryView: React.FC = () => {
 
                     {/* Evolução Corporal */}
                     <div className="space-y-4">
-                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Evolução Corporal</h3>
+                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">Evolução Corporal</h3>
                       <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 grid grid-cols-2 gap-4 relative">
                         <div className="absolute top-4 bottom-4 left-1/2 -translate-x-1/2 w-px bg-slate-50" />
                         
@@ -821,8 +886,7 @@ const HistoryView: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Carga Útil Total (Volume/Tonnage) & Frequência e Fidelização */}
-                    {/* 5. Volume Total de Treino */}
+                    {/* Carga Útil Total (Volume/Tonnage) */}
                     <div className="space-y-4">
                       <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">Volume Total de Treino</h3>
                       <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
@@ -835,6 +899,29 @@ const HistoryView: React.FC = () => {
                         <p className="text-[10px] text-slate-400 font-semibold leading-relaxed pt-2">
                           O volume total de treino (tonnage) representa o peso total deslocado sob contração muscular nas suas sessões principais.
                         </p>
+                      </div>
+                    </div>
+
+                    {/* Consistência de Treino (Secondary achievements moved to bottom of analysis) */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">Consistência e Volume</h3>
+                      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100 font-sans">
+                        <div className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                            Maior Volume em uma Sessão
+                          </span>
+                          <span className="text-xs font-black text-slate-900 tabular-nums">
+                            {maxWorkoutVolume > 0 ? `${Math.round(maxWorkoutVolume).toLocaleString('pt-BR')} kg` : '--'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                            Maior Sequência de Treinos
+                          </span>
+                          <span className="text-xs font-black text-slate-900 tabular-nums">
+                            {maxStreak > 0 ? `${maxStreak} ${maxStreak === 1 ? 'treino' : 'treinos'}` : '--'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
