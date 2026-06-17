@@ -39,6 +39,21 @@ import { useNavigation } from '../App';
 
 type TabType = 'journey' | 'sessions' | 'charts' | 'visual' | 'bio';
 
+const formatDateObj = (dateString: string) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    const day = String(date.getDate()).padStart(2, '0');
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch (e) {
+    return '';
+  }
+};
+
 const HistoryView: React.FC = () => {
   const { showError } = useErrorHandler();
   const { current, navigate } = useNavigation();
@@ -87,6 +102,8 @@ const HistoryView: React.FC = () => {
   const [beforeVsNow, setBeforeVsNow] = useState<any | null>(null);
   const [longestStandingRecord, setLongestStandingRecord] = useState<any | null>(null);
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState<boolean>(false);
+  const [maxWorkoutVolume, setMaxWorkoutVolume] = useState<number>(0);
+  const [maxStreak, setMaxStreak] = useState<number>(0);
 
   useEffect(() => {
     const loadJourneyData = async () => {
@@ -331,6 +348,52 @@ const HistoryView: React.FC = () => {
             const bestEvol = sortedEvols.find(e => e.isCompound) || sortedEvols[0];
             setBeforeVsNow(bestEvol);
           }
+
+          // Calculate maxWorkoutVolume
+          const workoutVolumes = new Map<string, number>();
+          rawLogs.forEach(log => {
+            if (!log.weight_achieved || !log.reps_achieved || !log.history_id) return;
+            const vol = Number(log.weight_achieved) * Number(log.reps_achieved);
+            workoutVolumes.set(log.history_id, (workoutVolumes.get(log.history_id) || 0) + vol);
+          });
+          let maxVol = 0;
+          workoutVolumes.forEach(vol => {
+            if (vol > maxVol) maxVol = vol;
+          });
+          setMaxWorkoutVolume(maxVol);
+
+          // Calculate maxStreak
+          const dates = (historyState.data || [])
+            .map(h => (h as any).completed_at ? new Date((h as any).completed_at).toDateString() : '')
+            .filter(Boolean);
+          const uniqueDates = Array.from(new Set(dates)).map((d: any) => new Date(d));
+          uniqueDates.sort((a, b) => a.getTime() - b.getTime());
+
+          let mStreak = 0;
+          let tempStreak = 0;
+          let lastDate: Date | null = null;
+
+          uniqueDates.forEach((d) => {
+            if (!lastDate) {
+              tempStreak = 1;
+            } else {
+              const diffTime = d.getTime() - lastDate.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              if (diffDays === 1) {
+                tempStreak += 1;
+              } else if (diffDays > 1) {
+                tempStreak = 1;
+              }
+            }
+            if (tempStreak > mStreak) {
+              mStreak = tempStreak;
+            }
+            lastDate = d;
+          });
+          if (mStreak === 0 && (historyState.data || []).length > 0) {
+            mStreak = (historyState.data || []).length;
+          }
+          setMaxStreak(mStreak);
         }
       } catch (err) {
         console.error('Error loading athlete evolution stats:', err);
@@ -492,15 +555,10 @@ const HistoryView: React.FC = () => {
               /* JOURNEY EMPTY STATE */
               <div className="flex-1 flex flex-col justify-center items-center py-12 px-2 text-center">
                 <div className="w-full bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 max-w-md space-y-6">
-                  <div className="w-16 h-16 bg-[#5C8CFF]/10 text-[#5C8CFF] rounded-3xl flex items-center justify-center mx-auto shadow-sm">
-                    <Flame size={32} />
-                  </div>
-                  
                   <div className="space-y-2">
-                    <span className="text-[9px] font-black text-[#5C8CFF] uppercase tracking-[0.25em] block leading-none">Início da Sua Evolução</span>
-                    <h3 className="text-xl font-[1000] text-slate-900 tracking-tighter uppercase leading-tight mt-1.5">Sua evolução começa no primeiro treino</h3>
-                    <p className="text-xs text-slate-500 font-semibold leading-relaxed mt-2 mx-auto max-w-xs">
-                      Conclua seu primeiro treino para começar a acompanhar seus recordes pessoais e sua progressão de força.
+                    <h3 className="text-xl font-[1000] text-slate-900 tracking-tighter uppercase leading-tight">Sua evolução começa no primeiro treino</h3>
+                    <p className="text-xs text-slate-500 font-semibold leading-relaxed mt-3 mx-auto max-w-xs">
+                      Conclua seu primeiro treino para começar a registrar seus recordes pessoais e acompanhar sua progressão de força.
                     </p>
                   </div>
 
@@ -509,11 +567,15 @@ const HistoryView: React.FC = () => {
                       if ('vibrate' in navigator) navigator.vibrate(5);
                       navigate('dashboard');
                     }}
-                    className="w-full py-4.5 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl active:scale-95 transition-all text-center flex items-center justify-center gap-2 shadow-xl shadow-slate-900/15"
+                    className="w-full py-4.5 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest rounded-3xl active:scale-95 transition-all text-center flex items-center justify-center gap-2 shadow-xl shadow-slate-900/15"
                   >
                     <span>Iniciar Primeiro Treino</span>
                     <ArrowRight size={14} />
                   </button>
+
+                  <span className="text-[10px] font-medium text-slate-400 block pt-1 select-none">
+                    Os resultados que você construir aparecerão aqui.
+                  </span>
                 </div>
               </div>
             ) : (
@@ -523,7 +585,7 @@ const HistoryView: React.FC = () => {
                 {beforeVsNow && (
                   <div className="space-y-4">
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
-                      Seu Maior Progresso
+                      Maior evolução da sua jornada
                     </h3>
                     <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden flex flex-col items-center justify-center text-center py-12">
                       <div className="absolute top-0 right-0 w-48 h-48 bg-[#7BA7FF]/10 rounded-full blur-[80px] pointer-events-none" />
@@ -532,7 +594,7 @@ const HistoryView: React.FC = () => {
                         {beforeVsNow.exerciseName}
                       </h4>
 
-                      <div className="flex flex-col items-center justify-center space-y-2.5">
+                      <div className="flex flex-col items-center justify-center space-y-3">
                         <div className="text-sm font-semibold text-slate-400">
                           {beforeVsNow.firstWeight}kg <span className="text-slate-500 font-medium select-none">×</span> {beforeVsNow.firstReps}
                         </div>
@@ -544,10 +606,10 @@ const HistoryView: React.FC = () => {
                         <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
                           {beforeVsNow.bestWeight}kg <span className="text-slate-400 font-normal select-none">×</span> {beforeVsNow.bestReps}
                         </div>
-                      </div>
 
-                      <div className="mt-6 px-6 py-2 bg-emerald-500/10 border border-emerald-500/20 text-[#7BA7FF] text-xs font-black rounded-full uppercase tracking-wider">
-                        +{beforeVsNow.weightDiff}kg Força Ganha
+                        <div className="text-4xl sm:text-5xl font-black text-emerald-400 mt-6 leading-none">
+                          +{beforeVsNow.weightDiff}kg
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -559,13 +621,20 @@ const HistoryView: React.FC = () => {
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
                       Seus Melhores Resultados
                     </h3>
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100 font-sans">
                       {top5Strongest.slice(0, 5).map((item) => (
                         <div key={item.exerciseId} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
-                          <span className="text-xs font-black text-slate-800 uppercase tracking-tight line-clamp-1">
-                            {item.exerciseName}
-                          </span>
-                          <span className="text-xs font-black text-slate-900 tabular-nums">
+                          <div className="space-y-1 pr-4 flex-1 min-w-0">
+                            <span className="text-xs font-black text-slate-800 uppercase tracking-tight block truncate">
+                              {item.exerciseName}
+                            </span>
+                            {item.date && (
+                              <span className="text-[9px] font-semibold text-slate-400 block leading-none">
+                                {formatDateObj(item.date)}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs font-black text-slate-900 tabular-nums shrink-0">
                             {item.bestWeight}kg <span className="text-slate-400 font-medium select-none">×</span> {item.bestReps}
                           </span>
                         </div>
@@ -592,16 +661,24 @@ const HistoryView: React.FC = () => {
                               recentEndWeight: e.bestWeight
                             }));
 
-                        return displayItems.map((r) => (
-                          <div key={r.exerciseId} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
-                            <span className="text-xs font-black text-slate-800 uppercase tracking-tight line-clamp-1">
-                              {r.exerciseName}
-                            </span>
-                            <span className="text-xs font-bold text-slate-600 font-mono">
-                              {r.recentStartWeight}kg → <span className="text-slate-950 font-black">{r.recentEndWeight}kg</span>
-                            </span>
-                          </div>
-                        ));
+                        return displayItems.map((r) => {
+                          const diff = r.recentEndWeight - r.recentStartWeight;
+                          return (
+                            <div key={r.exerciseId} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
+                              <span className="text-xs font-black text-slate-800 uppercase tracking-tight line-clamp-1 pr-4 flex-1 animate-in">
+                                {r.exerciseName}
+                              </span>
+                              <div className="flex items-center gap-4 shrink-0 font-sans">
+                                <span className="text-xs font-bold text-slate-500 font-mono">
+                                  {r.recentStartWeight}kg → <span className="text-slate-950 font-black">{r.recentEndWeight}kg</span>
+                                </span>
+                                <span className={`text-xs font-black font-mono tracking-tight shrink-0 ${diff > 0 ? 'text-emerald-500' : 'text-slate-400'}`}>
+                                  {diff >= 0 ? `+${diff}` : diff}kg
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        });
                       })()}
                     </div>
                   </div>
@@ -684,40 +761,42 @@ const HistoryView: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Recordes Pessoais (PRs) */}
-                    {personalRecords && personalRecords.length > 0 && (
-                      <div className="space-y-4">
-                        <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Todos os Recordes Pessoais (PRs)</h3>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {personalRecords.slice(0, 8).map((pr) => (
-                            <div key={pr.exerciseId} className="bg-white rounded-2xl p-5 border border-slate-100 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 space-y-4">
-                              <div className="flex justify-between items-start gap-2">
-                                <div className="space-y-1.5">
-                                  <h4 className="text-xs font-black text-slate-800 tracking-tight uppercase line-clamp-1">{pr.exerciseName}</h4>
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-wider">
-                                      {new Date(pr.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                    </span>
-                                    <span className="text-slate-300 text-[8px] select-none">•</span>
-                                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded tracking-wider uppercase inline-block leading-none select-none border bg-slate-50 text-slate-500 border-slate-100">
-                                      {pr.momentum}
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                <div className="text-right flex flex-col items-end shrink-0">
-                                  <span className="text-[8.5px] font-[1000] text-slate-405 uppercase tracking-wide leading-none">PR</span>
-                                  <span className="text-xs font-[1000] text-slate-900 tabular-nums bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-xl mt-1 leading-none inline-block">
-                                    {pr.bestWeight} kg <span className="text-[9.5px] text-slate-400 font-medium select-none">×</span> {pr.bestReps}
-                                  </span>
-                                </div>
-                              </div>
+                    {/* Hall de Recordes */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">
+                        Hall de Recordes
+                      </h3>
+                      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100 font-sans">
+                        {(() => {
+                          const getBestPRByKeywords = (keywords: string[]) => {
+                            const pr = personalRecords?.find(p => 
+                              keywords.some(k => p.exerciseName.toLowerCase().includes(k))
+                            );
+                            if (pr) {
+                              return `${pr.bestWeight}kg × ${pr.bestReps}`;
+                            }
+                            return '--';
+                          };
+
+                          return [
+                            { label: 'Maior Supino', value: getBestPRByKeywords(['supino', 'bench press']) },
+                            { label: 'Maior Agachamento', value: getBestPRByKeywords(['agachamento', 'squat']) },
+                            { label: 'Maior Leg Press', value: getBestPRByKeywords(['leg press']) },
+                            { label: 'Maior Volume de Treino', value: maxWorkoutVolume > 0 ? `${Math.round(maxWorkoutVolume).toLocaleString('pt-BR')} kg` : '--' },
+                            { label: 'Maior Sequência', value: maxStreak > 0 ? `${maxStreak} ${maxStreak === 1 ? 'treino' : 'treinos'}` : '--' }
+                          ].map((rec, rIdx) => (
+                            <div key={rIdx} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
+                              <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                                {rec.label}
+                              </span>
+                              <span className="text-xs font-black text-slate-900 tabular-nums">
+                                {rec.value}
+                              </span>
                             </div>
-                          ))}
-                        </div>
+                          ));
+                        })()}
                       </div>
-                    )}
+                    </div>
 
                     {/* Evolução Corporal */}
                     <div className="space-y-4">
@@ -743,62 +822,36 @@ const HistoryView: React.FC = () => {
                     </div>
 
                     {/* Carga Útil Total (Volume/Tonnage) & Frequência e Fidelização */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Carga Útil Total</h3>
-                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex flex-col justify-between space-y-4">
-                          <div className="flex justify-between items-center bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-                            <div className="space-y-1">
-                              <span className="text-[7.5px] font-[1000] text-slate-400 uppercase tracking-wider leading-none">Carga Acumulada</span>
-                              <p className="text-base font-[1000] text-slate-800 tracking-tight mt-1.5 tabular-nums">{volumeData?.latVol ? `${volumeData.latVol} kg` : '--'}</p>
-                            </div>
-                            {volumeData?.earVol && volumeData?.latVol && (
-                              <span className={`text-[8px] font-[1000] px-2 py-1 rounded-xl uppercase tracking-wider font-bold leading-none shrink-0 ${(volumeData.latVol - volumeData.earVol) >= 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' : 'bg-red-50 text-red-500 border border-red-100/50'}`}>
-                                {(volumeData.latVol - volumeData.earVol) >= 0 
-                                  ? `▲ +${(((volumeData.latVol - volumeData.earVol) / volumeData.earVol) * 100).toFixed(0)}% Força`
-                                  : `▼ ${(((volumeData.latVol - volumeData.earVol) / volumeData.earVol) * 100).toFixed(0)}%`
-                                }
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                            Carga útil (Tonnage) representa o peso total transferido sob contração muscular nas sessões principais.
-                          </p>
+                    {/* 5. Volume Total de Treino */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">Volume Total de Treino</h3>
+                      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
+                        <div className="flex justify-between py-4 first:pt-2 last:pb-2">
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Carga Acumulada</span>
+                          <span className="text-xs font-black text-slate-900 tabular-nums">
+                            {volumeData?.latVol ? `${volumeData.latVol.toLocaleString('pt-BR')} kg` : '--'}
+                          </span>
                         </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Fidelização & Compromisso</h3>
-                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 space-y-4 h-full flex flex-col justify-between">
-                          <div className="grid grid-cols-2 gap-2 text-center h-full items-center">
-                            <div className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
-                              <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block leading-none">Frequência</span>
-                              <p className="text-base font-[1000] text-[#5C8CFF] leading-none mt-1.5">{profile?.days_per_week || 3}x/Semana</p>
-                            </div>
-                            
-                            <div className="bg-emerald-50/45 p-2.5 rounded-xl border border-emerald-100/50">
-                              <span className="text-[7px] font-black text-emerald-600 uppercase tracking-widest block leading-none">Adesão</span>
-                              <p className="text-base font-[1000] text-emerald-600 leading-none mt-1.5">Excelente</p>
-                            </div>
-                          </div>
-                        </div>
+                        <p className="text-[10px] text-slate-400 font-semibold leading-relaxed pt-2">
+                          O volume total de treino (tonnage) representa o peso total deslocado sob contração muscular nas suas sessões principais.
+                        </p>
                       </div>
                     </div>
 
-                    {/* Safe Merge / Protocol Updates */}
+                    {/* 6. Histórico de Protocolos */}
                     <div className="space-y-4">
-                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest">Evolução do Protocolo</h3>
+                      <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest pl-2">Histórico de Protocolos</h3>
                       
                       {protocolUpdates && protocolUpdates.length > 0 ? (
                         protocolUpdates.map((up, upIdx) => (
-                          <div key={upIdx} className="bg-gradient-to-br from-[#121926] to-[#0A0F19] text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden space-y-4">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
+                          <div key={upIdx} className="bg-slate-900 text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden space-y-4">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-[#7BA7FF]/10 rounded-full blur-xl pointer-events-none" />
                             
                             <div className="flex justify-between items-start">
                               <div>
-                                <span className="text-[7.5px] font-black text-[#7BA7FF] uppercase tracking-widest block leading-none">Alterações Científicas Disponíveis</span>
-                                <h4 className="text-[15px] font-black uppercase tracking-tight text-white mt-2 leading-none">{up.templateName}</h4>
-                                <p className="text-[9px] font-bold text-slate-400 mt-1.5">Evolução da Versão v{up.currentVersion} para v{up.latestVersion}</p>
+                                <span className="text-[7.5px] font-black text-[#5C8CFF] uppercase tracking-widest block leading-none">Alterações de Protocolo</span>
+                                <h4 className="text-[15px] font-black uppercase tracking-tight text-white mt-1.5 leading-none">{up.templateName}</h4>
+                                <p className="text-[9px] font-bold text-slate-400 mt-1.5 font-mono">v{up.currentVersion} → v{up.latestVersion}</p>
                               </div>
                             </div>
 
@@ -813,26 +866,26 @@ const HistoryView: React.FC = () => {
                                   'safe'
                                 );
                                 if (success) {
-                                  alert('Protocolo sincronizado para a nova versão com absoluto sucesso! Suas anotações personalizadas foram protegidas.');
+                                  alert('Protocolo sincronizado para a nova versão com absoluto sucesso!');
                                   window.location.reload();
                                 }
                               }}
                               className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all text-center"
                             >
                               <RefreshCw size={11} className="animate-pulse" />
-                              <span>Atualizar Protocolo para v{up.latestVersion} (Safe Merge)</span>
+                              <span>Atualizar Protocolo (Safe Merge)</span>
                             </button>
                           </div>
                         ))
                       ) : (
                         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex gap-4 items-center">
-                          <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shrink-0 shadow-sm">
+                          <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-slate-100 flex items-center justify-center text-emerald-500 shrink-0 shadow-sm">
                             <CheckCircle2 size={20} />
                           </div>
                           <div className="flex-1">
-                            <h5 className="text-xs font-black text-slate-800 uppercase leading-none">Protocolo Pristine Ativo</h5>
+                            <h5 className="text-xs font-black text-slate-800 uppercase leading-none">Protocolo Ativo e Atualizado</h5>
                             <p className="text-[10px] font-semibold text-slate-500 mt-1.5 leading-relaxed">
-                              Sua pasta está rodando plenamente de acordo com os modelos biomecânicos e científicos mais recentes do Kyron.
+                              Sua rotina está perfeitamente alinhada com as recomendações de biomecânica do Kyron.
                             </p>
                           </div>
                         </div>
