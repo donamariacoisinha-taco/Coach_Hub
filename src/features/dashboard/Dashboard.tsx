@@ -605,7 +605,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               className="mb-6 font-sans"
             >
               {nextAction.type === 'start_workout' || nextAction.type === 'resume' || nextAction.type === 'motivation' ? (
-                <div className="w-full bg-[#0F172A] bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#1E293B] text-white rounded-[2rem] pl-6 pr-10 py-6 shadow-xl relative overflow-hidden border border-slate-800 flex flex-col justify-between min-h-[140px]">
+                <div className="w-full bg-[#0F172A] bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#1E293B] text-white rounded-[2rem] px-5 sm:pl-6 sm:pr-10 py-6 shadow-xl relative overflow-hidden border border-slate-800 flex flex-col justify-between min-h-[140px]">
                   <motion.div 
                     animate={{ 
                       scale: [1, 1.15, 1], 
@@ -631,7 +631,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     </div>
                     
                     <h3 className="text-xl font-[1000] text-white tracking-tight leading-[1.1] uppercase max-w-[90%] text-left">
-                      {nextAction.title}
+                       {nextAction.title}
                     </h3>
                     
                     {nextAction.description && (
@@ -641,8 +641,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     )}
                   </div>
 
-                  <div className="w-full flex items-center justify-between gap-4 mt-5 pt-4 border-t border-slate-800 relative z-10">
-                    <div className="flex items-center gap-3.5 text-left pr-2">
+                  <div className="w-full flex items-center justify-between gap-2 sm:gap-4 mt-5 pt-4 border-t border-slate-800 relative z-10">
+                    <div className="flex items-center gap-2 sm:gap-3.5 text-left pr-2">
                       <div className="flex flex-col text-left">
                         <span className="text-[7.5px] font-extrabold text-slate-500 uppercase tracking-widest mb-0.5">Duração</span>
                         <span className="text-xs font-bold text-slate-200 leading-none">45 min</span>
@@ -664,7 +664,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         whileHover={{ scale: 1.04 }}
                         whileTap={{ scale: 0.98 }}
                         transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                        className="px-5 py-3 rounded-full text-[10.5px] font-black uppercase text-center tracking-[0.1em] bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white hover:opacity-95 shadow-md shadow-[#7BA7FF]/15 cursor-pointer flex items-center gap-2 shrink-0 border-none"
+                        className="px-3 sm:px-5 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10.5px] font-black uppercase text-center tracking-[0.1em] bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white hover:opacity-95 shadow-md shadow-[#7BA7FF]/15 cursor-pointer flex items-center gap-1.5 sm:gap-2 shrink-0 border-none"
                       >
                         <Play size={10} fill="#ffffff" className="text-white relative z-10" />
                         <span>Iniciar Treino</span>
@@ -674,7 +674,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 </div>
               ) : (
                 /* Rest / Recovery adaptive card */
-                <div className="w-full bg-white border border-slate-200/40 rounded-[2rem] pl-6 pr-10 py-6 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
+                <div className="w-full bg-white border border-slate-200/40 rounded-[2rem] px-5 sm:pl-6 sm:pr-10 py-6 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
                   <div className="absolute right-[-5%] top-[-5%] w-32 h-32 bg-indigo-500/[0.03] rounded-full blur-[25px] pointer-events-none" />
                   
                   <div className="relative z-10 w-full text-left space-y-2">
@@ -682,7 +682,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                       <span className="text-[7.5px] font-black uppercase tracking-[0.25em] text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full shrink-0">
                         ☕ Dia de Descanso
                       </span>
-                      <span className="text-[7.5px] font-bold text-slate-450 uppercase tracking-wider">
+                      <span className="text-[7.5px] font-[1000] text-slate-450 uppercase tracking-wider">
                         KYRON OS Adaptativo
                       </span>
                     </div>
@@ -698,14 +698,14 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     )}
                   </div>
 
-                  <div className="w-full flex items-center justify-between gap-4 mt-5 pt-4 border-t border-slate-100 relative z-10">
+                  <div className="w-full flex items-center justify-between gap-2 sm:gap-4 mt-5 pt-4 border-t border-slate-100 relative z-10">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                       {localizedDateStr}
                     </p>
-                    <div className="flex items-center gap-2.5 shrink-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
                       <button 
                         onClick={() => navigate('dieta')}
-                        className="px-4 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-[9px] font-black uppercase text-slate-650 transition tracking-wider border border-slate-100 cursor-pointer"
+                        className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-[8.5px] sm:text-[9px] font-black uppercase text-slate-650 transition tracking-wider border border-slate-100 cursor-pointer"
                       >
                         Acessar Dieta
                       </button>
@@ -716,7 +716,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                             workoutSection.scrollIntoView({ behavior: 'smooth' });
                           }
                         }}
-                        className="text-[9.5px] font-[1000] uppercase text-[#7BA7FF] hover:text-[#5c8bee] tracking-wider transition cursor-pointer border-none bg-transparent"
+                        className="text-[8.5px] sm:text-[9.5px] font-[1000] uppercase text-[#7BA7FF] hover:text-[#5c8bee] tracking-wider transition cursor-pointer border-none bg-transparent"
                       >
                         Treinar Mesmo Assim
                       </button>
