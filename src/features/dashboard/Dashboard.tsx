@@ -605,7 +605,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               className="mb-6 font-sans"
             >
               {nextAction.type === 'start_workout' || nextAction.type === 'resume' || nextAction.type === 'motivation' ? (
-                <div className="w-full bg-[#0F172A] bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#1E293B] text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden border border-slate-800 flex flex-col justify-between min-h-[140px]">
+                <div className="w-full bg-[#0F172A] bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#1E293B] text-white rounded-[2rem] pl-6 pr-10 py-6 shadow-xl relative overflow-hidden border border-slate-800 flex flex-col justify-between min-h-[140px]">
                   <motion.div 
                     animate={{ 
                       scale: [1, 1.15, 1], 
@@ -674,7 +674,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 </div>
               ) : (
                 /* Rest / Recovery adaptive card */
-                <div className="w-full bg-white border border-slate-200/40 rounded-[2rem] p-6 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
+                <div className="w-full bg-white border border-slate-200/40 rounded-[2rem] pl-6 pr-10 py-6 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
                   <div className="absolute right-[-5%] top-[-5%] w-32 h-32 bg-indigo-500/[0.03] rounded-full blur-[25px] pointer-events-none" />
                   
                   <div className="relative z-10 w-full text-left space-y-2">
@@ -733,7 +733,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 animate={{ opacity: 1, scale: 1 }}
                 className="mb-6 font-sans"
               >
-                <div className="w-full bg-[#0F172A] bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#1E293B] text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden border border-slate-800 text-center py-8 space-y-4">
+                <div className="w-full bg-[#0F172A] bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#1E293B] text-white rounded-[2rem] pl-6 pr-10 py-8 shadow-xl relative overflow-hidden border border-slate-800 text-center space-y-4">
                   <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 mx-auto border border-indigo-500/20">
                     <Dumbbell size={20} />
                   </div>

@@ -836,7 +836,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Calendar size={14} className="text-blue-500 animate-pulse" />
-                    <h4 className="text-[11px] font-[1000] text-slate-800 uppercase tracking-[0.15em]">
+                    <h4 className="text-[15px] font-[1000] text-slate-800 uppercase tracking-[0.15em]">
                       Mapa de Consistência
                     </h4>
                   </div>

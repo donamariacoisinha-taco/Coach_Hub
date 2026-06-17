@@ -151,7 +151,7 @@ export const ProtocolEvolutionDashboard: React.FC<ProtocolEvolutionDashboardProp
               <GitMerge size={20} className={hasUpdates ? "animate-pulse" : ""} />
             </div>
             <div>
-              <h4 className="text-[11px] font-[1000] text-slate-800 uppercase tracking-[0.15em] leading-none">
+              <h4 className="text-[15px] font-[1000] text-slate-800 uppercase tracking-[0.15em] leading-none">
                 Evolução Científica dos Protocolos
               </h4>
               <p className="text-[9px] font-black text-[#5C8CFF] uppercase tracking-widest block mt-1.5 leading-none">
