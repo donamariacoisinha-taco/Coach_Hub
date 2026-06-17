@@ -628,11 +628,6 @@ const HistoryView: React.FC = () => {
                             <span className="text-xs font-black text-slate-800 uppercase tracking-tight block truncate">
                               {item.exerciseName}
                             </span>
-                            {item.date && (
-                              <span className="text-[9px] font-semibold text-slate-400 block leading-none">
-                                {formatDateObj(item.date)}
-                              </span>
-                            )}
                           </div>
                           <span className="text-xs font-black text-slate-900 tabular-nums shrink-0">
                             {item.bestWeight}kg <span className="text-slate-400 font-medium select-none">×</span> {item.bestReps}
@@ -643,25 +638,30 @@ const HistoryView: React.FC = () => {
                   </div>
                 )}
 
-                {/* Block 3: EVOLUÇÃO DOS ÚLTIMOS 30 DIAS */}
-                {((personalRecords && personalRecords.filter(pr => pr.recentStartWeight > 0 && pr.recentEndWeight > 0).length > 0) || (exerciseEvolutions && exerciseEvolutions.length > 0)) && (
-                  <div className="space-y-4">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
-                      Evolução dos Últimos 30 Dias
-                    </h3>
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
-                      {(() => {
-                        const logs30 = personalRecords.filter(pr => pr.recentStartWeight > 0 && pr.recentEndWeight > 0);
-                        const displayItems = logs30.length > 0 
-                          ? logs30.slice(0, 5) 
-                          : exerciseEvolutions.slice(0, 5).map(e => ({
-                              exerciseId: e.exerciseId,
-                              exerciseName: e.exerciseName,
-                              recentStartWeight: e.firstWeight,
-                              recentEndWeight: e.bestWeight
-                            }));
+                {/* Block 3: ÚLTIMOS 30 DIAS */}
+                {(() => {
+                  const logs30 = personalRecords.filter(pr => pr.recentStartWeight > 0 && pr.recentEndWeight > 0 && (pr.recentEndWeight - pr.recentStartWeight) > 0);
+                  const displayItems = logs30.length > 0 
+                    ? logs30.slice(0, 5) 
+                    : (exerciseEvolutions || [])
+                        .filter(e => (e.bestWeight - e.firstWeight) > 0)
+                        .map(e => ({
+                          exerciseId: e.exerciseId,
+                          exerciseName: e.exerciseName,
+                          recentStartWeight: e.firstWeight,
+                          recentEndWeight: e.bestWeight
+                        }))
+                        .slice(0, 5);
 
-                        return displayItems.map((r) => {
+                  if (!displayItems || displayItems.length === 0) return null;
+
+                  return (
+                    <div className="space-y-4">
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
+                        Últimos 30 Dias
+                      </h3>
+                      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
+                        {displayItems.map((r) => {
                           const diff = r.recentEndWeight - r.recentStartWeight;
                           return (
                             <div key={r.exerciseId} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
@@ -672,17 +672,17 @@ const HistoryView: React.FC = () => {
                                 <span className="text-xs font-bold text-slate-500 font-mono">
                                   {r.recentStartWeight}kg → <span className="text-slate-950 font-black">{r.recentEndWeight}kg</span>
                                 </span>
-                                <span className={`text-xs font-black font-mono tracking-tight shrink-0 ${diff > 0 ? 'text-emerald-500' : 'text-slate-400'}`}>
-                                  {diff >= 0 ? `+${diff}` : diff}kg
+                                <span className="text-xs font-black font-mono tracking-tight shrink-0 text-emerald-500">
+                                  +{diff}kg
                                 </span>
                               </div>
                             </div>
                           );
-                        });
-                      })()}
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Progressive Disclosure Action */}
                 <div className="flex justify-center pt-2">
@@ -693,7 +693,7 @@ const HistoryView: React.FC = () => {
                     }}
                     className="px-6 py-3.5 bg-white border border-slate-200 text-slate-850 hover:bg-slate-50 transition-all text-[10px] font-black uppercase tracking-widest rounded-full cursor-pointer flex items-center gap-2 hover:shadow-xs active:scale-95"
                   >
-                    <span>{showDetailedAnalysis ? 'Fechar análise detalhada' : 'Ver análise completa →'}</span>
+                    <span>{showDetailedAnalysis ? 'Fechar Análise Completa' : 'Análise Completa →'}</span>
                   </button>
                 </div>
 
