@@ -552,7 +552,7 @@ const HistoryView: React.FC = () => {
 
       <div className="px-6">
         {activeTab === 'journey' ? (
-          <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 pb-16">
+          <div className="space-y-5 animate-in slide-in-from-right-4 duration-500 pb-16">
             {loadingJourney ? (
               <div className="flex-1 flex flex-col items-center justify-center py-24 text-center">
                 <div className="w-8 h-8 border-2 border-[#5C8CFF] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
@@ -587,36 +587,28 @@ const HistoryView: React.FC = () => {
               </div>
             ) : (
               /* ACTIVE JOURNEY NARRATIVE */
-              <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="space-y-5 animate-in fade-in duration-500">
                 {/* Block 1: SEU MAIOR PROGRESSO */}
                 {beforeVsNow && (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
                       Maior evolução da sua jornada
                     </h3>
-                    <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden flex flex-col items-center justify-center text-center py-12">
-                      <div className="absolute top-0 right-0 w-48 h-48 bg-[#7BA7FF]/10 rounded-full blur-[80px] pointer-events-none" />
+                    <div className="bg-slate-900 text-white rounded-[2rem] py-5 px-6 shadow-xl relative overflow-hidden flex flex-col items-center justify-center text-center">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-[#7BA7FF]/10 rounded-full blur-[50px] pointer-events-none" />
                       
-                      <h4 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white mb-6">
+                      <h4 className="text-lg font-black uppercase tracking-tight text-white mb-2 leading-none">
                         {beforeVsNow.exerciseName}
                       </h4>
 
-                      <div className="flex flex-col items-center justify-center space-y-3">
-                        <div className="text-sm font-semibold text-slate-400">
-                          {beforeVsNow.firstWeight}kg <span className="text-slate-500 font-medium select-none">×</span> {beforeVsNow.firstReps}
-                        </div>
-                        
-                        <div className="text-[#7BA7FF] select-none text-lg font-black leading-none">
-                          ↓
-                        </div>
-                        
-                        <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                          {beforeVsNow.bestWeight}kg <span className="text-slate-400 font-normal select-none">×</span> {beforeVsNow.bestReps}
-                        </div>
+                      <div className="flex items-center gap-3 text-xs font-semibold text-slate-400">
+                        <span>{beforeVsNow.firstWeight}kg × {beforeVsNow.firstReps}</span>
+                        <span className="text-[#7BA7FF] font-black select-none">↓</span>
+                        <span className="text-white font-extrabold">{beforeVsNow.bestWeight}kg × {beforeVsNow.bestReps}</span>
+                      </div>
 
-                        <div className="text-4xl sm:text-5xl font-black text-emerald-400 mt-6 leading-none">
-                          +{beforeVsNow.weightDiff}kg
-                        </div>
+                      <div className="text-2xl font-black text-emerald-400 mt-2.5 leading-none">
+                        +{beforeVsNow.weightDiff}kg
                       </div>
                     </div>
                   </div>
@@ -624,14 +616,14 @@ const HistoryView: React.FC = () => {
 
                 {/* Block 2: SEUS MELHORES RESULTADOS */}
                 {top5Strongest && top5Strongest.length > 0 && (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
                       Seus Melhores Resultados
                     </h3>
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100 font-sans">
-                      {top5Strongest.slice(0, 5).map((item) => (
-                        <div key={item.exerciseId} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
-                          <div className="space-y-1 pr-4 flex-1 min-w-0">
+                    <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 divide-y divide-slate-100/50 font-sans">
+                      {top5Strongest.slice(0, 3).map((item) => (
+                        <div key={item.exerciseId} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                          <div className="pr-4 flex-1 min-w-0">
                             <span className="text-xs font-black text-slate-800 uppercase tracking-tight block truncate">
                               {item.exerciseName}
                             </span>
@@ -641,6 +633,20 @@ const HistoryView: React.FC = () => {
                           </span>
                         </div>
                       ))}
+                      {top5Strongest.length > 3 && (
+                        <div className="pt-2 flex justify-end">
+                          <button
+                            onClick={() => {
+                              if ('vibrate' in navigator) navigator.vibrate(5);
+                              setShowDetailedAnalysis(true);
+                              setExpandedSections(prev => ({ ...prev, recordes: true }));
+                            }}
+                            className="text-[9px] font-black uppercase tracking-widest text-[#5C8CFF] hover:text-[#4A7CE5] transition-colors cursor-pointer"
+                          >
+                            Ver todos →
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -649,7 +655,7 @@ const HistoryView: React.FC = () => {
                 {(() => {
                   const logs30 = personalRecords.filter(pr => pr.recentStartWeight > 0 && pr.recentEndWeight > 0 && (pr.recentEndWeight - pr.recentStartWeight) > 0);
                   const displayItems = logs30.length > 0 
-                    ? logs30.slice(0, 3) 
+                    ? logs30.slice(0, 2) 
                     : (exerciseEvolutions || [])
                         .filter(e => (e.bestWeight - e.firstWeight) > 0)
                         .map(e => ({
@@ -658,20 +664,20 @@ const HistoryView: React.FC = () => {
                           recentStartWeight: e.firstWeight,
                           recentEndWeight: e.bestWeight
                         }))
-                        .slice(0, 3);
+                        .slice(0, 2);
 
                   if (!displayItems || displayItems.length === 0) return null;
 
                   return (
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                       <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
                         Últimos 30 Dias
                       </h3>
-                      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
+                      <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 divide-y divide-slate-100/50">
                         {displayItems.map((r) => {
                           const diff = r.recentEndWeight - r.recentStartWeight;
                           return (
-                            <div key={r.exerciseId} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
+                            <div key={r.exerciseId} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
                               <span className="text-xs font-black text-slate-800 uppercase tracking-tight line-clamp-1 pr-4 flex-1 animate-in">
                                 {r.exerciseName}
                               </span>

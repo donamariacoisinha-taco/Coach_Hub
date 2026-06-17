@@ -790,8 +790,10 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
         </div>
       </motion.div>
 
-      {/* SWITCH SUBTABS CONTROL */}
-      <div className="space-y-4">
+      {isAdvanced && (
+        <>
+          {/* SWITCH SUBTABS CONTROL */}
+          <div className="space-y-4">
         <div className="flex bg-slate-100/80 rounded-[1.5rem] p-1 shadow-inner max-w-sm mx-auto">
           <button 
             onClick={() => setActiveTab('overview')}
@@ -1299,6 +1301,8 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };
