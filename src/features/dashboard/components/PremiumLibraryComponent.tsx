@@ -23,12 +23,14 @@ interface PremiumLibraryProps {
   profile: UserProfile | null;
   onRefreshDashboard: () => void;
   onTabChange: (tab: 'protocols' | 'evolution' | 'premium') => void;
+  history?: any[];
 }
 
 export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
   profile,
   onRefreshDashboard,
-  onTabChange
+  onTabChange,
+  history = []
 }) => {
   const [protocols, setProtocols] = useState<PremiumProtocol[]>([]);
   const [selectedCollection, setSelectedCollection] = useState<string>('todos');
@@ -49,6 +51,12 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
 
   const COLLECTIONS = [
     { id: 'todos', label: 'Todos', desc: 'Explore o catálogo completo' },
+    { id: 'especializacao_muscular', label: 'Especialização Muscular', desc: 'Acelere o desenvolvimento de um grupo muscular' },
+    { id: 'peitoral', label: 'Peitoral', desc: 'Foco em peito sob medida' },
+    { id: 'costas', label: 'Costas', desc: 'Foco em largura e densidade dorsal' },
+    { id: 'ombros', label: 'Ombros', desc: 'Foco em deltoides 3D e expansão' },
+    { id: 'bracos', label: 'Braços', desc: 'Foco em bíceps e tríceps de aço' },
+    { id: 'pernas', label: 'Pernas', desc: 'Foco em membros inferiores e força' },
     { id: 'primeiro', label: 'Primeiro Programa', desc: 'Ideal para iniciantes e consistência' },
     { id: 'forca', label: 'Ganho de Força', desc: 'Progressão tensional de carga máxima' },
     { id: 'hipertrofia', label: 'Hipertrofia', desc: 'Volume e tensão mecânica otimizados' },
@@ -155,6 +163,21 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
     const name = p.name.toLowerCase();
     const goal = p.goal.toLowerCase();
 
+    if (goal === 'peitoral' || name.includes('peitoral')) {
+      return 'Aceleração hipertrófica focada na expansão do peitoral superior, médio e inferior.';
+    }
+    if (goal === 'costas' || name.includes('costas')) {
+      return 'Otimização biomecânica para largura dorsal em V e remadas densas.';
+    }
+    if (goal === 'ombros' || name.includes('ombros')) {
+      return 'Desenvolvimento tridimensional do deltoide lateral, posterior e anterior.';
+    }
+    if (goal === 'bracos' || name.includes('braço') || name.includes('braços')) {
+      return 'Especialização em bíceps e tríceps com roscas, extensões e isolamento biomecânico.';
+    }
+    if (goal === 'pernas' || name.includes('pernas')) {
+      return 'Construção tensional de membros inferiores (quadríceps, posteriores e glúteos).';
+    }
     if (name.includes('força') || goal.includes('strength')) {
       return 'Desenvolvimento de força e sobrecarga progressiva.';
     }
@@ -176,13 +199,171 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
   const getPremiumDetails = (p: PremiumProtocol) => {
     const goalLower = p.goal.toLowerCase();
     const nameLower = p.name.toLowerCase();
+    const idLower = p.id.toLowerCase();
     
     let objetivo = "";
     let indicadoPara = "";
     let resultadoEsperado = "";
     let premiumIntroDesc = "";
+    let isSpecialization = false;
+    let priorityMuscleName = "";
+    let priorityMusclePercentage = 0;
+    let distributionData: { label: string; sets: string; percentage: number }[] = [];
+    let evolutionList: string[] = [];
+    let rulesList: string[] = [];
+    let successMetrics: string[] = [];
 
-    if (nameLower.includes('hipertrofia') || goalLower.includes('hypertrophy')) {
+    if (goalLower === 'peitoral' || nameLower.includes('peitoral') || idLower.includes('peitoral')) {
+      isSpecialization = true;
+      priorityMuscleName = "Peitoral";
+      priorityMusclePercentage = 45;
+      objetivo = "Prioridade máxima para desenvolvimento de peitoral.";
+      indicadoPara = "Atletas buscando focar em peitoral superior e volume total do tórax através de otimizações biomecânicas de exercícios de empurrar.";
+      resultadoEsperado = `Evolução tensional expressiva de reps e até ${p.strength_increase_pct || 25}% de ganho de força acumulado no supino inclinado.`;
+      premiumIntroDesc = "Protocolo biomecanicamente calibrado no qual o estímulo peitoral superior é prioritário e as séries semanais chegam a 22.";
+      distributionData = [
+        { label: 'Peito', sets: '18-22 séries', percentage: 45 },
+        { label: 'Costas', sets: '8 séries', percentage: 17 },
+        { label: 'Ombros', sets: '6 séries', percentage: 12 },
+        { label: 'Braços', sets: '6 séries', percentage: 12 },
+        { label: 'Pernas', sets: '8 séries', percentage: 14 }
+      ];
+      evolutionList = [
+        'Mais volume de peito',
+        'Mais força no supino',
+        'Maior frequência de estímulo de empurradores'
+      ];
+      rulesList = [
+        'O treino sempre começa por peito para aproveitar o máximo estoque de glicogênio e energia neuromuscular',
+        'O primeiro exercício do dia deve ser um movimento prioritário para peitoral (Ex: Supino Inclinado Máquina, Supino Inclinado Halteres, Chest Press)',
+        'Volume planejado de alta intensidade: 18 a 22 séries semanais'
+      ];
+      successMetrics = [
+        'Progredir carga/reps sob controle seguro no Supino Inclinado (Halteres ou Máquina)',
+        'Progredir carga/reps focando no torque no Supino Reto (Barra ou Halteres)',
+        'Melhorar amplitude e controle no pico de contração no Crucifixo (Cabo ou Halteres)'
+      ];
+    } else if (goalLower === 'costas' || nameLower.includes('costas') || idLower.includes('costas')) {
+      isSpecialization = true;
+      priorityMuscleName = "Costas";
+      priorityMusclePercentage = 45;
+      objetivo = "Prioridade máxima para desenvolvimento de costas (largura dorsal).";
+      indicadoPara = "Focado na expansão e espessamento do latíssimo do dorso para o desenvolvimento da linha física em V e densidade escapular.";
+      resultadoEsperado = `Evolução técnica consistente em trações, e ganho de até ${p.strength_increase_pct || 26}% de força nas puxadas altas.`;
+      premiumIntroDesc = "Trabalho estratégico com volume concentrado em vetores verticais de tração para proporcionar largura dorsal acentuada.";
+      distributionData = [
+        { label: 'Costas', sets: '18-22 séries', percentage: 45 },
+        { label: 'Peito', sets: '8 séries', percentage: 17 },
+        { label: 'Braços', sets: '8 séries', percentage: 17 },
+        { label: 'Pernas', sets: '8 séries', percentage: 17 },
+        { label: 'Ombros', sets: '6 séries', percentage: 12 }
+      ];
+      evolutionList = [
+        'Maior largura dorsal (formato em V-Shape)',
+        'Consolidação de força na Puxada Frente e Pulldown',
+        'Controle escapular preciso e melhora postural imediata'
+      ];
+      rulesList = [
+        'Priorizar puxadas verticais de alto foco antes das remadas tradicionais',
+        'Mais exercícios verticais integrados na rotina semanal',
+        'Volume planejado: 18 a 22 séries exclusivas de costas'
+      ];
+      successMetrics = [
+        'Aproveitamento de carga na Puxada Frente com estabilidade escapular',
+        'Execução técnica e flexora do Pulldown com amplitude máxima',
+        'Estabilidade sob controle de peso corporal na Barra Assistida / Barra Fixa'
+      ];
+    } else if (goalLower === 'ombros' || nameLower.includes('ombros') || nameLower.includes('deltoide') || idLower.includes('ombros')) {
+      isSpecialization = true;
+      priorityMuscleName = "Ombros";
+      priorityMusclePercentage = 45;
+      objetivo = "Prioridade máxima para desenvolvimento de deltoides (lateral e posterior).";
+      indicadoPara = "Dedicado a lapidar a musculatura dos deltoide de forma tridimensional para expandir a largura visual superior.";
+      resultadoEsperado = `Aumento expressivo da estabilidade articular e fibras de deltoides densos em todos os feixes anatômicos.`;
+      premiumIntroDesc = "Aceleração hipertrófica de ombros 3D, priorizando o estresse tensional e metabólico seletivo nos deltoides lateral e posterior.";
+      distributionData = [
+        { label: 'Ombros', sets: '18-20 séries', percentage: 45 },
+        { label: 'Peito', sets: '8 séries', percentage: 17 },
+        { label: 'Costas', sets: '8 séries', percentage: 17 },
+        { label: 'Pernas', sets: '8 séries', percentage: 17 },
+        { label: 'Braços', sets: '6 séries', percentage: 12 }
+      ];
+      evolutionList = [
+        'Ombros largos e preenchidos no plano anatômico (V-taper)',
+        'Isolamento tensional sem compensação do trapézio nas elevações',
+        'Preenchimento proporcional da linha clavicular anterior e posterior'
+      ];
+      rulesList = [
+        'Todo treino superior inicia obrigatoriamente pelo estímulo e foco em deltoides',
+        'Prioridade máxima de volume dada a elevação lateral e crucifixo inverso',
+        'Volume planejado de alta densidade metabólica: 18 a 20 séries de deltoide'
+      ];
+      successMetrics = [
+        'Maior peso e controle de descida na Elevação Lateral',
+        'Isolamento e controle excêntrico refinado no Crucifixo Inverso',
+        'Estabilidade de empurrar vertical e amplitude no Desenvolvimento de Ombros'
+      ];
+    } else if (goalLower === 'bracos' || nameLower.includes('braço') || nameLower.includes('braços') || idLower.includes('bracos')) {
+      isSpecialization = true;
+      priorityMuscleName = "Braços";
+      priorityMusclePercentage = 45;
+      objetivo = "Prioridade máxima para desenvolvimento de braços (bíceps e tríceps).";
+      indicadoPara = "Indicado para aceleração da hipertrofia seletiva de bíceps e tríceps com trabalho de alto volume e pump celular.";
+      resultadoEsperado = `Ganho de largura e volume muscular visível com melhora do contorno e força nas articulações.`;
+      premiumIntroDesc = "Maximização de estímulo através de séries conjugadas de antagonistas, trabalhando bíceps e tríceps com pico de contração.";
+      distributionData = [
+        { label: 'Braços', sets: '18-22 séries', percentage: 45 },
+        { label: 'Pernas', sets: '8 séries', percentage: 18 },
+        { label: 'Peito', sets: '6 séries', percentage: 12 },
+        { label: 'Costas', sets: '6 séries', percentage: 12 },
+        { label: 'Ombros', sets: '6 séries', percentage: 12 }
+      ];
+      evolutionList = [
+        'Hipertrofia seletiva e preenchimento de bíceps e tríceps',
+        'Aperfeiçoamento de torque nas roscas e extensões sem roubos',
+        'Ganho de vasodilatação periférica e volume sarcoplasmático'
+      ];
+      rulesList = [
+        'Volume extremamente concentrado e elevado em flexores e extensores de cotovelo',
+        'Inserir braços no início do treino para aproveitar o maior recurso energético',
+        'Integração inteligente de super-séries para manter o bombeamento sanguíneo'
+      ];
+      successMetrics = [
+        'Progressão confortável de carga com ótima postura na Rosca Direta',
+        'Amplitude sob contração estrita e controle de tempo na Rosca Martelo',
+        'Aumento saudável de peso no Tríceps Corda mantendo cotovelos estáticos'
+      ];
+    } else if (goalLower === 'pernas' || nameLower.includes('pernas') || idLower.includes('pernas')) {
+      isSpecialization = true;
+      priorityMuscleName = "Membros Inferiores";
+      priorityMusclePercentage = 45;
+      objetivo = "Prioridade máxima para desenvolvimento de pernas (quadríceps e glúteos).";
+      indicadoPara = "Dedicado a criar coxas e glúteos fortes, densos e visualmente dominantes com excelente ativação.";
+      resultadoEsperado = `Aprimoramento motor de torque nos joelhos e quadril, e aumento de até ${p.strength_increase_pct || 30}% no agachamento corporal.`;
+      premiumIntroDesc = "Treinos potentes integrando agachamentos pesados, leg press e isoladores em divisões semanais precisas.";
+      distributionData = [
+        { label: 'Pernas', sets: '20-22 séries', percentage: 45 },
+        { label: 'Peito', sets: '6 séries', percentage: 14 },
+        { label: 'Costas', sets: '6 séries', percentage: 14 },
+        { label: 'Ombros', sets: '6 séries', percentage: 14 },
+        { label: 'Braços', sets: '6 séries', percentage: 14 }
+      ];
+      evolutionList = [
+        'Densidade muscular profunda de quadríceps, isquiotibiais e glúteos',
+        'Sobrecarga progressiva no Agachamento Livre e Leg Press de alta amplitude',
+        'Resistência à fadiga e estabilização articular contra lesões'
+      ];
+      rulesList = [
+        'Dois estímulos de média/alta intensidade semanais obrigatórios e bem planejados',
+        'Ordenação tensional excelente de exercícios isoladores para multiarticulares',
+        'Volume expressivo planejado: 20 a 22 séries semanais'
+      ];
+      successMetrics = [
+        'Progressão constante de carga/repetições no Leg Press 45º',
+        'Profundidade biomecânica ótima com estabilidade de core no Agachamento Livre',
+        'Capacidade de vencer pontos de estagnação e isometria na Cadeira Extensora'
+      ];
+    } else if (nameLower.includes('hipertrofia') || goalLower.includes('hypertrophy')) {
       objetivo = "Desenvolvimento de massa muscular magra, densidade física e estímulo tensional.";
       indicadoPara = "Atletas buscando ganho de volume muscular tensional e melhora do tônus corporal global.";
       resultadoEsperado = `Hipertrofia miofibrilar progressiva e ganho de força de até ${p.strength_increase_pct || 18}%.`;
@@ -204,7 +385,19 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
       premiumIntroDesc = "Eleve sua capacidade operacional física a níveis superiores com ajustes biomecânicos finos que previnem desgastes e potencializam suas valências físicas.";
     }
 
-    return { objetivo, indicadoPara, resultadoEsperado, premiumIntroDesc };
+    return { 
+      objetivo, 
+      indicadoPara, 
+      resultadoEsperado, 
+      premiumIntroDesc,
+      isSpecialization,
+      priorityMuscleName,
+      priorityMusclePercentage,
+      distributionData,
+      evolutionList,
+      rulesList,
+      successMetrics
+    };
   };
 
   const getCreatorLabel = (by: string) => {
@@ -222,6 +415,36 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
 
   const getCoverDetails = (goal: string) => {
     switch (goal?.toLowerCase()) {
+      case 'peitoral':
+        return {
+          gradient: 'from-[#31102F] via-[#4A154B] to-[#E01E5A]',
+          label: 'CHEST // FOCUS',
+          textOpacity: 'opacity-[0.08]'
+        };
+      case 'costas':
+        return {
+          gradient: 'from-[#112F30] via-[#1F4E4F] to-[#0D9488]',
+          label: 'BACK // DENSITY',
+          textOpacity: 'opacity-[0.08]'
+        };
+      case 'ombros':
+        return {
+          gradient: 'from-[#201A15] via-[#3E2723] to-[#D84315]',
+          label: 'DELT // 3D',
+          textOpacity: 'opacity-[0.08]'
+        };
+      case 'bracos':
+        return {
+          gradient: 'from-[#1A1C30] via-[#2F325A] to-[#6366F1]',
+          label: 'ARMS // STEEL',
+          textOpacity: 'opacity-[0.08]'
+        };
+      case 'pernas':
+        return {
+          gradient: 'from-[#1B311E] via-[#2D5A27] to-[#16A34A]',
+          label: 'LEGS // POWER',
+          textOpacity: 'opacity-[0.08]'
+        };
       case 'strength':
       case 'força':
         return {
@@ -265,14 +488,42 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
     if (selectedCollection === 'populares') {
       return [...list].sort((a, b) => b.athletes_count - a.athletes_count).slice(0, 3);
     }
+    if (selectedCollection === 'especializacao_muscular') {
+      const specializedGoals = ['peitoral', 'costas', 'ombros', 'bracos', 'pernas'];
+      return list.filter(p => specializedGoals.includes(p.goal.toLowerCase()));
+    }
+    if (selectedCollection === 'peitoral') {
+      return list.filter(p => p.goal === 'peitoral' || p.id.includes('peitoral_respeito'));
+    }
+    if (selectedCollection === 'costas') {
+      return list.filter(p => p.goal === 'costas' || p.id.includes('costas_largas'));
+    }
+    if (selectedCollection === 'ombros') {
+      return list.filter(p => p.goal === 'ombros' || p.goal === 'deltoide' || p.id.includes('ombros_3d'));
+    }
+    if (selectedCollection === 'bracos') {
+      return list.filter(p => p.goal === 'bracos' || p.id.includes('bracos_aco'));
+    }
+    if (selectedCollection === 'pernas') {
+      return list.filter(p => p.goal === 'pernas' || p.id.includes('pernas_imponentes'));
+    }
     return list;
   };
 
   const filteredCollectionList = filterProtocols(protocols);
 
+  const totalWorkouts = history ? history.length : 0;
+  const userLevel = totalWorkouts < 10 ? 'beginner' : totalWorkouts < 40 ? 'intermediate' : 'advanced';
+
   const renderProtocolCard = (p: PremiumProtocol) => {
     const primaryGoal = getPrimaryGoalSentence(p);
     const cover = getCoverDetails(p.goal);
+    const isSuggested = (p.id.includes('peitoral-respeito') || 
+                         p.id.includes('costas-largas') || 
+                         p.id.includes('ombros-3d') || 
+                         p.id.includes('bracos-aco') || 
+                         p.id.includes('pernas-imponentes')) && p.difficulty === userLevel;
+
     return (
       <motion.div
         key={p.id}
@@ -289,6 +540,13 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
           <div className={`absolute bottom-3 left-4 text-3xl font-[1000] italic tracking-tighter text-white select-none pointer-events-none ${cover.textOpacity} uppercase`}>
             {cover.label}
           </div>
+
+          {/* Suggested Badge top left */}
+          {isSuggested && (
+            <div className="absolute top-4 left-4 bg-amber-500/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm border border-amber-400/30">
+              ★ Sugerido Rubi OS
+            </div>
+          )}
 
           {p.premium && (
             <div className="absolute top-4 right-4 bg-black/40 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded-full flex items-center justify-center">
@@ -411,6 +669,37 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                 Voltar ao Catálogo
               </button>
             </div>
+
+            {/* Adaptive Sync Suggestion Banner */}
+            {['especializacao_muscular', 'peitoral', 'costas', 'ombros', 'bracos', 'pernas'].includes(selectedCollection) && (
+              <div className="bg-gradient-to-r from-slate-900 to-[#101F3E] p-5 sm:p-6 rounded-3xl border border-slate-800 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-md relative overflow-hidden my-4">
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-[#7BA7FF]/10 blur-[40px] pointer-events-none" />
+                <div className="space-y-1 relative z-10 text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-[#7BA7FF]/10 text-[#7BA7FF] text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-md border border-[#7BA7FF]/20 flex items-center gap-1">
+                      ★ RECOMENDAÇÃO INTELIGENTE
+                    </span>
+                    <span className="text-[10px] text-[#7BA7FF] font-black uppercase tracking-wider font-mono">KYRON Adaptive Engine</span>
+                  </div>
+                  <h3 className="text-sm font-semibold tracking-tight text-white uppercase pt-1">
+                    Análise de Volume e Frequência do Perfil
+                  </h3>
+                  <p className="text-xs text-slate-350 max-w-xl font-normal leading-relaxed">
+                    Com base no seu histórico real de <strong className="text-white">{totalWorkouts} treinos</strong> concluídos no KYRON OS, o algoritmo adaptativo classificou seu perfil como <strong className="text-[#7BA7FF] uppercase">{userLevel === 'beginner' ? 'Iniciante' : userLevel === 'intermediate' ? 'Intermediário' : 'Avançado'}</strong>.
+                  </p>
+                  <p className="text-[11px] text-slate-400 font-normal leading-normal">
+                    Recomendamos assinar os protocolos marcados com a tag <span className="text-amber-400 font-bold">★ Sugerido Rubi OS</span> para maximizar a frequência semanal e a priorização mecânica com segurança biomecânica.
+                  </p>
+                </div>
+                <div className="bg-[#7BA7FF]/15 border border-[#7BA7FF]/30 rounded-2xl p-4 flex flex-col items-center justify-center min-w-[140px] shrink-0 self-stretch md:self-auto relative z-10">
+                  <span className="text-[9px] font-black text-[#7BA7FF] tracking-wider uppercase">Nível Rubi OS</span>
+                  <span className="text-lg font-black text-white uppercase tracking-tight mt-0.5">
+                    {userLevel === 'beginner' ? 'Iniciante' : userLevel === 'intermediate' ? 'Intermediário' : 'Avançado'}
+                  </span>
+                  <span className="text-[9px] text-slate-400 mt-1 font-normal uppercase">{totalWorkouts} Treinos Totais</span>
+                </div>
+              </div>
+            )}
 
             {filteredCollectionList.length === 0 ? (
               <div className="p-14 text-center bg-white/60 border border-slate-150 rounded-3xl text-slate-450 font-semibold text-xs uppercase tracking-wider">
@@ -554,47 +843,176 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                 <X size={16} />
               </button>
 
-              {/* 7. PREMIUM INTRODUCTION SECTION */}
-              <div className="space-y-4 pt-4 text-left">
-                <span className="text-[9px] font-black tracking-[0.2em] text-[#7BA7FF] uppercase">Treino Personalizado</span>
-                <h2 className="text-2xl sm:text-3xl font-[1000] text-slate-900 uppercase tracking-tight">
-                  {selectedProtocol.name}
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
-                  {getPremiumDetails(selectedProtocol).premiumIntroDesc}
-                </p>
-                <p className="text-xs sm:text-sm text-slate-700 font-medium bg-slate-50 border border-slate-100 rounded-2xl p-4">
-                  <span className="font-bold text-slate-900 block text-[10px] uppercase tracking-wider mb-1">Ideal Para</span>
-                  {getPremiumDetails(selectedProtocol).indicadoPara}
-                </p>
-              </div>
+              {(() => {
+                const details = getPremiumDetails(selectedProtocol);
+                return (
+                  <>
+                    {/* 7. PREMIUM INTRODUCTION SECTION */}
+                    <div className="space-y-4 pt-4 text-left">
+                      <span className="text-[9px] font-black tracking-[0.2em] text-[#7BA7FF] uppercase">Treino Personalizado</span>
+                      <h2 className="text-2xl sm:text-3xl font-[1000] text-slate-900 uppercase tracking-tight">
+                        {selectedProtocol.name}
+                      </h2>
+                      <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
+                        {details.premiumIntroDesc}
+                      </p>
+                      <p className="text-xs sm:text-sm text-slate-700 font-medium bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                        <span className="font-bold text-slate-900 block text-[10px] uppercase tracking-wider mb-1">Ideal Para</span>
+                        {details.indicadoPara}
+                      </p>
+                    </div>
 
-              {/* 5. PREMIUM INFORMATION HIERARCHY (1. Name, 2. Objective, 3. Frequency, 4. Duration, 5. Expected Result) */}
-              <div className="space-y-4 pt-6 border-t border-slate-100 mt-6">
-                {/* 2. Objetivo */}
-                <div className="space-y-1">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] block">Objetivo</span>
-                  <p className="text-sm text-slate-800 font-extrabold">{getPremiumDetails(selectedProtocol).objetivo}</p>
-                </div>
+                    {details.isSpecialization ? (
+                      /* ESPECIALIZAÇÃO MUSCULAR 2.0 ADVANCED PORTAL CONTENT */
+                      <div className="mt-6 p-5 sm:p-6 rounded-3xl bg-slate-950 text-white text-left space-y-6 relative overflow-hidden border border-slate-800">
+                        {/* Ambient gradient */}
+                        <div className="absolute top-0 right-0 w-36 h-36 rounded-full bg-[#7BA7FF]/10 blur-[45px] pointer-events-none" />
 
-                {/* 3. Frequência Semanal */}
-                <div className="space-y-1">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] block">Frequência Semanal</span>
-                  <p className="text-sm text-slate-800 font-bold">{selectedProtocol.frequency} treinos por semana</p>
-                </div>
+                        {/* Top indicator badge */}
+                        <div className="flex items-center gap-2 relative z-10">
+                          <span className="bg-amber-500/15 text-amber-500 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] px-2.5 py-1 rounded-lg border border-amber-500/25">
+                            ★ ESPECIALIZAÇÃO MUSCULAR 2.0
+                          </span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono">KYRON OS ADAPTIVE</span>
+                        </div>
 
-                {/* 4. Duração */}
-                <div className="space-y-1">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] block">Duração</span>
-                  <p className="text-sm text-slate-800 font-bold">{selectedProtocol.duration_weeks} semanas</p>
-                </div>
+                        {/* 1. Objetivo Section */}
+                        <div className="space-y-1.5 relative z-10">
+                          <span className="text-[9.5px] font-mono font-bold text-[#7BA7FF] uppercase tracking-[0.15em] block">Objetivo</span>
+                          <p className="text-sm sm:text-base text-white font-[950] tracking-tight uppercase leading-snug">
+                            {details.objetivo}
+                          </p>
+                        </div>
 
-                {/* 5. Resultado Esperado */}
-                <div className="space-y-1">
-                  <span className="text-[9px] font-black text-[#7BA7FF] uppercase tracking-[0.15em] block">Resultado Esperado</span>
-                  <p className="text-sm text-slate-900 font-black">{getPremiumDetails(selectedProtocol).resultadoEsperado}</p>
-                </div>
-              </div>
+                        {/* 2. Músculo Prioritário Visual Progress Ring / Bars */}
+                        <div className="space-y-4 pt-1 relative z-10">
+                          <div className="flex justify-between items-end">
+                            <span className="text-[9.5px] font-mono font-bold text-slate-400 uppercase tracking-[0.15em]">MÚSCULO PRIORITÁRIO</span>
+                            <span className="text-[10px] font-black text-[#7BA7FF] font-mono uppercase">{details.priorityMuscleName} (45%) vs Demais Grupos (55%)</span>
+                          </div>
+
+                          <div className="space-y-2.5">
+                            {/* Bar Indicator */}
+                            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden flex">
+                              <div 
+                                className="h-full bg-gradient-to-r from-[#7BA7FF] to-indigo-500 rounded-l-full" 
+                                style={{ width: `${details.priorityMusclePercentage}%` }} 
+                              />
+                              <div 
+                                className="h-full bg-slate-700" 
+                                style={{ width: `${100 - (details.priorityMusclePercentage || 45)}%` }} 
+                              />
+                            </div>
+                            <div className="flex justify-between text-[11px] font-bold text-slate-350">
+                              <span className="flex items-center gap-1.5 font-extrabold text-white">
+                                <span className="w-2 h-2 rounded-full bg-[#7BA7FF]" />
+                                {details.priorityMuscleName} ({details.priorityMusclePercentage}%)
+                              </span>
+                              <span className="flex items-center gap-1.5 text-slate-400">
+                                <span className="w-2 h-2 rounded-full bg-slate-600" />
+                                Outros Grupos (55%)
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Mini distribution panel */}
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1.5">
+                            {details.distributionData?.map((item, idx) => (
+                              <div 
+                                key={idx} 
+                                className={`p-2.5 rounded-2xl text-center flex flex-col justify-between border ${
+                                  idx === 0 
+                                    ? 'bg-[#7BA7FF]/10 border-[#7BA7FF]/35 text-white' 
+                                    : 'bg-slate-900/60 border-slate-800/80 text-slate-450'
+                                }`}
+                              >
+                                <span className={`text-[8px] font-black uppercase tracking-wider ${
+                                  idx === 0 ? 'text-[#7BA7FF]' : 'text-slate-500'
+                                } truncate`}>{item.label}</span>
+                                <span className="text-xs font-black mt-1 leading-none">{item.sets.split(' ')[0]}</span>
+                                <span className={`text-[9px] font-black font-mono mt-0.5 ${
+                                  idx === 0 ? 'text-[#7BA7FF]' : 'text-slate-500'
+                                }`}>{item.percentage}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 3. Regras de Prioridade Muscular */}
+                        <div className="space-y-3 bg-slate-900/40 border border-slate-800/80 p-4 sm:p-5 rounded-2xl relative z-10">
+                          <span className="text-[9.5px] font-mono font-bold text-[#7BA7FF] uppercase tracking-[0.15em] block">Regras de Prioridade Muscular</span>
+                          <ul className="space-y-3 list-none">
+                            {details.rulesList?.map((rule, idx) => (
+                              <li key={idx} className="flex gap-3 items-start text-xs text-slate-350 font-normal leading-relaxed">
+                                <span className="bg-[#7BA7FF]/15 text-[#7BA7FF] text-[10px] w-5 h-5 rounded-md flex items-center justify-center shrink-0 font-bold font-mono">
+                                  0{idx + 1}
+                                </span>
+                                <span>{rule}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {/* 4. O Que Você Vai Evoluir checklist */}
+                        <div className="space-y-3 relative z-10">
+                          <span className="text-[9.5px] font-mono font-bold text-slate-400 uppercase tracking-[0.15em] block">O Que Você Vai Evoluir</span>
+                          <div className="grid grid-cols-1 gap-2">
+                            {details.evolutionList?.map((evo, idx) => (
+                              <div key={idx} className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-2xl text-xs font-bold text-emerald-400">
+                                <span className="text-emerald-400 text-sm font-black shrink-0">✓</span>
+                                <span>{evo}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 5. Métricas de Sucesso */}
+                        <div className="space-y-3 bg-gradient-to-br from-amber-500/5 to-amber-600/5 border border-amber-500/20 p-4 sm:p-5 rounded-2xl relative z-10">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9.5px] font-mono font-bold text-amber-400 uppercase tracking-[0.15em]">MÉTRICAS DE SUCESSO</span>
+                            <span className="text-[8px] font-black text-amber-500/80 bg-amber-500/10 px-1.5 py-0.5 rounded-md tracking-wider">PROGRESSÃO</span>
+                          </div>
+                          <ul className="space-y-2.5 list-none">
+                            {details.successMetrics?.map((met, idx) => (
+                              <li key={idx} className="flex gap-2.5 items-start text-xs text-amber-250/95 font-bold leading-relaxed">
+                                <span className="text-amber-500 text-sm shrink-0 mt-0.5">📈</span>
+                                <span>{met}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Standard premium details fallback block for normal protocols */
+                      <div className="space-y-4 pt-6 border-t border-slate-100 mt-6">
+                        {/* 2. Objetivo */}
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] block">Objetivo</span>
+                          <p className="text-sm text-slate-800 font-extrabold">{details.objetivo}</p>
+                        </div>
+
+                        {/* 3. Frequência Semanal */}
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] block">Frequência Semanal</span>
+                          <p className="text-sm text-slate-800 font-bold">{selectedProtocol.frequency} treinos por semana</p>
+                        </div>
+
+                        {/* 4. Duração */}
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] block">Duração</span>
+                          <p className="text-sm text-slate-800 font-bold">{selectedProtocol.duration_weeks} semanas</p>
+                        </div>
+
+                        {/* 5. Resultado Esperado */}
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black text-[#7BA7FF] uppercase tracking-[0.15em] block">Resultado Esperado</span>
+                          <p className="text-sm text-slate-900 font-black">{details.resultadoEsperado}</p>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* CURIOSITY DISCLOSURE BUTTON FOR WORKOUTS */}
               <div className="pt-6 border-t border-slate-100 mt-6">

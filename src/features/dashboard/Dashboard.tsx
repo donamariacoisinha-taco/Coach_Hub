@@ -800,6 +800,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             profile={profile || null} 
             onRefreshDashboard={refresh} 
             onTabChange={(tab) => setActiveTab(tab)} 
+            history={history}
           />
         ) : activeTab === 'protocols' ? (
           <>

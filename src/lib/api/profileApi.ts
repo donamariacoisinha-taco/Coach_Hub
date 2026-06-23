@@ -186,7 +186,7 @@ export const profileApi = {
       const columnsInTable = [
         'email', 'role', 'is_admin', 'name', 'full_name', 'avatar_url',
         'weight', 'height', 'age', 'birth_date', 'onboarding_completed',
-        'workout_streak', 'created_at'
+        'workout_streak', 'created_at', 'is_premium'
       ];
 
       columnsInTable.forEach(col => {

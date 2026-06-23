@@ -439,6 +439,997 @@ export const INITIAL_PREMIUM_PROTOCOLS: PremiumProtocol[] = [
         changes: ['Versão gerada pela Rubi AI para resolver problemas de filas em academias comerciais.']
       }
     ]
+  },
+  {
+    id: 'peitoral-respeito-iniciante',
+    name: 'Peitoral de Respeito • Iniciante',
+    description: 'Protocolo de especialização peitoral focado em técnica básica de empurrar, ativação seletiva e menor volume para promover consistência.',
+    version: 1,
+    premium: true,
+    goal: 'peitoral',
+    difficulty: 'beginner',
+    duration_weeks: 8,
+    frequency: 3,
+    created_by: 'coach_kyron',
+    rating: 4.8,
+    featured: false,
+    athletes_count: 520,
+    completion_rate: 94,
+    strength_increase_pct: 12,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'peit_ini_w_a',
+        name: 'Treino A • Ativação Clavicular & Base',
+        description: 'Técnica e conexões sinápticas primárias.',
+        exercises: [
+          {
+            exercise_id: 'ex_peit_ini_1',
+            exercise_name: 'Supino Plano com Halteres',
+            sets: 3,
+            reps: '10',
+            weight: 16,
+            rest_time: 90,
+            sort_order: 1,
+            sets_json: [
+              { reps: '10', weight: 16, rest_time: 90 },
+              { reps: '10', weight: 16, rest_time: 90 },
+              { reps: '10', weight: 16, rest_time: 90 }
+            ]
+          },
+          {
+            exercise_id: 'ex_peit_ini_2',
+            exercise_name: 'Crucifixo Inclinado com Halteres',
+            sets: 3,
+            reps: '12',
+            weight: 12,
+            rest_time: 90,
+            sort_order: 2,
+            sets_json: [
+              { reps: '12', weight: 12, rest_time: 90 },
+              { reps: '12', weight: 12, rest_time: 90 },
+              { reps: '12', weight: 12, rest_time: 90 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão inicial de Especialização Clavicular de peito.']
+      }
+    ]
+  },
+  {
+    id: 'peitoral-respeito-intermediario',
+    name: 'Peitoral de Respeito • Intermediário',
+    description: 'Foco em maior volume e duas sessões semanais com ativação de diferentes porções do peitoral (superior e médio) para desenvolvimento moderado.',
+    version: 1,
+    premium: true,
+    goal: 'peitoral',
+    difficulty: 'intermediate',
+    duration_weeks: 10,
+    frequency: 4,
+    created_by: 'coach_kyron',
+    rating: 4.88,
+    featured: false,
+    athletes_count: 1240,
+    completion_rate: 89,
+    strength_increase_pct: 20,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'peit_int_w_a',
+        name: 'Treino A • Ênfase Clavicular y Superior',
+        description: 'Tensão mecânica sob inclinação.',
+        exercises: [
+          {
+            exercise_id: 'ex_peit_int_1',
+            exercise_name: 'Supino Inclinado com Halteres',
+            sets: 4,
+            reps: '10',
+            weight: 22,
+            rest_time: 90,
+            sort_order: 1,
+            sets_json: [
+              { reps: '10', weight: 22, rest_time: 90 },
+              { reps: '10', weight: 22, rest_time: 90 },
+              { reps: '10', weight: 22, rest_time: 90 },
+              { reps: '10', weight: 22, rest_time: 90 }
+            ]
+          },
+          {
+            exercise_id: 'ex_peit_int_2',
+            exercise_name: 'Crossover na Polia Alta',
+            sets: 3,
+            reps: '12',
+            weight: 15,
+            rest_time: 60,
+            sort_order: 2,
+            sets_json: [
+              { reps: '12', weight: 15, rest_time: 60 },
+              { reps: '12', weight: 15, rest_time: 60 },
+              { reps: '12', weight: 15, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão inicial.']
+      }
+    ]
+  },
+  {
+    id: 'peitoral-respeito-avancado',
+    name: 'Peitoral de Respeito • Avançado',
+    description: 'Especialização completa de alta intensidade e volume elevado. 3 estímulos semanais focados em peitoral superior, médio e inferior com técnicas de alta densidade.',
+    version: 1,
+    premium: true,
+    goal: 'peitoral',
+    difficulty: 'advanced',
+    duration_weeks: 12,
+    frequency: 5,
+    created_by: 'coach_kyron',
+    rating: 4.95,
+    featured: true,
+    athletes_count: 890,
+    completion_rate: 86,
+    strength_increase_pct: 28,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'peit_av_w_a',
+        name: 'Treino A • Choque Esternocostal & Força',
+        description: 'Tensão limite e repetições pesadas.',
+        exercises: [
+          {
+            exercise_id: 'ex_peit_av_1',
+            exercise_name: 'Supino Reto com Barra',
+            sets: 4,
+            reps: '8',
+            weight: 80,
+            rest_time: 120,
+            sort_order: 1,
+            sets_json: [
+              { reps: '8', weight: 80, rest_time: 120 },
+              { reps: '8', weight: 80, rest_time: 120 },
+              { reps: '8', weight: 80, rest_time: 120 },
+              { reps: '8', weight: 80, rest_time: 120 }
+            ]
+          },
+          {
+            exercise_id: 'ex_peit_av_2',
+            exercise_name: 'Crucifixo Inclinado na Polia',
+            sets: 4,
+            reps: '12',
+            weight: 20,
+            rest_time: 60,
+            sort_order: 2,
+            sets_json: [
+              { reps: '12', weight: 20, rest_time: 60 },
+              { reps: '12', weight: 20, rest_time: 60 },
+              { reps: '12', weight: 20, rest_time: 60 },
+              { reps: '12', weight: 20, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão biomecânica avançada para quebra de platôs.']
+      }
+    ]
+  },
+  {
+    id: 'costas-largas-iniciante',
+    name: 'Costas Largas • Iniciante',
+    description: 'Melhore sua largura dorsal (formato em V) com ênfase em controle escapular e puxadas básicas. Volume reduzido para adaptar tendões e pegada.',
+    version: 1,
+    premium: true,
+    goal: 'costas',
+    difficulty: 'beginner',
+    duration_weeks: 8,
+    frequency: 3,
+    created_by: 'coach_kyron',
+    rating: 4.75,
+    featured: false,
+    athletes_count: 480,
+    completion_rate: 93,
+    strength_increase_pct: 11,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'cost_ini_w_a',
+        name: 'Treino A • Ativação de Puxada & Core',
+        description: 'Construindo o controle escapular inicial.',
+        exercises: [
+          {
+            exercise_id: 'ex_cost_ini_1',
+            exercise_name: 'Puxada Alta Pronada',
+            sets: 3,
+            reps: '10',
+            weight: 35,
+            rest_time: 90,
+            sort_order: 1,
+            sets_json: [
+              { reps: '10', weight: 35, rest_time: 90 },
+              { reps: '10', weight: 35, rest_time: 90 },
+              { reps: '10', weight: 35, rest_time: 90 }
+            ]
+          },
+          {
+            exercise_id: 'ex_cost_ini_2',
+            exercise_name: 'Remada Sentada na Polia Alta',
+            sets: 3,
+            reps: '12',
+            weight: 30,
+            rest_time: 90,
+            sort_order: 2,
+            sets_json: [
+              { reps: '12', weight: 30, rest_time: 90 },
+              { reps: '12', weight: 30, rest_time: 90 },
+              { reps: '12', weight: 30, rest_time: 90 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Modelo adaptativo de tração dorsal.']
+      }
+    ]
+  },
+  {
+    id: 'costas-largas-intermediario',
+    name: 'Costas Largas • Intermediário',
+    description: 'Foco em largura e densidade dorsal com maior variedade de empunhaduras e remadas livres para densidade de miolo de costas.',
+    version: 1,
+    premium: true,
+    goal: 'costas',
+    difficulty: 'intermediate',
+    duration_weeks: 10,
+    frequency: 4,
+    created_by: 'coach_kyron',
+    rating: 4.85,
+    featured: false,
+    athletes_count: 980,
+    completion_rate: 90,
+    strength_increase_pct: 18,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'cost_int_w_a',
+        name: 'Treino A • Miolo de Costas & Tração',
+        description: 'Remadas livres de alta ativação espinhal.',
+        exercises: [
+          {
+            exercise_id: 'ex_cost_int_1',
+            exercise_name: 'Remada Curvada com Barra',
+            sets: 4,
+            reps: '10',
+            weight: 40,
+            rest_time: 90,
+            sort_order: 1,
+            sets_json: [
+              { reps: '10', weight: 40, rest_time: 90 },
+              { reps: '10', weight: 40, rest_time: 90 },
+              { reps: '10', weight: 40, rest_time: 90 },
+              { reps: '10', weight: 40, rest_time: 90 }
+            ]
+          },
+          {
+            exercise_id: 'ex_cost_int_2',
+            exercise_name: 'Puxador Articulado Aberto',
+            sets: 3,
+            reps: '12',
+            weight: 45,
+            rest_time: 90,
+            sort_order: 2,
+            sets_json: [
+              { reps: '12', weight: 45, rest_time: 90 },
+              { reps: '12', weight: 45, rest_time: 90 },
+              { reps: '12', weight: 45, rest_time: 90 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão intermediária.']
+      }
+    ]
+  },
+  {
+    id: 'costas-largas-avancado',
+    name: 'Costas Largas • Avançado',
+    description: 'Especialização de alta frequência e volume elevado de tração. Técnicas de pico de contração para isolar latíssimo do dorso de forma madura.',
+    version: 1,
+    premium: true,
+    goal: 'costas',
+    difficulty: 'advanced',
+    duration_weeks: 12,
+    frequency: 5,
+    created_by: 'coach_kyron',
+    rating: 4.92,
+    featured: true,
+    athletes_count: 730,
+    completion_rate: 85,
+    strength_increase_pct: 26,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'cost_av_w_a',
+        name: 'Treino A • Largura Absoluta & V-Shape',
+        description: 'Progressão tensional máxima de latíssimo.',
+        exercises: [
+          {
+            exercise_id: 'ex_cost_av_1',
+            exercise_name: 'Barra Fixa com Peso Adicional',
+            sets: 4,
+            reps: '6-8',
+            weight: 10,
+            rest_time: 120,
+            sort_order: 1,
+            sets_json: [
+              { reps: '8', weight: 10, rest_time: 120 },
+              { reps: '8', weight: 10, rest_time: 120 },
+              { reps: '6', weight: 10, rest_time: 120 },
+              { reps: '6', weight: 10, rest_time: 120 }
+            ]
+          },
+          {
+            exercise_id: 'ex_cost_av_2',
+            exercise_name: 'Remada Unilateral com Halter (Serrote)',
+            sets: 4,
+            reps: '10',
+            weight: 36,
+            rest_time: 90,
+            sort_order: 2,
+            sets_json: [
+              { reps: '10', weight: 36, rest_time: 90 },
+              { reps: '10', weight: 36, rest_time: 90 },
+              { reps: '10', weight: 36, rest_time: 90 },
+              { reps: '10', weight: 36, rest_time: 90 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão avançada para expansão extrema de latíssimos.']
+      }
+    ]
+  },
+  {
+    id: 'ombros-3d-iniciante',
+    name: 'Ombros 3D • Iniciante',
+    description: 'Correção de postura e aumento de largura clavicular com exercícios controlados focando na técnica das elevações laterais.',
+    version: 1,
+    premium: true,
+    goal: 'ombros',
+    difficulty: 'beginner',
+    duration_weeks: 8,
+    frequency: 3,
+    created_by: 'coach_kyron',
+    rating: 4.82,
+    featured: false,
+    athletes_count: 610,
+    completion_rate: 95,
+    strength_increase_pct: 10,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'omb_ini_w_a',
+        name: 'Treino A • Ativação Deltoide Global',
+        description: 'Técnica primária de elevação sem ativação de trapézio.',
+        exercises: [
+          {
+            exercise_id: 'ex_omb_ini_1',
+            exercise_name: 'Desenvolvimento Sentado com Halteres',
+            sets: 3,
+            reps: '10',
+            weight: 12,
+            rest_time: 90,
+            sort_order: 1,
+            sets_json: [
+              { reps: '10', weight: 12, rest_time: 90 },
+              { reps: '10', weight: 12, rest_time: 90 },
+              { reps: '10', weight: 12, rest_time: 90 }
+            ]
+          },
+          {
+            exercise_id: 'ex_omb_ini_2',
+            exercise_name: 'Elevação Lateral com Halteres em Pé',
+            sets: 3,
+            reps: '12',
+            weight: 6,
+            rest_time: 60,
+            sort_order: 2,
+            sets_json: [
+              { reps: '12', weight: 6, rest_time: 60 },
+              { reps: '12', weight: 6, rest_time: 60 },
+              { reps: '12', weight: 6, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão inicial de base clavicular.']
+      }
+    ]
+  },
+  {
+    id: 'ombros-3d-intermediario',
+    name: 'Ombros 3D • Intermediário',
+    description: 'Desenvolvimento tridimensional do ombro. Distribuição de estímulos nos três feixes (lateral, anterior e posterior) com polias.',
+    version: 1,
+    premium: true,
+    goal: 'ombros',
+    difficulty: 'intermediate',
+    duration_weeks: 10,
+    frequency: 4,
+    created_by: 'coach_kyron',
+    rating: 4.88,
+    featured: false,
+    athletes_count: 1130,
+    completion_rate: 91,
+    strength_increase_pct: 16,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'omb_int_w_a',
+        name: 'Treino A • Deltoide Tridimensional Polia',
+        description: 'Tensão sob polias e ângulos variados.',
+        exercises: [
+          {
+            exercise_id: 'ex_omb_int_1',
+            exercise_name: 'Elevação Lateral na Polia Unilateral',
+            sets: 4,
+            reps: '12',
+            weight: 8,
+            rest_time: 60,
+            sort_order: 1,
+            sets_json: [
+              { reps: '12', weight: 8, rest_time: 60 },
+              { reps: '12', weight: 8, rest_time: 60 },
+              { reps: '12', weight: 8, rest_time: 60 },
+              { reps: '12', weight: 8, rest_time: 60 }
+            ]
+          },
+          {
+            exercise_id: 'ex_omb_int_2',
+            exercise_name: 'Crucifixo Invertido na Polia Alta',
+            sets: 3,
+            reps: '12',
+            weight: 12,
+            rest_time: 60,
+            sort_order: 2,
+            sets_json: [
+              { reps: '12', weight: 12, rest_time: 60 },
+              { reps: '12', weight: 12, rest_time: 60 },
+              { reps: '12', weight: 12, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão intermediária.']
+      }
+    ]
+  },
+  {
+    id: 'ombros-3d-avancado',
+    name: 'Ombros 3D • Avançado',
+    description: 'Especialização completa de alta intensidade de deltoide. Foco visual clássico em V-taper com estímulo tensional e metabólico elevado.',
+    version: 1,
+    premium: true,
+    goal: 'ombros',
+    difficulty: 'advanced',
+    duration_weeks: 12,
+    frequency: 5,
+    created_by: 'coach_kyron',
+    rating: 4.96,
+    featured: true,
+    athletes_count: 670,
+    completion_rate: 87,
+    strength_increase_pct: 22,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'omb_av_w_a',
+        name: 'Treino A • Elevação Gigante & Volume Extra',
+        description: 'Estresse sarcoplasmático induzido.',
+        exercises: [
+          {
+            exercise_id: 'ex_omb_av_1',
+            exercise_name: 'Desenvolvimento Militar Barra em Pé',
+            sets: 4,
+            reps: '6-8',
+            weight: 40,
+            rest_time: 120,
+            sort_order: 1,
+            sets_json: [
+              { reps: '8', weight: 40, rest_time: 120 },
+              { reps: '8', weight: 40, rest_time: 120 },
+              { reps: '6', weight: 40, rest_time: 120 },
+              { reps: '6', weight: 40, rest_time: 120 }
+            ]
+          },
+          {
+            exercise_id: 'ex_omb_av_2',
+            exercise_name: 'Elevação Lateral Multipressão (Série Gigante)',
+            sets: 4,
+            reps: '15',
+            weight: 14,
+            rest_time: 60,
+            sort_order: 2,
+            sets_json: [
+              { reps: '15', weight: 14, rest_time: 60 },
+              { reps: '15', weight: 12, rest_time: 60 },
+              { reps: '15', weight: 10, rest_time: 60 },
+              { reps: '15', weight: 8, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão avançada 3D.']
+      }
+    ]
+  },
+  {
+    id: 'bracos-aco-iniciante',
+    name: 'Braços de Aço • Iniciante',
+    description: 'Fortalecimento e hipertrofia de bíceps e tríceps com roscas fundamentais de cotovelo, maximizando o controle de movimento.',
+    version: 1,
+    premium: true,
+    goal: 'bracos',
+    difficulty: 'beginner',
+    duration_weeks: 8,
+    frequency: 3,
+    created_by: 'coach_kyron',
+    rating: 4.78,
+    featured: false,
+    athletes_count: 450,
+    completion_rate: 92,
+    strength_increase_pct: 13,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'brac_ini_w_a',
+        name: 'Treino A • Isolação Básica de Braços',
+        description: 'Progressão mecânica isolada de flexores/extensores.',
+        exercises: [
+          {
+            exercise_id: 'ex_brac_ini_1',
+            exercise_name: 'Rosca Direta com Barra W',
+            sets: 3,
+            reps: '10',
+            weight: 14,
+            rest_time: 90,
+            sort_order: 1,
+            sets_json: [
+              { reps: '10', weight: 14, rest_time: 90 },
+              { reps: '10', weight: 14, rest_time: 90 },
+              { reps: '10', weight: 14, rest_time: 90 }
+            ]
+          },
+          {
+            exercise_id: 'ex_brac_ini_2',
+            exercise_name: 'Tríceps na Polia com Corda',
+            sets: 3,
+            reps: '12',
+            weight: 15,
+            rest_time: 60,
+            sort_order: 2,
+            sets_json: [
+              { reps: '12', weight: 15, rest_time: 60 },
+              { reps: '12', weight: 15, rest_time: 60 },
+              { reps: '12', weight: 15, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão inicial básica de braços.']
+      }
+    ]
+  },
+  {
+    id: 'bracos-aco-intermediario',
+    name: 'Braços de Aço • Intermediário',
+    description: 'Treino otimizado para bíceps e tríceps utilizando super-séries para manter o fluxo de sangue e acelerar o desenvolvimento.',
+    version: 1,
+    premium: true,
+    goal: 'bracos',
+    difficulty: 'intermediate',
+    duration_weeks: 10,
+    frequency: 4,
+    created_by: 'coach_kyron',
+    rating: 4.87,
+    featured: false,
+    athletes_count: 1020,
+    completion_rate: 89,
+    strength_increase_pct: 19,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'brac_int_w_a',
+        name: 'Treino A • Supersets de Antagonistas',
+        description: 'Isolamento contínuo alternado.',
+        exercises: [
+          {
+            exercise_id: 'ex_brac_int_1',
+            exercise_name: 'Rosca Alternada com Halteres',
+            sets: 4,
+            reps: '10',
+            weight: 12,
+            rest_time: 60,
+            sort_order: 1,
+            sets_json: [
+              { reps: '10', weight: 12, rest_time: 60 },
+              { reps: '10', weight: 12, rest_time: 60 },
+              { reps: '10', weight: 12, rest_time: 60 },
+              { reps: '10', weight: 12, rest_time: 60 }
+            ]
+          },
+          {
+            exercise_id: 'ex_brac_int_2',
+            exercise_name: 'Tríceps Testa com Barra W',
+            sets: 4,
+            reps: '10',
+            weight: 16,
+            rest_time: 60,
+            sort_order: 2,
+            sets_json: [
+              { reps: '10', weight: 16, rest_time: 60 },
+              { reps: '10', weight: 16, rest_time: 60 },
+              { reps: '10', weight: 16, rest_time: 60 },
+              { reps: '10', weight: 16, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão intermediária.']
+      }
+    ]
+  },
+  {
+    id: 'bracos-aco-avancado',
+    name: 'Braços de Aço • Avançado',
+    description: 'Especialização avançada combinada. Estímulo metabólico extremo de bíceps e tríceps com oclusão simulada e pirâmide crescente.',
+    version: 1,
+    premium: true,
+    goal: 'bracos',
+    difficulty: 'advanced',
+    duration_weeks: 12,
+    frequency: 5,
+    created_by: 'coach_kyron',
+    rating: 4.94,
+    featured: true,
+    athletes_count: 790,
+    completion_rate: 86,
+    strength_increase_pct: 25,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'brac_av_w_a',
+        name: 'Treino A • Bomba Total Sarcoplasmática',
+        description: 'Intensidade limite de bombeamento celular.',
+        exercises: [
+          {
+            exercise_id: 'ex_brac_av_1',
+            exercise_name: 'Rosca Martelo Alternada Ampla',
+            sets: 4,
+            reps: '10',
+            weight: 18,
+            rest_time: 60,
+            sort_order: 1,
+            sets_json: [
+              { reps: '10', weight: 18, rest_time: 60 },
+              { reps: '10', weight: 18, rest_time: 60 },
+              { reps: '10', weight: 18, rest_time: 60 },
+              { reps: '10', weight: 18, rest_time: 60 }
+            ]
+          },
+          {
+            exercise_id: 'ex_brac_av_2',
+            exercise_name: 'Tríceps Coice na Polia Baixa',
+            sets: 4,
+            reps: '12',
+            weight: 12,
+            rest_time: 60,
+            sort_order: 2,
+            sets_json: [
+              { reps: '12', weight: 12, rest_time: 60 },
+              { reps: '12', weight: 12, rest_time: 60 },
+              { reps: '12', weight: 12, rest_time: 60 },
+              { reps: '12', weight: 12, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão avançada para hipertrofia total miofibrilar e bombamento muscular.']
+      }
+    ]
+  },
+  {
+    id: 'pernas-imponentes-iniciante',
+    name: 'Pernas Imponentes • Iniciante',
+    description: 'Construa membros inferiores consistentes (quadríceps e posteriores) focando no padrão técnico do agachamento e cadeira extensora.',
+    version: 1,
+    premium: true,
+    goal: 'pernas',
+    difficulty: 'beginner',
+    duration_weeks: 8,
+    frequency: 3,
+    created_by: 'coach_kyron',
+    rating: 4.8,
+    featured: false,
+    athletes_count: 510,
+    completion_rate: 93,
+    strength_increase_pct: 14,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'pern_ini_w_a',
+        name: 'Treino A • Base de Padrão Motor Inferior',
+        description: 'Excelência técnica de agachamentos.',
+        exercises: [
+          {
+            exercise_id: 'ex_pern_ini_1',
+            exercise_name: 'Agachamento Goblet com Halter',
+            sets: 3,
+            reps: '10',
+            weight: 16,
+            rest_time: 90,
+            sort_order: 1,
+            sets_json: [
+              { reps: '10', weight: 16, rest_time: 90 },
+              { reps: '10', weight: 16, rest_time: 90 },
+              { reps: '10', weight: 16, rest_time: 90 }
+            ]
+          },
+          {
+            exercise_id: 'ex_pern_ini_2',
+            exercise_name: 'Cadeira Extensora Unilateral',
+            sets: 3,
+            reps: '12',
+            weight: 20,
+            rest_time: 60,
+            sort_order: 2,
+            sets_json: [
+              { reps: '12', weight: 20, rest_time: 60 },
+              { reps: '12', weight: 20, rest_time: 60 },
+              { reps: '12', weight: 20, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão inicial básica.']
+      }
+    ]
+  },
+  {
+    id: 'pernas-imponentes-intermediario',
+    name: 'Pernas Imponentes • Intermediário',
+    description: 'Volume tensional superior e foco em separar treinos com ênfase em cadeia anterior (quadríceps) e cadeia posterior (isquios e glúteos).',
+    version: 1,
+    premium: true,
+    goal: 'pernas',
+    difficulty: 'intermediate',
+    duration_weeks: 10,
+    frequency: 4,
+    created_by: 'coach_kyron',
+    rating: 4.86,
+    featured: false,
+    athletes_count: 940,
+    completion_rate: 88,
+    strength_increase_pct: 21,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'pern_int_w_a',
+        name: 'Treino A • Ênfase Quadríceps y Adutores',
+        description: 'Tensão sob cadeia anterior profunda.',
+        exercises: [
+          {
+            exercise_id: 'ex_pern_int_1',
+            exercise_name: 'Agachamento Livre com Barra',
+            sets: 4,
+            reps: '8-10',
+            weight: 50,
+            rest_time: 120,
+            sort_order: 1,
+            sets_json: [
+              { reps: '10', weight: 50, rest_time: 120 },
+              { reps: '10', weight: 50, rest_time: 120 },
+              { reps: '8', weight: 50, rest_time: 120 },
+              { reps: '8', weight: 50, rest_time: 120 }
+            ]
+          },
+          {
+            exercise_id: 'ex_pern_int_2',
+            exercise_name: 'Cadeira Extensora com Isometria',
+            sets: 3,
+            reps: '12',
+            weight: 35,
+            rest_time: 60,
+            sort_order: 2,
+            sets_json: [
+              { reps: '12', weight: 35, rest_time: 60 },
+              { reps: '12', weight: 35, rest_time: 60 },
+              { reps: '12', weight: 35, rest_time: 60 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão intermediária.']
+      }
+    ]
+  },
+  {
+    id: 'pernas-imponentes-avancado',
+    name: 'Pernas Imponentes • Avançado',
+    description: 'Especialização máxima e volume avassalador de pernas. Dividido em 3 estímulos com técnicas avançadas para quebrar qualquer limite genético.',
+    version: 1,
+    premium: true,
+    goal: 'pernas',
+    difficulty: 'advanced',
+    duration_weeks: 12,
+    frequency: 5,
+    created_by: 'coach_kyron',
+    rating: 4.93,
+    featured: true,
+    athletes_count: 620,
+    completion_rate: 84,
+    strength_increase_pct: 30,
+    created_at: '2026-06-15T09:00:00Z',
+    updated_at: '2026-06-15T09:00:00Z',
+    updated_by: 'Coach Kyron',
+    workouts: [
+      {
+        id: 'pern_av_w_a',
+        name: 'Treino A • Agachamento Pesado & Isquios',
+        description: 'Tensão tensional absoluta.',
+        exercises: [
+          {
+            exercise_id: 'ex_pern_av_1',
+            exercise_name: 'Agachamento Livre Barra Pesada',
+            sets: 4,
+            reps: '6-8',
+            weight: 80,
+            rest_time: 150,
+            sort_order: 1,
+            sets_json: [
+              { reps: '8', weight: 80, rest_time: 150 },
+              { reps: '8', weight: 80, rest_time: 150 },
+              { reps: '6', weight: 80, rest_time: 150 },
+              { reps: '6', weight: 80, rest_time: 150 }
+            ]
+          },
+          {
+            exercise_id: 'ex_pern_av_2',
+            exercise_name: 'Stiff com Barra e Carga Progressiva',
+            sets: 4,
+            reps: '8',
+            weight: 40,
+            rest_time: 90,
+            sort_order: 2,
+            sets_json: [
+              { reps: '8', weight: 40, rest_time: 90 },
+              { reps: '8', weight: 40, rest_time: 90 },
+              { reps: '8', weight: 40, rest_time: 90 },
+              { reps: '8', weight: 40, rest_time: 90 }
+            ]
+          }
+        ]
+      }
+    ],
+    version_history: [
+      {
+        version: 1,
+        updated_at: '2026-06-15T09:00:00Z',
+        updated_by: 'Coach Kyron',
+        changes: ['Versão avançada para quebra de limiares genéticos.']
+      }
+    ]
   }
 ];
 
@@ -450,7 +1441,16 @@ class PremiumProtocolsApi {
       return INITIAL_PREMIUM_PROTOCOLS;
     }
     try {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw) as PremiumProtocol[];
+      // Sync check - guarantee that any new items in our hardcoded array are written to local storage
+      const parsedIds = new Set(parsed.map(p => p.id));
+      const missing = INITIAL_PREMIUM_PROTOCOLS.filter(p => !parsedIds.has(p.id));
+      if (missing.length > 0) {
+        const merged = [...parsed, ...missing];
+        localStorage.setItem('rubi_premium_protocols', JSON.stringify(merged));
+        return merged;
+      }
+      return parsed;
     } catch {
       return INITIAL_PREMIUM_PROTOCOLS;
     }

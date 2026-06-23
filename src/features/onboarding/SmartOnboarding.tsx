@@ -188,7 +188,7 @@ export default function SmartOnboarding() {
 
   // Compute recommendation results once Step 10 finishes
   const computeAndShowRecommendations = async () => {
-    setStep(11);
+    setStep(9);
     setIsFinishing(true);
 
     try {

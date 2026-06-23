@@ -4,6 +4,7 @@ import { translations } from '../translations';
 import kyronLogo from '../assets/images/kyron_official_logo_1781087891387.png';
 import kyronCoreLogo from '../assets/images/kyron_core_logo_1781042739395.png';
 import kyronCoreV2 from '../assets/images/kyron_core_v2_1781043247216.png';
+import kyronOsLogo3D from '../assets/images/kyron_os_logo_1782226707061.jpg';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -1032,7 +1033,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                     className="space-y-6"
                   >
                     {/* LOGO GRID */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                       {/* LOGO 1: OFFICIAL LIGHT PREVIEW */}
                       <div className="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between bg-slate-50/50 hover:shadow-md transition-shadow">
                         <div>
@@ -1050,8 +1051,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                           </h4>
                           <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
                             {lang === 'PT'
-                              ? 'O emblema oficial conforme renderizado na barra superior do KYRON OS. Versão balanceada para mídias claras e impressões.'
-                              : 'The official brand symbol as displayed in the top navigation bar. Formatted for light mode compositions and clean interfaces.'}
+                              ? 'O emblema oficial conforme renderizado na barra superior do KYRON OS. Versão balanceada para mídias claras.'
+                              : 'The official brand symbol as displayed in the top navigation bar. Formatted for light mode compositions.'}
                           </p>
                         </div>
                         <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
@@ -1093,7 +1094,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                           <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
                             {lang === 'PT'
                               ? 'O emblema oficial em contraste com fundo preto profundo. Ideal para plataformas de alta fidelidade e interfaces noturnas.'
-                              : 'The official logo rendered in stark contrast against a deep dark canvas. Tailored for high-fidelity devices and midnight screens.'}
+                              : 'The official logo rendered in stark contrast against a deep dark canvas. Tailored for midnight screens.'}
                           </p>
                         </div>
                         <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
@@ -1130,12 +1131,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                             />
                           </div>
                           <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
-                            {lang === 'PT' ? 'Logo Oficial — Atmosfera Digital' : 'Official Logo — Digital Ambient'}
+                            {lang === 'PT' ? 'Logo Oficial — Atmosfera' : 'Official Logo — Ambient'}
                           </h4>
                           <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
                             {lang === 'PT'
-                              ? 'O emblema oficial imerso em nosso gradiente de assinaturas. Utilizado para posts sociais, capas, badges e banners promocionais.'
-                              : 'The official emblem set during our active digital atmosphere gradient. Used for promotional cards, covers, active keys, and badge slots.'}
+                              ? 'O emblema oficial imerso em nosso gradiente. Utilizado para posts sociais, capas, badges e banners promocionais.'
+                              : 'The official emblem set during our active digital atmosphere gradient. Used for promotional cards.'}
                           </p>
                         </div>
                         <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
@@ -1152,6 +1153,52 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                             target="_blank" 
                             rel="noreferrer"
                             className="w-9 h-9 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                            title={lang === 'PT' ? 'Abrir em nova aba' : 'Open in new tab'}
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* LOGO 4: 3D PREMIUM ATHLETIC EMBLEM */}
+                      <div className="border border-[#7BA7FF]/30 rounded-2xl p-4 flex flex-col justify-between bg-slate-950 text-white hover:shadow-lg transition-shadow relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-[#7BA7FF]/10 blur-2xl pointer-events-none" />
+                        <div>
+                          <div className="relative h-32 rounded-xl mb-4 bg-slate-950 flex items-center justify-center p-0 border border-slate-800 overflow-hidden">
+                            <div className="absolute top-2 left-2 z-10 bg-amber-500/20 text-amber-500 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border border-amber-500/20">
+                              ☆ NEW
+                            </div>
+                            <img 
+                              src={kyronOsLogo3D} 
+                              alt="Kyron OS Premium 3D Emblem" 
+                              className="max-h-full max-w-full object-cover w-full h-full transform hover:scale-[1.05] transition-transform duration-550"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#7BA7FF]" />
+                            {lang === 'PT' ? 'Logo 3D — Especial Atlas' : '3D Logo — Special Atlas'}
+                          </h4>
+                          <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                            {lang === 'PT'
+                              ? 'Novo emblema tridimensional de alta fidelidade com camadas obsidianas. Renderizado com luzes de neon azul e detalhes de âmbar pura.'
+                              : 'High-fidelity three-dimensional sports luxury emblem model. Rendered with neon blue highlights and pure amber details.'}
+                          </p>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-slate-800 flex items-center gap-2">
+                          <a 
+                            href={kyronOsLogo3D} 
+                            download="kyron_os_logo_premium.png"
+                            className="flex-1 h-9 bg-gradient-to-r from-[#7BA7FF] to-indigo-500 text-white font-bold hover:shadow-[0_4px_12px_rgba(123,167,255,0.4)] text-[9.5px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border-none"
+                          >
+                            <Download size={12} className="stroke-[2.5]" />
+                            {lang === 'PT' ? 'Download PNG' : 'Download PNG'}
+                          </a>
+                          <a 
+                            href={kyronOsLogo3D} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="w-9 h-9 border border-slate-800 hover:bg-slate-900 text-slate-300 rounded-xl transition-all flex items-center justify-center cursor-pointer"
                             title={lang === 'PT' ? 'Abrir em nova aba' : 'Open in new tab'}
                           >
                             <ExternalLink size={12} />
