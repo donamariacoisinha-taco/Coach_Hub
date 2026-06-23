@@ -75,8 +75,8 @@ const LibraryOS: React.FC = () => {
     }
     
     // Status Filter
-    if (activeFilter === 'published') result = result.filter(ex => ex.is_active);
-    if (activeFilter === 'hidden') result = result.filter(ex => !ex.is_active);
+    if (activeFilter === 'published') result = result.filter(ex => ex.is_active !== false);
+    if (activeFilter === 'hidden') result = result.filter(ex => ex.is_active === false);
     if (activeFilter === 'premium') result = result.filter(ex => ex.quality_score && ex.quality_score >= 80);
     if (activeFilter === 'rising') result = result.filter(ex => ex.ranking_status === 'rising');
     if (activeFilter === 'critical') result = result.filter(ex => !ex.quality_score || ex.quality_score < 40);
@@ -154,8 +154,8 @@ const LibraryOS: React.FC = () => {
       {/* Quick Status Filters */}
       <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
          <QuickFilter active={activeFilter === 'all'} onClick={() => setActiveFilter('all')} label="Todos" count={exercises.length} />
-         <QuickFilter active={activeFilter === 'published'} onClick={() => setActiveFilter('published')} label="🟢 Publicados" count={exercises.filter(e => e.is_active).length} />
-         <QuickFilter active={activeFilter === 'hidden'} onClick={() => setActiveFilter('hidden')} label="⚫ Ocultos" count={exercises.filter(e => !e.is_active).length} />
+         <QuickFilter active={activeFilter === 'published'} onClick={() => setActiveFilter('published')} label="🟢 Publicados" count={exercises.filter(e => e.is_active !== false).length} />
+         <QuickFilter active={activeFilter === 'hidden'} onClick={() => setActiveFilter('hidden')} label="⚫ Ocultos" count={exercises.filter(e => e.is_active === false).length} />
          <QuickFilter active={activeFilter === 'premium'} onClick={() => setActiveFilter('premium')} label="💎 Premium" count={exercises.filter(e => (e.quality_score || 0) >= 80).length} />
          <QuickFilter active={activeFilter === 'critical'} onClick={() => setActiveFilter('critical')} label="⚠️ Críticos" count={exercises.filter(e => (e.quality_score || 0) < 40).length} />
          <QuickFilter active={activeFilter === 'no-media'} onClick={() => setActiveFilter('no-media')} label="🖼️ Sem Mídia" count={exercises.filter(e => !e.image_url).length} />

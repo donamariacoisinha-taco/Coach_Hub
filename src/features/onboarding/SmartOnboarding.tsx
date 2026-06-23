@@ -510,7 +510,7 @@ export default function SmartOnboarding() {
       let count = 0;
       split.muscles.forEach(muscle => {
         const filtered = listExs.filter(ex => 
-          ex.is_active && 
+          ex.is_active !== false && 
           (ex.muscle_group?.toLowerCase().includes(muscle.toLowerCase()) || 
            muscle.toLowerCase().includes(ex.muscle_group?.toLowerCase()))
         );
@@ -540,7 +540,7 @@ export default function SmartOnboarding() {
 
       // Absolute safety guard line fallback
       if (workout.exercises.length === 0) {
-        const fallbackExercise = listExs.find((ex: any) => ex.is_active) || listExs[0];
+        const fallbackExercise = listExs.find((ex: any) => ex.is_active !== false) || listExs[0];
         workout.exercises.push({
           exercise_id: fallbackExercise?.id || '5ce43864-44ac-4822-ba91-30efc477431e',
           exercise_name: fallbackExercise?.name || 'Leg Press 45',

@@ -145,10 +145,10 @@ const ExerciseLibrary: React.FC = () => {
       
       let matchesStatus = true;
       if (isAdmin) {
-        if (adminActiveFilter === 'active') matchesStatus = ex.is_active;
-        else if (adminActiveFilter === 'inactive') matchesStatus = !ex.is_active;
+        if (adminActiveFilter === 'active') matchesStatus = ex.is_active !== false;
+        else if (adminActiveFilter === 'inactive') matchesStatus = ex.is_active === false;
       } else {
-        matchesStatus = ex.is_active;
+        matchesStatus = ex.is_active !== false;
       }
 
       return matchesSearch && matchesSide && isParentMatch && matchesStatus;

@@ -92,7 +92,6 @@ export const exerciseApi = {
       return await fetchWithRetry(async () => {
         let response = await supabase.from('exercises')
           .select('*')
-          .eq('is_active', true)
           .order('name');
 
         if (response.error) {
@@ -101,18 +100,20 @@ export const exerciseApi = {
             console.warn('[DB] Fallback de cache do schema no select publico:', response.error.message);
             response = await supabase.from('exercises')
               .select('id, name, muscle_group, image_url, is_active, description, instructions, equipment, performance_score, quality_status')
-              .eq('is_active', true)
               .order('name');
           }
           if (response.error) throw response.error;
         }
 
-        const data = response.data;
-        if (!data || data.length === 0) {
+        const data = response.data || [];
+        // Filter in JS to accept is_active = true or is_active = null/undefined (not false)
+        const activeData = data.filter((ex: any) => ex.is_active !== false);
+
+        if (activeData.length === 0) {
           throw new Error('Consulta de public_exercises vazia no banco');
         }
 
-        const normalizedExercises = data.map((ex) => ({
+        const normalizedExercises = activeData.map((ex) => ({
           ...ex,
           muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros'),
           anatomical_cut: ex.anatomical_cut || getVirtualAnatomicalCut(ex.muscle_group || '', ex.name)
@@ -122,11 +123,11 @@ export const exerciseApi = {
       });
     } catch (err: any) {
       console.warn('[ExerciseApi] Erro ao carregar exercícios públicos após retentativas. Usando caches offline:', err?.message || err);
-      const cached = getLocalCache().filter(e => e.is_active);
+      const cached = getLocalCache().filter(e => e.is_active !== false);
       if (cached.length > 0) {
         return cached;
       }
-      return fallbackExercises.filter(e => e.is_active);
+      return fallbackExercises.filter(e => e.is_active !== false);
     }
   },
 

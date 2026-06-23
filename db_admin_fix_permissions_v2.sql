@@ -22,11 +22,11 @@ DROP POLICY IF EXISTS "exercises_insert_policy" ON public.exercises;
 
 -- 3. CRIAÇÃO DAS POLÍTICAS ROBUSTAS
 
--- LEITURA: Qualquer autenticado vê ativos, dono vê os seus, Admin vê absolutamente tudo.
+-- LEITURA: Qualquer autenticado vê ativos (ou nulos), dono vê os seus, Admin vê absolutamente tudo.
 CREATE POLICY "exercises_select_policy" ON public.exercises 
 FOR SELECT TO authenticated
 USING (
-  is_active = true 
+  COALESCE(is_active, true) = true 
   OR auth.uid() = user_id 
   OR public.is_admin()
 );

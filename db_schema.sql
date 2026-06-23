@@ -86,7 +86,7 @@ DROP POLICY IF EXISTS "exercises_read_access" ON exercises;
 DROP POLICY IF EXISTS "exercises_select_policy" ON exercises;
 CREATE POLICY "exercises_select_policy" ON public.exercises 
 FOR SELECT USING (
-  is_active = true 
+  COALESCE(is_active, true) = true 
   OR auth.uid() = user_id 
   OR public.is_admin()
 );

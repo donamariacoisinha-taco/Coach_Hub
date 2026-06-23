@@ -60,6 +60,14 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
         navigate('dashboard');
       }
     } catch (err: any) {
+      const errMsg = err?.message || '';
+      if (errMsg.includes('Invalid login credentials') || errMsg.includes('invalid_credentials')) {
+        setError('E-mail ou senha incorretos. Se ainda não possui uma conta, mude para "Criar Perfil" abaixo ou utilize o modo Convidado para testar instantaneamente!');
+      } else if (errMsg.includes('Email not confirmed')) {
+        setError('E-mail não confirmado. Por favor, confirme o e-mail enviado.');
+      } else {
+        setError(errMsg || 'Falha ao realizar autenticação.');
+      }
       showError(err);
     } finally {
       setLoading(false);

@@ -53,21 +53,21 @@ export const ekeApi = {
       try {
         const { data, error } = await supabase
           .from('exercises')
-          .select('*')
-          .eq('is_active', true);
+          .select('*');
         
         if (error) throw error;
-        return data as Exercise[];
+        const activeData = (data || []).filter(ex => ex.is_active !== false);
+        return activeData as Exercise[];
       } catch (err: any) {
         if (err.message?.includes('column') && err.message?.includes('schema cache')) {
           console.warn('[EKE] Fallback ativado em getExercisesForEke:', err.message);
           // Fallback: exclude the new EKE columns if they are missing
           const { data, error } = await supabase
             .from('exercises')
-            .select('id, name, muscle_group, is_active')
-            .eq('is_active', true);
+            .select('id, name, muscle_group, is_active');
           if (error) throw error;
-          return data as Exercise[];
+          const activeData = (data || []).filter(ex => ex.is_active !== false);
+          return activeData as Exercise[];
         }
         throw err;
       }
