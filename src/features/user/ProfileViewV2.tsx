@@ -7,8 +7,59 @@ import { cloudinaryService } from '../../services/cloudinaryService';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowLeft, Loader2 as Spinner, Camera, Sparkles, Scale, Target, 
-  Droplet, Flame, Trophy, Activity, Compass, Info, LogOut 
+  Droplet, Flame, Trophy, Activity, Compass, Info, LogOut, Check 
 } from 'lucide-react';
+
+const FITNESS_AVATARS = [
+  {
+    id: 'f1',
+    name: 'Atleta Feminina - Foco',
+    url: 'https://images.unsplash.com/photo-1548690312-e3b507d8c110?auto=format&fit=crop&q=80&w=300&h=300',
+    gender: 'Feminino'
+  },
+  {
+    id: 'f2',
+    name: 'Atleta Feminina - Determinação',
+    url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=300&h=300',
+    gender: 'Feminino'
+  },
+  {
+    id: 'f3',
+    name: 'Atleta Feminina - Performance',
+    url: 'https://images.unsplash.com/photo-1594381898411-846e7d193883?auto=format&fit=crop&q=80&w=300&h=300',
+    gender: 'Feminino'
+  },
+  {
+    id: 'f4',
+    name: 'Atleta Feminina - Wellness',
+    url: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&q=80&w=300&h=300',
+    gender: 'Feminino'
+  },
+  {
+    id: 'm1',
+    name: 'Atleta Masculino - Foco',
+    url: 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&q=80&w=300&h=300',
+    gender: 'Masculino'
+  },
+  {
+    id: 'm2',
+    name: 'Atleta Masculino - Definição',
+    url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=300&h=300',
+    gender: 'Masculino'
+  },
+  {
+    id: 'm3',
+    name: 'Atleta Masculino - Força',
+    url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=300&h=300',
+    gender: 'Masculino'
+  },
+  {
+    id: 'm4',
+    name: 'Atleta Masculino - Hardcore',
+    url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=300&h=300',
+    gender: 'Masculino'
+  }
+];
 import { useNavigation } from '../../App';
 
 // Import our enhanced modular panels which we will style continuously below 
@@ -43,6 +94,7 @@ export default function ProfileViewV2() {
   const [goal, setGoal] = useState('');
   const [frequency, setFrequency] = useState('');
   const [gender, setGender] = useState('');
+  const isFemale = gender?.toLowerCase() === 'feminino';
   const [age, setAge] = useState<number | ''>('');
   const [weight, setWeight] = useState<number | ''>('');
   const [height, setHeight] = useState<number | ''>('');
@@ -527,7 +579,9 @@ export default function ProfileViewV2() {
                 <div className="w-5 h-5 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin pointer-events-none" />
               ) : (
                 <img 
-                  src={avatarUrl || profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (name || 'Rubi')} 
+                  src={avatarUrl || profile?.avatar_url || (isFemale 
+                    ? 'https://images.unsplash.com/photo-1548690312-e3b507d8c110?auto=format&fit=crop&q=80&w=300&h=300'
+                    : 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&q=80&w=300&h=300')} 
                   alt="Athlete avatar" 
                   className="w-full h-full object-cover pointer-events-none select-none"
                   style={{ objectPosition: `${avatarPosX}% ${avatarPosY}%` }}
@@ -566,6 +620,67 @@ export default function ProfileViewV2() {
               accept="image/*" 
               onChange={handleAvatarUpload}
             />
+          </div>
+
+          {/* CURATED FITNESS AVATARS GALLERY */}
+          <div className="w-full max-w-sm px-2 pt-2 pb-4">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                Sujestões de Avatar Fitness
+              </span>
+              <span className="text-[8px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-full">
+                Alta Definição
+              </span>
+            </div>
+            
+            <div className="flex gap-2.5 overflow-x-auto pb-1.5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+              {FITNESS_AVATARS.map((avatar) => {
+                const isSelected = avatarUrl === avatar.url || (!avatarUrl && profile?.avatar_url === avatar.url);
+                return (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    onClick={() => {
+                      setAvatarUrl(avatar.url);
+                      // Update instantly to provide great feedback
+                      const updates = { avatar_url: avatar.url };
+                      updateProfile(updates);
+                      
+                      // Save local cache
+                      const updatedProfileObject = { ...profile, ...updates };
+                      localStorage.setItem(`rubi_cached_profile_${userIdRef}`, JSON.stringify(updatedProfileObject));
+                      
+                      // Save online
+                      authApi.getUser().then(user => {
+                        if (user) {
+                          profileApi.updateProfile(user.id, updates);
+                        }
+                      }).catch(e => console.warn(e));
+                    }}
+                    className={`relative w-12 h-12 rounded-full shrink-0 overflow-hidden border-2 transition-all duration-300 ${
+                      isSelected 
+                        ? 'border-indigo-600 ring-4 ring-indigo-500/20 scale-105' 
+                        : 'border-slate-200 hover:border-slate-400'
+                    }`}
+                    title={avatar.name}
+                  >
+                    <img 
+                      src={avatar.url} 
+                      className="w-full h-full object-cover" 
+                      alt={avatar.name} 
+                      referrerPolicy="no-referrer"
+                    />
+                    {isSelected && (
+                      <div className="absolute inset-0 bg-indigo-600/10 flex items-center justify-center">
+                        <div className="bg-indigo-600 text-white rounded-full p-0.5 scale-90">
+                          <Check size={10} className="stroke-[3.5]" />
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Collapsible premium-grade framing sliders */}

@@ -95,7 +95,9 @@ export function ProfileHeader() {
       <div className="relative mx-auto w-28 h-28 group">
         <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500 via-purple-500 to-emerald-500 opacity-60 blur-[3px] scale-105 group-hover:opacity-100 transition duration-500" />
         <img
-          src={profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (profile?.name || 'User')}
+          src={profile?.avatar_url || (profile?.gender?.toLowerCase() === 'feminino'
+            ? 'https://images.unsplash.com/photo-1548690312-e3b507d8c110?auto=format&fit=crop&q=80&w=300&h=300'
+            : 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&q=80&w=300&h=300')}
           className="w-full h-full rounded-full object-cover border-4 border-slate-900 relative z-10 transition-transform duration-500 group-hover:scale-102"
           alt="Avatar"
           referrerPolicy="no-referrer"
