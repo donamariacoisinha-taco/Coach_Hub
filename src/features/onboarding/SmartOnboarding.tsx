@@ -191,6 +191,10 @@ export default function SmartOnboarding() {
     setStep(9);
     setIsFinishing(true);
 
+    let selectedMatch: any = null;
+    let fallback = false;
+    let generatedDraft: any = null;
+
     try {
       const userGoal = formData.primary_goal || 'hypertrophy';
       const userExp = formData.training_experience || 'beginner';
@@ -239,25 +243,37 @@ export default function SmartOnboarding() {
       if (sorted.length > 0 && sorted[0].score >= 50) {
         setCalculatedMatches(sorted.slice(0, 4));
         setFallbackTriggered(false);
+        selectedMatch = sorted[0];
       } else {
         // Trigger automated fallback creation!
         console.log('[SmartOnboarding] No perfect match found. Dynamic constructor builder fallbacks initialized.');
         setFallbackTriggered(true);
         const dynamicDraft = await generateFallbackProtocol(userId || 'custom-user', formData, activeExercises);
         setCustomGeneratedDraft(dynamicDraft);
+        fallback = true;
+        generatedDraft = dynamicDraft;
       }
     } catch (e) {
       console.error('[Onboarding] Error matching plans:', e);
       setFallbackTriggered(true);
       const dynamicDraft = await generateFallbackProtocol(userId || 'custom-user', formData, activeExercises);
       setCustomGeneratedDraft(dynamicDraft);
-    } finally {
+      fallback = true;
+      generatedDraft = dynamicDraft;
+    }
+
+    // Direct auto-deploy of the best matched protocol or generated dynamic draft!
+    try {
+      await handleDeployProtocolSelection(selectedMatch, fallback, generatedDraft);
+    } catch (err: any) {
+      console.error('[Onboarding] Error on auto deployment:', err);
+      showError(err.message || 'Falha ao ativar protocolo de treinamento.');
       setIsFinishing(false);
     }
   };
 
   // Perform absolute deployment cloning the chosen plan and ending onboarding
-  const handleDeployProtocolSelection = async (matchItem: any, isFallback = false) => {
+  const handleDeployProtocolSelection = async (matchItem: any, isFallback = false, providedFallbackDraft?: any) => {
     if (!userId) return;
     setIsFinishing(true);
 
@@ -276,22 +292,23 @@ export default function SmartOnboarding() {
       if (fullProfile) setProfile(fullProfile);
 
       // 3. Clone selected matched design
-      if (isFallback && customGeneratedDraft) {
+      const draftToUse = providedFallbackDraft || customGeneratedDraft;
+      if (isFallback && draftToUse) {
         // Save to Draft local storage first (Aguardando Curadoria)
         const rawDrafts = localStorage.getItem('kyron_admin_draft_protocols') || '[]';
         let draftsList: PremiumProtocol[] = [];
         try {
           draftsList = JSON.parse(rawDrafts);
         } catch {}
-        draftsList.push(customGeneratedDraft);
+        draftsList.push(draftToUse);
         localStorage.setItem('kyron_admin_draft_protocols', JSON.stringify(draftsList));
 
         // Directly clone workouts to user active program list so they can train immediately!
         // (Just like copy template does, we map categories and insert exercises)
-        const folderName = `${customGeneratedDraft.name}`;
+        const folderName = `${draftToUse.name}`;
         const newFolder = await workoutApi.createFolder(userId, folderName);
 
-        for (const tw of customGeneratedDraft.workouts) {
+        for (const tw of draftToUse.workouts) {
           const categoryPayload = {
             user_id: userId,
             folder_id: newFolder.id,
