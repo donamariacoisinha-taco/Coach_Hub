@@ -103,7 +103,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
 
   const loadData = async () => {
     const list = await premiumProtocolsApi.getProtocols();
-    setProtocols(list);
+    setProtocols(list.filter(p => p.is_active !== false));
     setIsPremium(premiumProtocolsApi.isPremiumAthlete());
   };
 

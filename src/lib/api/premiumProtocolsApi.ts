@@ -27,6 +27,7 @@ export interface PremiumProtocol {
   description: string;
   version: number;
   premium: boolean; // Is it premium or free?
+  is_active?: boolean; // Can be marked inactive by the admin
   goal: string; // hypertrophy, weight_loss, strength, performance, glutes, recovery
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   duration_weeks: number;

@@ -142,7 +142,7 @@ export default function SmartOnboarding() {
         ]);
 
         setActiveExercises(exs);
-        setAllPremiumProtocols(prots);
+        setAllPremiumProtocols(prots.filter((p: any) => p.is_active !== false));
         setAllTemplates(tmps);
       } catch (err) {
         console.warn('[SmartOnboarding] Bootstrap loading errors:', err);
