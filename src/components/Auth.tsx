@@ -16,6 +16,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -32,16 +33,52 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
 
     try {
       if (isSignUp) {
-        await authApi.signUp(email, password);
-        showSuccess('Cadastro realizado', 'Verifique seu e-mail para ativar a conta.');
+        const signupData = await authApi.signUp(email, password);
+        console.log('[AUTH][DEBUG] Cadastro bem-sucedido:', signupData);
+        
+        // Tenta realizar o login imediato para contornar qualquer barreira de verificação
+        if (signupData?.session) {
+          showSuccess('Cadastro realizado', 'Perfil criado e autenticado com sucesso!');
+          navigate('dashboard');
+        } else {
+          try {
+            const loginData = await authApi.signIn(email, password);
+            console.log('[AUTH][DEBUG] Auto-login pós-cadastro bem-sucedido:', loginData.user?.email);
+            showSuccess('Cadastro realizado', 'Perfil criado com sucesso!');
+            navigate('dashboard');
+          } catch (loginErr) {
+            // Se o servidor do Supabase realmente forçar a verificação de e-mail (configuração no painel):
+            showSuccess('Cadastro realizado', 'Sua conta foi criada! Caso necessário, confirme o e-mail enviado.');
+            setIsSignUp(false);
+          }
+        }
       } else {
         const data = await authApi.signIn(email, password);
-        
         console.log('[AUTH][DEBUG] Login bem-sucedido para:', data.user?.email);
         
         // Redirecionamento explícito para garantir transição imediata da UI
         navigate('dashboard');
       }
+    } catch (err: any) {
+      showError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Por favor, digite seu e-mail.');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    try {
+      await authApi.resetPassword(email);
+      showSuccess('Recuperação enviada', 'Instruções para redefinir sua senha foram enviadas para o seu e-mail.');
+      setIsForgotPassword(false);
     } catch (err: any) {
       showError(err);
     } finally {
@@ -81,60 +118,112 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
           <span className="text-base font-black uppercase tracking-[0.25em] text-slate-900 pt-0.5">KYRON OS</span>
         </div>
         <h2 className="text-3xl font-[1000] tracking-tight text-slate-900 mb-2 uppercase">
-           {isSignUp ? 'Criar Perfil' : 'Bem-vindo'}
+           {isForgotPassword ? 'Recuperar Senha' : isSignUp ? 'Criar Perfil' : 'Bem-vindo'}
         </h2>
         <p className="text-slate-500 text-sm font-medium">
-           {isSignUp ? 'Inicie sua jornada de alta performance.' : 'Entre para continuar evoluindo.'}
+           {isForgotPassword 
+             ? 'Insira seu e-mail para receber as instruções de recuperação.' 
+             : isSignUp 
+               ? 'Inicie sua jornada de alta performance.' 
+               : 'Entre para continuar evoluindo.'}
         </p>
       </div>
 
-      <form onSubmit={handleAuth} className="space-y-6">
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-500 text-[10px] font-black uppercase text-center tracking-widest animate-in fade-in slide-in-from-top-2">
-            {error}
+      {isForgotPassword ? (
+        <form onSubmit={handleForgotPassword} className="space-y-6">
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-500 text-[10px] font-black uppercase text-center tracking-widest animate-in fade-in slide-in-from-top-2">
+              {error}
+            </div>
+          )}
+          
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu E-mail</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
+              placeholder="atleta@exemplo.com"
+              required
+            />
           </div>
-        )}
-        
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu E-mail</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
-            placeholder="atleta@exemplo.com"
-            required
-          />
-        </div>
 
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
-            placeholder="••••••••"
-            required
-          />
-        </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer text-center"
+          >
+            {loading ? 'Processando...' : 'ENVIAR INSTRUÇÕES'}
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={handleAuth} className="space-y-6">
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-500 text-[10px] font-black uppercase text-center tracking-widest animate-in fade-in slide-in-from-top-2">
+              {error}
+            </div>
+          )}
+          
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu E-mail</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
+              placeholder="atleta@exemplo.com"
+              required
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer text-center"
-        >
-          {loading ? 'Processando...' : isSignUp ? 'FORJAR MEU ACESSO' : 'ENTRAR NO DASHBOARD'}
-        </button>
-      </form>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center ml-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Senha de Acesso</label>
+              <button
+                type="button"
+                onClick={() => { setIsForgotPassword(true); setError(null); }}
+                className="text-[#7BA7FF] hover:text-blue-600 text-[10px] font-extrabold uppercase tracking-widest cursor-pointer border-none bg-transparent outline-none"
+              >
+                Recuperar Senha
+              </button>
+            </div>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer text-center"
+          >
+            {loading ? 'Processando...' : isSignUp ? 'FORJAR MEU ACESSO' : 'ENTRAR NO DASHBOARD'}
+          </button>
+        </form>
+      )}
 
       <div className="mt-10 flex flex-col gap-4 text-center">
-        <button
-          onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
-          className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:text-[#0F172A] transition-colors cursor-pointer"
-        >
-          {isSignUp ? 'Já possuo uma conta' : 'Não possuo cadastro'}
-        </button>
+        {isForgotPassword ? (
+          <button
+            onClick={() => { setIsForgotPassword(false); setError(null); }}
+            className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:text-[#0F172A] transition-colors cursor-pointer border-none bg-transparent outline-none"
+          >
+            Voltar para o Login
+          </button>
+        ) : (
+          <button
+            onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
+            className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:text-[#0F172A] transition-colors cursor-pointer"
+          >
+            {isSignUp ? 'Já possuo uma conta' : 'Não possuo cadastro'}
+          </button>
+        )}
 
         <button
           onClick={handleGuestLogin}
