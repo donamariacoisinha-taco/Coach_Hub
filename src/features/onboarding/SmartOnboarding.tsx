@@ -317,17 +317,26 @@ export default function SmartOnboarding() {
           };
           const newCategory = await workoutApi.createCategory(categoryPayload);
 
-          const workoutExercisesPayload = tw.exercises.map((te: any, idx: number) => ({
-            category_id: newCategory.id,
-            exercise_id: te.exercise_id,
-            exercise_name_snapshot: te.exercise_name,
-            sets: te.sets,
-            reps: te.reps,
-            weight: te.weight,
-            rest_time: te.rest_time,
-            sort_order: te.sort_order || (idx + 1),
-            sets_json: te.sets_json || []
-          }));
+          const workoutExercisesPayload = tw.exercises.map((te: any, idx: number) => {
+            let matchedUuid = te.exercise_id;
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(matchedUuid)) {
+              const fallbackExercise = activeExercises.find((ex: any) => ex.is_active) || activeExercises[0];
+              matchedUuid = fallbackExercise?.id || '5ce43864-44ac-4822-ba91-30efc477431e';
+            }
+
+            return {
+              category_id: newCategory.id,
+              exercise_id: matchedUuid,
+              exercise_name_snapshot: te.exercise_name,
+              sets: te.sets,
+              reps: te.reps,
+              weight: te.weight,
+              rest_time: te.rest_time,
+              sort_order: te.sort_order || (idx + 1),
+              sets_json: te.sets_json || []
+            };
+          });
 
           if (workoutExercisesPayload.length > 0) {
             await workoutApi.insertWorkoutExercises(workoutExercisesPayload);
@@ -575,9 +584,10 @@ export default function SmartOnboarding() {
 
       // Absolute safety guard line fallback
       if (workout.exercises.length === 0) {
+        const fallbackExercise = listExs.find((ex: any) => ex.is_active) || listExs[0];
         workout.exercises.push({
-          exercise_id: '5ce43864-44ac-4822-ba91-30efc477431e',
-          exercise_name: 'Leg Press 45',
+          exercise_id: fallbackExercise?.id || '5ce43864-44ac-4822-ba91-30efc477431e',
+          exercise_name: fallbackExercise?.name || 'Leg Press 45',
           sets: 4,
           reps: '12',
           weight: 40,

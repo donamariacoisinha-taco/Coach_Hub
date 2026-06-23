@@ -1551,7 +1551,14 @@ class PremiumProtocolsApi {
       const newCategory = await workoutApi.createCategory(categoryPayload);
 
       const workoutExercisesPayload = tw.exercises.map((te, idx) => {
-        const matchedUuid = exerciseMap.get(te.exercise_name.toLowerCase().trim()) || te.exercise_id;
+        let matchedUuid = exerciseMap.get(te.exercise_name.toLowerCase().trim()) || te.exercise_id;
+        
+        // Ensure matchedUuid is a valid UUID format
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(matchedUuid)) {
+          const firstDbId = Array.from(exerciseMap.values())[0];
+          matchedUuid = firstDbId || '5ce43864-44ac-4822-ba91-30efc477431e';
+        }
         
         return {
           category_id: newCategory.id,
