@@ -3,7 +3,7 @@ import { WorkoutCategory, UserProfile, WorkoutFolder, WorkoutHistory } from '../
 import { authApi } from '../../lib/api/authApi';
 import { workoutApi } from '../../lib/api/workoutApi';
 import { useNavigation } from '../../App';
-import { MoreVertical, Plus, Flame, Play, Edit2, Trash2, Dumbbell, Copy, Calendar, Award, Compass, Heart } from 'lucide-react';
+import { MoreVertical, Plus, Flame, Play, Edit2, Trash2, Dumbbell, Copy, Calendar, Award, Compass, Heart, FolderPlus, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScreenState } from '../../components/ui/ScreenState';
 import { DashboardSkeleton } from '../../components/ui/Skeleton';
@@ -72,7 +72,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     focusMuscles: [] as string[]
   });
   const [outdatedFolderIds, setOutdatedFolderIds] = useState<string[]>([]);
-
   const dashboardQuery = useSmartQuery('dashboard_data', async () => {
     const session = await authApi.getSession();
     if (!session?.user) {
@@ -99,6 +98,45 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const history = data?.history || [];
   const stats = data?.stats || { sessions: 0 };
 
+  const [publicProtocols, setPublicProtocols] = useState<any[]>([]);
+  const [loadingPublic, setLoadingPublic] = useState(false);
+
+  useEffect(() => {
+    const loadPublicProtocols = async () => {
+      try {
+        setLoadingPublic(true);
+        const allProtocols = await premiumProtocolsApi.getProtocols();
+        // Filtrar protocolos com premium === false (públicos do administrador)
+        const publics = allProtocols.filter(p => p.premium === false);
+        setPublicProtocols(publics);
+      } catch (e) {
+        console.warn("Error loading public protocols:", e);
+      } finally {
+        setLoadingPublic(false);
+      }
+    };
+    loadPublicProtocols();
+  }, [workouts]);
+
+  const mappedPublicWorkouts = useMemo(() => {
+    const list: any[] = [];
+    publicProtocols.forEach(p => {
+      p.workouts?.forEach((w: any) => {
+        list.push({
+          id: `public-workout-${p.id}-${w.id}`,
+          name: w.name,
+          description: w.description || `${p.name} - Ficha Pública`,
+          exercises_count: w.exercises?.length || 0,
+          is_public_admin: true,
+          protocol_id: p.id,
+          protocol_name: p.name,
+          created_at: p.created_at
+        });
+      });
+    });
+    return list;
+  }, [publicProtocols]);
+
   const { nextAction } = usePredictive(profile || null, history, workouts);
 
   // Check which user folders contain outdated protocols compared to templates published globally
@@ -118,9 +156,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   }, [folders]);
 
   const filteredWorkouts = useMemo(() => {
+    if (activeFolderId === 'public_admin') return mappedPublicWorkouts;
     if (activeFolderId === null) return workouts;
     return workouts.filter(w => w.folder_id === activeFolderId || (!w.folder_id && activeFolderId === 'uncategorized'));
-  }, [workouts, activeFolderId]);
+  }, [workouts, activeFolderId, mappedPublicWorkouts]);
 
   const handlePrefetchWorkout = async (id: string) => {
     const currentStoreId = useWorkoutStore.getState().currentWorkoutId;
@@ -837,6 +876,23 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 >
                   Todos
                 </button>
+                
+                <button
+                  onClick={() => setActiveFolderId('public_admin')}
+                  className={`text-[9.5px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                    activeFolderId === 'public_admin' 
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/15 border-transparent font-extrabold" 
+                      : "bg-white/70 backdrop-blur-xl border border-slate-200/40 text-amber-500/85 hover:text-amber-600 hover:bg-white"
+                  }`}
+                >
+                  <Globe size={11} />
+                  <span>Fichas Públicas</span>
+                  {publicProtocols.length > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-white/20 text-white rounded-full text-[8px] font-bold">
+                      {publicProtocols.length}
+                    </span>
+                  )}
+                </button>
                 {folders.map((folder) => (
                   <div key={folder.id} className="relative flex items-center shrink-0">
                     <button
@@ -916,6 +972,9 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     const estDuration = idx % 2 === 0 ? 45 : 60;
 
                     const getLastExecutionText = () => {
+                      if (workout.is_public_admin) {
+                        return 'Disponível para importação';
+                      }
                       if (workoutHistory.length === 0) {
                         return 'Primeira execução';
                       }
@@ -937,6 +996,9 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     };
 
                     const getEvolutionInsight = () => {
+                      if (workout.is_public_admin) {
+                        return '✓ Ficha pública oficial';
+                      }
                       if (workoutHistory.length === 0) {
                         const isNew = workout.created_at && (new Date().getTime() - new Date(workout.created_at).getTime() < 3 * 24 * 60 * 60 * 1000);
                         return isNew ? 'Treino recém-adicionado' : 'Primeira execução';
@@ -958,13 +1020,26 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     return (
                       <div key={workout.id} className={`relative group mb-6 ${activeMenuId === workout.id ? 'z-[100]' : 'z-[1]'} ${isOptimistic ? 'opacity-65 grayscale-[0.2]' : ''}`}>
                         <motion.div 
-                          onClick={() => {
-                            if (!isOptimistic) {
+                          onClick={async () => {
+                            if (workout.is_public_admin) {
+                              setIsPerformingAction(true);
+                              try {
+                                const session = await authApi.getSession();
+                                if (!session?.user) return;
+                                await premiumProtocolsApi.cloneToUser(session.user.id, workout.protocol_id);
+                                showSuccess("Protocolo Importado!", `O protocolo "${workout.protocol_name}" foi salvo em seus treinos privados.`);
+                                refresh();
+                              } catch (err) {
+                                console.error(err);
+                              } finally {
+                                setIsPerformingAction(false);
+                              }
+                            } else if (!isOptimistic) {
                               useWorkoutStore.getState().resetWorkout();
                               navigate('preparation', { id: workout.id });
                             }
                           }}
-                          onMouseEnter={() => !isOptimistic && handlePrefetchWorkout(workout.id)}
+                          onMouseEnter={() => !isOptimistic && !workout.is_public_admin && handlePrefetchWorkout(workout.id)}
                           whileTap={{ scale: 0.985 }}
                           whileHover={{ y: -2 }}
                           transition={{
@@ -1008,7 +1083,35 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                             </div>
                           </div>
 
-                          {!isOptimistic && (
+                          {workout.is_public_admin ? (
+                            <div className="flex items-center justify-between border-t border-slate-100/60 pt-3 mt-4 z-25 relative">
+                              <button 
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setIsPerformingAction(true);
+                                  try {
+                                    const session = await authApi.getSession();
+                                    if (!session?.user) return;
+                                    await premiumProtocolsApi.cloneToUser(session.user.id, workout.protocol_id);
+                                    showSuccess("Protocolo Importado!", `O protocolo "${workout.protocol_name}" foi salvo em seus treinos privados.`);
+                                    refresh();
+                                  } catch (err) {
+                                    console.error(err);
+                                  } finally {
+                                    setIsPerformingAction(false);
+                                  }
+                                }}
+                                className="flex items-center gap-1.5 text-[9.5px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/8 hover:bg-amber-500/15 px-3.5 py-2 rounded-full transition-all border border-amber-500/20 shadow-sm"
+                              >
+                                <FolderPlus size={11} className="text-amber-500" />
+                                <span>Importar Protocolo</span>
+                              </button>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide flex items-center gap-1">
+                                <Globe size={11} className="text-slate-300" />
+                                Público
+                              </span>
+                            </div>
+                          ) : !isOptimistic && (
                             <div className="flex items-center justify-between border-t border-slate-100/60 pt-3 mt-4 z-25 relative">
                               <div className="flex items-center gap-1.5">
                                 <button 

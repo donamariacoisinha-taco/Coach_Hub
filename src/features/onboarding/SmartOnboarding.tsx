@@ -302,53 +302,9 @@ export default function SmartOnboarding() {
         } catch {}
         draftsList.push(draftToUse);
         localStorage.setItem('kyron_admin_draft_protocols', JSON.stringify(draftsList));
-
-        // Directly clone workouts to user active program list so they can train immediately!
-        // (Just like copy template does, we map categories and insert exercises)
-        const folderName = `${draftToUse.name}`;
-        const newFolder = await workoutApi.createFolder(userId, folderName);
-
-        for (const tw of draftToUse.workouts) {
-          const categoryPayload = {
-            user_id: userId,
-            folder_id: newFolder.id,
-            name: tw.name,
-            description: tw.description || ''
-          };
-          const newCategory = await workoutApi.createCategory(categoryPayload);
-
-          const workoutExercisesPayload = tw.exercises.map((te: any, idx: number) => {
-            let matchedUuid = te.exercise_id;
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-            if (!uuidRegex.test(matchedUuid)) {
-              const fallbackExercise = activeExercises.find((ex: any) => ex.is_active) || activeExercises[0];
-              matchedUuid = fallbackExercise?.id || '5ce43864-44ac-4822-ba91-30efc477431e';
-            }
-
-            return {
-              category_id: newCategory.id,
-              exercise_id: matchedUuid,
-              exercise_name_snapshot: te.exercise_name,
-              sets: te.sets,
-              reps: te.reps,
-              weight: te.weight,
-              rest_time: te.rest_time,
-              sort_order: te.sort_order || (idx + 1),
-              sets_json: te.sets_json || []
-            };
-          });
-
-          if (workoutExercisesPayload.length > 0) {
-            await workoutApi.insertWorkoutExercises(workoutExercisesPayload);
-          }
-        }
-      } else if (matchItem.type === 'template') {
-        await systemTemplatesApi.copyTemplateToUser(userId, matchItem.id);
-      } else {
-        await premiumProtocolsApi.cloneToUser(userId, matchItem.id);
       }
 
-      showSuccess('KYRON OS Ativado!', 'Seu primeiro protocolo foi configurado com sucesso e está pronto.');
+      showSuccess('KYRON OS Ativado!', 'Seu perfil de performance foi configurado com sucesso e está pronto.');
       navigate('dashboard');
     } catch (err: any) {
       showError(err.message || 'Falha ao ativar protocolo de treinamento.');
