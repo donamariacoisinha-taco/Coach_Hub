@@ -502,11 +502,25 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
         className="w-full bg-white rounded-3xl border border-slate-100 shadow-[0_4px_16px_rgba(15,23,42,0.02)] cursor-pointer flex flex-col overflow-hidden group hover:border-[#7BA7FF]/30 hover:shadow-[0_12px_24px_rgba(15,23,42,0.06)] transition-all duration-300 text-left"
       >
         {/* Cover */}
-        <div className={`relative w-full h-[145px] overflow-hidden bg-slate-950 flex-shrink-0 bg-gradient-to-br ${cover.gradient}`}>
-          <div className="absolute top-[20%] right-[-10%] w-24 h-24 rounded-full blur-[45px] bg-[#7BA7FF]/40 pointer-events-none" />
-          <div className="absolute bottom-[-10%] left-[-10%] w-16 h-16 rounded-full blur-[30px] bg-white/10 pointer-events-none" />
+        <div className={`relative w-full h-[145px] overflow-hidden bg-slate-950 flex-shrink-0 ${p.image_url ? '' : `bg-gradient-to-br ${cover.gradient}`}`}>
+          {p.image_url ? (
+            <>
+              <img 
+                src={p.image_url} 
+                alt={p.name} 
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent" />
+            </>
+          ) : (
+            <>
+              <div className="absolute top-[20%] right-[-10%] w-24 h-24 rounded-full blur-[45px] bg-[#7BA7FF]/40 pointer-events-none" />
+              <div className="absolute bottom-[-10%] left-[-10%] w-16 h-16 rounded-full blur-[30px] bg-white/10 pointer-events-none" />
+            </>
+          )}
           
-          <div className={`absolute bottom-3 left-4 text-3xl font-[1000] italic tracking-tighter text-white select-none pointer-events-none ${cover.textOpacity} uppercase`}>
+          <div className={`absolute bottom-3 left-4 text-3xl font-[1000] italic tracking-tighter text-white select-none pointer-events-none ${p.image_url ? 'opacity-30' : cover.textOpacity} uppercase`}>
             {cover.label}
           </div>
 
@@ -662,6 +676,19 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                 const details = getPremiumDetails(selectedProtocol);
                 return (
                   <>
+                    {/* If custom cover is set, render a stunning visual header */}
+                    {selectedProtocol.image_url && (
+                      <div className="relative w-full h-[180px] sm:h-[220px] rounded-[1.5rem] overflow-hidden border border-slate-100 shadow-[0_4px_12px_rgba(0,0,0,0.02)] mb-2 mt-4">
+                        <img 
+                          src={selectedProtocol.image_url} 
+                          alt={selectedProtocol.name} 
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
+                      </div>
+                    )}
+
                     {/* 7. PREMIUM INTRODUCTION SECTION */}
                     <div className="space-y-4 pt-4 text-left">
                       <span className="text-[9px] font-black tracking-[0.2em] text-[#7BA7FF] uppercase">Treino Personalizado</span>

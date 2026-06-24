@@ -25,6 +25,7 @@ export interface PremiumProtocol {
   id: string;
   name: string;
   description: string;
+  image_url?: string; // Optional cover image URL
   version: number;
   premium: boolean; // Is it premium or free?
   is_active?: boolean; // Can be marked inactive by the admin
@@ -1760,3 +1761,73 @@ class PremiumProtocolsApi {
 }
 
 export const premiumProtocolsApi = new PremiumProtocolsApi();
+
+export interface ProtocolPresetImage {
+  id: string;
+  url: string;
+  focus: string; // hypertrophy, weight_loss, strength, performance, glutes, recovery, general
+  title: string;
+}
+
+export const PROTOCOL_PRESET_IMAGES: ProtocolPresetImage[] = [
+  {
+    id: 'hypertrophy_barbell',
+    url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=800&auto=format&fit=crop',
+    focus: 'hypertrophy',
+    title: 'Hipertrofia - Barra Olímpica'
+  },
+  {
+    id: 'hypertrophy_dumbbells',
+    url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?q=80&w=800&auto=format&fit=crop',
+    focus: 'hypertrophy',
+    title: 'Foco Braços / Halteres'
+  },
+  {
+    id: 'chest_press',
+    url: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=800&auto=format&fit=crop',
+    focus: 'hypertrophy',
+    title: 'Foco Peitoral'
+  },
+  {
+    id: 'abs_definition',
+    url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=800&auto=format&fit=crop',
+    focus: 'weight_loss',
+    title: 'Foco Abdominal & Definição'
+  },
+  {
+    id: 'cardio_running',
+    url: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=800&auto=format&fit=crop',
+    focus: 'weight_loss',
+    title: 'Cardio & Queima de Gordura'
+  },
+  {
+    id: 'strength_deadlift',
+    url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=800&auto=format&fit=crop',
+    focus: 'strength',
+    title: 'Força Bruta - Levantamento'
+  },
+  {
+    id: 'performance_crossfit',
+    url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800&auto=format&fit=crop',
+    focus: 'performance',
+    title: 'Acondicionamento / CrossFit'
+  },
+  {
+    id: 'glutes_squat',
+    url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?q=80&w=800&auto=format&fit=crop',
+    focus: 'glutes',
+    title: 'Membros Inferiores & Glúteos'
+  },
+  {
+    id: 'recovery_yoga',
+    url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=800&auto=format&fit=crop',
+    focus: 'recovery',
+    title: 'Mobilidade & Yoga'
+  },
+  {
+    id: 'recovery_pilates',
+    url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=800&auto=format&fit=crop',
+    focus: 'recovery',
+    title: 'Reabilitação & Alongamento'
+  }
+];

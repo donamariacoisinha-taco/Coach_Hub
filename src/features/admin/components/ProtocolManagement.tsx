@@ -29,7 +29,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { systemTemplatesApi, SystemTemplate } from '../../../lib/api/systemTemplatesApi';
-import { premiumProtocolsApi, PremiumProtocol, PremiumTemplateWorkout, PremiumTemplateExercise } from '../../../lib/api/premiumProtocolsApi';
+import { premiumProtocolsApi, PremiumProtocol, PremiumTemplateWorkout, PremiumTemplateExercise, PROTOCOL_PRESET_IMAGES } from '../../../lib/api/premiumProtocolsApi';
 import { useAdminStore } from '../../../store/adminStore';
 import { authApi } from '../../../lib/api/authApi';
 
@@ -155,6 +155,7 @@ export const ProtocolManagement: React.FC = () => {
   const [builderDuration, setBuilderDuration] = useState<number>(12);
   const [builderCategory, setBuilderCategory] = useState<'premium' | 'public'>('premium');
   const [builderEnvironment, setBuilderEnvironment] = useState<'gym' | 'home' | 'hybrid'>('gym');
+  const [builderImage, setBuilderImage] = useState<string>('');
 
   // Step 2 Selection Criteria
   const [critEquipFull, setCritEquipFull] = useState<boolean>(true);
@@ -1308,6 +1309,7 @@ export const ProtocolManagement: React.FC = () => {
       id: draftId,
       name: builderName || 'Novo Rascunho Automático',
       description: `Planilha semi-automatizada focada em desenvolvimento para nível ${builderLevel} com meta de ${builderGoal}.`,
+      image_url: builderImage || undefined,
       version: 1,
       premium: builderCategory === 'premium',
       goal: builderGoal,
@@ -1631,6 +1633,7 @@ export const ProtocolManagement: React.FC = () => {
       id: editingProtocolId || `protocol-${Date.now()}`,
       name: name || 'Protocolo Sem Nome',
       description: description || 'Sem descrição cadastrada.',
+      image_url: imageUrl || undefined,
       version: 1,
       premium: publishStatus === 'premium',
       goal,
@@ -2508,6 +2511,78 @@ export const ProtocolManagement: React.FC = () => {
                           </label>
                         </div>
                       </div>
+
+                      {/* SELETOR DE IMAGEM DE CAPA DO PROTOCOLO (BUILDER STEP 1) */}
+                      <div className="space-y-3 pt-4 border-t border-slate-100 text-left">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                          Imagem de Capa do Protocolo (Premium Hero Cover)
+                        </label>
+                        
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                          {/* Option for none / gradient cover */}
+                          <button
+                            type="button"
+                            onClick={() => setBuilderImage('')}
+                            className={`relative rounded-2xl overflow-hidden border p-2 flex flex-col items-center justify-center text-center h-24 transition-all ${
+                              !builderImage 
+                                ? 'border-blue-500 bg-blue-50 text-slate-800 shadow-sm' 
+                                : 'border-slate-200 bg-white text-slate-450 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="text-xl">🎨</span>
+                            <span className="text-[9px] font-black uppercase tracking-wider mt-1.5 leading-tight">Degradê Padrão</span>
+                          </button>
+
+                          {PROTOCOL_PRESET_IMAGES.map((preset) => {
+                            const isSelected = builderImage === preset.url;
+                            return (
+                              <button
+                                type="button"
+                                key={preset.id}
+                                onClick={() => setBuilderImage(preset.url)}
+                                className={`relative rounded-2xl overflow-hidden border h-24 text-left transition-all group ${
+                                  isSelected 
+                                    ? 'border-blue-500 ring-2 ring-blue-500/20 scale-[0.98]' 
+                                    : 'border-slate-200 hover:border-slate-300'
+                                }`}
+                              >
+                                <img 
+                                  src={preset.url} 
+                                  alt={preset.title} 
+                                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <div className="absolute inset-0 bg-slate-950/60" />
+                                <div className="absolute inset-0 p-2 flex flex-col justify-between">
+                                  <span className="text-[7px] font-black uppercase bg-slate-900/80 text-blue-400 px-1.5 py-0.5 rounded self-start tracking-wider">
+                                    {preset.focus === 'hypertrophy' ? 'HIPER' : preset.focus === 'weight_loss' ? 'DEFINIR' : preset.focus === 'strength' ? 'FORÇA' : preset.focus === 'performance' ? 'PERF' : preset.focus === 'glutes' ? 'GLÚTEOS' : 'RECOV'}
+                                  </span>
+                                  <span className="text-[8px] font-bold text-white leading-tight line-clamp-2">
+                                    {preset.title}
+                                  </span>
+                                </div>
+                                {isSelected && (
+                                  <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white border border-white/20">
+                                    <CheckCircle size={10} strokeWidth={3} />
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Custom URL Option */}
+                        <div className="flex gap-3 items-center mt-2">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Custom URL:</span>
+                          <input
+                            type="text"
+                            value={builderImage}
+                            onChange={(e) => setBuilderImage(e.target.value)}
+                            placeholder="Insira uma URL de imagem do Unsplash ou outro servidor..."
+                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="border-t border-slate-100 pt-6 flex justify-end">
@@ -3101,6 +3176,99 @@ export const ProtocolManagement: React.FC = () => {
                             <span className="block text-xs font-black text-blue-400 bg-slate-850/50 px-3 py-2 rounded-xl border border-slate-800/60">
                               Kyron OS Admin
                             </span>
+                          </div>
+                        </div>
+
+                        {/* SELETOR DE IMAGEM DE CAPA DO PROTOCOLO (BUILDER STEP 5) */}
+                        <div className="mt-6 pt-6 border-t border-slate-800/80 text-left">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">
+                            Imagem de Capa do Protocolo (Premium Hero Cover)
+                          </span>
+                          
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                            {/* Option for none / gradient cover */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const up = { ...currentGeneratedDraft, image_url: undefined };
+                                setCurrentGeneratedDraft(up);
+                                if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
+                                  const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
+                                  saveDraftsToStorage(otherDrafts);
+                                }
+                              }}
+                              className={`relative rounded-2xl overflow-hidden border p-2 flex flex-col items-center justify-center text-center h-24 transition-all ${
+                                !currentGeneratedDraft.image_url 
+                                  ? 'border-blue-500 bg-blue-500/10 text-white shadow-md' 
+                                  : 'border-slate-800 bg-slate-850/50 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                              }`}
+                            >
+                              <span className="text-xl">🎨</span>
+                              <span className="text-[9px] font-black uppercase tracking-wider mt-1.5 leading-tight">Degradê Padrão</span>
+                            </button>
+
+                            {PROTOCOL_PRESET_IMAGES.map((preset) => {
+                              const isSelected = currentGeneratedDraft.image_url === preset.url;
+                              return (
+                                <button
+                                  type="button"
+                                  key={preset.id}
+                                  onClick={() => {
+                                    const up = { ...currentGeneratedDraft, image_url: preset.url };
+                                    setCurrentGeneratedDraft(up);
+                                    if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
+                                      const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
+                                      saveDraftsToStorage(otherDrafts);
+                                    }
+                                  }}
+                                  className={`relative rounded-2xl overflow-hidden border h-24 text-left transition-all group ${
+                                    isSelected 
+                                      ? 'border-blue-500 ring-2 ring-blue-500/20 scale-[0.98]' 
+                                      : 'border-slate-800 hover:border-slate-600'
+                                  }`}
+                                >
+                                  <img 
+                                    src={preset.url} 
+                                    alt={preset.title} 
+                                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                  <div className="absolute inset-0 bg-slate-950/70" />
+                                  <div className="absolute inset-0 p-2.5 flex flex-col justify-between">
+                                    <span className="text-[7.5px] font-black uppercase bg-slate-900/80 text-blue-400 px-1.5 py-0.5 rounded self-start tracking-wider">
+                                      {preset.focus === 'hypertrophy' ? 'HIPER' : preset.focus === 'weight_loss' ? 'DEFINIR' : preset.focus === 'strength' ? 'FORÇA' : preset.focus === 'performance' ? 'PERF' : preset.focus === 'glutes' ? 'GLÚTEOS' : 'RECOV'}
+                                    </span>
+                                    <span className="text-[8.5px] font-bold text-white leading-tight line-clamp-2">
+                                      {preset.title}
+                                    </span>
+                                  </div>
+                                  {isSelected && (
+                                    <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white border border-white/20">
+                                      <CheckCircle size={10} strokeWidth={3} />
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Custom URL Option */}
+                          <div className="mt-4 flex gap-3 items-center">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest shrink-0">Custom URL:</span>
+                            <input
+                              type="text"
+                              value={currentGeneratedDraft.image_url || ''}
+                              onChange={(e) => {
+                                const up = { ...currentGeneratedDraft, image_url: e.target.value || undefined };
+                                setCurrentGeneratedDraft(up);
+                                if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
+                                  const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
+                                  saveDraftsToStorage(otherDrafts);
+                                }
+                              }}
+                              placeholder="Insira uma URL de imagem do Unsplash ou outro servidor..."
+                              className="flex-1 bg-slate-850/80 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            />
                           </div>
                         </div>
                       </div>
@@ -3829,6 +3997,78 @@ export const ProtocolManagement: React.FC = () => {
                         value={frequency} 
                         onChange={(e) => setFrequency(Number(e.target.value))}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* SELETOR DE IMAGEM DE CAPA DO PROTOCOLO */}
+                  <div className="space-y-3 pt-4 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                      Imagem de Capa do Protocolo (Premium Hero Cover)
+                    </label>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                      {/* Option for none / gradient cover */}
+                      <button
+                        type="button"
+                        onClick={() => setImageUrl('')}
+                        className={`relative rounded-2xl overflow-hidden border p-2 flex flex-col items-center justify-center text-center h-24 transition-all ${
+                          !imageUrl 
+                            ? 'border-blue-500 bg-blue-50 text-slate-800 shadow-sm' 
+                            : 'border-slate-200 bg-white text-slate-450 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="text-xl">🎨</span>
+                        <span className="text-[9px] font-black uppercase tracking-wider mt-1.5 leading-tight">Degradê Padrão</span>
+                      </button>
+
+                      {PROTOCOL_PRESET_IMAGES.map((preset) => {
+                        const isSelected = imageUrl === preset.url;
+                        return (
+                          <button
+                            type="button"
+                            key={preset.id}
+                            onClick={() => setImageUrl(preset.url)}
+                            className={`relative rounded-2xl overflow-hidden border h-24 text-left transition-all group ${
+                              isSelected 
+                                ? 'border-blue-500 ring-2 ring-blue-500/20 scale-[0.98]' 
+                                : 'border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <img 
+                              src={preset.url} 
+                              alt={preset.title} 
+                              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-0 bg-slate-950/60" />
+                            <div className="absolute inset-0 p-2 flex flex-col justify-between">
+                              <span className="text-[7px] font-black uppercase bg-slate-900/80 text-blue-400 px-1.5 py-0.5 rounded self-start tracking-wider">
+                                {preset.focus === 'hypertrophy' ? 'HIPER' : preset.focus === 'weight_loss' ? 'DEFINIR' : preset.focus === 'strength' ? 'FORÇA' : preset.focus === 'performance' ? 'PERF' : preset.focus === 'glutes' ? 'GLÚTEOS' : 'RECOV'}
+                              </span>
+                              <span className="text-[8px] font-bold text-white leading-tight line-clamp-2">
+                                {preset.title}
+                              </span>
+                            </div>
+                            {isSelected && (
+                              <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white border border-white/20">
+                                <CheckCircle size={10} strokeWidth={3} />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Custom URL Option */}
+                    <div className="flex gap-3 items-center mt-2">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Custom URL:</span>
+                      <input
+                        type="text"
+                        value={imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
+                        placeholder="Insira uma URL de imagem do Unsplash ou outro servidor..."
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                       />
                     </div>
                   </div>
