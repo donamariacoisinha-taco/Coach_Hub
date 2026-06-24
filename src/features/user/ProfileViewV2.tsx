@@ -523,10 +523,11 @@ export default function ProfileViewV2() {
           </button>
           <button 
             onClick={logout}
-            className="bg-white/90 p-2.5 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.02)] border border-slate-200/50 text-slate-400 hover:text-red-500 active:scale-95 transition-all cursor-pointer"
-            title="Sair da conta"
+            className="bg-white/90 py-2 px-3.5 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.02)] border border-slate-200/50 text-slate-500 hover:text-red-600 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+            title="Sair do aplicativo"
           >
-            <LogOut size={16} strokeWidth={2.5} />
+            <LogOut size={13} strokeWidth={3} className="text-red-500" />
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">Sair</span>
           </button>
         </div>
         <div className="flex flex-col items-center">
@@ -1113,6 +1114,18 @@ export default function ProfileViewV2() {
             <span className="text-[10px] font-[1000] uppercase tracking-[0.2em] text-slate-400 ml-2">Preferências de App</span>
           </div>
           <ProfileActions />
+
+          {/* Action button to sign out of the app */}
+          <div className="pt-4 pb-12">
+            <button 
+              type="button"
+              onClick={logout}
+              className="w-full flex items-center justify-center gap-2.5 py-4 px-6 bg-red-500 hover:bg-red-600 active:scale-[0.98] text-white font-black uppercase text-xs tracking-[0.15em] rounded-[1.5rem] shadow-[0_10px_20px_rgba(239,68,68,0.15)] hover:shadow-[0_15px_25px_rgba(239,68,68,0.3)] transition-all duration-300 cursor-pointer border-none"
+            >
+              <LogOut size={14} strokeWidth={3} />
+              <span>Sair do Aplicativo</span>
+            </button>
+          </div>
 
         </div>
 
