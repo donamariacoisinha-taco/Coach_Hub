@@ -33,7 +33,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
   history = []
 }) => {
   const [protocols, setProtocols] = useState<PremiumProtocol[]>([]);
-  const [selectedCollection, setSelectedCollection] = useState<string>('premium');
+  const [selectedCollection, setSelectedCollection] = useState<string>('publico');
   const [isPremium, setIsPremium] = useState<boolean>(false);
   const [selectedProtocol, setSelectedProtocol] = useState<PremiumProtocol | null>(null);
   const [showWorkouts, setShowWorkouts] = useState<boolean>(false);
@@ -50,8 +50,8 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
   const [editingWorkoutName, setEditingWorkoutName] = useState<string>('');
 
   const COLLECTIONS = [
-    { id: 'premium', label: '💎 Premium', desc: 'Protocolos exclusivos de elite' },
-    { id: 'publico', label: '🔓 Pública', desc: 'Protocolos livres para todos' }
+    { id: 'publico', label: '🔓 Pública', desc: 'Protocolos livres para todos' },
+    { id: 'premium', label: '💎 Premium', desc: 'Protocolos exclusivos de elite' }
   ];
 
   const handleSaveWorkoutName = async (workoutId: string) => {
@@ -512,7 +512,6 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                 src={p.image_url} 
                 alt={p.name} 
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                referrerPolicy="no-referrer"
                 onError={(e) => console.error('Image load error:', p.image_url, e)}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent" />
@@ -687,7 +686,6 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                           src={selectedProtocol.image_url} 
                           alt={selectedProtocol.name} 
                           className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
                           onError={(e) => console.error('SelectedProtocol image load error:', selectedProtocol.image_url, e)}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
