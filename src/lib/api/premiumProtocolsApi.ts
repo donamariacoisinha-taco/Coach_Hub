@@ -1462,15 +1462,28 @@ class PremiumProtocolsApi {
   }
 
   async getProtocols(): Promise<PremiumProtocol[]> {
+    const localList = this.getLocalProtocols();
     try {
       const { data, error } = await supabase.from('premium_protocols').select('*');
-      if (!error && data && data.length > 0) {
-        return data as PremiumProtocol[];
+      if (!error && data) {
+        // Merge DB protocols with local ones to ensure we don't lose any protocols
+        const dbProtocols = data as PremiumProtocol[];
+        if (dbProtocols.length > 0) {
+          const mergedMap = new Map<string, PremiumProtocol>();
+          
+          // Seed map with local (default) list
+          localList.forEach(p => mergedMap.set(p.id, p));
+          
+          // Override with database list (representing administrator's updates)
+          dbProtocols.forEach(p => mergedMap.set(p.id, p));
+          
+          return Array.from(mergedMap.values());
+        }
       }
     } catch (e) {
       console.warn('[PremiumProtocolsApi] DB query failed or table not available. Using local space.', e);
     }
-    return this.getLocalProtocols();
+    return localList;
   }
 
   async getProtocolById(id: string): Promise<PremiumProtocol | null> {
