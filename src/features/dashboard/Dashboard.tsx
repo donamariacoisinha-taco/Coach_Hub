@@ -28,6 +28,7 @@ import { premiumProtocolsApi } from '../../lib/api/premiumProtocolsApi';
 import { Crown, Sliders } from 'lucide-react';
 import { isAdmin } from '../../lib/utils/auth';
 import { playHapticFeedback } from '../../services/athleteMemoryEngine';
+import { runProtocolFailsafeAndAudit } from '../../lib/utils/failsafe';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
@@ -299,6 +300,23 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       });
     }
   }, [activeFolderId, folders, filteredWorkouts]);
+
+  // CRITICAL AUDIT & FAILSAFE FOR ONBOARDING EXERCISES (KYRON OS)
+  useEffect(() => {
+    async function executeAudit() {
+      if (profile?.id) {
+        const email = profile.email || 'atleta@kyron.os';
+        const result = await runProtocolFailsafeAndAudit(profile.id, email, profile.active_plan_id);
+        if (result.autocorrected) {
+          console.log('[KYRON_OS_DIAGNOSTIC] Failsafe correction completed on dashboard load. Refreshing view...');
+          refresh();
+        }
+      }
+    }
+    if (profile?.id) {
+      executeAudit();
+    }
+  }, [profile?.id, profile?.active_plan_id]);
 
   const handlePrefetchWorkout = async (id: string) => {
     const currentStoreId = useWorkoutStore.getState().currentWorkoutId;

@@ -33,7 +33,7 @@ import { premiumProtocolsApi, PremiumProtocol } from '../../lib/api/premiumProto
 import { exerciseApi } from '../../lib/api/exerciseApi';
 import { workoutApi } from '../../lib/api/workoutApi';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
-import { Exercise, UserProfile } from '../../types';
+import { Exercise, UserProfile, normalizeMuscleGroup } from '../../types';
 import { useNavigation } from '../../App';
 import kyronLogo from '../../assets/images/kyron_official_logo_1781087891387.png';
 
@@ -283,6 +283,9 @@ export default function SmartOnboarding() {
     if (!userId) return;
     setIsFinishing(true);
 
+    const legPressEx = activeExercises.find(e => e.name.toLowerCase().includes('leg press')) || activeExercises[0];
+    const fallbackLegPressId = legPressEx?.id || 'f1b01c1c-99e6-4251-ba84-475253896001';
+
     try {
       console.log('[KYRON_OS_DIAGNOSTIC] ONBOARDING_COMPLETED', { userId, isRedoing });
 
@@ -417,7 +420,7 @@ export default function SmartOnboarding() {
         
         await workoutApi.insertWorkoutExercises([{
           category_id: cat.id,
-          exercise_id: '5ce43864-44ac-4822-ba91-30efc477431e',
+          exercise_id: fallbackLegPressId,
           exercise_name_snapshot: 'Leg Press 45',
           sets: 3,
           reps: '12',
@@ -492,7 +495,7 @@ export default function SmartOnboarding() {
         
         await workoutApi.insertWorkoutExercises([{
           category_id: cat.id,
-          exercise_id: '5ce43864-44ac-4822-ba91-30efc477431e',
+          exercise_id: fallbackLegPressId,
           exercise_name_snapshot: 'Leg Press 45',
           sets: 3,
           reps: '12',
@@ -794,11 +797,13 @@ export default function SmartOnboarding() {
 
       let count = 0;
       split.muscles.forEach(muscle => {
-        // Encontrar os exercícios compatíveis com este grupo muscular
-        const filtered = cleanListExs.filter(ex => 
-          (ex.muscle_group?.toLowerCase().includes(muscle.toLowerCase()) || 
-           muscle.toLowerCase().includes(ex.muscle_group?.toLowerCase()))
-        );
+        // Encontrar os exercícios compatíveis com este grupo muscular usando normalização inteligente
+        const normMuscle = normalizeMuscleGroup(muscle);
+        const filtered = cleanListExs.filter(ex => {
+          const exNorm = normalizeMuscleGroup(ex.muscle_group || '');
+          return exNorm.toLowerCase() === normMuscle.toLowerCase() ||
+                 ex.name.toLowerCase().includes(muscle.toLowerCase());
+        });
         
         // Se for iniciante, priorizar máquinas ou exercícios corporais simples
         const sortedCandidateExs = filtered.sort((a, b) => {
@@ -839,24 +844,100 @@ export default function SmartOnboarding() {
         });
       });
 
-      // Absolute safety guard line fallback if no exercises were matched
-      if (workout.exercises.length === 0) {
-        const fallbackExercise = cleanListExs.find((ex: any) => ex.is_active !== false) || listExs[0];
-        workout.exercises.push({
-          exercise_id: fallbackExercise?.id || '5ce43864-44ac-4822-ba91-30efc477431e',
-          exercise_name: fallbackExercise?.name || 'Agachamento Peso Corporal',
-          sets: 4,
-          reps: '12',
-          weight: 0,
-          rest_time: 60,
-          sort_order: 1,
-          sets_json: [
-            { reps: '12', weight: 0, rest_time: 60 },
-            { reps: '12', weight: 0, rest_time: 60 },
-            { reps: '12', weight: 0, rest_time: 60 },
-            { reps: '12', weight: 0, rest_time: 60 }
-          ]
-        });
+      // FAILSAFE OBRIGATÓRIO: Ensure workout has between 5 and 10 exercises
+      if (workout.exercises.length < 5) {
+        const currentIds = new Set(workout.exercises.map((e: any) => e.exercise_id));
+        const extraCandidates = cleanListExs.filter(ex => !currentIds.has(ex.id));
+        
+        let idx = workout.exercises.length;
+        for (const ex of extraCandidates) {
+          if (workout.exercises.length >= 6) break; // target size of 6, which is strictly between 5 and 10
+          idx++;
+          workout.exercises.push({
+            exercise_id: ex.id,
+            exercise_name: ex.name,
+            sets: level === 'advanced' ? 4 : 3,
+            reps: level === 'beginner' ? '12' : '10',
+            weight: level === 'beginner' ? 10 : 20,
+            rest_time: 60,
+            sort_order: idx,
+            notes: 'Exercício complementar adaptativo.',
+            sets_json: Array.from({ length: level === 'advanced' ? 4 : 3 }, () => ({
+              reps: level === 'beginner' ? '12' : '10',
+              weight: level === 'beginner' ? 10 : 20,
+              rest_time: 60
+            }))
+          });
+        }
+      }
+
+      // FALLBACK DE EMERGÊNCIA: If still less than 5 exercises, pull from emergency fallback list
+      if (workout.exercises.length < 5) {
+        const emergencyNames = [
+          'Leg Press',
+          'Supino Máquina',
+          'Puxada Frontal',
+          'Desenvolvimento Máquina',
+          'Mesa Flexora',
+          'Prancha'
+        ];
+        
+        const currentNames = new Set(workout.exercises.map((e: any) => e.exercise_name.toLowerCase()));
+        const fallbackList = listExs.filter(ex => 
+          emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase())) && !currentNames.has(ex.name.toLowerCase())
+        );
+
+        let idx = workout.exercises.length;
+        for (const ex of fallbackList) {
+          if (workout.exercises.length >= 6) break;
+          idx++;
+          workout.exercises.push({
+            exercise_id: ex.id,
+            exercise_name: ex.name,
+            sets: 3,
+            reps: '12',
+            weight: 15,
+            rest_time: 60,
+            sort_order: idx,
+            notes: 'Ativação de emergência Kyron OS.',
+            sets_json: [
+              { reps: '12', weight: 15, rest_time: 60 },
+              { reps: '12', weight: 15, rest_time: 60 },
+              { reps: '12', weight: 15, rest_time: 60 }
+            ]
+          });
+        }
+      }
+
+      // If still less than 5, grab any active ones from listExs
+      if (workout.exercises.length < 5) {
+        const currentIds = new Set(workout.exercises.map((e: any) => e.exercise_id));
+        const extraRandom = listExs.filter(ex => !currentIds.has(ex.id));
+        let idx = workout.exercises.length;
+        for (const ex of extraRandom) {
+          if (workout.exercises.length >= 6) break;
+          idx++;
+          workout.exercises.push({
+            exercise_id: ex.id,
+            exercise_name: ex.name,
+            sets: 3,
+            reps: '12',
+            weight: 15,
+            rest_time: 60,
+            sort_order: idx,
+            notes: 'Recrutamento motor compensatório.',
+            sets_json: [
+              { reps: '12', weight: 15, rest_time: 60 },
+              { reps: '12', weight: 15, rest_time: 60 },
+              { reps: '12', weight: 15, rest_time: 60 }
+            ]
+          });
+        }
+      }
+
+      // Enforce MAXIMUM of 10 exercises
+      if (workout.exercises.length > 10) {
+        workout.exercises = workout.exercises.slice(0, 10);
       }
 
       newProtocol.workouts.push(workout);
@@ -975,9 +1056,12 @@ export default function SmartOnboarding() {
           description: 'Treino adaptativo de ativação emergencial.'
         });
         
+        const firstEx = activeExercises.find(e => e.name.toLowerCase().includes('leg press')) || activeExercises[0];
+        const realLegPressId = firstEx?.id || 'f1b01c1c-99e6-4251-ba84-475253896001';
+
         await workoutApi.insertWorkoutExercises([{
           category_id: cat.id,
-          exercise_id: '5ce43864-44ac-4822-ba91-30efc477431e',
+          exercise_id: realLegPressId,
           exercise_name_snapshot: 'Leg Press 45',
           sets: 3,
           reps: '12',
