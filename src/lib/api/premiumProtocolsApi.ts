@@ -33,6 +33,8 @@ export interface PremiumProtocol {
   archived_by?: string;
   goal: string; // hypertrophy, weight_loss, strength, performance, glutes, recovery
   difficulty: 'beginner' | 'intermediate' | 'advanced';
+  environment?: 'gym' | 'home' | 'hybrid';
+  training_environment?: 'gym_full' | 'home' | 'both';
   duration_weeks: number;
   frequency: number; // days per week
   created_by: 'rubi_ai' | 'admin' | 'coach_kyron' | 'certified_personal';

@@ -659,23 +659,34 @@ export default function SmartOnboarding() {
     }
 
     // D. Environment Preference Match (Weight: 10%)
-    const desc = (p.description || '').toLowerCase() + (p.name || '').toLowerCase();
-    if (userEnv === 'home') {
-      if (desc.includes('casa') || desc.includes('home') || desc.includes('halter') || desc.includes('caliste')) {
+    const pEnv = p.training_environment;
+    if (pEnv) {
+      if (pEnv === 'both') {
         score += 10;
-      } else if (desc.includes('máquina') || desc.includes('academia') || desc.includes('polia')) {
-        score += 3;
-      } else {
-        score += 7;
-      }
-    } else if (userEnv === 'gym_full') {
-      if (desc.includes('completo') || desc.includes('academia') || desc.includes('máquina')) {
+      } else if (pEnv === userEnv) {
         score += 10;
       } else {
-        score += 8;
+        score += 2;
       }
     } else {
-      score += 10;
+      const desc = (p.description || '').toLowerCase() + (p.name || '').toLowerCase();
+      if (userEnv === 'home') {
+        if (desc.includes('casa') || desc.includes('home') || desc.includes('halter') || desc.includes('caliste')) {
+          score += 10;
+        } else if (desc.includes('máquina') || desc.includes('academia') || desc.includes('polia')) {
+          score += 3;
+        } else {
+          score += 7;
+        }
+      } else if (userEnv === 'gym_full') {
+        if (desc.includes('completo') || desc.includes('academia') || desc.includes('máquina')) {
+          score += 10;
+        } else {
+          score += 8;
+        }
+      } else {
+        score += 10;
+      }
     }
 
     // E. Physical Restrictions (Weight: 5%)

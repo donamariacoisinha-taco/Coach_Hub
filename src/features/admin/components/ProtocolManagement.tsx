@@ -154,6 +154,7 @@ export const ProtocolManagement: React.FC = () => {
   const [builderFrequency, setBuilderFrequency] = useState<number>(4);
   const [builderDuration, setBuilderDuration] = useState<number>(12);
   const [builderCategory, setBuilderCategory] = useState<'premium' | 'public'>('premium');
+  const [builderEnvironment, setBuilderEnvironment] = useState<'gym' | 'home' | 'hybrid'>('gym');
 
   // Step 2 Selection Criteria
   const [critEquipFull, setCritEquipFull] = useState<boolean>(true);
@@ -198,6 +199,7 @@ export const ProtocolManagement: React.FC = () => {
   const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
   const [durationWeeks, setDurationWeeks] = useState<number>(12);
   const [frequency, setFrequency] = useState<number>(5);
+  const [trainingEnvironment, setTrainingEnvironment] = useState<'gym' | 'home' | 'hybrid'>('gym');
   const [imageUrl, setImageUrl] = useState('');
   
   const [workouts, setWorkouts] = useState<PremiumTemplateWorkout[]>([
@@ -324,6 +326,7 @@ export const ProtocolManagement: React.FC = () => {
     setDifficulty('intermediate');
     setDurationWeeks(12);
     setFrequency(5);
+    setTrainingEnvironment('gym');
     setImageUrl('');
     setWorkouts([
       {
@@ -1309,6 +1312,8 @@ export const ProtocolManagement: React.FC = () => {
       premium: builderCategory === 'premium',
       goal: builderGoal,
       difficulty: builderLevel,
+      environment: builderEnvironment as any,
+      training_environment: builderEnvironment === 'gym' ? 'gym_full' : builderEnvironment === 'home' ? 'home' : 'both',
       duration_weeks: builderDuration,
       frequency: builderFrequency,
       created_by: 'admin',
@@ -1630,6 +1635,8 @@ export const ProtocolManagement: React.FC = () => {
       premium: publishStatus === 'premium',
       goal,
       difficulty,
+      environment: trainingEnvironment as any,
+      training_environment: trainingEnvironment === 'gym' ? 'gym_full' : trainingEnvironment === 'home' ? 'home' : 'both',
       duration_weeks: durationWeeks,
       frequency,
       created_by: 'admin',
@@ -2403,7 +2410,7 @@ export const ProtocolManagement: React.FC = () => {
                       </div>
 
                       {/* Level and Frequency in row */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         {/* Level */}
                         <div className="space-y-2">
                           <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Nível Recomendado</label>
@@ -2427,6 +2434,20 @@ export const ProtocolManagement: React.FC = () => {
                               </button>
                             ))}
                           </div>
+                        </div>
+
+                        {/* Environment */}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Ambiente de Treino</label>
+                          <select
+                            value={builderEnvironment}
+                            onChange={(e) => setBuilderEnvironment(e.target.value as any)}
+                            className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none"
+                          >
+                            <option value="gym">Academia Completa (gym)</option>
+                            <option value="home">Treino em Casa (home)</option>
+                            <option value="hybrid">Híbrido / Ambos</option>
+                          </select>
                         </div>
 
                         {/* Frequency */}
@@ -3663,7 +3684,7 @@ export const ProtocolManagement: React.FC = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Nível de Dificuldade</label>
                       <select 
@@ -3678,6 +3699,19 @@ export const ProtocolManagement: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Ambiente / Local</label>
+                      <select 
+                        value={trainingEnvironment} 
+                        onChange={(e: any) => setTrainingEnvironment(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm"
+                      >
+                        <option value="gym">Academia Completa (gym)</option>
+                        <option value="home">Treino em Casa (home)</option>
+                        <option value="hybrid">Híbrido / Ambos</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Duração (Semanas)</label>
                       <input 
                         type="number" 
@@ -3688,7 +3722,7 @@ export const ProtocolManagement: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Frequência Semanal (Treinos/Semana)</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Frequência Semanal</label>
                       <input 
                         type="number" 
                         value={frequency} 
