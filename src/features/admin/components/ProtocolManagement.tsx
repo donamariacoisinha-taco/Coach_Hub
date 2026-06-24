@@ -1661,7 +1661,7 @@ export const ProtocolManagement: React.FC = () => {
       id: editingProtocolId || `protocol-${Date.now()}`,
       name: name || 'Protocolo Sem Nome',
       description: description || 'Sem descrição cadastrada.',
-      image_url: imageUrl || undefined,
+      image_url: (imageUrl && imageUrl !== 'undefined') ? imageUrl : undefined,
       version: 1,
       premium: publishStatus === 'premium',
       goal,

@@ -23,6 +23,7 @@ import { Sparkles, Loader2, Clock, CheckCircle2, Shield, Star, Activity, AlertTr
 import { ProgressIntelligence } from './ProgressIntelligence';
 import { ProtocolEvolutionDashboard } from './components/ProtocolEvolutionDashboard';
 import { systemTemplatesApi } from '../../lib/api/systemTemplatesApi';
+import { PremiumLibraryV3 } from './components/PremiumLibraryV3';
 import { PremiumLibraryComponent } from './components/PremiumLibraryComponent';
 import { premiumProtocolsApi } from '../../lib/api/premiumProtocolsApi';
 import { Crown, Sliders } from 'lucide-react';
@@ -1022,7 +1023,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         </div>
 
         {activeTab === 'premium' ? (
-          <PremiumLibraryComponent 
+          <PremiumLibraryV3 
             profile={profile || null} 
             onRefreshDashboard={refresh} 
             onTabChange={(tab) => setActiveTab(tab)} 
