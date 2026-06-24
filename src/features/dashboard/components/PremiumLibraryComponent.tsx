@@ -94,11 +94,14 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
     const list = await premiumProtocolsApi.getProtocols();
     const isAdminUser = isAdmin(profile);
     const filteredList = list.filter(p => {
-      const status = p.status || (p.is_active !== false ? 'published' : 'draft');
-      if (isAdminUser) {
-        return true;
+      if (p.is_active === false) {
+        return false;
       }
-      return status === 'published';
+      const status = p.status || 'published';
+      if (status !== 'published') {
+        return false;
+      }
+      return true;
     });
     setProtocols(filteredList);
     setIsPremium(premiumProtocolsApi.isPremiumAthlete());
@@ -502,14 +505,15 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
         className="w-full bg-white rounded-3xl border border-slate-100 shadow-[0_4px_16px_rgba(15,23,42,0.02)] cursor-pointer flex flex-col overflow-hidden group hover:border-[#7BA7FF]/30 hover:shadow-[0_12px_24px_rgba(15,23,42,0.06)] transition-all duration-300 text-left"
       >
         {/* Cover */}
-        <div className={`relative w-full h-[145px] overflow-hidden bg-slate-950 flex-shrink-0 ${p.image_url ? '' : `bg-gradient-to-br ${cover.gradient}`}`}>
-          {p.image_url ? (
+        <div className={`relative w-full h-[145px] overflow-hidden bg-slate-950 flex-shrink-0 ${(p.image_url && p.image_url.trim().length > 5) ? '' : `bg-gradient-to-br ${cover.gradient}`}`}>
+          {p.image_url && p.image_url.trim().length > 5 ? (
             <>
               <img 
                 src={p.image_url} 
                 alt={p.name} 
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 referrerPolicy="no-referrer"
+                onError={(e) => console.error('Image load error:', p.image_url, e)}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent" />
             </>
@@ -677,13 +681,14 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                 return (
                   <>
                     {/* If custom cover is set, render a stunning visual header */}
-                    {selectedProtocol.image_url && (
+                    {selectedProtocol.image_url && selectedProtocol.image_url.trim().length > 5 && (
                       <div className="relative w-full h-[180px] sm:h-[220px] rounded-[1.5rem] overflow-hidden border border-slate-100 shadow-[0_4px_12px_rgba(0,0,0,0.02)] mb-2 mt-4">
                         <img 
                           src={selectedProtocol.image_url} 
                           alt={selectedProtocol.name} 
                           className="w-full h-full object-cover"
                           referrerPolicy="no-referrer"
+                          onError={(e) => console.error('SelectedProtocol image load error:', selectedProtocol.image_url, e)}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
                       </div>
