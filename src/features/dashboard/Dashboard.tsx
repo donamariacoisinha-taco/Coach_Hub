@@ -59,6 +59,11 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     if (initialFolderId) return initialFolderId;
     return localStorage.getItem('favorite_workout_folder_id') || null;
   });
+  
+  // Debug log
+  useEffect(() => {
+    console.log('[DEBUG] activeFolderId changed to:', activeFolderId);
+  }, [activeFolderId]);
   const [activeTab, setActiveTab] = useState<'protocols' | 'evolution' | 'premium'>('protocols');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [showMagicModal, setShowMagicModal] = useState(false);
