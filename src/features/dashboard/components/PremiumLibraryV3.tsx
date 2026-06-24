@@ -154,7 +154,7 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-6 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto pb-10"
+            className="bg-white p-6 rounded-3xl max-w-lg w-full max-h-[85vh] overflow-y-auto pb-24"
           >
             <h2 className="text-2xl font-bold">{selectedProtocol.name}</h2>
             <p className="text-slate-600 mt-2">{selectedProtocol.description}</p>
