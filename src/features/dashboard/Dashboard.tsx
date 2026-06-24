@@ -276,6 +276,30 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     checkUpdates();
   }, [folders]);
 
+  // Alinha o activeFolderId com as pastas existentes do usuário para evitar telas de erro de pasta inexistente ou obsoleta
+  useEffect(() => {
+    if (folders.length > 0) {
+      const isValidFolder = activeFolderId === 'public_admin' || activeFolderId === 'uncategorized' || folders.some(f => f.id === activeFolderId);
+      if (!isValidFolder) {
+        const favId = localStorage.getItem('favorite_workout_folder_id');
+        const favExists = favId && folders.some(f => f.id === favId);
+        if (favExists) {
+          setActiveFolderId(favId);
+        } else if (profile?.active_plan_id && folders.some(f => f.id === profile.active_plan_id)) {
+          setActiveFolderId(profile.active_plan_id);
+          setFavoriteFolderId(profile.active_plan_id);
+          localStorage.setItem('favorite_workout_folder_id', profile.active_plan_id);
+        } else {
+          setActiveFolderId(folders[0].id);
+          setFavoriteFolderId(folders[0].id);
+          localStorage.setItem('favorite_workout_folder_id', folders[0].id);
+        }
+      }
+    } else if (folders.length === 0 && activeFolderId && activeFolderId !== 'public_admin' && activeFolderId !== 'uncategorized') {
+      setActiveFolderId(null);
+    }
+  }, [folders, activeFolderId, profile?.active_plan_id]);
+
   const filteredWorkouts = useMemo(() => {
     if (activeFolderId === 'public_admin') return mappedPublicWorkouts;
     if (activeFolderId === null) return workouts;
@@ -306,7 +330,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     async function executeAudit() {
       if (profile?.id) {
         const email = profile.email || 'atleta@kyron.os';
-        const result = await runProtocolFailsafeAndAudit(profile.id, email, profile.active_plan_id);
+        const targetFolder = activeFolderId || profile.active_plan_id;
+        const result = await runProtocolFailsafeAndAudit(profile.id, email, targetFolder);
         if (result.autocorrected) {
           console.log('[KYRON_OS_DIAGNOSTIC] Failsafe correction completed on dashboard load. Refreshing view...');
           refresh();
@@ -316,7 +341,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     if (profile?.id) {
       executeAudit();
     }
-  }, [profile?.id, profile?.active_plan_id]);
+  }, [profile?.id, activeFolderId, profile?.active_plan_id]);
 
   const handlePrefetchWorkout = async (id: string) => {
     const currentStoreId = useWorkoutStore.getState().currentWorkoutId;
@@ -1009,13 +1034,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 </h2>
                 <div className="flex items-center gap-2">
                   <button 
-                    onClick={() => navigate('onboarding')}
-                    className="flex items-center gap-1.5 text-blue-500 hover:text-blue-600 transition-colors bg-white hover:bg-blue-50/50 py-1.5 px-3 rounded-full border border-slate-100 shadow-[0_2px_6px_rgba(0,0,0,0.01)] cursor-pointer"
-                  >
-                    <RefreshCw size={11} strokeWidth={2.5} />
-                    <span className="text-[9px] font-black uppercase tracking-wider">Ajustar Onboarding</span>
-                  </button>
-                  <button 
                     onClick={() => navigate('editor')}
                     onMouseEnter={() => prefetch('editor_init_new', async () => {
                       const user = await authApi.getUser();
@@ -1043,22 +1061,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                   Todos
                 </button>
                 
-                <button
-                  onClick={() => setActiveFolderId('public_admin')}
-                  className={`text-[9.5px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-                    activeFolderId === 'public_admin' 
-                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/15 border-transparent font-extrabold" 
-                      : "bg-white/70 backdrop-blur-xl border border-slate-200/40 text-amber-500/85 hover:text-amber-600 hover:bg-white"
-                  }`}
-                >
-                  <Globe size={11} />
-                  <span>Fichas Públicas</span>
-                  {publicProtocols.length > 0 && (
-                    <span className="ml-1 px-1.5 py-0.5 bg-white/20 text-white rounded-full text-[8px] font-bold">
-                      {publicProtocols.length}
-                    </span>
-                  )}
-                </button>
                 {folders.map((folder) => (
                   <div key={folder.id} className="relative flex items-center shrink-0">
                     <button

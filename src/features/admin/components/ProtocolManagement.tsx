@@ -2894,20 +2894,37 @@ export const ProtocolManagement: React.FC = () => {
                             <span className="px-2.5 py-0.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-full text-[9px] uppercase tracking-wider font-extrabold font-mono">
                               {currentGeneratedDraft.difficulty}
                             </span>
+                            <span className="px-2.5 py-0.5 bg-emerald-500/25 border border-emerald-400/30 text-emerald-300 rounded-full text-[9px] uppercase tracking-wider font-extrabold font-mono">
+                              {currentGeneratedDraft.environment || 'gym'}
+                            </span>
                           </div>
                           
-                          <input
-                            type="text"
-                            value={currentGeneratedDraft.name}
-                            onChange={(e) => {
-                              const up = { ...currentGeneratedDraft, name: e.target.value };
-                              setCurrentGeneratedDraft(up);
-                              const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? up : d);
-                              saveDraftsToStorage(otherDrafts);
-                            }}
-                            className="bg-transparent text-xl font-black text-white hover:bg-white/5 border border-transparent hover:border-slate-700 rounded px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-blue-400"
-                          />
-                          <p className="text-xs text-slate-400">{currentGeneratedDraft.description}</p>
+                          <div className="space-y-1.5 w-full">
+                            <input
+                              type="text"
+                              value={currentGeneratedDraft.name}
+                              onChange={(e) => {
+                                const up = { ...currentGeneratedDraft, name: e.target.value };
+                                setCurrentGeneratedDraft(up);
+                                const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? up : d);
+                                saveDraftsToStorage(otherDrafts);
+                              }}
+                              className="bg-slate-850/50 hover:bg-slate-850 text-xl font-black text-white border border-slate-800 hover:border-slate-700 rounded-xl px-3 py-1.5 w-full focus:outline-none focus:ring-1 focus:ring-blue-400"
+                              placeholder="Nome do Protocolo"
+                            />
+                            <textarea
+                              value={currentGeneratedDraft.description}
+                              onChange={(e) => {
+                                const up = { ...currentGeneratedDraft, description: e.target.value };
+                                setCurrentGeneratedDraft(up);
+                                const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? up : d);
+                                saveDraftsToStorage(otherDrafts);
+                              }}
+                              rows={2}
+                              className="bg-slate-850/50 hover:bg-slate-850 text-xs text-slate-300 border border-slate-800 hover:border-slate-700 rounded-xl px-3 py-2 w-full focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+                              placeholder="Descrição detalhada do protocolo e metodologia integrada..."
+                            />
+                          </div>
                         </div>
 
                         <div className="flex flex-wrap gap-2.5 shrink-0 self-start sm:self-auto">
@@ -2944,63 +2961,147 @@ export const ProtocolManagement: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-6 border-t border-slate-800/85">
-                        <div className="space-y-1">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Frequência</span>
-                          <span className="block text-sm font-black">{currentGeneratedDraft.frequency} Dias / Semana</span>
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Dias Mapeados</span>
-                          <span className="block text-sm font-black">{currentGeneratedDraft.workouts?.length || 0} Dias Ativos</span>
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Duração Total</span>
-                          <span className="block text-sm font-black">{currentGeneratedDraft.duration_weeks} Semanas</span>
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Autor</span>
-                          <span className="block text-sm font-black text-blue-400">Kyron OS Admin</span>
-                        </div>
-                      </div>
+                      {/* PARAMETERS CONFIGURATION MATRIX (ONBOARDING PROPERTIES) */}
+                      <div className="mt-8 pt-6 border-t border-slate-800/85">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">
+                          Parâmetros do Protocolo (Alinhamento de Onboarding)
+                        </span>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="space-y-1.5 text-left">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Objetivo</span>
+                            <select
+                              value={currentGeneratedDraft.goal || 'hypertrophy'}
+                              onChange={(e) => {
+                                const up = { ...currentGeneratedDraft, goal: e.target.value as any };
+                                setCurrentGeneratedDraft(up);
+                                if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
+                                  const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
+                                  saveDraftsToStorage(otherDrafts);
+                                }
+                              }}
+                              className="bg-slate-850 border border-slate-700/80 rounded-xl text-xs font-black text-white px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full cursor-pointer"
+                            >
+                              <option value="hypertrophy">Hipertrofia</option>
+                              <option value="weight_loss">Definição / Emagrecimento</option>
+                              <option value="strength">Força Progressiva</option>
+                              <option value="performance">Acondicionamento</option>
+                              <option value="glutes">Glúteos & Estética</option>
+                              <option value="recovery">Recuperação</option>
+                            </select>
+                          </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-800/60">
-                        <div className="space-y-1 text-left">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Local de Treino (Ambiente)</span>
-                          <select
-                            value={currentGeneratedDraft.environment || 'gym'}
-                            onChange={(e) => {
-                              const up = { ...currentGeneratedDraft, environment: e.target.value as any };
-                              setCurrentGeneratedDraft(up);
-                              if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
-                                const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
-                                saveDraftsToStorage(otherDrafts);
-                              }
-                            }}
-                            className="bg-slate-850 border border-slate-700 rounded-xl text-xs font-bold text-white px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full"
-                          >
-                            <option value="gym">Academia</option>
-                            <option value="home">Casa</option>
-                            <option value="hybrid">Híbrido</option>
-                          </select>
+                          <div className="space-y-1.5 text-left">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Nível (Dificuldade)</span>
+                            <select
+                              value={currentGeneratedDraft.difficulty || 'intermediate'}
+                              onChange={(e) => {
+                                const up = { ...currentGeneratedDraft, difficulty: e.target.value as any };
+                                setCurrentGeneratedDraft(up);
+                                if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
+                                  const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
+                                  saveDraftsToStorage(otherDrafts);
+                                }
+                              }}
+                              className="bg-slate-850 border border-slate-700/80 rounded-xl text-xs font-black text-white px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full cursor-pointer"
+                            >
+                              <option value="beginner">Iniciante</option>
+                              <option value="intermediate">Intermediário</option>
+                              <option value="advanced">Avançado</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5 text-left">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Ambiente de Treino</span>
+                            <select
+                              value={currentGeneratedDraft.environment || 'gym'}
+                              onChange={(e) => {
+                                const up = { ...currentGeneratedDraft, environment: e.target.value as any };
+                                setCurrentGeneratedDraft(up);
+                                if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
+                                  const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
+                                  saveDraftsToStorage(otherDrafts);
+                                }
+                              }}
+                              className="bg-slate-850 border border-slate-700/80 rounded-xl text-xs font-black text-white px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full cursor-pointer"
+                            >
+                              <option value="gym">Academia (Gym)</option>
+                              <option value="home">Em Casa (Home)</option>
+                              <option value="hybrid">Híbrido (Ambos)</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5 text-left">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Status</span>
+                            <select
+                              value={currentGeneratedDraft.status || (currentGeneratedDraft.is_active !== false ? 'published' : 'draft')}
+                              onChange={(e) => {
+                                const up = { ...currentGeneratedDraft, status: e.target.value as any };
+                                setCurrentGeneratedDraft(up);
+                                if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
+                                  const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
+                                  saveDraftsToStorage(otherDrafts);
+                                }
+                              }}
+                              className="bg-slate-850 border border-slate-700/80 rounded-xl text-xs font-black text-white px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full cursor-pointer"
+                            >
+                              <option value="draft">Rascunho</option>
+                              <option value="published">Publicado</option>
+                              <option value="archived">Arquivado</option>
+                            </select>
+                          </div>
                         </div>
-                        <div className="space-y-1 text-left">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Status do Protocolo</span>
-                          <select
-                            value={currentGeneratedDraft.status || (currentGeneratedDraft.is_active !== false ? 'published' : 'draft')}
-                            onChange={(e) => {
-                              const up = { ...currentGeneratedDraft, status: e.target.value as any };
-                              setCurrentGeneratedDraft(up);
-                              if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
-                                const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                          <div className="space-y-1.5 text-left">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Frequência Semanal</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={7}
+                              value={currentGeneratedDraft.frequency || 3}
+                              onChange={(e) => {
+                                const val = Math.max(1, Math.min(7, Number(e.target.value)));
+                                const up = { ...currentGeneratedDraft, frequency: val };
+                                setCurrentGeneratedDraft(up);
+                                const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? up : d);
                                 saveDraftsToStorage(otherDrafts);
-                              }
-                            }}
-                            className="bg-slate-850 border border-slate-700 rounded-xl text-xs font-bold text-white px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full"
-                          >
-                            <option value="draft">Rascunho (Draft)</option>
-                            <option value="published">Publicado (Published)</option>
-                            <option value="archived">Arquivado (Archived)</option>
-                          </select>
+                              }}
+                              className="bg-slate-850 border border-slate-700/80 rounded-xl text-xs font-black text-white px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5 text-left">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Duração (Semanas)</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={52}
+                              value={currentGeneratedDraft.duration_weeks || 12}
+                              onChange={(e) => {
+                                const val = Math.max(1, Math.min(52, Number(e.target.value)));
+                                const up = { ...currentGeneratedDraft, duration_weeks: val };
+                                setCurrentGeneratedDraft(up);
+                                const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? up : d);
+                                saveDraftsToStorage(otherDrafts);
+                              }}
+                              className="bg-slate-850 border border-slate-700/80 rounded-xl text-xs font-black text-white px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5 text-left">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Dias Mapeados</span>
+                            <span className="block text-xs font-black text-slate-300 bg-slate-850/50 px-3 py-2 rounded-xl border border-slate-800/60">
+                              {currentGeneratedDraft.workouts?.length || 0} Dias Ativos
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5 text-left">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Autor</span>
+                            <span className="block text-xs font-black text-blue-400 bg-slate-850/50 px-3 py-2 rounded-xl border border-slate-800/60">
+                              Kyron OS Admin
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>

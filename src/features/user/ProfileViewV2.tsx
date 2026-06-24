@@ -7,7 +7,7 @@ import { cloudinaryService } from '../../services/cloudinaryService';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowLeft, Loader2 as Spinner, Camera, Sparkles, Scale, Target, 
-  Droplet, Flame, Trophy, Activity, Compass, Info, LogOut, Check 
+  Droplet, Flame, Trophy, Activity, Compass, Info, LogOut, Check, RefreshCw
 } from 'lucide-react';
 
 const FITNESS_AVATARS = [
@@ -82,7 +82,7 @@ interface CheckInLog {
 export default function ProfileViewV2() {
   const { profile: storeProfile, setProfile, updateProfile, loading: storeLoading } = useUserStore();
   const { logout } = useAuthStore();
-  const { goBack } = useNavigation();
+  const { goBack, navigate } = useNavigation();
 
   // Local safety loader and session indicator
   const [localLoading, setLocalLoading] = useState(true);
@@ -835,6 +835,26 @@ export default function ProfileViewV2() {
               }
             </p>
           </div>
+
+          {/* Quick Onboarding Adjust Trigger */}
+          <button 
+            type="button"
+            onClick={() => navigate('onboarding')}
+            className="w-full flex items-center justify-between p-4 bg-[#7BA7FF]/8 hover:bg-[#7BA7FF]/15 rounded-2xl border border-[#7BA7FF]/20 transition-all group cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-white text-indigo-600 p-2.5 rounded-xl shadow-sm group-hover:scale-105 transition-transform">
+                <RefreshCw size={14} className="animate-pulse" strokeWidth={2.5} />
+              </div>
+              <div className="text-left">
+                <span className="block text-[11px] font-black uppercase tracking-wider text-slate-800">Ajustar Onboarding</span>
+                <span className="block text-[9px] font-semibold text-slate-400">Refazer metas, dias e intensidade</span>
+              </div>
+            </div>
+            <div className="bg-white p-1.5 rounded-full shadow-sm text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+          </button>
         </div>
 
         {/* SECTION 2: SINGLE CONTINUOUS SURFACES (EDITORIAL FORMS & SEGMENTS) */}

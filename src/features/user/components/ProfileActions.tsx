@@ -63,7 +63,7 @@ export function ProfileActions() {
             <div className="bg-slate-100 text-slate-500 p-2 rounded-xl group-hover:bg-[#7BA7FF]/10 group-hover:text-blue-600 transition-colors">
               <RefreshCw size={18} strokeWidth={2.5} />
             </div>
-            <span className="text-sm font-bold text-slate-700">Refazer Onboarding</span>
+            <span className="text-sm font-bold text-slate-700">Ajustar Onboarding</span>
           </div>
           <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-all group-hover:translate-x-1" />
         </button>
