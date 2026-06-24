@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { premiumProtocolsApi, PremiumProtocol } from '../../../lib/api/premiumProtocolsApi';
+import { authApi } from '../../../lib/api/authApi';
 import { UserProfile } from '../../../types';
 import { isAdmin } from '../../../lib/utils/auth';
 
@@ -21,7 +22,8 @@ const GRADIENTS = [
 
 export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onRefreshDashboard, onTabChange }) => {
   const [protocols, setProtocols] = useState<PremiumProtocol[]>([]);
-  const [activeTab, setActiveTab] = useState<'premium' | 'public'>('public');
+  const [activeTab, setActiveTab] = useState<'public' | 'premium'>('public');
+  const [selectedProtocol, setSelectedProtocol] = useState<PremiumProtocol | null>(null);
 
   useEffect(() => {
     loadData();
@@ -45,11 +47,29 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
   }, [protocols, activeTab]);
 
   const getGradientForGoal = (goal: string) => {
-    if (goal.includes('hypertrophy')) return GRADIENTS[0];
-    if (goal.includes('strength')) return GRADIENTS[1];
-    if (goal.includes('weight_loss')) return GRADIENTS[2];
-    if (goal.includes('performance')) return GRADIENTS[3];
+    const g = goal?.toLowerCase() || '';
+    if (g.includes('hypertrophy') || g.includes('hipertrofia')) return GRADIENTS[0];
+    if (g.includes('strength') || g.includes('força')) return GRADIENTS[1];
+    if (g.includes('weight_loss') || g.includes('emagrecimento')) return GRADIENTS[2];
+    if (g.includes('performance')) return GRADIENTS[3];
     return GRADIENTS[4];
+  };
+
+  const handleClone = async (p: PremiumProtocol) => {
+    try {
+        const u = await authApi.getUser();
+        if (!u) {
+            console.error("User not logged in");
+            return;
+        }
+
+        await premiumProtocolsApi.cloneToUser(u.id, p.id);
+        console.log('Protocol cloned successfully:', p.name);
+        setSelectedProtocol(null);
+        onRefreshDashboard();
+    } catch (e) {
+        console.error(e);
+    }
   };
 
   return (
@@ -118,7 +138,7 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
               <div className="p-5 pt-0">
                 <button 
                   className="w-full bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-colors"
-                  onClick={() => console.log('Protocol clicked:', p)}
+                  onClick={() => setSelectedProtocol(p)}
                 >
                   Ver Protocolo
                 </button>
@@ -127,6 +147,38 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
           );
         })}
       </div>
+
+      {/* Detail Modal */}
+      {selectedProtocol && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white p-6 rounded-3xl max-w-lg w-full"
+          >
+            <h2 className="text-2xl font-bold">{selectedProtocol.name}</h2>
+            <p className="text-slate-600 mt-2">{selectedProtocol.description}</p>
+            
+            <div className="mt-6 max-h-80 overflow-y-auto pr-2">
+              {selectedProtocol.workouts.map(workout => (
+                <div key={workout.id} className="mb-4">
+                  <h4 className="font-semibold text-slate-800">{workout.name}</h4>
+                  <ul className="text-sm text-slate-600 list-disc ml-4 mt-1">
+                    {workout.exercises.map((exercise, idx) => (
+                      <li key={idx}>{exercise.exercise_name} - {exercise.sets}x{exercise.reps}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex gap-3">
+                <button className="flex-1 px-4 py-2 bg-slate-100 rounded-lg" onClick={() => setSelectedProtocol(null)}>Fechar</button>
+                <button className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg" onClick={() => handleClone(selectedProtocol)}>Adicionar ao meu treino</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
