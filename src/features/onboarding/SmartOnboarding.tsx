@@ -24,6 +24,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
+import { supabase } from '../../lib/api/supabase';
 import { profileApi } from '../../lib/api/profileApi';
 import { authApi } from '../../lib/api/authApi';
 import { systemTemplatesApi, SystemTemplate } from '../../lib/api/systemTemplatesApi';
@@ -73,6 +74,9 @@ export default function SmartOnboarding() {
   const [calculatedMatches, setCalculatedMatches] = useState<any[]>([]);
   const [customGeneratedDraft, setCustomGeneratedDraft] = useState<any | null>(null);
   const [fallbackTriggered, setFallbackTriggered] = useState(false);
+  const [deployedFolderId, setDeployedFolderId] = useState<string | null>(null);
+  const [firstWorkoutId, setFirstWorkoutId] = useState<string | null>(null);
+  const [isRedoing, setIsRedoing] = useState<boolean>(false);
 
   // Form State matching UserProfile
   const [formData, setFormData] = useState<Partial<UserProfile>>({
@@ -116,6 +120,7 @@ export default function SmartOnboarding() {
           // Load profile from SB and hydrate any previous answers
           const activeProf = await profileApi.getProfile(sessionUser.id);
           if (activeProf) {
+            setIsRedoing(!!activeProf.onboarding_completed);
             setFormData(prev => ({
               ...prev,
               name: activeProf.name || activeProf.full_name || prev.name || '',
@@ -278,36 +283,159 @@ export default function SmartOnboarding() {
     setIsFinishing(true);
 
     try {
-      // 1. Save profile as fully onboarding-completed in Postgres DB
+      // PASSO 1: Salvar perfil completo no Postgres DB
       const finalProfileData = {
         onboarding_completed: true,
         onboarding_version: '2.1',
         name: formData.name || 'Atleta Kyron OS',
+        gender: formData.sex,
+        sex: formData.sex,
+        age: Number(formData.age) || 28,
+        weight: Number(formData.weight) || 75,
+        height: Number(formData.height) || 175,
+        primary_goal: formData.primary_goal,
+        training_experience: formData.training_experience,
+        weekly_availability: Number(formData.weekly_availability) || 3,
+        training_environment: formData.training_environment,
+        restrictions: formData.restrictions || ['Nenhuma'],
+        exercise_dislikes: formData.exercise_dislikes || [],
         updated_at: new Date().toISOString()
       };
       await profileApi.updateProfile(userId, finalProfileData);
 
-      // 2. Hydrate user store
+      // Hydrate user store
       const fullProfile = await profileApi.getProfile(userId);
       if (fullProfile) setProfile(fullProfile);
 
-      // 3. Clone selected matched design
-      const draftToUse = providedFallbackDraft || customGeneratedDraft;
-      if (isFallback && draftToUse) {
-        // Save to Draft local storage first (Aguardando Curadoria)
-        const rawDrafts = localStorage.getItem('kyron_admin_draft_protocols') || '[]';
-        let draftsList: PremiumProtocol[] = [];
-        try {
-          draftsList = JSON.parse(rawDrafts);
-        } catch {}
-        draftsList.push(draftToUse);
-        localStorage.setItem('kyron_admin_draft_protocols', JSON.stringify(draftsList));
+      // MIGRAÇÃO SEGURA: Se o usuário estiver refazendo o onboarding, salvar o anterior em historical_protocols
+      if (isRedoing) {
+        const favFolderId = localStorage.getItem('favorite_workout_folder_id');
+        if (favFolderId) {
+          try {
+            const { data: folderData } = await supabase
+              .from('workout_folders')
+              .select('name, created_at')
+              .eq('id', favFolderId)
+              .maybeSingle();
+
+            if (folderData) {
+              let completionPct = 0;
+              const { data: cats } = await supabase
+                .from('workout_categories')
+                .select('id')
+                .eq('folder_id', favFolderId);
+
+              if (cats && cats.length > 0) {
+                const catIds = cats.map(c => c.id);
+                const { count } = await supabase
+                  .from('workout_history')
+                  .select('*', { count: 'exact', head: true })
+                  .in('category_id', catIds);
+
+                if (count !== null) {
+                  completionPct = Math.min(100, Math.round((count / cats.length) * 100)) || 0;
+                }
+              }
+
+              const prevHistRaw = localStorage.getItem(`kyron_historical_protocols_${userId}`) || '[]';
+              let prevHistList = [];
+              try { prevHistList = JSON.parse(prevHistRaw); } catch {}
+              prevHistList.push({
+                nome: folderData.name,
+                data_inicio: folderData.created_at || new Date().toISOString(),
+                data_encerramento: new Date().toISOString(),
+                percentual_concluido: completionPct
+              });
+              localStorage.setItem(`kyron_historical_protocols_${userId}`, JSON.stringify(prevHistList));
+            }
+          } catch (migErr) {
+            console.warn('[Onboarding] Error during historical protocol migration:', migErr);
+          }
+        }
       }
 
-      showSuccess('KYRON OS Ativado!', 'Seu perfil de performance foi configurado com sucesso e está pronto.');
-      navigate('dashboard');
+      let clonedFolder: any = null;
+
+      // PASSO 4 & 5: Se existir protocolo compatível, ativar automaticamente. Caso contrário, usar o dinâmico.
+      if (!isFallback && matchItem) {
+        clonedFolder = await premiumProtocolsApi.cloneToUser(userId, matchItem.id);
+      } else {
+        const draftToUse = providedFallbackDraft || customGeneratedDraft;
+        if (draftToUse) {
+          // PASSO 6: Salvar o rascunho com status "Gerado Automaticamente"
+          const draftToSave = {
+            ...draftToUse,
+            status: 'Gerado Automaticamente'
+          };
+          
+          // Registrar nas listas de drafts locais
+          const rawDrafts = localStorage.getItem('kyron_admin_draft_protocols') || '[]';
+          let draftsList: PremiumProtocol[] = [];
+          try { draftsList = JSON.parse(rawDrafts); } catch {}
+          draftsList.push(draftToSave);
+          localStorage.setItem('kyron_admin_draft_protocols', JSON.stringify(draftsList));
+
+          // Registrar no banco ou memória para que cloneToUser consiga buscar
+          await premiumProtocolsApi.createOrUpdateProtocol(draftToSave);
+
+          // PASSO 7: Clonar para a pasta do usuário
+          clonedFolder = await premiumProtocolsApi.cloneToUser(userId, draftToSave.id);
+        }
+      }
+
+      // Se conseguiu clonar o folder, ativa-o como favorito/ativo principal
+      if (clonedFolder) {
+        localStorage.setItem('favorite_workout_folder_id', clonedFolder.id);
+        setDeployedFolderId(clonedFolder.id);
+
+        // Buscar as categorias (treinos) gerados ou clonados para pegar o primeiro ID
+        const { data: categories } = await supabase
+          .from('workout_categories')
+          .select('id')
+          .eq('folder_id', clonedFolder.id)
+          .order('created_at', { ascending: true });
+
+        if (categories && categories.length > 0) {
+          setFirstWorkoutId(categories[0].id);
+        }
+      }
+
+      showSuccess('KYRON OS Ativado!', 'Seu protocolo adaptativo está pronto para iniciar.');
     } catch (err: any) {
-      showError(err.message || 'Falha ao ativar protocolo de treinamento.');
+      console.warn('[Onboarding] Error during protocol setup, launching Failsafe...', err);
+      // FAILSAFE: Garantir que o usuário NUNCA saia sem treino ativo
+      try {
+        const fallbackFolder = await workoutApi.createFolder(userId, 'Kyron OS: Plano Failsafe');
+        const cat = await workoutApi.createCategory({
+          user_id: userId,
+          folder_id: fallbackFolder.id,
+          name: 'Treino A — Ativação Geral',
+          description: 'Treino adaptativo de ativação emergencial.'
+        });
+        
+        await workoutApi.insertWorkoutExercises([{
+          category_id: cat.id,
+          exercise_id: '5ce43864-44ac-4822-ba91-30efc477431e',
+          exercise_name_snapshot: 'Leg Press 45',
+          sets: 3,
+          reps: '12',
+          weight: 40,
+          rest_time: 60,
+          sort_order: 1,
+          sets_json: [
+            { reps: '12', weight: 40, rest_time: 60 },
+            { reps: '12', weight: 40, rest_time: 60 },
+            { reps: '12', weight: 40, rest_time: 60 }
+          ]
+        }]);
+
+        localStorage.setItem('favorite_workout_folder_id', fallbackFolder.id);
+        setDeployedFolderId(fallbackFolder.id);
+        setFirstWorkoutId(cat.id);
+        showSuccess('KYRON OS Ativado!', 'Plano de emergência configurado para garantir seu treino.');
+      } catch (fError) {
+        console.error('[Severe Failsafe error]', fError);
+      }
     } finally {
       setIsFinishing(false);
     }
@@ -434,9 +562,11 @@ export default function SmartOnboarding() {
   // Auto fallback design generation function mapping active database exercises
   const generateFallbackProtocol = async (userIdStr: string, activeForm: any, listExs: any[]): Promise<any> => {
     const goalName = activeForm.primary_goal || 'Performance';
-    const freq = activeForm.weekly_availability || 3;
+    const freq = Number(activeForm.weekly_availability) || 3;
     const level = activeForm.training_experience || 'beginner';
     const environment = activeForm.training_environment || 'gym_full';
+    const restrictions = activeForm.restrictions || ['Nenhuma'];
+    const dislikes = activeForm.exercise_dislikes || [];
     
     let niceGoal = 'Hipertrofia Dinâmica';
     if (goalName === 'weight_loss') niceGoal = 'Foco em Queima e Definição';
@@ -449,7 +579,7 @@ export default function SmartOnboarding() {
     const newProtocol: any = {
       id: protocolId,
       name: `Kyron OS: ${niceGoal}`,
-      description: `Protocolo adaptativo gerado sob demanda para atender aos limites do atleta. Foco em ${niceGoal}, nível ${level}, frequência semanal de ${freq} dias no ambiente ${environment}.`,
+      description: `Protocolo adaptativo gerado sob demanda para atender aos limites do atleta. Foco em ${niceGoal}, nível ${level}, frequência semanal de ${freq} dias no ambiente ${environment === 'home' ? 'Residencial' : 'Academia Completa'}.`,
       version: 1,
       premium: true,
       goal: goalName,
@@ -467,6 +597,57 @@ export default function SmartOnboarding() {
       workouts: [],
       version_history: []
     };
+
+    // Filtros de Exercícios baseados no ambiente, nível e preferências
+    const cleanListExs = listExs.filter(ex => {
+      if (ex.is_active === false) return false;
+
+      const nameLower = ex.name.toLowerCase();
+
+      // 1. Unwanted Exercises (Dislikes)
+      if (dislikes.some((dis: string) => nameLower.includes(dis.toLowerCase()))) {
+        return false;
+      }
+
+      // 2. Training Environment restrictions
+      if (environment === 'home') {
+        // Exclude machine-heavy exercises
+        if (
+          nameLower.includes('leg press') ||
+          nameLower.includes('pulley') ||
+          nameLower.includes('polia') ||
+          nameLower.includes('cadeira extensor') ||
+          nameLower.includes('cadeira flexor') ||
+          nameLower.includes('mesa flexora') ||
+          nameLower.includes('crossover') ||
+          nameLower.includes('hack') ||
+          nameLower.includes('smith') ||
+          nameLower.includes('graviton') ||
+          nameLower.includes('supino inclinado articulado')
+        ) {
+          return false;
+        }
+      }
+
+      // 3. Physical Limitations restrictions
+      if (restrictions.some((r: string) => r.toLowerCase().includes('ombro'))) {
+        if (nameLower.includes('desenvolvimento com barra') || nameLower.includes('overhead press')) {
+          return false;
+        }
+      }
+      if (restrictions.some((r: string) => r.toLowerCase().includes('joelho'))) {
+        if (nameLower.includes('agachamento livre profundo') || nameLower.includes('leg press 45')) {
+          return false;
+        }
+      }
+      if (restrictions.some((r: string) => r.toLowerCase().includes('lombar'))) {
+        if (nameLower.includes('levantamento terra') || nameLower.includes('remada curvada')) {
+          return false;
+        }
+      }
+
+      return true;
+    });
 
     // Splits configuration based on weekly workouts
     let splits: { name: string; muscles: string[] }[] = [];
@@ -488,13 +669,22 @@ export default function SmartOnboarding() {
         { name: 'Treino C - Pernas Completas (Quad/Glúteos)', muscles: ['Quadríceps', 'Glúteos'] },
         { name: 'Treino D - Posterior & Core', muscles: ['Posterior', 'Lombar', 'Abdômen'] }
       ];
-    } else {
+    } else if (freq === 5) {
       splits = [
         { name: 'Treino A - Peitorais & Tríceps', muscles: ['Peito', 'Tríceps'] },
         { name: 'Treino B - Costas, Trapézio & Bíceps', muscles: ['Costas', 'Bíceps'] },
         { name: 'Treino C - Pernas Foco Anterior (Quad)', muscles: ['Quadríceps', 'Panturrilha'] },
         { name: 'Treino D - Deltóides e Tríceps Estímulo', muscles: ['Ombros', 'Tríceps'] },
         { name: 'Treino E - Cadeia Posterior & Lombar', muscles: ['Posterior', 'Glúteos', 'Lombar'] }
+      ];
+    } else {
+      splits = [
+        { name: 'Treino A - Peito & Tríceps', muscles: ['Peito', 'Tríceps'] },
+        { name: 'Treino B - Costas & Bíceps', muscles: ['Costas', 'Bíceps'] },
+        { name: 'Treino C - Quadríceps & Panturrilha', muscles: ['Quadríceps', 'Panturrilha'] },
+        { name: 'Treino D - Ombros & Trapézio', muscles: ['Ombros'] },
+        { name: 'Treino E - Posterior de Coxa & Glúteos', muscles: ['Posterior', 'Glúteos'] },
+        { name: 'Treino F - Abdominais & Core Cardio', muscles: ['Abdômen'] }
       ];
     }
 
@@ -509,51 +699,67 @@ export default function SmartOnboarding() {
 
       let count = 0;
       split.muscles.forEach(muscle => {
-        const filtered = listExs.filter(ex => 
-          ex.is_active !== false && 
+        // Encontrar os exercícios compatíveis com este grupo muscular
+        const filtered = cleanListExs.filter(ex => 
           (ex.muscle_group?.toLowerCase().includes(muscle.toLowerCase()) || 
            muscle.toLowerCase().includes(ex.muscle_group?.toLowerCase()))
         );
         
-        const selected = filtered.sort(() => 0.5 - Math.random()).slice(0, 2);
+        // Se for iniciante, priorizar máquinas ou exercícios corporais simples
+        const sortedCandidateExs = filtered.sort((a, b) => {
+          if (level === 'beginner') {
+            const aName = a.name.toLowerCase();
+            const bName = b.name.toLowerCase();
+            const aIsMachine = aName.includes('máquina') || aName.includes('sentado') || aName.includes('apoiado');
+            const bIsMachine = bName.includes('máquina') || bName.includes('sentado') || bName.includes('apoiado');
+            if (aIsMachine && !bIsMachine) return -1;
+            if (!aIsMachine && bIsMachine) return 1;
+          }
+          return 0.5 - Math.random();
+        });
+
+        const selected = sortedCandidateExs.slice(0, 2);
 
         selected.forEach(ex => {
           count++;
+          const finalSetsCount = 4;
+          const finalReps = level === 'beginner' || level === 'none' ? '12' : '10';
+          const finalWeight = level === 'beginner' || level === 'none' ? 10 : 20;
+
           workout.exercises.push({
             exercise_id: ex.id,
             exercise_name: ex.name,
-            sets: 4,
-            reps: level === 'beginner' || level === 'none' ? '12' : '10',
-            weight: level === 'beginner' || level === 'none' ? 12 : 24,
+            sets: finalSetsCount,
+            reps: finalReps,
+            weight: finalWeight,
             rest_time: 60,
             sort_order: count,
-            notes: 'Aquecimento gradual na primeira série.',
-            sets_json: [
-              { reps: level === 'beginner' || level === 'none' ? '12' : '10', weight: level === 'beginner' || level === 'none' ? 12 : 24, rest_time: 60 },
-              { reps: level === 'beginner' || level === 'none' ? '12' : '10', weight: level === 'beginner' || level === 'none' ? 12 : 24, rest_time: 60 },
-              { reps: level === 'beginner' || level === 'none' ? '12' : '10', weight: level === 'beginner' || level === 'none' ? 12 : 24, rest_time: 60 },
-              { reps: level === 'beginner' || level === 'none' ? '12' : '10', weight: level === 'beginner' || level === 'none' ? 12 : 24, rest_time: 60 }
-            ]
+            notes: level === 'beginner' ? 'Foco em controle postural e respiração.' : 'Séries de trabalho buscando a falha técnica.',
+            sets_json: Array.from({ length: finalSetsCount }, () => ({
+              reps: finalReps,
+              weight: finalWeight,
+              rest_time: 60
+            }))
           });
         });
       });
 
-      // Absolute safety guard line fallback
+      // Absolute safety guard line fallback if no exercises were matched
       if (workout.exercises.length === 0) {
-        const fallbackExercise = listExs.find((ex: any) => ex.is_active !== false) || listExs[0];
+        const fallbackExercise = cleanListExs.find((ex: any) => ex.is_active !== false) || listExs[0];
         workout.exercises.push({
           exercise_id: fallbackExercise?.id || '5ce43864-44ac-4822-ba91-30efc477431e',
-          exercise_name: fallbackExercise?.name || 'Leg Press 45',
+          exercise_name: fallbackExercise?.name || 'Agachamento Peso Corporal',
           sets: 4,
           reps: '12',
-          weight: 40,
+          weight: 0,
           rest_time: 60,
           sort_order: 1,
           sets_json: [
-            { reps: '12', weight: 40, rest_time: 60 },
-            { reps: '12', weight: 40, rest_time: 60 },
-            { reps: '12', weight: 40, rest_time: 60 },
-            { reps: '12', weight: 40, rest_time: 60 }
+            { reps: '12', weight: 0, rest_time: 60 },
+            { reps: '12', weight: 0, rest_time: 60 },
+            { reps: '12', weight: 0, rest_time: 60 },
+            { reps: '12', weight: 0, rest_time: 60 }
           ]
         });
       }
@@ -1105,7 +1311,7 @@ export default function SmartOnboarding() {
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-md flex items-center justify-center gap-2 mt-4 cursor-pointer"
             >
               <Sparkles size={14} className="animate-pulse" />
-              Finalizar e Mostrar Plano
+              Concluir Configuração
             </button>
           </div>
         );
@@ -1130,123 +1336,85 @@ export default function SmartOnboarding() {
         }
 
         return (
-          <div className="space-y-6">
-            <div className="space-y-2 text-center">
-              <span className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
-                ✓ Seu plano está pronto!
+          <div className="space-y-6 text-center font-sans animate-fade-in">
+            <div className="space-y-3">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-100 px-3.5 py-1.5 rounded-full">
+                ✓ {isRedoing ? 'Plano Atualizado' : 'Configuração Concluída'}
               </span>
-              <h2 className="text-2xl font-black tracking-tight text-slate-950 uppercase mt-2">
-                Seu Protocolo de Performance
+              <h2 className="text-2xl font-[1000] tracking-tight text-slate-950 uppercase mt-2 leading-none">
+                {isRedoing ? 'Protocolo Ajustado!' : 'Treino Pronto para Iniciar!'}
               </h2>
-              <p className="text-xs text-slate-500">
-                {fallbackTriggered 
-                  ? 'Geração sob demanda adaptada à fadigação mapeada pelo builder.'
-                  : 'Cruzamento da biblioteca KYRON concluído. Escolha seu ponto de partida.'
+              <p className="text-xs text-slate-500 font-semibold max-w-sm mx-auto leading-relaxed">
+                {isRedoing 
+                  ? 'As recomendações foram ajustadas com sucesso com base nas suas novas preferências.' 
+                  : 'Seu protocolo adaptativo foi gerado e ativado imediatamente.'
                 }
               </p>
             </div>
 
-            {/* Recommended Payoff Container */}
-            {fallbackTriggered && customGeneratedDraft ? (
-              <div className="space-y-4">
-                <div className="bg-[#0F172A] text-white p-5 rounded-3xl border border-slate-750 flex flex-col justify-between shadow-md relative overflow-hidden">
-                  <div className="absolute top-[-10%] right-[-10%] w-24 h-24 bg-blue-500/10 rounded-full blur-xl" />
-                  <div className="space-y-2 relative z-10">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[8px] font-black uppercase tracking-wider text-[#7BA7FF] bg-[#7BA7FF]/10 px-2.5 py-1 rounded-full">
-                        Gerado sob Medida — Fallback AI
-                      </span>
-                      <span className="text-[10px] font-black text-emerald-400">99% Aderência</span>
-                    </div>
+            {/* PREPARED PLAN CONTAINER */}
+            <div className="bg-[#0F172A] text-white p-6 rounded-[2.2rem] border border-slate-800 text-left relative overflow-hidden shadow-xl">
+              <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="space-y-4 relative z-10">
+                <div>
+                  <span className="text-[8px] font-black uppercase tracking-wider text-[#7BA7FF] bg-[#7BA7FF]/10 px-2.5 py-1 rounded-full">
+                    Protocolo Ativo Atual
+                  </span>
+                  <h3 className="text-lg font-[1000] uppercase mt-2 tracking-tight text-white leading-tight">
+                    {customGeneratedDraft?.name || (calculatedMatches[0]?.name || 'Kyron OS: Plano Personalizado')}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium leading-relaxed mt-1.5">
+                    {customGeneratedDraft?.description || (calculatedMatches[0]?.description || 'Seu novo programa de alta performance ajustado aos seus objetivos de treinamento.')}
+                  </p>
+                </div>
 
-                    <h3 className="text-md font-black uppercase mt-1 text-white">{customGeneratedDraft.name}</h3>
-                    <p className="text-[11px] text-slate-300 leading-normal line-clamp-3">
-                      {customGeneratedDraft.description}
-                    </p>
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800">
+                  <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-800/40">
+                    <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest">Frequência</span>
+                    <span className="text-xs font-black text-white uppercase">{formData.weekly_availability}x por Semana</span>
                   </div>
-
-                  <div className="flex items-center justify-between border-t border-slate-800 pt-4 mt-4 text-[9px] font-bold text-slate-400 uppercase">
-                    <span>{customGeneratedDraft.workouts?.length || 0} Dias Ativos / Sem</span>
-                    <span className="text-slate-350">Status: Rascunho / Curadoria</span>
+                  <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-800/40">
+                    <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest">Ambiente</span>
+                    <span className="text-xs font-black text-white uppercase">{formData.training_environment === 'home' ? 'Casa / Livre' : 'Academia'}</span>
                   </div>
                 </div>
 
-                <div className="bg-amber-50/70 border border-amber-100 p-4 rounded-2xl flex gap-3 text-amber-850">
-                  <AlertTriangle size={18} className="shrink-0 text-amber-600 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase">Fila de Curadoria de Atletas</p>
-                    <p className="text-[10px] text-amber-700 leading-normal font-semibold">
-                      Este plano dinâmico iniciará imediatamente nos seus treinos locais, mas paralelamente foi registrado na mesa admin KYRON para aprimoramento adaptivo manual.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleDeployProtocolSelection(null, true)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Sparkles size={14} />
-                  Ativar e Iniciar Treino
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* 1. Best Recommendation Card */}
-                {calculatedMatches[0] && (
-                  <div className="bg-[#0F172A] text-white p-5 rounded-3xl border border-slate-800 flex flex-col justify-between shadow-sm relative group">
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-black uppercase tracking-wider text-[#7BA7FF] bg-[#7BA7FF]/10 px-2.5 py-1 rounded-full">
-                          Recomendado Principal
+                {formData.restrictions && formData.restrictions[0] !== 'Nenhuma' && (
+                  <div className="pt-2">
+                    <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Limitações Respeitadas</span>
+                    <div className="flex flex-wrap gap-1">
+                      {formData.restrictions.map((res: string) => (
+                        <span key={res} className="text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-lg">
+                          {res}
                         </span>
-                        <span className="text-[11px] font-black text-emerald-400 font-mono">{calculatedMatches[0].score}% COMPATÍVEL</span>
-                      </div>
-                      <h3 className="text-md font-black uppercase tracking-tight text-white">{calculatedMatches[0].name}</h3>
-                      <p className="text-[11px] text-slate-400 leading-normal line-clamp-3">
-                        {calculatedMatches[0].description}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between border-t border-slate-800 pt-4 mt-5">
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{calculatedMatches[0].workouts_count} Treinos Ativos</span>
-                      <button
-                        onClick={() => handleDeployProtocolSelection(calculatedMatches[0])}
-                        className="px-4.5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm font-sans cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                      >
-                        Iniciar Treino
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. Alternatives list */}
-                {calculatedMatches.length > 1 && (
-                  <div className="space-y-2.5">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1">Alternativas de Menor Volume</span>
-                    <div className="space-y-2.5 max-h-[170px] overflow-y-auto pr-1">
-                      {calculatedMatches.slice(1, 4).map((alt) => (
-                        <div key={alt.id} className="bg-white border border-slate-100 p-4 rounded-2xl flex items-center justify-between shadow-xs hover:border-slate-205 transition-all">
-                          <div className="space-y-1.5 flex-1 pr-4">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-extrabold text-slate-900 text-xs uppercase line-clamp-1">{alt.name}</h4>
-                              <span className="shrink-0 text-[9px] font-extrabold text-slate-400 font-mono">{alt.score}%</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 leading-relaxed line-clamp-1">{alt.description}</p>
-                          </div>
-                          <button
-                            onClick={() => handleDeployProtocolSelection(alt)}
-                            className="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-wide shrink-0 cursor-pointer"
-                          >
-                            Ativar
-                          </button>
-                        </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-            )}
+            </div>
+
+            {/* ACTION BUTTONS */}
+            <div className="space-y-3 pt-2">
+              {firstWorkoutId ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('preparation', { id: firstWorkoutId })}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer border-none"
+                >
+                  <Sparkles size={14} className="animate-pulse" />
+                  Iniciar Primeiro Treino
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => navigate('dashboard')}
+                className="w-full bg-slate-950 hover:bg-slate-900 text-white py-4.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer border-none"
+              >
+                Ir para o Dashboard
+              </button>
+            </div>
           </div>
         );
 

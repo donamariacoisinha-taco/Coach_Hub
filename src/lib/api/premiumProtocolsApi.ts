@@ -1475,24 +1475,28 @@ class PremiumProtocolsApi {
     try {
       const { data, error } = await supabase.from('premium_protocols').select('*');
       if (!error && data) {
-        // Merge DB protocols with local ones to ensure we don't lose any protocols
-        const dbProtocols = (data as PremiumProtocol[]).filter(p => !deletedIds.has(p.id));
-        if (dbProtocols.length > 0) {
-          const mergedMap = new Map<string, PremiumProtocol>();
-          
-          // Seed map with local (default) list
-          localList.forEach(p => mergedMap.set(p.id, p));
-          
-          // Override with database list (representing administrator's updates)
-          dbProtocols.forEach(p => mergedMap.set(p.id, p));
-          
-          return Array.from(mergedMap.values()).filter(p => !deletedIds.has(p.id));
+        // If the database has 0 protocols, it means it is completely unseeded/empty.
+        // Let's seed it with our INITIAL_PREMIUM_PROTOCOLS!
+        if (data.length === 0) {
+          console.log('[PremiumProtocolsApi] Seeding empty premium_protocols table...');
+          for (const p of INITIAL_PREMIUM_PROTOCOLS) {
+            await supabase.from('premium_protocols').upsert(p);
+          }
+          const { data: reFetched } = await supabase.from('premium_protocols').select('*');
+          if (reFetched && reFetched.length > 0) {
+            return (reFetched as PremiumProtocol[]).filter(p => !deletedIds.has(p.id));
+          }
+        } else {
+          // Database has entries, so the Database is the SINGLE source of truth!
+          // We return the database entries directly, without merging with local defaults.
+          // This guarantees that any deleted protocol is permanently gone and never reappears!
+          return (data as PremiumProtocol[]).filter(p => !deletedIds.has(p.id));
         }
       }
     } catch (e) {
       console.warn('[PremiumProtocolsApi] DB query failed or table not available. Using local space.', e);
     }
-    return localList;
+    return localList.filter(p => !deletedIds.has(p.id));
   }
 
   async getProtocolById(id: string): Promise<PremiumProtocol | null> {
@@ -1544,8 +1548,15 @@ class PremiumProtocolsApi {
     }
 
     try {
-      await supabase.from('premium_protocols').delete().eq('id', id);
-    } catch {}
+      const { error } = await supabase.from('premium_protocols').delete().eq('id', id);
+      if (error) {
+        console.error('[PremiumProtocolsApi] Error deleting from database:', error);
+      } else {
+        console.log('[PremiumProtocolsApi] Successfully deleted protocol from database:', id);
+      }
+    } catch (e) {
+      console.error('[PremiumProtocolsApi] Exception deleting from database:', e);
+    }
     const local = this.getLocalProtocols();
     const filtered = local.filter(p => p.id !== id);
     this.saveLocalProtocols(filtered);

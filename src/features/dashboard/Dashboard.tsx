@@ -3,7 +3,7 @@ import { WorkoutCategory, UserProfile, WorkoutFolder, WorkoutHistory } from '../
 import { authApi } from '../../lib/api/authApi';
 import { workoutApi } from '../../lib/api/workoutApi';
 import { useNavigation } from '../../App';
-import { MoreVertical, Plus, Flame, Play, Edit2, Trash2, Dumbbell, Copy, Calendar, Award, Compass, Heart, FolderPlus, Globe } from 'lucide-react';
+import { MoreVertical, Plus, Flame, Play, Edit2, Trash2, Dumbbell, Copy, Calendar, Award, Compass, Heart, FolderPlus, Globe, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScreenState } from '../../components/ui/ScreenState';
 import { DashboardSkeleton } from '../../components/ui/Skeleton';
@@ -850,18 +850,27 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">
                   Seus Protocolos
                 </h2>
-                <button 
-                  onClick={() => navigate('editor')}
-                  onMouseEnter={() => prefetch('editor_init_new', async () => {
-                    const user = await authApi.getUser();
-                    if (!user) return null;
-                    return workoutApi.getWorkoutEditorData(user.id);
-                  })}
-                  className="flex items-center gap-2 text-indigo-400 hover:text-indigo-500 transition-colors bg-white hover:bg-indigo-50/50 py-1.5 px-3.5 rounded-full border border-slate-100 shadow-[0_2px_6px_rgba(0,0,0,0.01)]"
-                >
-                  <span className="text-[9.5px] font-black uppercase tracking-wider">Criar Nova</span>
-                  <Plus size={14} strokeWidth={2.5} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => navigate('onboarding')}
+                    className="flex items-center gap-1.5 text-blue-500 hover:text-blue-600 transition-colors bg-white hover:bg-blue-50/50 py-1.5 px-3 rounded-full border border-slate-100 shadow-[0_2px_6px_rgba(0,0,0,0.01)] cursor-pointer"
+                  >
+                    <RefreshCw size={11} strokeWidth={2.5} />
+                    <span className="text-[9px] font-black uppercase tracking-wider">Ajustar Onboarding</span>
+                  </button>
+                  <button 
+                    onClick={() => navigate('editor')}
+                    onMouseEnter={() => prefetch('editor_init_new', async () => {
+                      const user = await authApi.getUser();
+                      if (!user) return null;
+                      return workoutApi.getWorkoutEditorData(user.id);
+                    })}
+                    className="flex items-center gap-2 text-indigo-400 hover:text-indigo-500 transition-colors bg-white hover:bg-indigo-50/50 py-1.5 px-3.5 rounded-full border border-slate-100 shadow-[0_2px_6px_rgba(0,0,0,0.01)] cursor-pointer"
+                  >
+                    <span className="text-[9.5px] font-black uppercase tracking-wider">Criar Nova</span>
+                    <Plus size={14} strokeWidth={2.5} />
+                  </button>
+                </div>
               </div>
 
               {/* FOLDERS FILTER SCROLL TABS */}

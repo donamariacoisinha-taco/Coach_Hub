@@ -92,7 +92,8 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
 
   const loadData = async () => {
     const list = await premiumProtocolsApi.getProtocols();
-    setProtocols(list.filter(p => p.is_active !== false));
+    const isAdminUser = isAdmin(profile);
+    setProtocols(list.filter(p => isAdminUser ? true : p.is_active !== false));
     setIsPremium(premiumProtocolsApi.isPremiumAthlete());
   };
 
