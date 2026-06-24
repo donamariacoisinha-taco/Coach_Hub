@@ -505,6 +505,10 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
         className="w-full bg-white rounded-3xl border border-slate-100 shadow-[0_4px_16px_rgba(15,23,42,0.02)] cursor-pointer flex flex-col overflow-hidden group hover:border-[#7BA7FF]/30 hover:shadow-[0_12px_24px_rgba(15,23,42,0.06)] transition-all duration-300 text-left"
       >
         {/* Cover */}
+        {(() => {
+          console.log(`Debug [${p.name}]: image_url = "${p.image_url}"`);
+          return null;
+        })()}
         <div className={`relative w-full h-[145px] overflow-hidden bg-slate-950 flex-shrink-0 ${(p.image_url && p.image_url.trim().length > 5) ? '' : `bg-gradient-to-br ${cover.gradient}`}`}>
           {p.image_url && p.image_url.trim().length > 5 ? (
             <>

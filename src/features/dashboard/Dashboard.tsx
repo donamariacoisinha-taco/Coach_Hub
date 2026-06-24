@@ -279,7 +279,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   // Alinha o activeFolderId com as pastas existentes do usuário para evitar telas de erro de pasta inexistente ou obsoleta
   useEffect(() => {
     if (folders.length > 0) {
-      const isValidFolder = activeFolderId === 'public_admin' || activeFolderId === 'uncategorized' || folders.some(f => f.id === activeFolderId);
+      const isValidFolder = activeFolderId === null || activeFolderId === 'public_admin' || activeFolderId === 'uncategorized' || folders.some(f => f.id === activeFolderId);
       if (!isValidFolder) {
         const favId = localStorage.getItem('favorite_workout_folder_id');
         const favExists = favId && folders.some(f => f.id === favId);
