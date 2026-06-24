@@ -65,6 +65,9 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
         setError('E-mail ou senha incorretos. Se ainda não possui uma conta, mude para "Criar Perfil" abaixo ou utilize o modo Convidado para testar instantaneamente!');
       } else if (errMsg.includes('Email not confirmed')) {
         setError('E-mail não confirmado. Por favor, confirme o e-mail enviado.');
+      } else if (errMsg.includes('User already registered') || errMsg.toLowerCase().includes('already registered')) {
+        setError('Este e-mail já possui um registro ativo no sistema de autenticação (mesmo se o perfil de treino foi excluído pelo administrador). Mudamos o formulário para a tela de Login acima: basta clicar em ENTRAR para reativar seu perfil e iniciar o onboarding do zero!');
+        setIsSignUp(false);
       } else {
         setError(errMsg || 'Falha ao realizar autenticação.');
       }

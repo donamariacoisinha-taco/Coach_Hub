@@ -224,7 +224,7 @@ export const UserManagement: React.FC = () => {
       
       addAdminLog('Exclusão', currentUserEmail, user.name, user.email);
       setProfiles(prev => prev.filter(p => p.id !== user.id));
-      showSuccess(`Operação Completa. Os dados de ${user.name || user.email} foram expurgados com sucesso.`);
+      showSuccess(`Operação Completa. Os dados de de treino de ${user.name || user.email} foram expurgados. Nota: Devido a restrições de segurança do Supabase Auth, o cadastro de login permanece ativo. Para reativar este atleta, basta que ele faça Login com suas credenciais antigas; um novo perfil limpo será gerado e ele irá para o onboarding automaticamente!`);
     } catch (err: any) {
       console.error(err);
       setErrorNotice(`Proteção de Integridade: Houve uma exceção crítica ao tentar excluir as dependências de chaves relacionais no postgres. Operação cancelada. Detalhe: ${err.message || err}`);

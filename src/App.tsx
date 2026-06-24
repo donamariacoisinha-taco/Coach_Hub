@@ -143,19 +143,25 @@ const App: React.FC = () => {
       setProfile(profileData);
       
       const urlState = getStateFromUrl();
-      // Se estiver logado e na tela de entrada/auth, decide para onde ir
-      if (urlState.view === 'landing' || urlState.view === 'auth' || urlState.view === 'onboarding') {
-        const partial = await workoutApi.getPartialSession(userId);
-
-        if (partial && profileData.onboarding_completed) {
-          console.log("[APP] Resuming partial session");
-          navigate('workout', { id: partial.workout_id });
-        } else if (!profileData.onboarding_completed) {
-          console.log("[APP] Onboarding incompleto, redirecionando...");
+      
+      // Se o onboarding não estiver completo, o usuário DEVE ir para o onboarding
+      if (!profileData.onboarding_completed) {
+        console.log("[APP] Onboarding incompleto, redirecionando...");
+        if (urlState.view !== 'onboarding') {
           navigate('onboarding');
-        } else {
-          console.log("[APP] Tudo ok, indo para Dashboard");
-          navigate('dashboard');
+        }
+      } else {
+        // Se estiver logado e na tela de entrada/auth, decide para onde ir
+        if (urlState.view === 'landing' || urlState.view === 'auth' || urlState.view === 'onboarding') {
+          const partial = await workoutApi.getPartialSession(userId);
+
+          if (partial) {
+            console.log("[APP] Resuming partial session");
+            navigate('workout', { id: partial.workout_id });
+          } else {
+            console.log("[APP] Tudo ok, indo para Dashboard");
+            navigate('dashboard');
+          }
         }
       }
     } catch (err) {
