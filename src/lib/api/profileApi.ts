@@ -87,6 +87,9 @@ export const profileApi = {
               profileData.exercise_dislikes = onboardingObj.exercise_dislikes;
               profileData.onboarding_version = onboardingObj.onboarding_version;
               profileData.updated_at = onboardingObj.updated_at;
+              profileData.active_protocol_id = onboardingObj.active_protocol_id;
+              profileData.active_plan_id = onboardingObj.active_plan_id;
+              profileData.last_onboarding_update = onboardingObj.last_onboarding_update;
             } catch (e) {
               console.error('[PROFILE_API] Error hydrating onboarding v21 data', e);
             }
@@ -167,7 +170,8 @@ export const profileApi = {
       const onboardingKeys: Array<keyof UserProfile> = [
         'sex', 'primary_goal', 'training_experience', 'weekly_availability',
         'training_environment', 'restrictions', 'exercise_dislikes',
-        'onboarding_version', 'updated_at'
+        'onboarding_version', 'updated_at', 'active_protocol_id',
+        'active_plan_id', 'last_onboarding_update'
       ];
 
       onboardingKeys.forEach(key => {

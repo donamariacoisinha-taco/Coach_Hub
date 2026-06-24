@@ -24,6 +24,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
+import { cacheStore } from '../../lib/cache/cacheStore';
 import { supabase } from '../../lib/api/supabase';
 import { profileApi } from '../../lib/api/profileApi';
 import { authApi } from '../../lib/api/authApi';
@@ -283,29 +284,26 @@ export default function SmartOnboarding() {
     setIsFinishing(true);
 
     try {
-      // PASSO 1: Salvar perfil completo no Postgres DB
-      const finalProfileData = {
-        onboarding_completed: true,
-        onboarding_version: '2.1',
-        name: formData.name || 'Atleta Kyron OS',
-        gender: formData.sex,
-        sex: formData.sex,
-        age: Number(formData.age) || 28,
-        weight: Number(formData.weight) || 75,
-        height: Number(formData.height) || 175,
-        primary_goal: formData.primary_goal,
-        training_experience: formData.training_experience,
-        weekly_availability: Number(formData.weekly_availability) || 3,
-        training_environment: formData.training_environment,
-        restrictions: formData.restrictions || ['Nenhuma'],
-        exercise_dislikes: formData.exercise_dislikes || [],
-        updated_at: new Date().toISOString()
-      };
-      await profileApi.updateProfile(userId, finalProfileData);
+      console.log('[KYRON_OS_DIAGNOSTIC] ONBOARDING_COMPLETED', { userId, isRedoing });
 
-      // Hydrate user store
-      const fullProfile = await profileApi.getProfile(userId);
-      if (fullProfile) setProfile(fullProfile);
+      // ETAPA 1: VALIDAR CRIAÇÃO DO PROTOCOLO (Se for compatível e tiver matchItem, ou se tiver draft)
+      const finalProtocolId = matchItem?.id || providedFallbackDraft?.id || customGeneratedDraft?.id || 'failsafe-id';
+      const finalProtocolName = matchItem?.name || providedFallbackDraft?.name || customGeneratedDraft?.name || 'Kyron OS Adaptativo';
+      const finalProtocolStatus = matchItem?.status || 'Active';
+      const finalProtocolCreatedAt = matchItem?.created_at || new Date().toISOString();
+
+      console.log('[KYRON_OS_DIAGNOSTIC] PROTOCOL_CREATED', {
+        id: finalProtocolId,
+        nome: finalProtocolName,
+        status: finalProtocolStatus,
+        data_criacao: finalProtocolCreatedAt
+      });
+
+      // Se não existir protocolo válido e não for fallback, interromper para lançar o regenerador / failsafe
+      if (!isFallback && !matchItem && !providedFallbackDraft && !customGeneratedDraft) {
+        console.warn('[KYRON_OS_DIAGNOSTIC] Protocol validation failed. No protocol found. Triggering regeneration fallback...');
+        throw new Error('Nenhum protocolo válido encontrado para ativação.');
+      }
 
       // MIGRAÇÃO SEGURA: Se o usuário estiver refazendo o onboarding, salvar o anterior em historical_protocols
       if (isRedoing) {
@@ -383,27 +381,106 @@ export default function SmartOnboarding() {
         }
       }
 
-      // Se conseguiu clonar o folder, ativa-o como favorito/ativo principal
-      if (clonedFolder) {
-        localStorage.setItem('favorite_workout_folder_id', clonedFolder.id);
-        setDeployedFolderId(clonedFolder.id);
-
-        // Buscar as categorias (treinos) gerados ou clonados para pegar o primeiro ID
-        const { data: categories } = await supabase
-          .from('workout_categories')
-          .select('id')
-          .eq('folder_id', clonedFolder.id)
-          .order('created_at', { ascending: true });
-
-        if (categories && categories.length > 0) {
-          setFirstWorkoutId(categories[0].id);
-        }
+      // ETAPA 2 & 3: VALIDAR VÍNCULO COM O USUÁRIO E CRIAR SE NÃO EXISTIR (Vínculo é o folder com o user_id e a chave favorita)
+      if (!clonedFolder) {
+        console.warn('[KYRON_OS_DIAGNOSTIC] Cloned folder missing. Establishing failsafe folder link...');
+        clonedFolder = await workoutApi.createFolder(userId, finalProtocolName || 'Meu Protocolo Kyron OS');
       }
+
+      console.log('[KYRON_OS_DIAGNOSTIC] PROTOCOL_ASSIGNED', {
+        folderId: clonedFolder.id,
+        folderName: clonedFolder.name,
+        userId: userId,
+        status: 'active'
+      });
+
+      // Se conseguiu clonar o folder, ativa-o como favorito/ativo principal
+      localStorage.setItem('favorite_workout_folder_id', clonedFolder.id);
+      setDeployedFolderId(clonedFolder.id);
+
+      // ETAPA 4: GERAR PLANO DE TREINO ATIVO (Verificar se existem treinos e exercícios vinculados)
+      const { data: categories } = await supabase
+        .from('workout_categories')
+        .select('id')
+        .eq('folder_id', clonedFolder.id)
+        .order('created_at', { ascending: true });
+
+      // Se não houver treinos gerados para a pasta, cria um treino inicial/failsafe automático
+      if (!categories || categories.length === 0) {
+        console.warn('[KYRON_OS_DIAGNOSTIC] Workout plan empty. Generating active workout plan categories...');
+        const cat = await workoutApi.createCategory({
+          user_id: userId,
+          folder_id: clonedFolder.id,
+          name: 'Treino A — Ativação Geral',
+          description: 'Treino adaptativo de ativação emergencial.'
+        });
+        
+        await workoutApi.insertWorkoutExercises([{
+          category_id: cat.id,
+          exercise_id: '5ce43864-44ac-4822-ba91-30efc477431e',
+          exercise_name_snapshot: 'Leg Press 45',
+          sets: 3,
+          reps: '12',
+          weight: 40,
+          rest_time: 60,
+          sort_order: 1,
+          sets_json: [
+            { reps: '12', weight: 40, rest_time: 60 },
+            { reps: '12', weight: 40, rest_time: 60 },
+            { reps: '12', weight: 40, rest_time: 60 }
+          ]
+        }]);
+
+        setFirstWorkoutId(cat.id);
+        console.log('[KYRON_OS_DIAGNOSTIC] WORKOUT_PLAN_CREATED', {
+          categoriesCount: 1,
+          firstWorkoutId: cat.id
+        });
+      } else {
+        setFirstWorkoutId(categories[0].id);
+        console.log('[KYRON_OS_DIAGNOSTIC] WORKOUT_PLAN_CREATED', {
+          categoriesCount: categories.length,
+          firstWorkoutId: categories[0].id
+        });
+      }
+
+      // ETAPA 5: ATUALIZAR PERFIL DO USUÁRIO
+      const finalProfileData = {
+        onboarding_completed: true,
+        onboarding_version: '2.1',
+        name: formData.name || 'Atleta Kyron OS',
+        gender: formData.sex,
+        sex: formData.sex,
+        age: Number(formData.age) || 28,
+        weight: Number(formData.weight) || 75,
+        height: Number(formData.height) || 175,
+        primary_goal: formData.primary_goal,
+        training_experience: formData.training_experience,
+        weekly_availability: Number(formData.weekly_availability) || 3,
+        training_environment: formData.training_environment,
+        restrictions: formData.restrictions || ['Nenhuma'],
+        exercise_dislikes: formData.exercise_dislikes || [],
+        updated_at: new Date().toISOString(),
+        active_protocol_id: finalProtocolId,
+        active_plan_id: clonedFolder.id,
+        last_onboarding_update: new Date().toISOString()
+      };
+
+      await profileApi.updateProfile(userId, finalProfileData);
+
+      // Hydrate user store
+      const fullProfile = await profileApi.getProfile(userId);
+      if (fullProfile) setProfile(fullProfile);
+
+      // ETAPA 6: REFRESH IMEDIATO DO CACHE DO DASHBOARD
+      console.log('[KYRON_OS_DIAGNOSTIC] Invalidating and clearing query caches for immediate refresh...');
+      cacheStore.clear(); // Clear memory query caches
+      localStorage.removeItem(`rubi_dashboard_cache_${userId}`); // Clear local storage dashboard backup cache
 
       showSuccess('KYRON OS Ativado!', 'Seu protocolo adaptativo está pronto para iniciar.');
     } catch (err: any) {
       console.warn('[Onboarding] Error during protocol setup, launching Failsafe...', err);
-      // FAILSAFE: Garantir que o usuário NUNCA saia sem treino ativo
+      // FAILSAFE SEVERO: Garantir que o usuário NUNCA saia sem treino ativo
       try {
         const fallbackFolder = await workoutApi.createFolder(userId, 'Kyron OS: Plano Failsafe');
         const cat = await workoutApi.createCategory({
@@ -432,6 +509,24 @@ export default function SmartOnboarding() {
         localStorage.setItem('favorite_workout_folder_id', fallbackFolder.id);
         setDeployedFolderId(fallbackFolder.id);
         setFirstWorkoutId(cat.id);
+
+        // ETAPA 5 fallback
+        const failsafeProfileData = {
+          onboarding_completed: true,
+          onboarding_version: '2.1',
+          updated_at: new Date().toISOString(),
+          active_protocol_id: 'failsafe-id',
+          active_plan_id: fallbackFolder.id,
+          last_onboarding_update: new Date().toISOString()
+        };
+        await profileApi.updateProfile(userId, failsafeProfileData);
+        const fullProfile = await profileApi.getProfile(userId);
+        if (fullProfile) setProfile(fullProfile);
+
+        // ETAPA 6 fallback
+        cacheStore.clear();
+        localStorage.removeItem(`rubi_dashboard_cache_${userId}`);
+
         showSuccess('KYRON OS Ativado!', 'Plano de emergência configurado para garantir seu treino.');
       } catch (fError) {
         console.error('[Severe Failsafe error]', fError);
@@ -800,6 +895,117 @@ export default function SmartOnboarding() {
   const handleRemoveDislike = (exerciseName: string) => {
     const current = (formData.exercise_dislikes || []).filter(name => name !== exerciseName);
     saveProgressValue({ exercise_dislikes: current });
+  };
+
+  const handleGoToDashboard = async () => {
+    if (!userId) {
+      navigate('dashboard');
+      return;
+    }
+
+    try {
+      console.log('[KYRON_OS_DIAGNOSTIC] Navigating to Dashboard - Executing ETAPA 7 Secure Redirect Validation...');
+      
+      // Clear memory cache so dashboard query is forced to fetch fresh data
+      cacheStore.clear();
+      localStorage.removeItem(`rubi_dashboard_cache_${userId}`);
+
+      // 1. Validar se existe plano ativo no localStorage
+      let activePlanId = localStorage.getItem('favorite_workout_folder_id');
+      
+      // FAILSAFE 1: Se não houver vínculo no localStorage, tentar encontrar uma pasta existente do usuário no banco
+      if (!activePlanId) {
+        console.warn('[KYRON_OS_DIAGNOSTIC] Failsafe 1 activated - favorite_workout_folder_id missing in localStorage. Querying database...');
+        const { data: userFolders } = await supabase
+          .from('workout_folders')
+          .select('id, name')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (userFolders && userFolders.length > 0) {
+          activePlanId = userFolders[0].id;
+          localStorage.setItem('favorite_workout_folder_id', activePlanId);
+          console.log('[KYRON_OS_DIAGNOSTIC] Failsafe 1 resolved - Linked existing folder:', userFolders[0].name);
+        }
+      }
+
+      // 2. Validar se a pasta realmente existe e se tem categorias/treinos vinculados
+      let hasWorkouts = false;
+      if (activePlanId) {
+        // Confirmar se o plano/pasta existe
+        const { data: folderExists } = await supabase
+          .from('workout_folders')
+          .select('id')
+          .eq('id', activePlanId)
+          .maybeSingle();
+
+        if (folderExists) {
+          // Confirmar se possui treinos cadastrados
+          const { data: categories } = await supabase
+            .from('workout_categories')
+            .select('id')
+            .eq('folder_id', activePlanId);
+
+          if (categories && categories.length > 0) {
+            hasWorkouts = true;
+            console.log('[KYRON_OS_DIAGNOSTIC] DASHBOARD_PROTOCOL_FOUND and DASHBOARD_WORKOUT_FOUND verified.', {
+              activePlanId,
+              workoutsCount: categories.length
+            });
+          }
+        }
+      }
+
+      // FAILSAFE 2: Se a pasta favorita não tiver treinos ou não existir, criar pasta e treinos emergenciais
+      if (!activePlanId || !hasWorkouts) {
+        console.warn('[KYRON_OS_DIAGNOSTIC] Failsafe 2 activated - Missing active plan or workouts. Building emergency training sheet...');
+        
+        let targetFolderId = activePlanId;
+        if (!targetFolderId) {
+          const newF = await workoutApi.createFolder(userId, 'Kyron OS: Plano Failsafe');
+          targetFolderId = newF.id;
+          localStorage.setItem('favorite_workout_folder_id', targetFolderId);
+        }
+
+        const cat = await workoutApi.createCategory({
+          user_id: userId,
+          folder_id: targetFolderId,
+          name: 'Treino A — Ativação Geral',
+          description: 'Treino adaptativo de ativação emergencial.'
+        });
+        
+        await workoutApi.insertWorkoutExercises([{
+          category_id: cat.id,
+          exercise_id: '5ce43864-44ac-4822-ba91-30efc477431e',
+          exercise_name_snapshot: 'Leg Press 45',
+          sets: 3,
+          reps: '12',
+          weight: 40,
+          rest_time: 60,
+          sort_order: 1,
+          sets_json: [
+            { reps: '12', weight: 40, rest_time: 60 },
+            { reps: '12', weight: 40, rest_time: 60 },
+            { reps: '12', weight: 40, rest_time: 60 }
+          ]
+        }]);
+
+        console.log('[KYRON_OS_DIAGNOSTIC] Failsafe 2 resolved - Emergency plan generated with Treino A.');
+      }
+
+      // Final cache clearing right before routing to guarantee instant refresh
+      cacheStore.clear();
+      localStorage.removeItem(`rubi_dashboard_cache_${userId}`);
+
+      console.log('[KYRON_OS_DIAGNOSTIC] Validation success. Redirecting safely to dashboard...');
+      navigate('dashboard');
+    } catch (e) {
+      console.error('[KYRON_OS_DIAGNOSTIC] Error in redirection validation:', e);
+      // FAILSAFE 4: Se qualquer etapa falhar, limpa cache e navega para que o novo Empty State do Dashboard assuma o controle
+      cacheStore.clear();
+      navigate('dashboard');
+    }
   };
 
   // Render individual wizard screen step-by-step
@@ -1409,7 +1615,7 @@ export default function SmartOnboarding() {
 
               <button
                 type="button"
-                onClick={() => navigate('dashboard')}
+                onClick={handleGoToDashboard}
                 className="w-full bg-slate-950 hover:bg-slate-900 text-white py-4.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer border-none"
               >
                 Ir para o Dashboard

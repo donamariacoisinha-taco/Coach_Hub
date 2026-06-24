@@ -71,6 +71,9 @@ export interface UserProfile {
   onboarding_version?: string;
   created_at?: string;
   updated_at?: string;
+  active_protocol_id?: string;
+  active_plan_id?: string;
+  last_onboarding_update?: string;
   
   // Tracking Stats
   workouts_completed?: number;

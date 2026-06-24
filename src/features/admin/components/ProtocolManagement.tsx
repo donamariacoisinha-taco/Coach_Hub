@@ -31,6 +31,7 @@ import {
 import { systemTemplatesApi, SystemTemplate } from '../../../lib/api/systemTemplatesApi';
 import { premiumProtocolsApi, PremiumProtocol, PremiumTemplateWorkout, PremiumTemplateExercise } from '../../../lib/api/premiumProtocolsApi';
 import { useAdminStore } from '../../../store/adminStore';
+import { authApi } from '../../../lib/api/authApi';
 
 export const ProtocolManagement: React.FC = () => {
   const { exercises } = useAdminStore();
@@ -40,6 +41,51 @@ export const ProtocolManagement: React.FC = () => {
   const [protocols, setProtocols] = useState<PremiumProtocol[]>([]);
   const [drafts, setDrafts] = useState<PremiumProtocol[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  
+  // Search, Filters & Sorting States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
+  const [goalFilter, setGoalFilter] = useState<string>('all');
+  const [levelFilter, setLevelFilter] = useState<string>('all');
+  const [frequencyFilter, setFrequencyFilter] = useState<string>('all');
+  const [localFilter, setLocalFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('recent');
+
+  // Deletion Safety Modal States
+  const [deletingProtocol, setDeletingProtocol] = useState<PremiumProtocol | null>(null);
+  const [deleteProtocolInput, setDeleteProtocolInput] = useState('');
+
+  // Current logged in admin details
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('admin@kyron.os');
+
+  useEffect(() => {
+    authApi.getUser().then(u => {
+      if (u?.email) {
+        setCurrentUserEmail(u.email);
+      }
+    });
+  }, []);
+
+  const addProtocolAdminLog = async (action: string, protocolName: string) => {
+    try {
+      const user = await authApi.getUser();
+      const adminEmail = user?.email || 'admin@kyron.os';
+      const adminName = adminEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const logs = JSON.parse(localStorage.getItem('kyron_admin_operations_log_v2') || '[]');
+      const now = new Date();
+      const newLog = {
+        action: action,
+        admin: adminEmail,
+        athlete: `${adminName} | ${protocolName}`,
+        date: now.toLocaleDateString('pt-BR'),
+        time: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      };
+      logs.unshift(newLog);
+      localStorage.setItem('kyron_admin_operations_log_v2', JSON.stringify(logs.slice(0, 50)));
+    } catch (e) {
+      console.error('Error logging protocol operation:', e);
+    }
+  };
   
   // Community Approval Queue & Database State
   const [communityProtocols, setCommunityProtocols] = useState<any[]>(() => {
@@ -385,16 +431,61 @@ export const ProtocolManagement: React.FC = () => {
   };
 
   const handleArchive = async (id: string, isFromDrafts = false) => {
-    if (confirm('Deseja realmente arquivar este protocolo?')) {
+    if (confirm('Deseja realmente arquivar este protocolo? (Ele será movido para a Lixeira)')) {
+      let protocolName = '';
       if (isFromDrafts) {
-        const newDrafts = drafts.filter(d => d.id !== id);
-        saveDraftsToStorage(newDrafts);
+        const draft = drafts.find(d => d.id === id);
+        if (draft) {
+          protocolName = draft.name;
+          const updatedDraft = { ...draft, status: 'archived' as const, is_active: false };
+          await premiumProtocolsApi.createOrUpdateProtocol(updatedDraft);
+          const newDrafts = drafts.filter(d => d.id !== id);
+          saveDraftsToStorage(newDrafts);
+        }
       } else {
-        await premiumProtocolsApi.archiveProtocol(id);
-        const updated = await premiumProtocolsApi.getProtocols();
-        setProtocols(updated);
+        const p = protocols.find(x => x.id === id);
+        if (p) {
+          protocolName = p.name;
+          await premiumProtocolsApi.archiveProtocol(id, currentUserEmail);
+        }
+      }
+      await loadData();
+      if (protocolName) {
+        addProtocolAdminLog('Arquivou protocolo', protocolName);
       }
     }
+  };
+
+  const handleRestore = async (id: string) => {
+    let protocolName = '';
+    const p = protocols.find(x => x.id === id);
+    if (p) {
+      protocolName = p.name;
+      await premiumProtocolsApi.restoreProtocol(id);
+    } else {
+      const draft = drafts.find(d => d.id === id);
+      if (draft) {
+        protocolName = draft.name;
+        const updatedDraft = { ...draft, status: 'draft' as const, is_active: false };
+        const otherDrafts = drafts.map(d => d.id === id ? updatedDraft : d);
+        saveDraftsToStorage(otherDrafts);
+      }
+    }
+    await loadData();
+    if (protocolName) {
+      addProtocolAdminLog('Restaurou protocolo', protocolName);
+    }
+  };
+
+  const handleDeletePermanently = async (p: PremiumProtocol) => {
+    await premiumProtocolsApi.deleteProtocolPermanently(p.id);
+    const isADraft = p.id.startsWith('draft-') || drafts.some(d => d.id === p.id);
+    if (isADraft) {
+      const updatedDrafts = drafts.filter(d => d.id !== p.id);
+      saveDraftsToStorage(updatedDrafts);
+    }
+    await loadData();
+    addProtocolAdminLog('Excluiu permanentemente', p.name);
   };
 
   const toggleProtocolActive = async (id: string, isFromDrafts = false) => {
@@ -1749,136 +1840,349 @@ export const ProtocolManagement: React.FC = () => {
             className="space-y-6"
           >
             {/* MEUS PROTOCOLOS TAB (ADMIN WORKSPACE Row List / Bento) */}
-            {activeSubTab === 'my_protocols' && (
-              <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-[2.5rem] shadow-sm overflow-hidden text-left">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Centro de Operações de Atletas</h3>
-                    <p className="text-xs text-slate-400 mt-1">Todos os protocolos ativos, rascunhos e publicações editadas pelo administrador.</p>
-                  </div>
-                </div>
+            {activeSubTab === 'my_protocols' && (() => {
+              // Filters Logic
+              const filteredList = [...protocols, ...drafts].filter(p => {
+                const currentStatus = p.status || (p.is_active !== false ? 'published' : 'draft');
                 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/50">
-                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Nome / Linha de Força</th>
-                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Categoria</th>
-                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Nível</th>
-                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Timeline de Versão</th>
-                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Última Modificação</th>
-                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
-                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/60 font-medium text-xs text-slate-700">
-                      {[...protocols, ...drafts].map(p => {
-                        const isD = drafts.some(d => d.id === p.id);
-                        const isPub = !p.premium && !isD;
-                        const isInactive = p.is_active === false;
-                        return (
-                          <tr key={p.id} className={`transition-colors hover:bg-slate-50/40 ${isInactive ? 'opacity-60 bg-slate-50/20' : ''}`}>
-                            <td className="p-5">
-                              <div>
-                                <span className="font-bold text-slate-900 hover:text-[#7BA7FF] cursor-pointer" onClick={() => handleStartEdit(p, isD)}>{p.name}</span>
-                                <p className="text-slate-450 text-[10px] mt-0.5 line-clamp-1 font-normal max-w-xs">{p.description || "Sem descrição."}</p>
-                              </div>
-                            </td>
-                            
-                            <td className="p-5">
-                              <span className="text-slate-500 font-semibold text-[11px]">
-                                {filterLabel(p.goal)}
-                              </span>
-                            </td>
+                // 1. Status Filter
+                if (statusFilter !== 'all' && currentStatus !== statusFilter) return false;
 
-                            <td className="p-5">
-                              <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-205">
-                                {p.difficulty === 'advanced' ? 'Avançado' : p.difficulty === 'beginner' ? 'Iniciante' : 'Intermediário'}
-                              </span>
-                            </td>
+                // 2. Global Search (name, goal, difficulty/level, author)
+                if (searchQuery) {
+                  const q = searchQuery.toLowerCase();
+                  const nameMatch = p.name.toLowerCase().includes(q);
+                  const descMatch = (p.description || '').toLowerCase().includes(q);
+                  const goalMatch = p.goal.toLowerCase().includes(q) || filterLabel(p.goal).toLowerCase().includes(q);
+                  const difficultyMatch = p.difficulty.toLowerCase().includes(q) || 
+                    (p.difficulty === 'advanced' ? 'avançado' : p.difficulty === 'beginner' ? 'iniciante' : 'intermediário').includes(q);
+                  const authorMatch = (p.created_by || '').toLowerCase().includes(q) || 'admin'.includes(q) || 'rubi'.includes(q);
+                  
+                  if (!nameMatch && !descMatch && !goalMatch && !difficultyMatch && !authorMatch) return false;
+                }
 
-                            <td className="p-5">
-                              {/* Clickable timeline badge */}
-                              <button
-                                onClick={() => {
-                                  setSelectedProtocolForVersion(p);
-                                  setSelectedVersionIndex(3);
-                                }}
-                                className="flex items-center gap-1 hover:text-blue-500 transition-colors"
-                              >
-                                <span className="text-[10px] font-mono text-slate-400 hover:underline">v1 ── v2 ── v3 ── <strong className="text-slate-900 font-black">● v4</strong></span>
-                              </button>
-                            </td>
+                // 3. Goal Filter
+                if (goalFilter !== 'all') {
+                  const mappedGoal = goalFilter === 'Hipertrofia' ? 'hypertrophy' :
+                                     goalFilter === 'Força' ? 'strength' :
+                                     goalFilter === 'Emagrecimento' ? 'weight_loss' :
+                                     goalFilter === 'Performance' ? 'performance' :
+                                     goalFilter === 'Condicionamento' ? 'recovery' :
+                                     goalFilter === 'Especialização Muscular' ? 'glutes' : '';
+                  if (p.goal !== mappedGoal) return false;
+                }
 
-                            <td className="p-5 text-slate-400 font-semibold text-[11px]">
-                              {p.updated_at ? new Date(p.updated_at).toLocaleDateString('pt-BR') : 'N/A'}
-                            </td>
+                // 4. Level Filter
+                if (levelFilter !== 'all') {
+                  const mappedLevel = levelFilter === 'Iniciante' ? 'beginner' :
+                                      levelFilter === 'Intermediário' ? 'intermediate' :
+                                      levelFilter === 'Avançado' ? 'advanced' : '';
+                  if (p.difficulty !== mappedLevel) return false;
+                }
 
-                            <td className="p-5">
-                              <div className="flex flex-col gap-1.5 items-start">
-                                {isD ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-amber-50 ring-1 ring-amber-200 text-amber-600 rounded-full">
-                                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" /> Rascunho
-                                  </span>
-                                ) : isPub ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-emerald-50 ring-1 ring-emerald-200 text-emerald-600 rounded-full">
-                                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Público
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-blue-50 ring-1 ring-blue-200 text-blue-600 rounded-full">
-                                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> Premium
-                                  </span>
-                                )}
-                                {isInactive && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-rose-50 ring-1 ring-rose-200 text-rose-600 rounded-full">
-                                    Inativo
-                                  </span>
-                                )}
-                              </div>
-                            </td>
+                // 5. Frequency Filter
+                if (frequencyFilter !== 'all') {
+                  if (p.frequency !== parseInt(frequencyFilter)) return false;
+                }
 
-                            <td className="p-5 text-right space-x-1 whitespace-nowrap">
-                              <button
-                                onClick={() => toggleProtocolActive(p.id, isD)}
-                                className={`p-1.5 border rounded-lg transition ${
-                                  !isInactive 
-                                    ? 'text-emerald-500 bg-emerald-50 border-emerald-100 hover:bg-emerald-100' 
-                                    : 'text-slate-405 bg-slate-50 border-slate-205 hover:bg-slate-100'
-                                }`}
-                                title={!isInactive ? "Desativar Protocolo com o Clipe (Ativo)" : "Ativar Protocolo com o Clipe (Desativado)"}
-                              >
-                                <Paperclip size={11} className={!isInactive ? "rotate-45" : ""} />
-                              </button>
-                              <button
-                                onClick={() => handleStartEdit(p, isD)}
-                                className="p-1.5 text-slate-500 hover:text-slate-900 bg-slate-50 border rounded-lg transition"
-                                title="Editar"
-                              >
-                                <Edit size={11} />
-                              </button>
-                              <button
-                                onClick={() => handleDuplicate(p, isD)}
-                                className="p-1.5 text-slate-500 hover:text-slate-900 bg-slate-50 border rounded-lg transition"
-                                title="Duplicar"
-                              >
-                                <Copy size={11} />
-                              </button>
-                              <button
-                                onClick={() => handleArchive(p.id, isD)}
-                                className="p-1.5 text-red-400 hover:text-red-700 bg-rose-50 border border-rose-100 rounded-lg transition"
-                                title="Arquivar"
-                              >
-                                <Trash2 size={11} />
-                              </button>
+                // 6. Local Filter
+                if (localFilter !== 'all') {
+                  const mappedLocal = localFilter === 'Academia' ? 'gym' :
+                                      localFilter === 'Casa' ? 'home' :
+                                      localFilter === 'Híbrido' ? 'hybrid' : '';
+                  const pLocal = p.environment || 'gym';
+                  if (pLocal !== mappedLocal) return false;
+                }
+
+                return true;
+              });
+
+              // Sorting Logic
+              const sortedList = [...filteredList].sort((a, b) => {
+                switch (sortBy) {
+                  case 'recent':
+                    return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+                  case 'oldest':
+                    return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+                  case 'most_used':
+                  case 'most_assigned':
+                    return (b.athletes_count || 0) - (a.athletes_count || 0);
+                  case 'completion':
+                    return (b.completion_rate || 0) - (a.completion_rate || 0);
+                  case 'alphabetical':
+                    return a.name.localeCompare(b.name);
+                  default:
+                    return 0;
+                }
+              });
+
+              return (
+                <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-[2.5rem] shadow-sm overflow-hidden text-left">
+                  <div className="p-6 border-b border-slate-100 space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Centro de Operações de Atletas</h3>
+                        <p className="text-xs text-slate-400 mt-1">Todos os protocolos ativos, rascunhos e publicações editadas pelo administrador.</p>
+                      </div>
+                    </div>
+
+                    {/* Advanced Filters Panel */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 pt-2">
+                      {/* Global Search */}
+                      <div className="relative lg:col-span-2">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <input
+                          type="text"
+                          placeholder="Busca global..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 pl-9 pr-4 py-2 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+
+                      {/* Status Filter */}
+                      <div>
+                        <select
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value as any)}
+                          className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                          <option value="all">Status: Todos</option>
+                          <option value="published">Publicados</option>
+                          <option value="draft">Rascunhos</option>
+                          <option value="archived">Lixeira / Arquivados</option>
+                        </select>
+                      </div>
+
+                      {/* Goal Filter */}
+                      <div>
+                        <select
+                          value={goalFilter}
+                          onChange={(e) => setGoalFilter(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                          <option value="all">Objetivo: Todos</option>
+                          <option value="Hipertrofia">Hipertrofia</option>
+                          <option value="Força">Força</option>
+                          <option value="Emagrecimento">Emagrecimento</option>
+                          <option value="Performance">Performance</option>
+                          <option value="Condicionamento">Condicionamento</option>
+                          <option value="Especialização Muscular">Especialização Muscular</option>
+                        </select>
+                      </div>
+
+                      {/* Level Filter */}
+                      <div>
+                        <select
+                          value={levelFilter}
+                          onChange={(e) => setLevelFilter(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                          <option value="all">Nível: Todos</option>
+                          <option value="Iniciante">Iniciante</option>
+                          <option value="Intermediário">Intermediário</option>
+                          <option value="Avançado">Avançado</option>
+                        </select>
+                      </div>
+
+                      {/* Frequency Filter */}
+                      <div>
+                        <select
+                          value={frequencyFilter}
+                          onChange={(e) => setFrequencyFilter(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                          <option value="all">Frequência: Todas</option>
+                          <option value="2">2 Dias</option>
+                          <option value="3">3 Dias</option>
+                          <option value="4">4 Dias</option>
+                          <option value="5">5 Dias</option>
+                          <option value="6">6 Dias</option>
+                        </select>
+                      </div>
+
+                      {/* Local Filter */}
+                      <div>
+                        <select
+                          value={localFilter}
+                          onChange={(e) => setLocalFilter(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                          <option value="all">Local: Todos</option>
+                          <option value="Academia">Academia</option>
+                          <option value="Casa">Casa</option>
+                          <option value="Híbrido">Híbrido</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-2 border-t border-slate-100 gap-3">
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Exibindo {sortedList.length} de {protocols.length + drafts.length} Protocolos
+                      </div>
+
+                      {/* Classification / Sorting */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ordenar por:</span>
+                        <select
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value)}
+                          className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                          <option value="recent">Mais recentes</option>
+                          <option value="oldest">Mais antigos</option>
+                          <option value="most_used">Mais utilizados</option>
+                          <option value="most_assigned">Mais atribuídos</option>
+                          <option value="completion">Maior conclusão</option>
+                          <option value="alphabetical">Ordem alfabética</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50/50">
+                          <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Nome / Linha de Força</th>
+                          <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Objetivo</th>
+                          <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Nível</th>
+                          <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Dias / Local</th>
+                          <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Última Atualização</th>
+                          <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                          <th className="p-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100/60 font-medium text-xs text-slate-700">
+                        {sortedList.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-10 text-center text-slate-400">
+                              Nenhum protocolo encontrado com os filtros selecionados.
                             </td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        ) : (
+                          sortedList.map(p => {
+                            const isD = drafts.some(d => d.id === p.id);
+                            const currentStatus = p.status || (p.is_active !== false ? 'published' : 'draft');
+                            const isInactive = p.is_active === false;
+                            return (
+                              <tr key={p.id} className={`transition-colors hover:bg-slate-50/40 ${currentStatus === 'archived' ? 'bg-slate-50/30' : ''} ${isInactive && currentStatus !== 'archived' ? 'opacity-60 bg-slate-50/10' : ''}`}>
+                                <td className="p-5">
+                                  <div>
+                                    <span className="font-bold text-slate-900 hover:text-[#7BA7FF] cursor-pointer" onClick={() => handleStartEdit(p, isD)}>{p.name}</span>
+                                    <p className="text-slate-450 text-[10px] mt-0.5 line-clamp-1 font-normal max-w-xs">{p.description || "Sem descrição."}</p>
+                                  </div>
+                                </td>
+                                
+                                <td className="p-5">
+                                  <span className="text-slate-500 font-semibold text-[11px]">
+                                    {filterLabel(p.goal)}
+                                  </span>
+                                </td>
+
+                                <td className="p-5">
+                                  <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-205">
+                                    {p.difficulty === 'advanced' ? 'Avançado' : p.difficulty === 'beginner' ? 'Iniciante' : 'Intermediário'}
+                                  </span>
+                                </td>
+
+                                <td className="p-5">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="text-[11px] font-bold text-slate-800">{p.frequency} dias/semana</span>
+                                    <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider">{p.environment === 'home' ? 'Casa' : p.environment === 'hybrid' ? 'Híbrido' : 'Academia'}</span>
+                                  </div>
+                                </td>
+
+                                <td className="p-5 text-slate-400 font-semibold text-[11px]">
+                                  {p.updated_at ? new Date(p.updated_at).toLocaleDateString('pt-BR') : 'N/A'}
+                                </td>
+
+                                <td className="p-5">
+                                  <div className="flex flex-col gap-1 items-start">
+                                    {currentStatus === 'archived' ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-rose-50 ring-1 ring-rose-200 text-rose-600 rounded-full">
+                                        <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" /> Arquivado
+                                      </span>
+                                    ) : currentStatus === 'draft' ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-amber-50 ring-1 ring-amber-200 text-amber-600 rounded-full">
+                                        <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" /> Rascunho
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-emerald-50 ring-1 ring-emerald-200 text-emerald-600 rounded-full">
+                                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Publicado
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+
+                                <td className="p-5 text-right space-x-1 whitespace-nowrap">
+                                  {currentStatus === 'archived' ? (
+                                    <>
+                                      <button
+                                        onClick={() => handleRestore(p.id)}
+                                        className="p-1.5 text-emerald-600 hover:text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg transition"
+                                        title="Restaurar Protocolo"
+                                      >
+                                        <Check size={11} />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setDeletingProtocol(p);
+                                          setDeleteProtocolInput('');
+                                        }}
+                                        className="p-1.5 text-red-500 hover:text-red-700 bg-red-50 border border-red-100 rounded-lg transition"
+                                        title="Excluir Permanentemente"
+                                      >
+                                        <Trash2 size={11} />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => toggleProtocolActive(p.id, isD)}
+                                        className={`p-1.5 border rounded-lg transition ${
+                                          !isInactive 
+                                            ? 'text-emerald-500 bg-emerald-50 border-emerald-100 hover:bg-emerald-100' 
+                                            : 'text-slate-405 bg-slate-50 border-slate-205 hover:bg-slate-100'
+                                        }`}
+                                        title={!isInactive ? "Desativar Protocolo (Ativo)" : "Ativar Protocolo (Inativo)"}
+                                      >
+                                        <Paperclip size={11} className={!isInactive ? "rotate-45" : ""} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleStartEdit(p, isD)}
+                                        className="p-1.5 text-slate-500 hover:text-slate-900 bg-slate-50 border rounded-lg transition"
+                                        title="Editar"
+                                      >
+                                        <Edit size={11} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDuplicate(p, isD)}
+                                        className="p-1.5 text-slate-500 hover:text-slate-900 bg-slate-50 border rounded-lg transition"
+                                        title="Duplicar"
+                                      >
+                                        <Copy size={11} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleArchive(p.id, isD)}
+                                        className="p-1.5 text-red-400 hover:text-red-700 bg-rose-50 border border-rose-100 rounded-lg transition"
+                                        title="Arquivar (Mover para a Lixeira)"
+                                      >
+                                        <Trash2 size={11} />
+                                      </button>
+                                    </>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* CLASSIC GRID LAYOUT FOR PREMIUM TAB */}
             {activeSubTab === 'premium' && (
@@ -2635,6 +2939,47 @@ export const ProtocolManagement: React.FC = () => {
                         <div className="space-y-1">
                           <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Autor</span>
                           <span className="block text-sm font-black text-blue-400">Kyron OS Admin</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-800/60">
+                        <div className="space-y-1 text-left">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Local de Treino (Ambiente)</span>
+                          <select
+                            value={currentGeneratedDraft.environment || 'gym'}
+                            onChange={(e) => {
+                              const up = { ...currentGeneratedDraft, environment: e.target.value as any };
+                              setCurrentGeneratedDraft(up);
+                              if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
+                                const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
+                                saveDraftsToStorage(otherDrafts);
+                              }
+                            }}
+                            className="bg-slate-850 border border-slate-700 rounded-xl text-xs font-bold text-white px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full"
+                          >
+                            <option value="gym">Academia</option>
+                            <option value="home">Casa</option>
+                            <option value="hybrid">Híbrido</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1 text-left">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Status do Protocolo</span>
+                          <select
+                            value={currentGeneratedDraft.status || (currentGeneratedDraft.is_active !== false ? 'published' : 'draft')}
+                            onChange={(e) => {
+                              const up = { ...currentGeneratedDraft, status: e.target.value as any };
+                              setCurrentGeneratedDraft(up);
+                              if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
+                                const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
+                                saveDraftsToStorage(otherDrafts);
+                              }
+                            }}
+                            className="bg-slate-850 border border-slate-700 rounded-xl text-xs font-bold text-white px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full"
+                          >
+                            <option value="draft">Rascunho (Draft)</option>
+                            <option value="published">Publicado (Published)</option>
+                            <option value="archived">Arquivado (Archived)</option>
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -3876,6 +4221,59 @@ export const ProtocolManagement: React.FC = () => {
                 className="px-6 h-11 bg-slate-950 hover:bg-slate-850 text-white rounded-xl transition font-black tracking-widest uppercase text-[10px]"
               >
                 Publicar Premium
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {/* DELETION SAFETY MODAL */}
+      {deletingProtocol && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-[999] p-4">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-[2rem] border border-slate-200 p-8 max-w-md w-full shadow-2xl relative overflow-hidden text-left animate-fade-in"
+          >
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <AlertTriangle size={20} className="shrink-0" />
+              <h3 className="text-sm font-black uppercase tracking-tight">Excluir protocolo permanentemente?</h3>
+            </div>
+            
+            <p className="text-xs text-slate-500 leading-relaxed mb-6">
+              Esta ação não poderá ser desfeita. O protocolo <strong className="text-slate-950">"{deletingProtocol.name}"</strong> será deletado para sempre dos registros.
+            </p>
+
+            <div className="space-y-4 mb-6">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Digite EXCLUIR para continuar:
+              </label>
+              <input
+                type="text"
+                value={deleteProtocolInput}
+                onChange={(e) => setDeleteProtocolInput(e.target.value)}
+                placeholder="EXCLUIR"
+                className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-black text-slate-900 uppercase placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setDeletingProtocol(null)}
+                className="px-5 py-2.5 text-slate-500 hover:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (deleteProtocolInput === 'EXCLUIR') {
+                    handleDeletePermanently(deletingProtocol);
+                    setDeletingProtocol(null);
+                  }
+                }}
+                disabled={deleteProtocolInput !== 'EXCLUIR'}
+                className="px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md"
+              >
+                Excluir Permanentemente
               </button>
             </div>
           </motion.div>

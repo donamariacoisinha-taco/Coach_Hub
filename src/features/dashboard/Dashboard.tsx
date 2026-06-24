@@ -17,8 +17,9 @@ import { useWorkoutStore } from '../../app/store/workoutStore';
 import { cacheStore } from '../../lib/cache/cacheStore';
 import { ekeService } from '../../domain/eke/ekeService';
 import { useUserStore } from '../../store/userStore';
+import { supabase } from '../../lib/api/supabase';
 import { Goal, ExperienceLevel, MuscleGroup } from '../../types';
-import { Sparkles, Loader2, Clock, CheckCircle2, Shield, Star, Activity } from 'lucide-react';
+import { Sparkles, Loader2, Clock, CheckCircle2, Shield, Star, Activity, AlertTriangle } from 'lucide-react';
 import { ProgressIntelligence } from './ProgressIntelligence';
 import { ProtocolEvolutionDashboard } from './components/ProtocolEvolutionDashboard';
 import { systemTemplatesApi } from '../../lib/api/systemTemplatesApi';
@@ -63,7 +64,126 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const [magicLoading, setMagicLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string, type: 'workout' | 'folder' } | null>(null);
   const [isPerformingAction, setIsPerformingAction] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+
+  const handleSyncPlan = async () => {
+    try {
+      setIsSyncing(true);
+      console.log('[KYRON_OS_DIAGNOSTIC] User requested plan synchronization...');
+      const session = await authApi.getSession();
+      if (!session?.user) {
+        showError('Sessão expirada. Por favor, faça login novamente.');
+        return;
+      }
+      const userId = session.user.id;
+
+      // 1. Clear caches
+      cacheStore.clear();
+      localStorage.removeItem(`rubi_dashboard_cache_${userId}`);
+
+      // 2. Fetch all folders
+      const { data: userFolders } = await supabase
+        .from('workout_folders')
+        .select('id, name')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      let targetFolderId = localStorage.getItem('favorite_workout_folder_id');
+
+      // Se não houver pasta configurada localmente ou se ela não existir no banco, pega a mais recente
+      if (userFolders && userFolders.length > 0) {
+        const folderExists = userFolders.some(f => f.id === targetFolderId);
+        if (!folderExists || !targetFolderId) {
+          targetFolderId = userFolders[0].id;
+          localStorage.setItem('favorite_workout_folder_id', targetFolderId);
+        }
+      }
+
+      // Se não houver absolutamente nenhuma pasta, vamos criar uma pasta e treinos failsafe automáticos
+      if (!userFolders || userFolders.length === 0 || !targetFolderId) {
+        console.warn('[KYRON_OS_DIAGNOSTIC] Sync detected zero folders. Provisioning emergency protocols...');
+        const newFolder = await workoutApi.createFolder(userId, 'Kyron OS: Plano Failsafe');
+        targetFolderId = newFolder.id;
+        localStorage.setItem('favorite_workout_folder_id', targetFolderId);
+
+        const cat = await workoutApi.createCategory({
+          user_id: userId,
+          folder_id: targetFolderId,
+          name: 'Treino A — Ativação Geral',
+          description: 'Treino adaptativo de ativação emergencial.'
+        });
+        
+        await workoutApi.insertWorkoutExercises([{
+          category_id: cat.id,
+          exercise_id: '5ce43864-44ac-4822-ba91-30efc477431e',
+          exercise_name_snapshot: 'Leg Press 45',
+          sets: 3,
+          reps: '12',
+          weight: 40,
+          rest_time: 60,
+          sort_order: 1,
+          sets_json: [
+            { reps: '12', weight: 40, rest_time: 60 },
+            { reps: '12', weight: 40, rest_time: 60 },
+            { reps: '12', weight: 40, rest_time: 60 }
+          ]
+        }]);
+      } else {
+        // Verificar se essa pasta favorita tem treinos. Se não tiver, adicionar Treino A failsafe para o usuário
+        const { data: categories } = await supabase
+          .from('workout_categories')
+          .select('id')
+          .eq('folder_id', targetFolderId);
+
+        if (!categories || categories.length === 0) {
+          console.warn('[KYRON_OS_DIAGNOSTIC] Target folder has no workouts. Generating active workout plan categories...');
+          const cat = await workoutApi.createCategory({
+            user_id: userId,
+            folder_id: targetFolderId,
+            name: 'Treino A — Ativação Geral',
+            description: 'Treino adaptativo de ativação emergencial.'
+          });
+          
+          await workoutApi.insertWorkoutExercises([{
+            category_id: cat.id,
+            exercise_id: '5ce43864-44ac-4822-ba91-30efc477431e',
+            exercise_name_snapshot: 'Leg Press 45',
+            sets: 3,
+            reps: '12',
+            weight: 40,
+            rest_time: 60,
+            sort_order: 1,
+            sets_json: [
+              { reps: '12', weight: 40, rest_time: 60 },
+              { reps: '12', weight: 40, rest_time: 60 },
+              { reps: '12', weight: 40, rest_time: 60 }
+            ]
+          }]);
+        }
+      }
+
+      // Re-set active folder id to force visual alignment
+      if (targetFolderId) {
+        setActiveFolderId(targetFolderId);
+        setFavoriteFolderId(targetFolderId);
+      }
+
+      // 3. Force query refetch
+      await refresh();
+      showSuccess('Sincronização Concluída!', 'Seu plano de treino ativo foi sincronizado e carregado com sucesso.');
+    } catch (err: any) {
+      console.error('[KYRON_OS_DIAGNOSTIC] Error syncing plan:', err);
+      showError('Ocorreu um erro ao sincronizar seu plano. Tentando recriar estrutura local...');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleRegenerate = () => {
+    console.log('[KYRON_OS_DIAGNOSTIC] User requested regeneration of protocol...');
+    navigate('onboarding');
+  };
   const [createFolderLoading, setCreateFolderLoading] = useState(false);
   const [magicParams, setMagicParams] = useState({
     goal: Goal.HYPERTROPHY,
@@ -160,6 +280,25 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     if (activeFolderId === null) return workouts;
     return workouts.filter(w => w.folder_id === activeFolderId || (!w.folder_id && activeFolderId === 'uncategorized'));
   }, [workouts, activeFolderId, mappedPublicWorkouts]);
+
+  // DIAGNOSTIC LOGS: Detect active protocol and active workouts on dashboard load
+  useEffect(() => {
+    if (activeFolderId && folders.length > 0) {
+      const activeFolder = folders.find(f => f.id === activeFolderId);
+      if (activeFolder) {
+        console.log('[KYRON_OS_DIAGNOSTIC] DASHBOARD_PROTOCOL_FOUND', {
+          folderId: activeFolder.id,
+          folderName: activeFolder.name
+        });
+      }
+    }
+    if (filteredWorkouts && filteredWorkouts.length > 0) {
+      console.log('[KYRON_OS_DIAGNOSTIC] DASHBOARD_WORKOUT_FOUND', {
+        workoutsCount: filteredWorkouts.length,
+        firstWorkoutName: filteredWorkouts[0]?.name || 'N/A'
+      });
+    }
+  }, [activeFolderId, folders, filteredWorkouts]);
 
   const handlePrefetchWorkout = async (id: string) => {
     const currentStoreId = useWorkoutStore.getState().currentWorkoutId;
@@ -964,14 +1103,38 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                   onRetry={refresh}
                 >
                   {filteredWorkouts.length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-[2rem] border border-slate-200/35 p-6">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Nenhum protocolo nesta pasta</p>
-                      <button 
-                        onClick={() => navigate('editor')}
-                        className="text-xs font-black text-indigo-500 uppercase tracking-widest"
-                      >
-                        Criar primeiro treino
-                      </button>
+                    <div className="text-center py-10 px-6 bg-slate-50 rounded-[2.5rem] border border-slate-200/60 max-w-md mx-auto my-6 shadow-sm">
+                      <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-500 animate-bounce">
+                        <AlertTriangle size={24} />
+                      </div>
+                      
+                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-2">
+                        Tivemos um problema ao carregar seu plano.
+                      </h3>
+                      
+                      <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+                        Nenhum treino ativo ou protocolo adaptativo foi detectado para esta pasta no Dashboard. Use as opções abaixo para restabelecer ou reconstruir seu treino.
+                      </p>
+
+                      <div className="flex flex-col gap-2.5">
+                        <button 
+                          onClick={handleSyncPlan}
+                          disabled={isSyncing}
+                          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-3.5 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer border-none"
+                        >
+                          {isSyncing ? (
+                            <span className="w-4.5 h-4.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                          ) : '🔄 Sincronizar Plano'}
+                        </button>
+                        
+                        <button 
+                          onClick={handleRegenerate}
+                          disabled={isSyncing}
+                          className="w-full bg-slate-900 hover:bg-slate-950 disabled:bg-slate-700 text-white py-3.5 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer border-none"
+                        >
+                          🔄 Gerar Novamente
+                        </button>
+                      </div>
                     </div>
                   ) : filteredWorkouts.map((workout, idx) => {
                     const isOptimistic = typeof workout.id === 'string' && workout.id.startsWith('temp-');

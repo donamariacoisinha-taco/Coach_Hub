@@ -16,6 +16,7 @@ import {
   Globe,
   Settings,
   X,
+  AlertTriangle,
   MoreVertical
 } from 'lucide-react';
 import { profileApi } from '../../../lib/api/profileApi';
@@ -743,79 +744,98 @@ export const UserManagement: React.FC = () => {
       )}
 
       {/* Modal Dialog for: "Excluir Usuário" */}
-      {deletingProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-md" onClick={() => setDeletingProfile(null)} />
-          <div className="relative bg-white rounded-[2.5rem] border border-slate-200 max-w-lg w-full p-8 shadow-2xl overflow-hidden font-sans z-50 text-left animate-scale-up animate-fade-in">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h3 className="text-lg font-black text-rose-600 tracking-tight">Excluir Usuário</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Ação de Alta Destruição</p>
-              </div>
-              <button onClick={() => setDeletingProfile(null)} className="p-2 text-slate-450 hover:text-slate-900 border-none bg-transparent cursor-pointer transition-all">
-                <X size={18} />
-              </button>
-            </div>
+      {deletingProfile && (() => {
+        const isProtected = isProtectedUser(deletingProfile);
+        const emailMatch = deleteConfirmInput.trim().toLowerCase() === deletingProfile.email.trim().toLowerCase();
+        const canDelete = !isProtected && emailMatch;
 
-            <div className="space-y-5 text-slate-700">
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-150">
-                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Atleta Selecionado</p>
-                <p className="text-sm font-black text-slate-900 mt-1">{deletingProfile.name || 'Atleta Convidado'}</p>
-                <p className="text-xs font-semibold text-slate-500 mt-0.5">{deletingProfile.email}</p>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sans">
+            <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-md" onClick={() => setDeletingProfile(null)} />
+            <div className="relative bg-white rounded-[2.5rem] border border-slate-200 max-w-lg w-full p-8 shadow-2xl overflow-hidden z-50 text-left animate-scale-up animate-fade-in">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-lg font-black text-rose-600 tracking-tight">Excluir Atleta Permanentemente?</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Ação de Alta Destruição</p>
+                </div>
+                <button onClick={() => setDeletingProfile(null)} className="p-2 text-slate-450 hover:text-slate-900 border-none bg-transparent cursor-pointer transition-all">
+                  <X size={18} />
+                </button>
               </div>
 
-              <div className="bg-rose-50/50 p-6 rounded-2xl border border-rose-100 text-xs">
-                <p className="font-extrabold text-rose-800 uppercase tracking-wide mb-3">Esta ação removerá permanentemente:</p>
-                <ul className="space-y-1.5 font-bold text-rose-700 list-disc list-inside">
-                  <li>Perfil</li>
-                  <li>Histórico de treinos</li>
-                  <li>Evolução</li>
-                  <li>Protocolos atribuídos</li>
-                  <li>Preferências</li>
-                  <li>Dados nutricionais</li>
-                  <li>Registros relacionados</li>
-                </ul>
-                <p className="font-black text-rose-800 uppercase tracking-widest mt-5 text-[10px]">Esta ação não poderá ser desfeita.</p>
+              <div className="space-y-5 text-slate-700">
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-150">
+                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Atleta Selecionado</p>
+                  <p className="text-sm font-black text-slate-900 mt-1">{deletingProfile.name || 'Atleta Convidado'}</p>
+                  <p className="text-xs font-semibold text-slate-500 mt-0.5">{deletingProfile.email}</p>
+                </div>
+
+                {isProtected ? (
+                  <div className="bg-red-50 border border-red-150 p-5 rounded-2xl flex items-start gap-3">
+                    <AlertTriangle className="text-red-600 shrink-0 mt-0.5" size={16} />
+                    <div>
+                      <p className="text-xs font-black text-red-800 uppercase tracking-wide">Ação bloqueada</p>
+                      <p className="text-xs text-red-700 mt-1 font-bold">Ação bloqueada. Esta conta é protegida pelo sistema.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-rose-50/50 p-6 rounded-2xl border border-rose-100 text-xs">
+                    <p className="font-extrabold text-rose-800 uppercase tracking-wide mb-3">Esta ação é irreversível e apagará todos os treinos, medidas e histórico:</p>
+                    <ul className="space-y-1.5 font-bold text-rose-700 list-disc list-inside">
+                      <li>Perfil do Atleta</li>
+                      <li>Histórico completo de treinos executados</li>
+                      <li>Medidas corporais e histórico de evolução física</li>
+                      <li>Protocolos ativos e treinos agendados</li>
+                      <li>Preferências de onboarding e restrições</li>
+                    </ul>
+                  </div>
+                )}
+
+                {!isProtected && (
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider block mb-2">
+                      Digite o e-mail do atleta para confirmar:
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder={deletingProfile.email}
+                      value={deleteConfirmInput} 
+                      onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:ring-4 focus:ring-rose-100 transition-all"
+                    />
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider block mb-2">Digite <span className="font-mono text-slate-900 select-all">EXCLUIR</span> para continuar</label>
-                <input 
-                  type="text" 
-                  placeholder="Digite EXCLUIR"
-                  value={deleteConfirmInput} 
-                  onChange={(e) => setDeleteConfirmInput(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold text-center text-slate-900 outline-none focus:ring-4 focus:ring-rose-100 transition-all font-sans"
-                />
+              <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end gap-3">
+                <button 
+                  onClick={() => setDeletingProfile(null)} 
+                  className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border-none cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  disabled={!canDelete}
+                  onClick={() => {
+                    if (canDelete) {
+                      const temp = deletingProfile;
+                      setDeletingProfile(null);
+                      handleDeleteUser(temp);
+                    }
+                  }}
+                  className={`px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none cursor-pointer ${
+                    canDelete 
+                      ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/15' 
+                      : 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                  }`}
+                >
+                  Excluir Atleta
+                </button>
               </div>
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end gap-3">
-              <button 
-                onClick={() => setDeletingProfile(null)} 
-                className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border-none cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button 
-                disabled={deleteConfirmInput !== 'EXCLUIR'}
-                onClick={() => {
-                  const temp = deletingProfile;
-                  setDeletingProfile(null);
-                  handleDeleteUser(temp);
-                }}
-                className={`px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none cursor-pointer ${
-                  deleteConfirmInput === 'EXCLUIR' 
-                    ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/15' 
-                    : 'bg-slate-100 text-slate-300 cursor-not-allowed'
-                }`}
-              >
-                Excluir Permanentemente
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );
