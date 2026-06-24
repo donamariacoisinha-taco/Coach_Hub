@@ -1530,6 +1530,34 @@ export const ProtocolManagement: React.FC = () => {
     setBuilderReplacingIndex(null);
   };
 
+  const addWorkoutToDraft = () => {
+    if (!currentGeneratedDraft) return;
+    const currentWorkouts = currentGeneratedDraft.workouts || [];
+    const label = String.fromCharCode(65 + currentWorkouts.length);
+    const newW: PremiumTemplateWorkout = {
+      id: 'w-' + Date.now(),
+      name: `Treino ${label}`,
+      description: 'Progressão mecânica ideal',
+      exercises: []
+    };
+    const updated = { ...currentGeneratedDraft, workouts: [...currentWorkouts, newW] };
+    setCurrentGeneratedDraft(updated);
+
+    const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? updated : d);
+    saveDraftsToStorage(otherDrafts);
+  };
+
+  const removeWorkoutFromDraft = (workoutId: string) => {
+    if (!currentGeneratedDraft) return;
+    const currentWorkouts = currentGeneratedDraft.workouts || [];
+    const updatedWorkouts = currentWorkouts.filter(w => w.id !== workoutId);
+    const updated = { ...currentGeneratedDraft, workouts: updatedWorkouts };
+    setCurrentGeneratedDraft(updated);
+
+    const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? updated : d);
+    saveDraftsToStorage(otherDrafts);
+  };
+
 
   // Workout add / remove
   const addWorkoutSegment = () => {
@@ -3457,17 +3485,33 @@ export const ProtocolManagement: React.FC = () => {
                                 </div>
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setBuilderActiveWorkoutId(w.id);
-                                  setBuilderReplacingIndex(null);
-                                  setBuilderExSearchQuery('');
-                                }}
-                                className="px-3.5 py-1.5 hover:bg-blue-50 border border-dashed border-blue-200 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                              >
-                                + Inserir Exercício
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setBuilderActiveWorkoutId(w.id);
+                                    setBuilderReplacingIndex(null);
+                                    setBuilderExSearchQuery('');
+                                  }}
+                                  className="px-3.5 py-1.5 hover:bg-blue-50 border border-dashed border-blue-200 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                >
+                                  + Inserir Exercício
+                                </button>
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm(`Tem certeza que deseja remover o ${w.name || 'Treino'}? Todos os exercícios desse dia serão excluídos.`)) {
+                                      removeWorkoutFromDraft(w.id);
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 hover:bg-red-50 border border-red-200 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5"
+                                  title="Remover este dia de treino do protocolo"
+                                >
+                                  <Trash2 size={11} strokeWidth={2.5} />
+                                  Remover Dia
+                                </button>
+                              </div>
                             </div>
 
                              <div className="overflow-x-auto">
@@ -3649,6 +3693,17 @@ export const ProtocolManagement: React.FC = () => {
                           </div>
                         );
                       })}
+                    </div>
+
+                    {/* Botão para Adicionar Novo Dia de Treino */}
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={addWorkoutToDraft}
+                        className="w-full py-5 bg-white border border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/20 text-[#7BA7FF] hover:text-blue-600 rounded-[2rem] flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all shadow-sm"
+                      >
+                        + Adicionar Novo Dia de Treino ao Protocolo
+                      </button>
                     </div>
 
                     {/* Bottom publishing section bar */}
