@@ -848,7 +848,7 @@ export default function ProfileViewV2() {
                 <RefreshCw size={14} className="animate-pulse" strokeWidth={2.5} />
               </div>
               <div className="text-left">
-                <span className="block text-[11px] font-black uppercase tracking-wider text-slate-800">Ajustar Onboarding</span>
+                <span className="block text-[11px] font-black uppercase tracking-wider text-slate-800">Ajustar meus objetivos</span>
                 <span className="block text-[9px] font-semibold text-slate-400">Refazer metas, dias e intensidade</span>
               </div>
             </div>
