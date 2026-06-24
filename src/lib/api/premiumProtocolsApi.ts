@@ -1484,6 +1484,23 @@ class PremiumProtocolsApi {
     return dbReady;
   }
 
+  private sanitizeExercisesOrder(protocol: PremiumProtocol): PremiumProtocol {
+    if (!protocol.workouts) return protocol;
+    return {
+      ...protocol,
+      workouts: protocol.workouts.map(w => {
+        if (!w.exercises) return w;
+        return {
+          ...w,
+          exercises: w.exercises.map((ex, idx) => ({
+            ...ex,
+            sort_order: idx + 1
+          }))
+        };
+      })
+    };
+  }
+
   async getProtocols(): Promise<PremiumProtocol[]> {
     const localList = this.getLocalProtocols();
     const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
@@ -1501,7 +1518,7 @@ class PremiumProtocolsApi {
         if (data.length === 0) {
           console.log('[PremiumProtocolsApi] Seeding empty premium_protocols table...');
           for (const p of INITIAL_PREMIUM_PROTOCOLS) {
-            await supabase.from('premium_protocols').upsert(this.sanitizeForDb(ensureStatus(p)));
+            await supabase.from('premium_protocols').upsert(this.sanitizeForDb(this.sanitizeExercisesOrder(ensureStatus(p))));
           }
           const { data: reFetched } = await supabase.from('premium_protocols').select('*');
           if (reFetched && reFetched.length > 0) {
@@ -1542,10 +1559,11 @@ class PremiumProtocolsApi {
   }
 
   async createOrUpdateProtocol(protocol: PremiumProtocol): Promise<PremiumProtocol> {
+    const orderedProtocol = this.sanitizeExercisesOrder(protocol);
     // Ensure status is assigned if not present
     const updatedProtocol = {
-      ...protocol,
-      status: protocol.status || (protocol.is_active !== false ? 'published' : 'draft')
+      ...orderedProtocol,
+      status: orderedProtocol.status || (orderedProtocol.is_active !== false ? 'published' : 'draft')
     };
 
     const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
@@ -1719,7 +1737,7 @@ class PremiumProtocolsApi {
           reps: te.reps,
           weight: te.weight,
           rest_time: te.rest_time,
-          sort_order: te.sort_order || (idx + 1),
+          sort_order: idx + 1,
           sets_json: te.sets_json || []
         };
       });
