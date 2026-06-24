@@ -78,7 +78,7 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProtocols.map(p => {
           // @ts-ignore
-          const coverUrl = p.cover_image_url;
+          const coverUrl = p.image_url;
           const gradient = getGradientForGoal(p.goal);
           
           const GOAL_MAP: Record<string, string> = {
@@ -116,7 +116,10 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
                 </div>
               </div>
               <div className="p-5 pt-0">
-                <button className="w-full bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-colors">
+                <button 
+                  className="w-full bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-colors"
+                  onClick={() => console.log('Protocol clicked:', p)}
+                >
                   Ver Protocolo
                 </button>
               </div>
