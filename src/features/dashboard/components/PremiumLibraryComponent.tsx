@@ -33,7 +33,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
   history = []
 }) => {
   const [protocols, setProtocols] = useState<PremiumProtocol[]>([]);
-  const [selectedCollection, setSelectedCollection] = useState<string>('todos');
+  const [selectedCollection, setSelectedCollection] = useState<string>('premium');
   const [isPremium, setIsPremium] = useState<boolean>(false);
   const [selectedProtocol, setSelectedProtocol] = useState<PremiumProtocol | null>(null);
   const [showWorkouts, setShowWorkouts] = useState<boolean>(false);
@@ -50,19 +50,8 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
   const [editingWorkoutName, setEditingWorkoutName] = useState<string>('');
 
   const COLLECTIONS = [
-    { id: 'todos', label: 'Todos', desc: 'Explore o catálogo completo' },
-    { id: 'especializacao_muscular', label: 'Especialização Muscular', desc: 'Acelere o desenvolvimento de um grupo muscular' },
-    { id: 'peitoral', label: 'Peitoral', desc: 'Foco em peito sob medida' },
-    { id: 'costas', label: 'Costas', desc: 'Foco em largura e densidade dorsal' },
-    { id: 'ombros', label: 'Ombros', desc: 'Foco em deltoides 3D e expansão' },
-    { id: 'bracos', label: 'Braços', desc: 'Foco em bíceps e tríceps de aço' },
-    { id: 'pernas', label: 'Pernas', desc: 'Foco em membros inferiores e força' },
-    { id: 'primeiro', label: 'Primeiro Programa', desc: 'Ideal para iniciantes e consistência' },
-    { id: 'forca', label: 'Ganho de Força', desc: 'Progressão tensional de carga máxima' },
-    { id: 'hipertrofia', label: 'Hipertrofia', desc: 'Volume e tensão mecânica otimizados' },
-    { id: 'quatro_dias', label: '4 Dias por Semana', desc: 'Distribuição ideal de microciclo' },
-    { id: 'curtos', label: 'Treinos Curtos', desc: 'Sessões dinâmicas de alta densidade' },
-    { id: 'populares', label: 'Mais Populares', desc: 'Elite recomendada pela comunidade' }
+    { id: 'premium', label: '💎 Premium', desc: 'Protocolos exclusivos de elite' },
+    { id: 'publico', label: '🔓 Pública', desc: 'Protocolos livres para todos' }
   ];
 
   const handleSaveWorkoutName = async (workoutId: string) => {
@@ -477,36 +466,8 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
   };
 
   const filterProtocols = (list: PremiumProtocol[]) => {
-    if (selectedCollection === 'todos') return list;
-    if (selectedCollection === 'primeiro') return list.filter(p => p.difficulty === 'beginner');
-    if (selectedCollection === 'forca') return list.filter(p => p.goal === 'strength');
-    if (selectedCollection === 'hipertrofia') return list.filter(p => p.goal === 'hypertrophy');
-    if (selectedCollection === 'quatro_dias') return list.filter(p => p.frequency === 4);
-    if (selectedCollection === 'curtos') {
-      return list.filter(p => p.frequency <= 3 || p.duration_weeks <= 8);
-    }
-    if (selectedCollection === 'populares') {
-      return [...list].sort((a, b) => b.athletes_count - a.athletes_count).slice(0, 3);
-    }
-    if (selectedCollection === 'especializacao_muscular') {
-      const specializedGoals = ['peitoral', 'costas', 'ombros', 'bracos', 'pernas'];
-      return list.filter(p => specializedGoals.includes(p.goal.toLowerCase()));
-    }
-    if (selectedCollection === 'peitoral') {
-      return list.filter(p => p.goal === 'peitoral' || p.id.includes('peitoral_respeito'));
-    }
-    if (selectedCollection === 'costas') {
-      return list.filter(p => p.goal === 'costas' || p.id.includes('costas_largas'));
-    }
-    if (selectedCollection === 'ombros') {
-      return list.filter(p => p.goal === 'ombros' || p.goal === 'deltoide' || p.id.includes('ombros_3d'));
-    }
-    if (selectedCollection === 'bracos') {
-      return list.filter(p => p.goal === 'bracos' || p.id.includes('bracos_aco'));
-    }
-    if (selectedCollection === 'pernas') {
-      return list.filter(p => p.goal === 'pernas' || p.id.includes('pernas_imponentes'));
-    }
+    if (selectedCollection === 'premium') return list.filter(p => p.premium === true);
+    if (selectedCollection === 'publico') return list.filter(p => p.premium === false);
     return list;
   };
 
@@ -530,7 +491,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
         whileHover={{ y: -6, scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => setSelectedProtocol(p)}
-        className="snap-start shrink-0 w-[285px] sm:w-[300px] bg-white rounded-3xl border border-slate-100 shadow-[0_4px_16px_rgba(15,23,42,0.02)] cursor-pointer flex flex-col overflow-hidden group hover:border-[#7BA7FF]/30 hover:shadow-[0_12px_24px_rgba(15,23,42,0.06)] transition-all duration-300 text-left"
+        className="w-full bg-white rounded-3xl border border-slate-100 shadow-[0_4px_16px_rgba(15,23,42,0.02)] cursor-pointer flex flex-col overflow-hidden group hover:border-[#7BA7FF]/30 hover:shadow-[0_12px_24px_rgba(15,23,42,0.06)] transition-all duration-300 text-left"
       >
         {/* Cover */}
         <div className={`relative w-full h-[145px] overflow-hidden bg-slate-950 flex-shrink-0 bg-gradient-to-br ${cover.gradient}`}>
@@ -616,12 +577,9 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
         </div>
       </div>
 
-      {/* CURATED COLLECTIONS HORIZONTAL SELECTION HUB (WHOOP/Fitness+ Style) */}
+      {/* TWO TABS SEGMENT SELECTOR */}
       <div className="w-full min-w-0 max-w-none px-5 sm:px-6 md:px-8 mb-8 relative z-10 text-left">
-        <div className="mb-4">
-          <h2 className="text-xs font-black uppercase tracking-[0.15em] text-slate-400">Coleções Curadas</h2>
-        </div>
-        <div className="flex gap-3.5 pb-2 overflow-x-auto no-scrollbar snap-x snap-mandatory">
+        <div className="flex gap-6 border-b border-slate-100 pb-px">
           {COLLECTIONS.map((c) => {
             const isActive = selectedCollection === c.id;
             return (
@@ -629,188 +587,37 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                 key={c.id}
                 type="button"
                 onClick={() => setSelectedCollection(c.id)}
-                className={`snap-start shrink-0 min-w-[150px] sm:min-w-[180px] p-4 rounded-3xl border text-left transition-all duration-350 cursor-pointer select-none relative overflow-hidden ${
+                className={`pb-4 px-2 font-black text-xs sm:text-sm uppercase tracking-wider relative transition-all duration-300 cursor-pointer select-none ${
                   isActive 
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)]' 
-                    : 'bg-white/60 border-slate-150 text-slate-500 hover:border-slate-350 hover:bg-white'
+                    ? 'text-slate-900' 
+                    : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
-                <div className="space-y-1 relative z-10">
-                  <h4 className={`text-xs font-black uppercase tracking-wider ${isActive ? 'text-[#7BA7FF]' : 'text-slate-800'}`}>
-                    {c.label}
-                  </h4>
-                  <p className="text-[10px] leading-relaxed opacity-80 font-normal line-clamp-1">
-                    {c.desc}
-                  </p>
-                </div>
+                <span>{c.label}</span>
+                {isActive && (
+                  <motion.div 
+                    layoutId="activeTabUnderline"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#7BA7FF]" 
+                  />
+                )}
               </button>
             );
           })}
         </div>
+        <p className="text-[11px] text-slate-500 font-normal mt-3">
+          {COLLECTIONS.find(c => c.id === selectedCollection)?.desc}
+        </p>
       </div>
 
-      {/* MAIN SHELVES OR FILTERED GRID */}
+      {/* PROTOCOL GRID */}
       <div className="w-full min-w-0 max-w-none px-5 sm:px-6 md:px-8 relative z-10 text-left">
-        {selectedCollection !== 'todos' ? (
-          /* Focused curated collection list view */
-          <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <span className="text-[9px] font-black text-[#7BA7FF] uppercase tracking-widest">Coleção Ativa</span>
-                <h2 className="text-base font-black text-slate-900 uppercase tracking-tight mt-0.5">
-                  {COLLECTIONS.find(c => c.id === selectedCollection)?.label}
-                </h2>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setSelectedCollection('todos')}
-                className="text-[9px] font-black text-[#7BA7FF] hover:text-[#818CF8] uppercase tracking-widest transition cursor-pointer"
-              >
-                Voltar ao Catálogo
-              </button>
-            </div>
-
-            {/* Adaptive Sync Suggestion Banner */}
-            {['especializacao_muscular', 'peitoral', 'costas', 'ombros', 'bracos', 'pernas'].includes(selectedCollection) && (
-              <div className="bg-gradient-to-r from-slate-900 to-[#101F3E] p-5 sm:p-6 rounded-3xl border border-slate-800 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-md relative overflow-hidden my-4">
-                <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-[#7BA7FF]/10 blur-[40px] pointer-events-none" />
-                <div className="space-y-1 relative z-10 text-left">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-[#7BA7FF]/10 text-[#7BA7FF] text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-md border border-[#7BA7FF]/20 flex items-center gap-1">
-                      ★ RECOMENDAÇÃO INTELIGENTE
-                    </span>
-                    <span className="text-[10px] text-[#7BA7FF] font-black uppercase tracking-wider font-mono">KYRON Adaptive Engine</span>
-                  </div>
-                  <h3 className="text-sm font-semibold tracking-tight text-white uppercase pt-1">
-                    Análise de Volume e Frequência do Perfil
-                  </h3>
-                  <p className="text-xs text-slate-350 max-w-xl font-normal leading-relaxed">
-                    Com base no seu histórico real de <strong className="text-white">{totalWorkouts} treinos</strong> concluídos no KYRON OS, o algoritmo adaptativo classificou seu perfil como <strong className="text-[#7BA7FF] uppercase">{userLevel === 'beginner' ? 'Iniciante' : userLevel === 'intermediate' ? 'Intermediário' : 'Avançado'}</strong>.
-                  </p>
-                  <p className="text-[11px] text-slate-400 font-normal leading-normal">
-                    Recomendamos assinar os protocolos marcados com a tag <span className="text-amber-400 font-bold">★ Sugerido Rubi OS</span> para maximizar a frequência semanal e a priorização mecânica com segurança biomecânica.
-                  </p>
-                </div>
-                <div className="bg-[#7BA7FF]/15 border border-[#7BA7FF]/30 rounded-2xl p-4 flex flex-col items-center justify-center min-w-[140px] shrink-0 self-stretch md:self-auto relative z-10">
-                  <span className="text-[9px] font-black text-[#7BA7FF] tracking-wider uppercase">Nível Rubi OS</span>
-                  <span className="text-lg font-black text-white uppercase tracking-tight mt-0.5">
-                    {userLevel === 'beginner' ? 'Iniciante' : userLevel === 'intermediate' ? 'Intermediário' : 'Avançado'}
-                  </span>
-                  <span className="text-[9px] text-slate-400 mt-1 font-normal uppercase">{totalWorkouts} Treinos Totais</span>
-                </div>
-              </div>
-            )}
-
-            {filteredCollectionList.length === 0 ? (
-              <div className="p-14 text-center bg-white/60 border border-slate-150 rounded-3xl text-slate-450 font-semibold text-xs uppercase tracking-wider">
-                Nenhum programa disponível nesta coleção.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-2">
-                {filteredCollectionList.map((p) => renderProtocolCard(p))}
-              </div>
-            )}
+        {filteredCollectionList.length === 0 ? (
+          <div className="p-14 text-center bg-white/60 border border-slate-150 rounded-3xl text-slate-450 font-semibold text-xs uppercase tracking-wider">
+            Nenhum programa disponível nesta categoria.
           </div>
         ) : (
-          /* Default Streaming Hub: Destaques, Novos, Mais Populares */
-          <div className="space-y-12">
-            
-            {/* 1. Destaques */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">01 / DESTAQUES</h3>
-                  <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">Metodologias de Elite</h2>
-                </div>
-                <div className="flex gap-1.5">
-                  <button 
-                    type="button"
-                    onClick={() => featuredRef.current?.scrollBy({ left: -310, behavior: 'smooth' })}
-                    className="w-8 h-8 rounded-full border border-slate-200/60 bg-white text-slate-500 hover:text-slate-850 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
-                  >
-                    ←
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => featuredRef.current?.scrollBy({ left: 310, behavior: 'smooth' })}
-                    className="w-8 h-8 rounded-full border border-slate-200/60 bg-white text-slate-500 hover:text-slate-850 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
-                  >
-                    →
-                  </button>
-                </div>
-              </div>
-              <div 
-                ref={featuredRef}
-                className="flex gap-5 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-4 w-full"
-              >
-                {protocols.filter(p => p.featured || p.rating >= 4.9).map(p => renderProtocolCard(p))}
-              </div>
-            </div>
-
-            {/* 2. Novos Lançamentos */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">02 / INTERVENÇÕES ADAPTATIVAS</h3>
-                  <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">Novos Protocolos</h2>
-                </div>
-                <div className="flex gap-1.5">
-                  <button 
-                    type="button"
-                    onClick={() => newRef.current?.scrollBy({ left: -310, behavior: 'smooth' })}
-                    className="w-8 h-8 rounded-full border border-slate-200/60 bg-white text-slate-550 hover:text-slate-855 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
-                  >
-                    ←
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => newRef.current?.scrollBy({ left: 310, behavior: 'smooth' })}
-                    className="w-8 h-8 rounded-full border border-slate-200/60 bg-white text-slate-550 hover:text-slate-855 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
-                  >
-                    →
-                  </button>
-                </div>
-              </div>
-              <div 
-                ref={newRef}
-                className="flex gap-5 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-4 w-full"
-              >
-                {[...protocols].reverse().map(p => renderProtocolCard(p))}
-              </div>
-            </div>
-
-            {/* 3. Mais Populares */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">03 / PERFORMANCE COORTES</h3>
-                  <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">Mais Populares</h2>
-                </div>
-                <div className="flex gap-1.5">
-                  <button 
-                    type="button"
-                    onClick={() => popularRef.current?.scrollBy({ left: -310, behavior: 'smooth' })}
-                    className="w-8 h-8 rounded-full border border-slate-200/60 bg-white text-slate-550 hover:text-slate-855 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
-                  >
-                    ←
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => popularRef.current?.scrollBy({ left: 310, behavior: 'smooth' })}
-                    className="w-8 h-8 rounded-full border border-slate-200/60 bg-white text-slate-550 hover:text-slate-855 flex items-center justify-center cursor-pointer shadow-xs active:scale-95 text-xs font-bold"
-                  >
-                    →
-                  </button>
-                </div>
-              </div>
-              <div 
-                ref={popularRef}
-                className="flex gap-5 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-4 w-full"
-              >
-                {[...protocols].sort((a, b) => b.athletes_count - a.athletes_count).map(p => renderProtocolCard(p))}
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-2">
+            {filteredCollectionList.map((p) => renderProtocolCard(p))}
           </div>
         )}
       </div>

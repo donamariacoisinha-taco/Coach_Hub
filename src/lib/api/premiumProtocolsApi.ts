@@ -1437,23 +1437,29 @@ export const INITIAL_PREMIUM_PROTOCOLS: PremiumProtocol[] = [
 class PremiumProtocolsApi {
   private getLocalProtocols(): PremiumProtocol[] {
     const raw = localStorage.getItem('rubi_premium_protocols');
+    const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
+    const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
     if (!raw) {
-      localStorage.setItem('rubi_premium_protocols', JSON.stringify(INITIAL_PREMIUM_PROTOCOLS));
-      return INITIAL_PREMIUM_PROTOCOLS;
+      const activeDefaults = INITIAL_PREMIUM_PROTOCOLS.filter(p => !deletedIds.has(p.id));
+      localStorage.setItem('rubi_premium_protocols', JSON.stringify(activeDefaults));
+      return activeDefaults;
     }
     try {
       const parsed = JSON.parse(raw) as PremiumProtocol[];
-      // Sync check - guarantee that any new items in our hardcoded array are written to local storage
+      // Sync check - guarantee that any new items in our hardcoded array are written to local storage, excluding deleted ones
       const parsedIds = new Set(parsed.map(p => p.id));
-      const missing = INITIAL_PREMIUM_PROTOCOLS.filter(p => !parsedIds.has(p.id));
+      const missing = INITIAL_PREMIUM_PROTOCOLS.filter(p => !parsedIds.has(p.id) && !deletedIds.has(p.id));
       if (missing.length > 0) {
         const merged = [...parsed, ...missing];
-        localStorage.setItem('rubi_premium_protocols', JSON.stringify(merged));
-        return merged;
+        const filteredMerged = merged.filter(p => !deletedIds.has(p.id));
+        localStorage.setItem('rubi_premium_protocols', JSON.stringify(filteredMerged));
+        return filteredMerged;
       }
-      return parsed;
+      const filteredParsed = parsed.filter(p => !deletedIds.has(p.id));
+      return filteredParsed;
     } catch {
-      return INITIAL_PREMIUM_PROTOCOLS;
+      return INITIAL_PREMIUM_PROTOCOLS.filter(p => !deletedIds.has(p.id));
     }
   }
 
@@ -1463,11 +1469,14 @@ class PremiumProtocolsApi {
 
   async getProtocols(): Promise<PremiumProtocol[]> {
     const localList = this.getLocalProtocols();
+    const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
+    const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
     try {
       const { data, error } = await supabase.from('premium_protocols').select('*');
       if (!error && data) {
         // Merge DB protocols with local ones to ensure we don't lose any protocols
-        const dbProtocols = data as PremiumProtocol[];
+        const dbProtocols = (data as PremiumProtocol[]).filter(p => !deletedIds.has(p.id));
         if (dbProtocols.length > 0) {
           const mergedMap = new Map<string, PremiumProtocol>();
           
@@ -1477,7 +1486,7 @@ class PremiumProtocolsApi {
           // Override with database list (representing administrator's updates)
           dbProtocols.forEach(p => mergedMap.set(p.id, p));
           
-          return Array.from(mergedMap.values());
+          return Array.from(mergedMap.values()).filter(p => !deletedIds.has(p.id));
         }
       }
     } catch (e) {
@@ -1492,6 +1501,16 @@ class PremiumProtocolsApi {
   }
 
   async createOrUpdateProtocol(protocol: PremiumProtocol): Promise<PremiumProtocol> {
+    // If we're updating/creating, ensure we remove it from deleted IDs tracking
+    const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
+    if (deletedRaw) {
+      const deletedIds = JSON.parse(deletedRaw) as string[];
+      if (deletedIds.includes(protocol.id)) {
+        const filtered = deletedIds.filter(id => id !== protocol.id);
+        localStorage.setItem('kyron_deleted_protocol_ids', JSON.stringify(filtered));
+      }
+    }
+
     try {
       const { data, error } = await supabase.from('premium_protocols').upsert(protocol).select().single();
       if (!error && data) {
@@ -1516,6 +1535,14 @@ class PremiumProtocolsApi {
   }
 
   async archiveProtocol(id: string): Promise<boolean> {
+    // Track deleted IDs in localStorage to prevent sync check from restoring them
+    const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
+    const deletedIds = deletedRaw ? JSON.parse(deletedRaw) as string[] : [];
+    if (!deletedIds.includes(id)) {
+      deletedIds.push(id);
+      localStorage.setItem('kyron_deleted_protocol_ids', JSON.stringify(deletedIds));
+    }
+
     try {
       await supabase.from('premium_protocols').delete().eq('id', id);
     } catch {}
