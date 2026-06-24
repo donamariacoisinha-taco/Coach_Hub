@@ -1472,6 +1472,18 @@ class PremiumProtocolsApi {
     localStorage.setItem('rubi_premium_protocols', JSON.stringify(protocols));
   }
 
+  private sanitizeForDb(protocol: PremiumProtocol) {
+    const { 
+      status, 
+      archived_at, 
+      archived_by, 
+      environment, 
+      training_environment, 
+      ...dbReady 
+    } = protocol;
+    return dbReady;
+  }
+
   async getProtocols(): Promise<PremiumProtocol[]> {
     const localList = this.getLocalProtocols();
     const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
@@ -1482,26 +1494,46 @@ class PremiumProtocolsApi {
       status: p.status || (p.is_active !== false ? 'published' : 'draft')
     });
 
+    let dbProtocols: PremiumProtocol[] = [];
     try {
       const { data, error } = await supabase.from('premium_protocols').select('*');
       if (!error && data) {
         if (data.length === 0) {
           console.log('[PremiumProtocolsApi] Seeding empty premium_protocols table...');
           for (const p of INITIAL_PREMIUM_PROTOCOLS) {
-            await supabase.from('premium_protocols').upsert(ensureStatus(p));
+            await supabase.from('premium_protocols').upsert(this.sanitizeForDb(ensureStatus(p)));
           }
           const { data: reFetched } = await supabase.from('premium_protocols').select('*');
           if (reFetched && reFetched.length > 0) {
-            return (reFetched as PremiumProtocol[]).map(ensureStatus).filter(p => !deletedIds.has(p.id));
+            dbProtocols = reFetched as PremiumProtocol[];
           }
         } else {
-          return (data as PremiumProtocol[]).map(ensureStatus).filter(p => !deletedIds.has(p.id));
+          dbProtocols = data as PremiumProtocol[];
         }
       }
     } catch (e) {
       console.warn('[PremiumProtocolsApi] DB query failed or table not available. Using local space.', e);
     }
-    return localList.map(ensureStatus).filter(p => !deletedIds.has(p.id));
+
+    // Merge database and local protocols to ensure any locally created protocols
+    // (e.g. if DB write failed due to lack of admin permissions/RLS or extra columns) are still available and visible.
+    const mergedMap = new Map<string, PremiumProtocol>();
+    
+    // 1. Populate with local protocols
+    for (const p of localList) {
+      mergedMap.set(p.id, ensureStatus(p));
+    }
+    
+    // 2. Overwrite or add with database protocols (merging custom properties from local if any)
+    for (const dbP of dbProtocols) {
+      const localP = mergedMap.get(dbP.id);
+      mergedMap.set(dbP.id, ensureStatus({
+        ...localP, // keep local custom properties like status, environment, training_environment if not in DB
+        ...dbP
+      }));
+    }
+
+    return Array.from(mergedMap.values()).filter(p => !deletedIds.has(p.id));
   }
 
   async getProtocolById(id: string): Promise<PremiumProtocol | null> {
@@ -1526,14 +1558,15 @@ class PremiumProtocolsApi {
     }
 
     try {
-      const { data, error } = await supabase.from('premium_protocols').upsert(updatedProtocol).select().single();
+      const { data, error } = await supabase.from('premium_protocols').upsert(this.sanitizeForDb(updatedProtocol)).select().single();
       if (!error && data) {
         const local = this.getLocalProtocols();
         const index = local.findIndex(p => p.id === updatedProtocol.id);
-        if (index > -1) local[index] = data as PremiumProtocol;
-        else local.push(data as PremiumProtocol);
+        const mergedObj = { ...updatedProtocol, ...data };
+        if (index > -1) local[index] = mergedObj;
+        else local.push(mergedObj);
         this.saveLocalProtocols(local);
-        return data as PremiumProtocol;
+        return mergedObj;
       }
     } catch {}
 
@@ -1562,7 +1595,7 @@ class PremiumProtocolsApi {
     };
 
     try {
-      await supabase.from('premium_protocols').upsert(updated);
+      await supabase.from('premium_protocols').upsert(this.sanitizeForDb(updated));
     } catch (e) {
       console.error('[PremiumProtocolsApi] DB error archiving protocol:', e);
     }
@@ -1592,7 +1625,7 @@ class PremiumProtocolsApi {
     };
 
     try {
-      await supabase.from('premium_protocols').upsert(updated);
+      await supabase.from('premium_protocols').upsert(this.sanitizeForDb(updated));
     } catch (e) {
       console.error('[PremiumProtocolsApi] DB error restoring protocol:', e);
     }
