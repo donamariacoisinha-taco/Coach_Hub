@@ -236,8 +236,26 @@ export const profileApi = {
     try {
       const profile = await this.getProfile(userId);
       if (!profile) {
-        console.log(`[PROFILE_API] Creating initial profile for ${userId}`);
+        console.log(`[PROFILE_API] Creating initial profile for ${userId} (user was likely deleted or is registering for the first time)`);
         
+        // Clear old local storage caches before creating new profile to ensure they are treated as completely new
+        try {
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.includes(userId) || key.startsWith('rubi_workout_init_') || key.startsWith('rubi_partial_session_'))) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+          localStorage.removeItem('favorite_workout_folder_id');
+          localStorage.removeItem('deployed_folder_id');
+          localStorage.removeItem('kyron_premium_subscription_active');
+          console.log(`[PROFILE_API] All local storage data for user ${userId} completely cleared.`);
+        } catch (storageErr) {
+          console.error('[PROFILE_API] Error clearing local storage:', storageErr);
+        }
+
         let currentUserEmail = '';
         try {
           const { data: authData } = await supabase.auth.getUser();

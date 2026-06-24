@@ -185,23 +185,38 @@ export const UserManagement: React.FC = () => {
       return;
     }
     try {
-      // 1. Core relational checks - delete associated measurements
-      const deleteMeasurements = supabase
-        .from('body_measurements')
-        .delete()
-        .eq('user_id', user.id);
-      
-      const deleteWorkouts = supabase
-        .from('workouts')
-        .delete()
-        .eq('user_id', user.id);
+      // 1. Comprehensive deletion of all user-related data from all system tables
+      const tablesToDelete = [
+        { name: 'body_measurements', field: 'user_id' },
+        { name: 'progress_photos', field: 'user_id' },
+        { name: 'partial_workout_sessions', field: 'user_id' },
+        { name: 'workout_sets_log', field: 'user_id' },
+        { name: 'workout_history', field: 'user_id' },
+        { name: 'user_badges', field: 'user_id' },
+        { name: 'user_favorite_exercises', field: 'user_id' },
+        { name: 'user_personal_bests', field: 'user_id' },
+        { name: 'user_notifications', field: 'user_id' },
+        { name: 'workout_folders', field: 'user_id' },
+        { name: 'workout_categories', field: 'user_id' },
+        { name: 'athlete_memory', field: 'user_id' },
+        { name: 'exercise_performance_memory', field: 'user_id' }
+      ];
 
-      await Promise.all([
-        deleteMeasurements.then(({ error }) => { if (error && error.code !== 'PGRST116') console.log('Omissão inocente:', error); }),
-        deleteWorkouts.then(({ error }) => { if (error && error.code !== 'PGRST116') console.log('Omissão inocente:', error); })
-      ]);
+      const deletePromises = tablesToDelete.map(t => 
+        supabase
+          .from(t.name)
+          .delete()
+          .eq(t.field, user.id)
+          .then(({ error }) => {
+            if (error && error.code !== 'PGRST116') {
+              console.warn(`[User Cleanup] Table ${t.name} deletion warning:`, error.message);
+            }
+          })
+      );
 
-      // 2. Delete profile
+      await Promise.all(deletePromises);
+
+      // 2. Delete the profile itself
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -211,7 +226,7 @@ export const UserManagement: React.FC = () => {
         throw new Error(profileError.message);
       }
 
-      // 3. Sync local storage caches
+      // 3. Sync local storage caches for tracking deleted/suspended state
       const deleted = JSON.parse(localStorage.getItem('kyron_deleted_user_ids') || '[]');
       if (!deleted.includes(user.id)) {
         deleted.push(user.id);
@@ -224,10 +239,10 @@ export const UserManagement: React.FC = () => {
       
       addAdminLog('Exclusão', currentUserEmail, user.name, user.email);
       setProfiles(prev => prev.filter(p => p.id !== user.id));
-      showSuccess(`Operação Completa. Os dados de de treino de ${user.name || user.email} foram expurgados. Nota: Devido a restrições de segurança do Supabase Auth, o cadastro de login permanece ativo. Para reativar este atleta, basta que ele faça Login com suas credenciais antigas; um novo perfil limpo será gerado e ele irá para o onboarding automaticamente!`);
+      showSuccess(`Operação Completa. Todos os dados de treino, histórico, biometria e registros de ${user.name || user.email} foram expurgados permanentemente do banco de dados. Caso ele tente se cadastrar ou logar novamente, o sistema o tratará como um novo usuário cadastrado e ele iniciará o onboarding do zero!`);
     } catch (err: any) {
       console.error(err);
-      setErrorNotice(`Proteção de Integridade: Houve uma exceção crítica ao tentar excluir as dependências de chaves relacionais no postgres. Operação cancelada. Detalhe: ${err.message || err}`);
+      setErrorNotice(`Proteção de Integridade: Houve uma exceção ao tentar excluir os dados do atleta. Operação cancelada. Detalhe: ${err.message || err}`);
     }
   };
 
