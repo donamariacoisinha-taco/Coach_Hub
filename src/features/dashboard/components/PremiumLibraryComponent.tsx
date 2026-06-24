@@ -505,12 +505,8 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
         className="w-full bg-white rounded-3xl border border-slate-100 shadow-[0_4px_16px_rgba(15,23,42,0.02)] cursor-pointer flex flex-col overflow-hidden group hover:border-[#7BA7FF]/30 hover:shadow-[0_12px_24px_rgba(15,23,42,0.06)] transition-all duration-300 text-left"
       >
         {/* Cover */}
-        {(() => {
-          console.log(`Debug [${p.name}]: image_url = "${p.image_url}"`);
-          return null;
-        })()}
-        <div className={`relative w-full h-[145px] overflow-hidden bg-slate-950 flex-shrink-0 ${(p.image_url && p.image_url.trim().length > 5) ? '' : `bg-gradient-to-br ${cover.gradient}`}`}>
-          {p.image_url && p.image_url.trim().length > 5 ? (
+        <div className={`relative w-full h-[145px] overflow-hidden bg-slate-950 flex-shrink-0 ${(p.image_url && p.image_url.trim().length > 5 && p.image_url !== 'undefined') ? '' : `bg-gradient-to-br ${cover.gradient}`}`}>
+          {p.image_url && p.image_url.trim().length > 5 && p.image_url !== 'undefined' ? (
             <>
               <img 
                 src={p.image_url} 
@@ -684,7 +680,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                 return (
                   <>
                     {/* If custom cover is set, render a stunning visual header */}
-                    {selectedProtocol.image_url && selectedProtocol.image_url.trim().length > 5 && (
+                    {selectedProtocol.image_url && selectedProtocol.image_url.trim().length > 5 && selectedProtocol.image_url !== 'undefined' && (
                       <div className="relative w-full h-[180px] sm:h-[220px] rounded-[1.5rem] overflow-hidden border border-slate-100 shadow-[0_4px_12px_rgba(0,0,0,0.02)] mb-2 mt-4">
                         <img 
                           src={selectedProtocol.image_url} 
