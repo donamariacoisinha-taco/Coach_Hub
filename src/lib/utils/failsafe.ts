@@ -2,7 +2,7 @@ import { supabase } from '../api/supabase';
 import { workoutApi } from '../api/workoutApi';
 import { exerciseApi } from '../api/exerciseApi';
 import { fallbackExercises } from '../api/fallbackExercises';
-import { normalizeMuscleGroup } from '../../types';
+import { normalizeMuscleGroup, sortExercisesAnatomically } from '../../types';
 
 export interface AuditReport {
   protocol: {
@@ -284,7 +284,7 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
 
         // Shuffle and take between 5 and 8 exercises (target average of 6) to stay strictly between 5 and 10
         const shuffled = [...candidates].sort(() => 0.5 - Math.random());
-        const finalSelection = shuffled.slice(0, Math.min(8, Math.max(5, shuffled.length)));
+        const finalSelection = sortExercisesAnatomically(shuffled.slice(0, Math.min(8, Math.max(5, shuffled.length))));
 
         // Remove existing exercises
         await supabase.from('workout_exercises').delete().eq('category_id', cat.id);
@@ -350,7 +350,9 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
         emergencyExs = allExercises.slice(0, 6);
       }
 
-      const finalPayload = emergencyExs.map((ex, index) => ({
+      const sortedEmergencyExs = sortExercisesAnatomically(emergencyExs);
+
+      const finalPayload = sortedEmergencyExs.map((ex, index) => ({
         category_id: cat.id,
         exercise_id: ex.id,
         exercise_name_snapshot: ex.name,

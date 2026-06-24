@@ -33,7 +33,7 @@ import { premiumProtocolsApi, PremiumProtocol } from '../../lib/api/premiumProto
 import { exerciseApi } from '../../lib/api/exerciseApi';
 import { workoutApi } from '../../lib/api/workoutApi';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
-import { Exercise, UserProfile, normalizeMuscleGroup } from '../../types';
+import { Exercise, UserProfile, normalizeMuscleGroup, sortExercisesAnatomically } from '../../types';
 import { useNavigation } from '../../App';
 import kyronLogo from '../../assets/images/kyron_official_logo_1781087891387.png';
 
@@ -418,21 +418,42 @@ export default function SmartOnboarding() {
           description: 'Treino adaptativo de ativação emergencial.'
         });
         
-        await workoutApi.insertWorkoutExercises([{
+        const emergencyNames = [
+          'Leg Press',
+          'Supino Máquina',
+          'Puxada Frontal',
+          'Desenvolvimento Máquina',
+          'Mesa Flexora',
+          'Prancha'
+        ];
+
+        let emergencyExs = activeExercises.filter(ex => 
+          emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase()))
+        );
+
+        if (emergencyExs.length === 0) {
+          emergencyExs = activeExercises.slice(0, 6);
+        }
+
+        const sortedEmergencyExs = sortExercisesAnatomically(emergencyExs);
+
+        const finalPayload = sortedEmergencyExs.map((ex: any, idx) => ({
           category_id: cat.id,
-          exercise_id: fallbackLegPressId,
-          exercise_name_snapshot: 'Leg Press 45',
+          exercise_id: ex.id,
+          exercise_name_snapshot: ex.name,
           sets: 3,
           reps: '12',
-          weight: 40,
+          weight: 15,
           rest_time: 60,
-          sort_order: 1,
+          sort_order: idx + 1,
           sets_json: [
-            { reps: '12', weight: 40, rest_time: 60 },
-            { reps: '12', weight: 40, rest_time: 60 },
-            { reps: '12', weight: 40, rest_time: 60 }
+            { reps: '12', weight: 15, rest_time: 60 },
+            { reps: '12', weight: 15, rest_time: 60 },
+            { reps: '12', weight: 15, rest_time: 60 }
           ]
-        }]);
+        }));
+        
+        await workoutApi.insertWorkoutExercises(finalPayload);
 
         setFirstWorkoutId(cat.id);
         console.log('[KYRON_OS_DIAGNOSTIC] WORKOUT_PLAN_CREATED', {
@@ -493,21 +514,42 @@ export default function SmartOnboarding() {
           description: 'Treino adaptativo de ativação emergencial.'
         });
         
-        await workoutApi.insertWorkoutExercises([{
+        const emergencyNames = [
+          'Leg Press',
+          'Supino Máquina',
+          'Puxada Frontal',
+          'Desenvolvimento Máquina',
+          'Mesa Flexora',
+          'Prancha'
+        ];
+
+        let emergencyExs = activeExercises.filter(ex => 
+          emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase()))
+        );
+
+        if (emergencyExs.length === 0) {
+          emergencyExs = activeExercises.slice(0, 6);
+        }
+
+        const sortedEmergencyExs = sortExercisesAnatomically(emergencyExs);
+
+        const finalPayload = sortedEmergencyExs.map((ex: any, idx) => ({
           category_id: cat.id,
-          exercise_id: fallbackLegPressId,
-          exercise_name_snapshot: 'Leg Press 45',
+          exercise_id: ex.id,
+          exercise_name_snapshot: ex.name,
           sets: 3,
           reps: '12',
-          weight: 40,
+          weight: 15,
           rest_time: 60,
-          sort_order: 1,
+          sort_order: idx + 1,
           sets_json: [
-            { reps: '12', weight: 40, rest_time: 60 },
-            { reps: '12', weight: 40, rest_time: 60 },
-            { reps: '12', weight: 40, rest_time: 60 }
+            { reps: '12', weight: 15, rest_time: 60 },
+            { reps: '12', weight: 15, rest_time: 60 },
+            { reps: '12', weight: 15, rest_time: 60 }
           ]
-        }]);
+        }));
+        
+        await workoutApi.insertWorkoutExercises(finalPayload);
 
         localStorage.setItem('favorite_workout_folder_id', fallbackFolder.id);
         setDeployedFolderId(fallbackFolder.id);
@@ -829,6 +871,7 @@ export default function SmartOnboarding() {
           workout.exercises.push({
             exercise_id: ex.id,
             exercise_name: ex.name,
+            muscle_group: ex.muscle_group,
             sets: finalSetsCount,
             reps: finalReps,
             weight: finalWeight,
@@ -856,6 +899,7 @@ export default function SmartOnboarding() {
           workout.exercises.push({
             exercise_id: ex.id,
             exercise_name: ex.name,
+            muscle_group: ex.muscle_group,
             sets: level === 'advanced' ? 4 : 3,
             reps: level === 'beginner' ? '12' : '10',
             weight: level === 'beginner' ? 10 : 20,
@@ -894,6 +938,7 @@ export default function SmartOnboarding() {
           workout.exercises.push({
             exercise_id: ex.id,
             exercise_name: ex.name,
+            muscle_group: ex.muscle_group,
             sets: 3,
             reps: '12',
             weight: 15,
@@ -920,6 +965,7 @@ export default function SmartOnboarding() {
           workout.exercises.push({
             exercise_id: ex.id,
             exercise_name: ex.name,
+            muscle_group: ex.muscle_group,
             sets: 3,
             reps: '12',
             weight: 15,
@@ -939,6 +985,12 @@ export default function SmartOnboarding() {
       if (workout.exercises.length > 10) {
         workout.exercises = workout.exercises.slice(0, 10);
       }
+
+      // Order anatomically: upper body (Chest, Triceps, Back, Biceps, Shoulder) first, then lower body (Anterior, Posterior, Glute, Calf) and core
+      workout.exercises = sortExercisesAnatomically(workout.exercises);
+      workout.exercises.forEach((ex: any, i: number) => {
+        ex.sort_order = i + 1;
+      });
 
       newProtocol.workouts.push(workout);
     });
@@ -1056,24 +1108,42 @@ export default function SmartOnboarding() {
           description: 'Treino adaptativo de ativação emergencial.'
         });
         
-        const firstEx = activeExercises.find(e => e.name.toLowerCase().includes('leg press')) || activeExercises[0];
-        const realLegPressId = firstEx?.id || 'f1b01c1c-99e6-4251-ba84-475253896001';
+        const emergencyNames = [
+          'Leg Press',
+          'Supino Máquina',
+          'Puxada Frontal',
+          'Desenvolvimento Máquina',
+          'Mesa Flexora',
+          'Prancha'
+        ];
 
-        await workoutApi.insertWorkoutExercises([{
+        let emergencyExs = activeExercises.filter(ex => 
+          emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase()))
+        );
+
+        if (emergencyExs.length === 0) {
+          emergencyExs = activeExercises.slice(0, 6);
+        }
+
+        const sortedEmergencyExs = sortExercisesAnatomically(emergencyExs);
+
+        const finalPayload = sortedEmergencyExs.map((ex: any, idx) => ({
           category_id: cat.id,
-          exercise_id: realLegPressId,
-          exercise_name_snapshot: 'Leg Press 45',
+          exercise_id: ex.id,
+          exercise_name_snapshot: ex.name,
           sets: 3,
           reps: '12',
-          weight: 40,
+          weight: 15,
           rest_time: 60,
-          sort_order: 1,
+          sort_order: idx + 1,
           sets_json: [
-            { reps: '12', weight: 40, rest_time: 60 },
-            { reps: '12', weight: 40, rest_time: 60 },
-            { reps: '12', weight: 40, rest_time: 60 }
+            { reps: '12', weight: 15, rest_time: 60 },
+            { reps: '12', weight: 15, rest_time: 60 },
+            { reps: '12', weight: 15, rest_time: 60 }
           ]
-        }]);
+        }));
+        
+        await workoutApi.insertWorkoutExercises(finalPayload);
 
         console.log('[KYRON_OS_DIAGNOSTIC] Failsafe 2 resolved - Emergency plan generated with Treino A.');
       }

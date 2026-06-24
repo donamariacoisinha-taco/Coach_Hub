@@ -612,3 +612,94 @@ export function calculateExerciseHealthScore(ex: Exercise | null | undefined): H
   
   return { score, rating };
 }
+
+export function getExerciseAnatomicalPriority(muscleGroup: string, exerciseName: string): number {
+  const muscle = (muscleGroup || '').trim().toLowerCase();
+  const name = (exerciseName || '').trim().toLowerCase();
+
+  // 1. Peito (Priority 10)
+  if (muscle.includes('peito') || muscle.includes('peitoral') || name.includes('supino') || name.includes('crucifixo') || name.includes('peck deck') || name.includes('fly')) {
+    return 10;
+  }
+  // 2. Tríceps (Priority 20)
+  if (muscle.includes('triceps') || muscle.includes('tríceps') || name.includes('triceps') || name.includes('tríceps') || name.includes('paralela')) {
+    return 20;
+  }
+  // 3. Costas / Dorsal (Priority 30)
+  if (muscle.includes('costas') || muscle.includes('dorsal') || name.includes('puxada') || name.includes('remada') || name.includes('pulley') || name.includes('pulldown')) {
+    return 30;
+  }
+  // 4. Bíceps (Priority 40)
+  if (muscle.includes('biceps') || muscle.includes('bíceps') || name.includes('biceps') || name.includes('bíceps') || name.includes('rosca')) {
+    return 40;
+  }
+  // 5. Ombros / Deltóides (Priority 50)
+  if (muscle.includes('ombro') || muscle.includes('deltoide') || muscle.includes('deltóide') || name.includes('desenvolvimento') || name.includes('elevação lateral') || name.includes('manguito')) {
+    return 50;
+  }
+  
+  // -- Members Inferiores (Lower Body) starts here --
+  // 6. Pernas Anterior / Quadríceps (Priority 60)
+  if (name.includes('agachamento') || name.includes('leg press') || name.includes('extensora') || name.includes('afundo') || name.includes('passada') || name.includes('hack')) {
+    return 60;
+  }
+  if (muscle.includes('quadriceps') || muscle.includes('quadríceps') || muscle.includes('anterior')) {
+    return 60;
+  }
+
+  // 7. Pernas Posterior (Priority 70)
+  if (name.includes('flexora') || name.includes('stiff') || name.includes('mesa flexora') || name.includes('cadeira flexora') || name.includes('posterior de coxa')) {
+    return 70;
+  }
+  if (muscle.includes('posterior')) {
+    return 70;
+  }
+
+  // 8. Glúteos (Priority 80)
+  if (name.includes('pélvica') || name.includes('pelvica') || name.includes('glúteo') || name.includes('gluteo') || name.includes('abdução') || name.includes('abducao')) {
+    return 80;
+  }
+  if (muscle.includes('glúteo') || muscle.includes('gluteo')) {
+    return 80;
+  }
+
+  // 9. Panturrilha (Priority 90)
+  if (name.includes('panturrilha') || name.includes('gemeos') || name.includes('gêmeos')) {
+    return 90;
+  }
+  if (muscle.includes('panturrilha')) {
+    return 90;
+  }
+
+  // General "Pernas" if not matched specifically (Priority 65)
+  if (muscle.includes('perna') || muscle.includes('coxa')) {
+    return 65;
+  }
+
+  // 10. Abdômen / Core / Lombar (Priority 100)
+  if (muscle.includes('abdomen') || muscle.includes('abdômen') || muscle.includes('abdominal') || name.includes('abdominal') || name.includes('prancha') || name.includes('infra') || name.includes('supra') || name.includes('core')) {
+    return 100;
+  }
+  if (muscle.includes('lombar') || name.includes('lombar') || name.includes('hiperextensão') || name.includes('hiperextensao')) {
+    return 110;
+  }
+
+  // Other/Bracos fallback: Upper if other arm, lower if not
+  if (muscle.includes('braço') || muscle.includes('braco') || muscle.includes('antebraço') || muscle.includes('antebraco')) {
+    return 45; // Upper body fallback
+  }
+
+  return 200; // Default fallback (lowest priority)
+}
+
+export function sortExercisesAnatomically<T>(exercises: T[]): T[] {
+  return [...exercises].sort((a: any, b: any) => {
+    const aMuscle = a.muscle_group || '';
+    const aName = a.exercise_name || a.exercise_name_snapshot || a.name || '';
+    const bMuscle = b.muscle_group || '';
+    const bName = b.exercise_name || b.exercise_name_snapshot || b.name || '';
+    
+    return getExerciseAnatomicalPriority(aMuscle, aName) - getExerciseAnatomicalPriority(bMuscle, bName);
+  });
+}
+
