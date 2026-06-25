@@ -1454,14 +1454,16 @@ export const INITIAL_PREMIUM_PROTOCOLS: PremiumProtocol[] = [
 class PremiumProtocolsApi {
   private sanitizeForDb(protocol: PremiumProtocol) {
     const { 
+      id,
       status, 
       archived_at, 
       archived_by, 
       environment, 
       training_environment, 
+      image_url,
       ...dbReady 
     } = protocol;
-    return dbReady;
+    return { ...dbReady, id, protocol_id: id };
   }
 
   private sanitizeExercisesOrder(protocol: PremiumProtocol): PremiumProtocol {
@@ -1601,19 +1603,29 @@ class PremiumProtocolsApi {
       };
 
       try {
+        const sanitized = this.sanitizeForDb(updatedProtocol);
+        console.log("INSERTING PROTOCOL:", JSON.stringify(sanitized, null, 2));
         const { data, error } = await supabase
           .from('premium_protocols')
-          .insert(this.sanitizeForDb(updatedProtocol))
+          .insert(sanitized)
           .select()
           .single();
-        if (!error && data) {
-          return { ...updatedProtocol, ...data };
-        }
         if (error) {
           console.error('[PremiumProtocolsApi] Error inserting new protocol:', error);
+          console.error('[PremiumProtocolsApi] Error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          });
+          throw new Error(error.message || "Erro de banco de dados ao inserir protocolo.");
         }
-      } catch (e) {
+        if (data) {
+          return { ...updatedProtocol, ...data };
+        }
+      } catch (e: any) {
         console.error('[PremiumProtocolsApi] DB exception on insert:', e);
+        throw e;
       }
 
       return updatedProtocol;

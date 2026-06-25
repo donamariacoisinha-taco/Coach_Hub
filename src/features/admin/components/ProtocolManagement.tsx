@@ -1903,7 +1903,7 @@ export const ProtocolManagement: React.FC = () => {
     const currentVersion = existing ? (existing.version || 1) : 1;
 
     const finalProtocol: PremiumProtocol = {
-      id: editingProtocolId || `protocol-${Date.now()}`,
+      id: editingProtocolId || crypto.randomUUID(),
       name: name || 'Protocolo Sem Nome',
       description: description || 'Sem descrição cadastrada.',
       image_url: (imageUrl && imageUrl !== 'undefined') ? imageUrl : undefined,
