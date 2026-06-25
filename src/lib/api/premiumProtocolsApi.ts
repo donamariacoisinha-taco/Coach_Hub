@@ -1463,7 +1463,14 @@ class PremiumProtocolsApi {
       image_url,
       ...dbReady 
     } = protocol;
-    return { ...dbReady, id, protocol_id: id };
+    
+    // Removemos protocol_id porque o schema da tabela usa 'id' como chave primária.
+    // O erro 'column protocol_id is of type uuid' sugere que talvez essa coluna não exista na tabela, 
+    // ou que o Supabase esteja tentando mapear incorretamente.
+    return { 
+      ...dbReady, 
+      protocol_id: id
+    };
   }
 
   private sanitizeExercisesOrder(protocol: PremiumProtocol): PremiumProtocol {
