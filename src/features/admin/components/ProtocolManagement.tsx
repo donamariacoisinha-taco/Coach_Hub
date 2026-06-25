@@ -50,6 +50,7 @@ export const ProtocolManagement: React.FC = () => {
   // Search, Filters & Sorting States
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'premium' | 'public'>('all');
   const [goalFilter, setGoalFilter] = useState<string>('all');
   const [levelFilter, setLevelFilter] = useState<string>('all');
   const [frequencyFilter, setFrequencyFilter] = useState<string>('all');
@@ -1996,6 +1997,14 @@ export const ProtocolManagement: React.FC = () => {
                 // 1. Status Filter
                 if (statusFilter !== 'all' && currentStatus !== statusFilter) return false;
 
+                // 1b. Type Filter
+                if (typeFilter !== 'all') {
+                  const isPremium = !!p.premium;
+                  if (typeFilter === 'premium' && !isPremium) return false;
+                  if (typeFilter === 'public' && isPremium) return false;
+                }
+
+
                 // 2. Global Search (name, goal, difficulty/level, author)
                 if (searchQuery) {
                   const q = searchQuery.toLowerCase();
@@ -2099,6 +2108,19 @@ export const ProtocolManagement: React.FC = () => {
                           <option value="published">Publicados</option>
                           <option value="draft">Rascunhos</option>
                           <option value="archived">Lixeira / Arquivados</option>
+                        </select>
+                      </div>
+
+                      {/* Type Filter */}
+                      <div>
+                        <select
+                          value={typeFilter}
+                          onChange={(e) => setTypeFilter(e.target.value as any)}
+                          className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                          <option value="all">Tipo: Todos</option>
+                          <option value="premium">Premium</option>
+                          <option value="public">Públicos</option>
                         </select>
                       </div>
 
