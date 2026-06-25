@@ -32,10 +32,11 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
   const loadData = async () => {
     const list = await premiumProtocolsApi.getProtocols();
     const filteredList = list.filter(p => {
+      // Keep only active protocols
       if (p.is_active === false) return false;
-      const status = p.status || 'published';
-      if (status !== 'published') return false;
-      return true;
+      
+      // Keep only 'published' protocols
+      return p.status === 'published';
     });
     setProtocols(filteredList);
   };

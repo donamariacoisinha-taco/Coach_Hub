@@ -94,14 +94,11 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
     const list = await premiumProtocolsApi.getProtocols();
     const isAdminUser = isAdmin(profile);
     const filteredList = list.filter(p => {
-      if (p.is_active === false) {
-        return false;
-      }
-      const status = p.status || 'published';
-      if (status !== 'published') {
-        return false;
-      }
-      return true;
+      // Keep only active protocols
+      if (p.is_active === false) return false;
+      
+      // Keep only 'published' protocols
+      return p.status === 'published';
     });
     setProtocols(filteredList);
     setIsPremium(premiumProtocolsApi.isPremiumAthlete());
