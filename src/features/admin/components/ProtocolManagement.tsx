@@ -32,6 +32,7 @@ import { systemTemplatesApi, SystemTemplate } from '../../../lib/api/systemTempl
 import { premiumProtocolsApi, PremiumProtocol, PremiumTemplateWorkout, PremiumTemplateExercise, PROTOCOL_PRESET_IMAGES } from '../../../lib/api/premiumProtocolsApi';
 import { useAdminStore } from '../../../store/adminStore';
 import { authApi } from '../../../lib/api/authApi';
+import { ExerciseBuilderComponent } from './ExerciseBuilderComponent';
 
 export const ProtocolManagement: React.FC = () => {
   const { exercises } = useAdminStore();
@@ -3457,6 +3458,8 @@ export const ProtocolManagement: React.FC = () => {
                       );
                     })()}
 
+                    {/* LEGACY VIEW DISABLED FOR EXERCISE BUILDER 2.0 */}
+                    {false && (
                     <div className="space-y-8">
                       {currentGeneratedDraft.workouts?.map((w, wIdx) => {
                         const isOverlayActiveForWorkout = builderActiveWorkoutId === w.id;
@@ -3694,15 +3697,32 @@ export const ProtocolManagement: React.FC = () => {
                         );
                       })}
                     </div>
+                    )}
 
-                    {/* Botão para Adicionar Novo Dia de Treino */}
-                    <div className="pt-2">
+                    {/* NEW INTERACTIVE EXERCISE BUILDER 2.0 */}
+                    <div className="pt-4">
+                      <ExerciseBuilderComponent
+                        workouts={currentGeneratedDraft.workouts || []}
+                        onChangeWorkouts={(updatedWorkouts) => {
+                          const updatedObj = { ...currentGeneratedDraft, workouts: updatedWorkouts };
+                          setCurrentGeneratedDraft(updatedObj);
+                          const otherDrafts = drafts.map(d => d.id === currentGeneratedDraft.id ? updatedObj : d);
+                          saveDraftsToStorage(otherDrafts);
+                        }}
+                        goal={currentGeneratedDraft.goal}
+                        difficulty={currentGeneratedDraft.difficulty}
+                        frequency={currentGeneratedDraft.frequency}
+                      />
+                    </div>
+
+                    {/* Botão para Adicionar Novo Dia de Treino (Injetado) */}
+                    <div className="pt-4 flex justify-end">
                       <button
                         type="button"
                         onClick={addWorkoutToDraft}
-                        className="w-full py-5 bg-white border border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/20 text-[#7BA7FF] hover:text-blue-600 rounded-[2rem] flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all shadow-sm"
+                        className="px-6 py-3 bg-white border border-dashed border-slate-300 hover:border-slate-400 text-slate-700 hover:bg-slate-50 rounded-xl flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all shadow-sm font-sans font-bold"
                       >
-                        + Adicionar Novo Dia de Treino ao Protocolo
+                        + Adicionar Novo Dia de Treino
                       </button>
                     </div>
 
@@ -4131,7 +4151,35 @@ export const ProtocolManagement: React.FC = () => {
               )}
 
               {wizardStep === 2 && (
-                <div className="space-y-8">
+                <div className="space-y-6 text-left">
+                  <div className="bg-blue-50/50 border border-blue-100 p-4.5 rounded-2xl mb-4">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-blue-800 font-sans">Montador Avançado de Exercícios</h4>
+                    <p className="text-[10px] text-slate-500 mt-1 leading-normal">
+                      Use a biblioteca à esquerda para filtrar, pesquisar ou favoritar exercícios. Adicione em massa marcando os checkboxes.
+                    </p>
+                  </div>
+
+                  <ExerciseBuilderComponent
+                    workouts={workouts}
+                    onChangeWorkouts={(updated) => setWorkouts(updated)}
+                    goal={goal}
+                    difficulty={difficulty}
+                    frequency={frequency}
+                  />
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={addWorkoutSegment}
+                      className="px-6 py-3 bg-white border border-dashed border-slate-300 hover:border-slate-400 text-slate-700 hover:bg-slate-50 rounded-xl flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all shadow-sm font-sans font-bold"
+                    >
+                      + Criar Novo Segmento de Treino
+                    </button>
+                  </div>
+
+                  {/* LEGACY VIEW DISABLED */}
+                  {false && (
+                  <div className="space-y-8">
                   {/* List of workout segments */}
                   {workouts.map((ws, wIdx) => (
                     <div key={ws.id} className="border border-slate-200 rounded-2xl p-6 relative bg-slate-50 space-y-4">
@@ -4291,6 +4339,8 @@ export const ProtocolManagement: React.FC = () => {
                     + Criar Novo Segmento de Treino
                   </button>
                 </div>
+                )}
+              </div>
               )}
 
               {wizardStep === 3 && (
