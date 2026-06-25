@@ -22,6 +22,7 @@ import {
 import { profileApi } from '../../../lib/api/profileApi';
 import { supabase } from '../../../lib/api/supabase';
 import { authApi } from '../../../lib/api/authApi';
+import { workoutApi } from '../../../lib/api/workoutApi';
 
 interface AthleteProfile {
   id: string;
@@ -48,6 +49,9 @@ export const UserManagement: React.FC = () => {
   const [deletedUserIds, setDeletedUserIds] = useState<string[]>([]);
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('admin@kyron.os');
   const [activeMenuUserId, setActiveMenuUserId] = useState<string | null>(null);
+  const [viewingWorkoutsUserId, setViewingWorkoutsUserId] = useState<string | null>(null);
+  const [userWorkouts, setUserWorkouts] = useState<any[]>([]);
+  const [loadingWorkouts, setLoadingWorkouts] = useState(false);
 
   // Custom feedback/dialog actions
   const [selectedProfile, setSelectedProfile] = useState<AthleteProfile | null>(null);
@@ -73,6 +77,18 @@ export const UserManagement: React.FC = () => {
 
     loadProfiles();
   }, []);
+
+  useEffect(() => {
+    if (viewingWorkoutsUserId) {
+      setLoadingWorkouts(true);
+      workoutApi.getDashboardData(viewingWorkoutsUserId)
+        .then(data => setUserWorkouts(data.workouts || []))
+        .catch(console.error)
+        .finally(() => setLoadingWorkouts(false));
+    } else {
+      setUserWorkouts([]);
+    }
+  }, [viewingWorkoutsUserId]);
 
   const loadProfiles = async () => {
     setLoading(true);
@@ -243,6 +259,18 @@ export const UserManagement: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       setErrorNotice(`Proteção de Integridade: Houve uma exceção ao tentar excluir os dados do atleta. Operação cancelada. Detalhe: ${err.message || err}`);
+    }
+  };
+
+  const handleDeleteWorkout = async (workoutId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este treino?')) return;
+    try {
+      await workoutApi.deleteWorkout(workoutId);
+      setUserWorkouts(prev => prev.filter(w => w.id !== workoutId));
+      showSuccess('Treino excluído com sucesso.');
+    } catch (err) {
+      console.error(err);
+      setErrorNotice('Erro ao excluir treino.');
     }
   };
 
@@ -536,6 +564,15 @@ export const UserManagement: React.FC = () => {
                                       className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors flex items-center gap-2 border-none bg-transparent cursor-pointer"
                                     >
                                       Ver Perfil
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setViewingWorkoutsUserId(p.id);
+                                        setActiveMenuUserId(null);
+                                      }}
+                                      className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors flex items-center gap-2 border-none bg-transparent cursor-pointer"
+                                    >
+                                      Ver Treinos
                                     </button>
                                     <button
                                       onClick={() => {
@@ -851,6 +888,42 @@ export const UserManagement: React.FC = () => {
           </div>
         );
       })()}
+
+      {viewingWorkoutsUserId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-md" onClick={() => setViewingWorkoutsUserId(null)} />
+          <div className="relative bg-white rounded-[2.5rem] border border-slate-200 max-w-lg w-full p-8 shadow-2xl overflow-hidden z-50 text-left animate-scale-up">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 tracking-tight">Lista de Treinos</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gerenciamento individual</p>
+              </div>
+              <button onClick={() => setViewingWorkoutsUserId(null)} className="p-2 text-slate-400 hover:text-slate-900 border-none bg-transparent cursor-pointer transition-all">
+                <X size={18} />
+              </button>
+            </div>
+            {loadingWorkouts ? (
+              <div className="text-center py-10 text-sm text-slate-500">Carregando treinos...</div>
+            ) : (
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                {userWorkouts.length > 0 ? userWorkouts.map(workout => (
+                  <div key={workout.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <div>
+                      <p className="font-bold text-sm text-slate-900">{workout.name}</p>
+                      <p className="text-[10px] text-slate-500">{workout.description}</p>
+                    </div>
+                    <button onClick={() => handleDeleteWorkout(workout.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg">
+                      <X size={16} />
+                    </button>
+                  </div>
+                )) : (
+                  <p className="text-center text-sm text-slate-500 py-10">Nenhum treino encontrado.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
