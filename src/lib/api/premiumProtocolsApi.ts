@@ -2,6 +2,13 @@ import { supabase } from './supabase';
 import { workoutApi } from './workoutApi';
 import { SetConfig, WorkoutFolder, Exercise } from '../../types';
 
+import chestPressAnatomical from '../../assets/images/chest_press_anatomical_v01_1779099846928.png';
+import kyronAppIcon from '../../assets/images/kyron_app_icon_1781260685156.jpg';
+import kyronCoreLogo from '../../assets/images/kyron_core_logo_1781042739395.png';
+import kyronCoreV2 from '../../assets/images/kyron_core_v2_1781043247216.png';
+import kyronOfficialLogo from '../../assets/images/kyron_official_logo_1781087891387.png';
+import kyronOsLogo from '../../assets/images/kyron_os_logo_1782226707061.jpg';
+
 export interface PremiumTemplateExercise {
   exercise_id: string; // fallback
   exercise_name: string;
@@ -1770,6 +1777,42 @@ export interface ProtocolPresetImage {
 }
 
 export const PROTOCOL_PRESET_IMAGES: ProtocolPresetImage[] = [
+  {
+    id: 'chest_press_anatomical',
+    url: chestPressAnatomical,
+    focus: 'hypertrophy',
+    title: 'Anatomia - Supino / Chest Press (Local)'
+  },
+  {
+    id: 'kyron_app_icon',
+    url: kyronAppIcon,
+    focus: 'general',
+    title: 'KYRON - Ícone do App (Local)'
+  },
+  {
+    id: 'kyron_core_logo',
+    url: kyronCoreLogo,
+    focus: 'general',
+    title: 'KYRON - Logo Core (Local)'
+  },
+  {
+    id: 'kyron_core_v2',
+    url: kyronCoreV2,
+    focus: 'general',
+    title: 'KYRON - Logo Core V2 (Local)'
+  },
+  {
+    id: 'kyron_official_logo',
+    url: kyronOfficialLogo,
+    focus: 'general',
+    title: 'KYRON - Logo Oficial (Local)'
+  },
+  {
+    id: 'kyron_os_logo',
+    url: kyronOsLogo,
+    focus: 'general',
+    title: 'KYRON OS - Logo do Sistema (Local)'
+  },
   {
     id: 'kyron_glute_hip_thrust',
     url: 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=800&auto=format&fit=crop',

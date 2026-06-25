@@ -26,10 +26,14 @@ import {
   Globe,
   Paperclip,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Upload,
+  ImageIcon,
+  Loader2
 } from 'lucide-react';
 import { systemTemplatesApi, SystemTemplate } from '../../../lib/api/systemTemplatesApi';
-import { premiumProtocolsApi, PremiumProtocol, PremiumTemplateWorkout, PremiumTemplateExercise, PROTOCOL_PRESET_IMAGES } from '../../../lib/api/premiumProtocolsApi';
+import { premiumProtocolsApi, PremiumProtocol, PremiumTemplateWorkout, PremiumTemplateExercise, PROTOCOL_PRESET_IMAGES, ProtocolPresetImage } from '../../../lib/api/premiumProtocolsApi';
+import { cloudinaryService } from '../../../services/cloudinaryService';
 import { useAdminStore } from '../../../store/adminStore';
 import { authApi } from '../../../lib/api/authApi';
 import { ExerciseBuilderComponent } from './ExerciseBuilderComponent';
@@ -157,6 +161,60 @@ export const ProtocolManagement: React.FC = () => {
   const [builderCategory, setBuilderCategory] = useState<'premium' | 'public'>('premium');
   const [builderEnvironment, setBuilderEnvironment] = useState<'gym' | 'home' | 'hybrid'>('gym');
   const [builderImage, setBuilderImage] = useState<string>('');
+
+  // ESTADOS DE ARMAZENAMENTO E CARREGAMENTO DE IMAGENS DE CAPA (CUSTOM PRESETS)
+  const [customPresetImages, setCustomPresetImages] = useState<ProtocolPresetImage[]>(() => {
+    const saved = localStorage.getItem('rubi_custom_preset_images');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
+
+  const handleImageUpload = async (file: File, focusType: string = 'general', onCompleted: (url: string) => void) => {
+    setIsUploadingImage(true);
+    try {
+      let url = '';
+      try {
+        url = await cloudinaryService.uploadImage(file, 'protocols');
+      } catch (cloudinaryError) {
+        console.warn('Cloudinary upload failed, falling back to Base64', cloudinaryError);
+        url = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Failed to read file as data URL'));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      const newPreset: ProtocolPresetImage = {
+        id: `custom_${Date.now()}`,
+        url,
+        focus: focusType,
+        title: `Upload - ${file.name.substring(0, 15)}...`
+      };
+
+      const updated = [newPreset, ...customPresetImages];
+      setCustomPresetImages(updated);
+      localStorage.setItem('rubi_custom_preset_images', JSON.stringify(updated));
+      
+      setBuilderToast('A nova imagem foi adicionada à biblioteca de ilustrações!');
+      setTimeout(() => setBuilderToast(null), 3000);
+      
+      onCompleted(url);
+    } catch (err: any) {
+      alert('Erro ao carregar imagem: ' + err.message);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const allPresetImages = [...customPresetImages, ...PROTOCOL_PRESET_IMAGES];
 
   // Step 2 Selection Criteria
   const [critEquipFull, setCritEquipFull] = useState<boolean>(true);
@@ -2548,6 +2606,30 @@ export const ProtocolManagement: React.FC = () => {
                         </label>
                         
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                          {/* Botão de Upload Manual */}
+                          <label className="relative rounded-2xl overflow-hidden border border-dashed border-slate-300 p-2 flex flex-col items-center justify-center text-center h-24 bg-slate-50 hover:bg-slate-100 cursor-pointer transition-all group shrink-0">
+                            {isUploadingImage ? (
+                              <Loader2 size={18} className="text-blue-500 animate-spin" />
+                            ) : (
+                              <Upload size={18} className="text-slate-400 group-hover:text-blue-500 group-hover:scale-110 transition-all" />
+                            )}
+                            <span className="text-[9px] font-black uppercase tracking-wider mt-1.5 leading-tight text-slate-500 group-hover:text-slate-850">
+                              {isUploadingImage ? 'Enviando...' : 'Fazer Upload'}
+                            </span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              disabled={isUploadingImage}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  handleImageUpload(file, builderGoal, (url) => setBuilderImage(url));
+                                }
+                              }} 
+                            />
+                          </label>
+
                           {/* Option for none / gradient cover */}
                           <button
                             type="button"
@@ -2562,7 +2644,7 @@ export const ProtocolManagement: React.FC = () => {
                             <span className="text-[9px] font-black uppercase tracking-wider mt-1.5 leading-tight">Degradê Padrão</span>
                           </button>
 
-                          {PROTOCOL_PRESET_IMAGES.map((preset) => {
+                          {allPresetImages.map((preset) => {
                             const isSelected = builderImage === preset.url;
                             return (
                               <button
@@ -3215,6 +3297,37 @@ export const ProtocolManagement: React.FC = () => {
                           </span>
                           
                           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                            {/* Botão de Upload Manual */}
+                            <label className="relative rounded-2xl overflow-hidden border border-dashed border-slate-700 p-2 flex flex-col items-center justify-center text-center h-24 bg-slate-850 hover:bg-slate-800 cursor-pointer transition-all group shrink-0">
+                              {isUploadingImage ? (
+                                <Loader2 size={18} className="text-blue-500 animate-spin" />
+                              ) : (
+                                <Upload size={18} className="text-slate-500 group-hover:text-blue-500 group-hover:scale-110 transition-all" />
+                              )}
+                              <span className="text-[9px] font-black uppercase tracking-wider mt-1.5 leading-tight text-slate-400 group-hover:text-slate-200">
+                                {isUploadingImage ? 'Enviando...' : 'Fazer Upload'}
+                              </span>
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                disabled={isUploadingImage}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    handleImageUpload(file, currentGeneratedDraft.goal || 'general', (url) => {
+                                      const up = { ...currentGeneratedDraft, image_url: url };
+                                      setCurrentGeneratedDraft(up);
+                                      if (up.id.startsWith('draft-') || drafts.some(d => d.id === up.id)) {
+                                        const otherDrafts = drafts.map(d => d.id === up.id ? up : d);
+                                        saveDraftsToStorage(otherDrafts);
+                                      }
+                                    });
+                                  }
+                                }} 
+                              />
+                            </label>
+
                             {/* Option for none / gradient cover */}
                             <button
                               type="button"
@@ -3236,7 +3349,7 @@ export const ProtocolManagement: React.FC = () => {
                               <span className="text-[9px] font-black uppercase tracking-wider mt-1.5 leading-tight">Degradê Padrão</span>
                             </button>
 
-                            {PROTOCOL_PRESET_IMAGES.map((preset) => {
+                            {allPresetImages.map((preset) => {
                               const isSelected = currentGeneratedDraft.image_url === preset.url;
                               return (
                                 <button
@@ -4083,6 +4196,30 @@ export const ProtocolManagement: React.FC = () => {
                     </label>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                      {/* Botão de Upload Manual */}
+                      <label className="relative rounded-2xl overflow-hidden border border-dashed border-slate-300 p-2 flex flex-col items-center justify-center text-center h-24 bg-slate-50 hover:bg-slate-100 cursor-pointer transition-all group shrink-0">
+                        {isUploadingImage ? (
+                          <Loader2 size={18} className="text-blue-500 animate-spin" />
+                        ) : (
+                          <Upload size={18} className="text-slate-400 group-hover:text-blue-500 group-hover:scale-110 transition-all" />
+                        )}
+                        <span className="text-[9px] font-black uppercase tracking-wider mt-1.5 leading-tight text-slate-500 group-hover:text-slate-850">
+                          {isUploadingImage ? 'Enviando...' : 'Fazer Upload'}
+                        </span>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          disabled={isUploadingImage}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleImageUpload(file, 'general', (url) => setImageUrl(url));
+                            }
+                          }} 
+                        />
+                      </label>
+
                       {/* Option for none / gradient cover */}
                       <button
                         type="button"
@@ -4097,7 +4234,7 @@ export const ProtocolManagement: React.FC = () => {
                         <span className="text-[9px] font-black uppercase tracking-wider mt-1.5 leading-tight">Degradê Padrão</span>
                       </button>
 
-                      {PROTOCOL_PRESET_IMAGES.map((preset) => {
+                      {allPresetImages.map((preset) => {
                         const isSelected = imageUrl === preset.url;
                         return (
                           <button
