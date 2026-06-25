@@ -1772,31 +1772,31 @@ export interface ProtocolPresetImage {
 export const PROTOCOL_PRESET_IMAGES: ProtocolPresetImage[] = [
   {
     id: 'kyron_glute_hip_thrust',
-    url: '/api/attachments/6a928ba3-35f1-4fc3-96b4-60c04f982eb4.png',
+    url: 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=800&auto=format&fit=crop',
     focus: 'glutes',
     title: 'KYRON - Foco Glúteos (Hip Thrust)'
   },
   {
     id: 'kyron_chest_press',
-    url: '/api/attachments/7b3be5d0-be43-9417-2835-a7e669ed0fc0.png',
+    url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800&auto=format&fit=crop',
     focus: 'hypertrophy',
     title: 'KYRON - Foco Peitoral (Incline Press)'
   },
   {
     id: 'kyron_quadriceps_squat',
-    url: '/api/attachments/e55bf6fe-c93d-426b-ae23-d8c764be65cf.png',
+    url: 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?q=80&w=800&auto=format&fit=crop',
     focus: 'hypertrophy',
     title: 'KYRON - Quadríceps (Back Squat)'
   },
   {
     id: 'kyron_shoulder_press',
-    url: '/api/attachments/c7df67fc-0eb2-4ba2-8ef7-47be0a6bc56c.png',
+    url: 'https://images.unsplash.com/photo-1605296867304-46d5465a25f1?q=80&w=800&auto=format&fit=crop',
     focus: 'performance',
     title: 'KYRON - Ombros 3D (Overhead Press)'
   },
   {
     id: 'kyron_hamstrings_deadlift',
-    url: '/api/attachments/2cb6f7bb-31bf-3669-047e-be4394172835.png',
+    url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=800&auto=format&fit=crop',
     focus: 'strength',
     title: 'KYRON - Posterior (Romanian Deadlift)'
   },
