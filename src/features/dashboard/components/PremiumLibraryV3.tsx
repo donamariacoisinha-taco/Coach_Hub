@@ -35,8 +35,9 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
       // Keep only active protocols
       if (p.is_active === false) return false;
       
-      // Keep only 'published' protocols
-      return p.status === 'published';
+      // Allow published and potentially missing status, but NOT archived or draft
+      const status = p.status || 'published';
+      return status !== 'archived' && status !== 'draft';
     });
     setProtocols(filteredList);
   };
