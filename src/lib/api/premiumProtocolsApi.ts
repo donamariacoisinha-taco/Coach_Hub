@@ -1454,7 +1454,6 @@ export const INITIAL_PREMIUM_PROTOCOLS: PremiumProtocol[] = [
 class PremiumProtocolsApi {
   private sanitizeForDb(protocol: PremiumProtocol) {
     const { 
-      id,
       status, 
       archived_at, 
       archived_by, 
@@ -1464,13 +1463,7 @@ class PremiumProtocolsApi {
       ...dbReady 
     } = protocol;
     
-    // Removemos protocol_id porque o schema da tabela usa 'id' como chave primária.
-    // O erro 'column protocol_id is of type uuid' sugere que talvez essa coluna não exista na tabela, 
-    // ou que o Supabase esteja tentando mapear incorretamente.
-    return { 
-      ...dbReady, 
-      protocol_id: id
-    };
+    return { ...dbReady, protocol_id: protocol.id };
   }
 
   private sanitizeExercisesOrder(protocol: PremiumProtocol): PremiumProtocol {
@@ -1610,6 +1603,7 @@ class PremiumProtocolsApi {
       };
 
       try {
+        console.log("DEBUG: updatedProtocol:", JSON.stringify(updatedProtocol, null, 2));
         const sanitized = this.sanitizeForDb(updatedProtocol);
         console.log("INSERTING PROTOCOL:", JSON.stringify(sanitized, null, 2));
         const { data, error } = await supabase
@@ -1619,6 +1613,7 @@ class PremiumProtocolsApi {
           .single();
         if (error) {
           console.error('[PremiumProtocolsApi] Error inserting new protocol:', error);
+          console.error('[PremiumProtocolsApi] Sanitized object:', JSON.stringify(sanitized, null, 2));
           console.error('[PremiumProtocolsApi] Error details:', {
             message: error.message,
             details: error.details,

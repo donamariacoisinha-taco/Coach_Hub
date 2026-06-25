@@ -1613,6 +1613,8 @@ export const ProtocolManagement: React.FC = () => {
       setTimeout(() => setBuilderToast(null), 3500);
     } catch (err) {
       console.error('Error publishing protocol:', err);
+      // ADDED DEBUG
+      console.log('Error details:', err);
       setBuilderToast('Erro ao tentar publicar o protocolo.');
       setTimeout(() => setBuilderToast(null), 3000);
     } finally {
@@ -1899,6 +1901,7 @@ export const ProtocolManagement: React.FC = () => {
 
   // Publish / Save Wizard Flow
   const handleCompleteWizard = async (publishStatus: 'draft' | 'public' | 'premium') => {
+    console.log("handleCompleteWizard called");
     const existing = editingProtocolId ? protocols.find(p => p.id === editingProtocolId) : null;
     const currentVersion = existing ? (existing.version || 1) : 1;
 
