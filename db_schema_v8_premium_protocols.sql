@@ -23,8 +23,16 @@ CREATE TABLE IF NOT EXISTS public.premium_protocols (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     updated_by TEXT,
     workouts JSONB DEFAULT '[]'::jsonb,
-    version_history JSONB DEFAULT '[]'::jsonb
+    version_history JSONB DEFAULT '[]'::jsonb,
+    is_deleted BOOLEAN DEFAULT false,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_by TEXT
 );
+
+-- 1.1 ADICIONAR COLUNAS PARA SOFT DELETE CASO A TABELA JÁ EXISTA
+ALTER TABLE public.premium_protocols ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false;
+ALTER TABLE public.premium_protocols ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.premium_protocols ADD COLUMN IF NOT EXISTS deleted_by TEXT;
 
 -- 2. HABILITAR RLS (ROW LEVEL SECURITY)
 ALTER TABLE public.premium_protocols ENABLE ROW LEVEL SECURITY;

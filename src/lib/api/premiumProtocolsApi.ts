@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { conflictResolutionService } from './ConflictResolutionService';
 import { workoutApi } from './workoutApi';
 import { SetConfig, WorkoutFolder, Exercise } from '../../types';
 
@@ -39,6 +40,9 @@ export interface PremiumProtocol {
   status?: 'draft' | 'published' | 'archived';
   archived_at?: string;
   archived_by?: string;
+  is_deleted?: boolean;
+  deleted_at?: string | null;
+  deleted_by?: string | null;
   goal: string; // hypertrophy, weight_loss, strength, performance, glutes, recovery
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   environment?: 'gym' | 'home' | 'hybrid';
@@ -1448,39 +1452,6 @@ export const INITIAL_PREMIUM_PROTOCOLS: PremiumProtocol[] = [
 ];
 
 class PremiumProtocolsApi {
-  private getLocalProtocols(): PremiumProtocol[] {
-    const raw = localStorage.getItem('rubi_premium_protocols');
-    const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
-    const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-
-    const publicDefaults = INITIAL_PREMIUM_PROTOCOLS.filter(p => !p.premium && !deletedIds.has(p.id));
-
-    if (!raw) {
-      localStorage.setItem('rubi_premium_protocols', JSON.stringify(publicDefaults));
-      return publicDefaults;
-    }
-    try {
-      const parsed = JSON.parse(raw) as PremiumProtocol[];
-      // Sync check - guarantee that any new items in our hardcoded array are written to local storage, excluding deleted ones
-      const parsedIds = new Set(parsed.map(p => p.id));
-      const missing = publicDefaults.filter(p => !parsedIds.has(p.id));
-      let merged = parsed;
-      if (missing.length > 0) {
-        merged = [...parsed, ...missing];
-      }
-      // Filter out any premium protocols permanently
-      const filteredMerged = merged.filter(p => !p.premium && !deletedIds.has(p.id));
-      localStorage.setItem('rubi_premium_protocols', JSON.stringify(filteredMerged));
-      return filteredMerged;
-    } catch {
-      return publicDefaults;
-    }
-  }
-
-  private saveLocalProtocols(protocols: PremiumProtocol[]) {
-    localStorage.setItem('rubi_premium_protocols', JSON.stringify(protocols));
-  }
-
   private sanitizeForDb(protocol: PremiumProtocol) {
     const { 
       status, 
@@ -1511,22 +1482,14 @@ class PremiumProtocolsApi {
   }
 
   async getProtocols(): Promise<PremiumProtocol[]> {
-    const localList = this.getLocalProtocols();
-    const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
-    const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-
     const ensureStatus = (p: PremiumProtocol): PremiumProtocol => ({
       ...p,
       status: p.status || (p.is_active !== false ? 'published' : 'draft')
     });
 
-    let dbProtocols: PremiumProtocol[] = [];
-    let dbSuccess = false;
     try {
       const { data, error } = await supabase.from('premium_protocols').select('*');
       if (!error && data) {
-        dbSuccess = true;
-        
         // Find and delete any premium protocols in the database to fulfill the user's requirement
         const premiumIds = (data as PremiumProtocol[]).filter(p => p.premium === true).map(p => p.id);
         if (premiumIds.length > 0) {
@@ -1536,61 +1499,34 @@ class PremiumProtocolsApi {
           }
         }
 
-        if (data.length === 0) {
-          console.log('[PremiumProtocolsApi] Seeding empty premium_protocols table...');
-          // Only seed non-premium (public) protocols from initial list
-          const publicSeed = INITIAL_PREMIUM_PROTOCOLS.filter(p => !p.premium);
-          for (const p of publicSeed) {
-            await supabase.from('premium_protocols').upsert(this.sanitizeForDb(this.sanitizeExercisesOrder(ensureStatus(p))));
-          }
-          // Insert seed marker so subsequent queries on any device don't think it's unseeded
-          await supabase.from('premium_protocols').upsert({
-            id: 'seed_marker_v1',
-            name: 'Seed Marker',
-            is_active: false,
-            status: 'archived',
-            premium: false,
-            workouts: []
-          });
-          const { data: reFetched } = await supabase.from('premium_protocols').select('*');
-          if (reFetched && reFetched.length > 0) {
-            dbProtocols = (reFetched as PremiumProtocol[]).filter(p => p.id !== 'seed_marker_v1' && !p.premium);
-          }
-        } else {
-          dbProtocols = (data as PremiumProtocol[]).filter(p => p.id !== 'seed_marker_v1' && !p.premium);
-        }
+        return (data as PremiumProtocol[])
+          .filter(p => p.id !== 'seed_marker_v1' && !p.premium && p.is_deleted !== true)
+          .map(ensureStatus);
       }
     } catch (e) {
-      console.warn('[PremiumProtocolsApi] DB query failed or table not available. Using local space.', e);
+      console.warn('[PremiumProtocolsApi] DB query failed or table not available. Using in-memory fallback.', e);
     }
 
-    const initialProtocolIds = new Set(INITIAL_PREMIUM_PROTOCOLS.filter(p => !p.premium).map(p => p.id));
-    const dbProtocolIds = new Set(dbProtocols.map(p => p.id));
+    // Default static fallback (no localStorage caching, no re-creating database elements from local cache)
+    return INITIAL_PREMIUM_PROTOCOLS.filter(p => !p.premium).map(ensureStatus);
+  }
 
-    // Merge database and local protocols to ensure any locally created protocols
-    // (e.g. if DB write failed due to lack of admin permissions/RLS or extra columns) are still available and visible.
-    const mergedMap = new Map<string, PremiumProtocol>();
-    
-    // 1. Populate with local protocols (which are already public only)
-    for (const p of localList) {
-      // If we successfully queried the database, any default protocol that is missing from the DB was deleted!
-      if (dbSuccess && initialProtocolIds.has(p.id) && !dbProtocolIds.has(p.id)) {
-        continue;
+  async restoreDefaultProtocols(): Promise<boolean> {
+    const ensureStatus = (p: PremiumProtocol): PremiumProtocol => ({
+      ...p,
+      status: p.status || (p.is_active !== false ? 'published' : 'draft')
+    });
+
+    try {
+      const publicSeed = INITIAL_PREMIUM_PROTOCOLS.filter(p => !p.premium);
+      for (const p of publicSeed) {
+        await supabase.from('premium_protocols').upsert(this.sanitizeForDb(this.sanitizeExercisesOrder(ensureStatus(p))));
       }
-      mergedMap.set(p.id, ensureStatus(p));
+      return true;
+    } catch (e) {
+      console.error('[PremiumProtocolsApi] Failed to manually restore default protocols:', e);
+      return false;
     }
-    
-    // 2. Overwrite or add with database protocols (merging custom properties from local if any)
-    for (const dbP of dbProtocols) {
-      const localP = mergedMap.get(dbP.id);
-      mergedMap.set(dbP.id, ensureStatus({
-        ...localP, // keep local custom properties like status, environment, training_environment if not in DB
-        ...dbP
-      }));
-    }
-
-    // Keep ONLY public protocols (premium !== true) and non-deleted
-    return Array.from(mergedMap.values()).filter(p => !p.premium && !deletedIds.has(p.id));
   }
 
   async getProtocolById(id: string): Promise<PremiumProtocol | null> {
@@ -1600,48 +1536,92 @@ class PremiumProtocolsApi {
 
   async createOrUpdateProtocol(protocol: PremiumProtocol): Promise<PremiumProtocol> {
     const orderedProtocol = this.sanitizeExercisesOrder(protocol);
-    // Ensure status is assigned if not present
-    const updatedProtocol = {
-      ...orderedProtocol,
-      status: orderedProtocol.status || (orderedProtocol.is_active !== false ? 'published' : 'draft')
-    };
+    const id = protocol.id;
 
-    const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
-    if (deletedRaw) {
-      const deletedIds = JSON.parse(deletedRaw) as string[];
-      if (deletedIds.includes(updatedProtocol.id)) {
-        const filtered = deletedIds.filter(id => id !== updatedProtocol.id);
-        localStorage.setItem('kyron_deleted_protocol_ids', JSON.stringify(filtered));
-      }
-    }
-
+    // Check if the protocol already exists in the DB to perform Optimistic Locking
+    let existingRecord: { id: string; version: number } | null = null;
     try {
-      const { data, error } = await supabase.from('premium_protocols').upsert(this.sanitizeForDb(updatedProtocol)).select().single();
+      const { data, error } = await supabase
+        .from('premium_protocols')
+        .select('id, version')
+        .eq('id', id)
+        .maybeSingle();
       if (!error && data) {
-        const local = this.getLocalProtocols();
-        const index = local.findIndex(p => p.id === updatedProtocol.id);
-        const mergedObj = { ...updatedProtocol, ...data };
-        if (index > -1) local[index] = mergedObj;
-        else local.push(mergedObj);
-        this.saveLocalProtocols(local);
-        return mergedObj;
+        existingRecord = data;
       }
-    } catch {}
-
-    const local = this.getLocalProtocols();
-    const index = local.findIndex(p => p.id === updatedProtocol.id);
-    if (index > -1) {
-      local[index] = updatedProtocol;
-    } else {
-      local.push(updatedProtocol);
+    } catch (e) {
+      console.warn('[PremiumProtocolsApi] Failed to check existing record version:', e);
     }
-    this.saveLocalProtocols(local);
-    return updatedProtocol;
+
+    if (existingRecord) {
+      const serverVersion = existingRecord.version || 0;
+      const localVersion = protocol.version || 0;
+
+      // Validate version
+      if (serverVersion !== localVersion) {
+        conflictResolutionService.registerConflict(protocol, serverVersion);
+        throw new Error("Este protocolo foi alterado em outro dispositivo. Recarregue os dados antes de salvar.");
+      }
+
+      // Increment version
+      const nextVersion = serverVersion + 1;
+      const updatedProtocol = {
+        ...orderedProtocol,
+        version: nextVersion,
+        status: orderedProtocol.status || (orderedProtocol.is_active !== false ? 'published' : 'draft')
+      };
+
+      try {
+        const { data, error } = await supabase
+          .from('premium_protocols')
+          .update(this.sanitizeForDb(updatedProtocol))
+          .eq('id', id)
+          .eq('version', serverVersion)
+          .select();
+
+        if (error || !data || data.length === 0) {
+          conflictResolutionService.registerConflict(protocol, serverVersion);
+          throw new Error("Este protocolo foi alterado em outro dispositivo. Recarregue os dados antes de salvar.");
+        }
+
+        return { ...updatedProtocol, ...data[0] };
+      } catch (e: any) {
+        if (e.message && e.message.includes("Este protocolo foi alterado")) {
+          throw e;
+        }
+        console.error('[PremiumProtocolsApi] DB exception on update with optimistic lock:', e);
+        throw e;
+      }
+    } else {
+      // Brand new protocol - Initialize version to 1
+      const updatedProtocol = {
+        ...orderedProtocol,
+        version: 1,
+        status: orderedProtocol.status || (orderedProtocol.is_active !== false ? 'published' : 'draft')
+      };
+
+      try {
+        const { data, error } = await supabase
+          .from('premium_protocols')
+          .insert(this.sanitizeForDb(updatedProtocol))
+          .select()
+          .single();
+        if (!error && data) {
+          return { ...updatedProtocol, ...data };
+        }
+        if (error) {
+          console.error('[PremiumProtocolsApi] Error inserting new protocol:', error);
+        }
+      } catch (e) {
+        console.error('[PremiumProtocolsApi] DB exception on insert:', e);
+      }
+
+      return updatedProtocol;
+    }
   }
 
   async archiveProtocol(id: string, archivedBy?: string): Promise<boolean> {
-    const list = await this.getProtocols();
-    const target = list.find(p => p.id === id);
+    const target = await this.getProtocolById(id);
     if (!target) return false;
 
     const updated: PremiumProtocol = {
@@ -1653,25 +1633,16 @@ class PremiumProtocolsApi {
     };
 
     try {
-      await supabase.from('premium_protocols').upsert(this.sanitizeForDb(updated));
+      await this.createOrUpdateProtocol(updated);
+      return true;
     } catch (e) {
       console.error('[PremiumProtocolsApi] DB error archiving protocol:', e);
+      return false;
     }
-
-    const local = this.getLocalProtocols();
-    const index = local.findIndex(p => p.id === id);
-    if (index > -1) {
-      local[index] = updated;
-    } else {
-      local.push(updated);
-    }
-    this.saveLocalProtocols(local);
-    return true;
   }
 
   async restoreProtocol(id: string): Promise<boolean> {
-    const list = await this.getProtocols();
-    const target = list.find(p => p.id === id);
+    const target = await this.getProtocolById(id);
     if (!target) return false;
 
     const updated: PremiumProtocol = {
@@ -1683,41 +1654,82 @@ class PremiumProtocolsApi {
     };
 
     try {
-      await supabase.from('premium_protocols').upsert(this.sanitizeForDb(updated));
+      await this.createOrUpdateProtocol(updated);
+      return true;
     } catch (e) {
       console.error('[PremiumProtocolsApi] DB error restoring protocol:', e);
+      return false;
     }
+  }
 
-    const local = this.getLocalProtocols();
-    const index = local.findIndex(p => p.id === id);
-    if (index > -1) {
-      local[index] = updated;
-    } else {
-      local.push(updated);
+  async softDeleteProtocol(id: string, deletedBy?: string): Promise<boolean> {
+    const target = await this.getProtocolById(id);
+    if (!target) return false;
+
+    const updated: PremiumProtocol = {
+      ...target,
+      is_deleted: true,
+      deleted_at: new Date().toISOString(),
+      deleted_by: deletedBy || 'admin'
+    };
+
+    try {
+      await this.createOrUpdateProtocol(updated);
+      return true;
+    } catch (e) {
+      console.error('[PremiumProtocolsApi] DB error soft deleting protocol:', e);
+      return false;
     }
-    this.saveLocalProtocols(local);
-    return true;
+  }
+
+  async restoreSoftDeletedProtocol(id: string): Promise<boolean> {
+    const target = await this.getProtocolById(id) || (await this.getDeletedProtocols()).find(p => p.id === id);
+    if (!target) return false;
+
+    const updated: PremiumProtocol = {
+      ...target,
+      is_deleted: false,
+      deleted_at: null,
+      deleted_by: null
+    };
+
+    try {
+      await this.createOrUpdateProtocol(updated);
+      return true;
+    } catch (e) {
+      console.error('[PremiumProtocolsApi] DB error restoring soft deleted protocol:', e);
+      return false;
+    }
   }
 
   async deleteProtocolPermanently(id: string): Promise<boolean> {
-    const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
-    const deletedIds = deletedRaw ? JSON.parse(deletedRaw) as string[] : [];
-    if (!deletedIds.includes(id)) {
-      deletedIds.push(id);
-      localStorage.setItem('kyron_deleted_protocol_ids', JSON.stringify(deletedIds));
-    }
-
     try {
-      await supabase.from('premium_protocols').delete().eq('id', id);
+      const { error } = await supabase.from('premium_protocols').delete().eq('id', id);
+      return !error;
     } catch (e) {
       console.error('[PremiumProtocolsApi] DB error permanently deleting protocol:', e);
+      return false;
     }
+  }
 
-    const local = this.getLocalProtocols();
-    const filtered = local.filter(p => p.id !== id);
-    this.saveLocalProtocols(filtered);
-    return true;
-    return true;
+  async getDeletedProtocols(): Promise<PremiumProtocol[]> {
+    const ensureStatus = (p: PremiumProtocol): PremiumProtocol => ({
+      ...p,
+      status: p.status || (p.is_active !== false ? 'published' : 'draft')
+    });
+
+    try {
+      const { data, error } = await supabase
+        .from('premium_protocols')
+        .select('*')
+        .eq('is_deleted', true);
+      if (!error && data) {
+        return (data as PremiumProtocol[]).map(ensureStatus);
+      }
+    } catch (e) {
+      console.error('[PremiumProtocolsApi] DB query failed for deleted protocols.', e);
+    }
+    return [];
   }
 
   // Check Subscription State

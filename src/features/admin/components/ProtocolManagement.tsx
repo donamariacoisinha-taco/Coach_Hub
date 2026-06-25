@@ -29,10 +29,12 @@ import {
   CheckCircle,
   Upload,
   ImageIcon,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { systemTemplatesApi, SystemTemplate } from '../../../lib/api/systemTemplatesApi';
 import { premiumProtocolsApi, PremiumProtocol, PremiumTemplateWorkout, PremiumTemplateExercise, PROTOCOL_PRESET_IMAGES, ProtocolPresetImage } from '../../../lib/api/premiumProtocolsApi';
+import { premiumProtocolRealtimeService } from '../../../lib/api/PremiumProtocolRealtimeService';
 import { cloudinaryService } from '../../../services/cloudinaryService';
 import { useAdminStore } from '../../../store/adminStore';
 import { authApi } from '../../../lib/api/authApi';
@@ -49,7 +51,8 @@ export const ProtocolManagement: React.FC = () => {
   
   // Search, Filters & Sorting States
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft' | 'archived' | 'deleted'>('all');
+  const [deletedProtocols, setDeletedProtocols] = useState<PremiumProtocol[]>([]);
   const [typeFilter, setTypeFilter] = useState<'all' | 'premium' | 'public'>('all');
   const [goalFilter, setGoalFilter] = useState<string>('all');
   const [levelFilter, setLevelFilter] = useState<string>('all');
@@ -321,6 +324,20 @@ export const ProtocolManagement: React.FC = () => {
 
   useEffect(() => {
     loadData();
+
+    const unsubscribe = premiumProtocolRealtimeService.subscribe((payload) => {
+      console.log('[ProtocolManagement] Real-time protocol update received, re-fetching...', payload);
+      premiumProtocolsApi.getProtocols().then((prtcols) => {
+        setProtocols(prtcols);
+      });
+      premiumProtocolsApi.getDeletedProtocols().then((deletedPrtcols) => {
+        setDeletedProtocols(deletedPrtcols);
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const loadData = async () => {
@@ -330,6 +347,8 @@ export const ProtocolManagement: React.FC = () => {
       setTemplates(tmps);
       const prtcols = await premiumProtocolsApi.getProtocols();
       setProtocols(prtcols);
+      const deletedPrtcols = await premiumProtocolsApi.getDeletedProtocols();
+      setDeletedProtocols(deletedPrtcols);
       
       const storedDrafts = localStorage.getItem('kyron_admin_draft_protocols');
       if (storedDrafts) {
@@ -405,15 +424,41 @@ export const ProtocolManagement: React.FC = () => {
         workouts: [],
         version_history: []
       };
-      await premiumProtocolsApi.createOrUpdateProtocol(newP);
-      const prtcols = await premiumProtocolsApi.getProtocols();
-      setProtocols(prtcols);
+      try {
+        await premiumProtocolsApi.createOrUpdateProtocol(newP);
+        const prtcols = await premiumProtocolsApi.getProtocols();
+        setProtocols(prtcols);
+      } catch (e: any) {
+        alert(e.message || "Erro ao aprovar protocolo da comunidade.");
+        await loadData();
+      }
     }
   };
 
   const handleRejectCommunity = (id: string) => {
     const updated = communityProtocols.filter(c => c.id !== id);
     saveCommunityToStorage(updated);
+  };
+
+  const handleRestoreDefaults = async () => {
+    if (window.confirm("Deseja realmente restaurar os protocolos padrão originais no banco de dados? Isso vai re-adicionar todos os protocolos públicos originais.")) {
+      setLoading(true);
+      try {
+        const success = await premiumProtocolsApi.restoreDefaultProtocols();
+        if (success) {
+          const prtcols = await premiumProtocolsApi.getProtocols();
+          setProtocols(prtcols);
+          alert("Protocolos padrão restaurados com sucesso!");
+        } else {
+          alert("Erro ao restaurar protocolos padrão.");
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Erro ao restaurar protocolos padrão.");
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   const handleStartCreate = () => {
@@ -525,68 +570,119 @@ export const ProtocolManagement: React.FC = () => {
       const newDrafts = [...drafts, duplicated];
       saveDraftsToStorage(newDrafts);
     } else {
-      await premiumProtocolsApi.createOrUpdateProtocol(duplicated);
-      const updated = await premiumProtocolsApi.getProtocols();
-      setProtocols(updated);
+      try {
+        await premiumProtocolsApi.createOrUpdateProtocol(duplicated);
+        const updated = await premiumProtocolsApi.getProtocols();
+        setProtocols(updated);
+      } catch (e: any) {
+        alert(e.message || "Erro ao duplicar protocolo.");
+        await loadData();
+      }
     }
   };
 
   const handleArchive = async (id: string, isFromDrafts = false) => {
     if (confirm('Deseja realmente arquivar este protocolo? (Ele será movido para a Lixeira)')) {
       let protocolName = '';
-      if (isFromDrafts) {
-        const draft = drafts.find(d => d.id === id);
-        if (draft) {
-          protocolName = draft.name;
-          const updatedDraft = { ...draft, status: 'archived' as const, is_active: false };
-          await premiumProtocolsApi.createOrUpdateProtocol(updatedDraft);
-          const newDrafts = drafts.filter(d => d.id !== id);
-          saveDraftsToStorage(newDrafts);
+      try {
+        if (isFromDrafts) {
+          const draft = drafts.find(d => d.id === id);
+          if (draft) {
+            protocolName = draft.name;
+            const updatedDraft = { ...draft, status: 'archived' as const, is_active: false };
+            await premiumProtocolsApi.createOrUpdateProtocol(updatedDraft);
+            const newDrafts = drafts.filter(d => d.id !== id);
+            saveDraftsToStorage(newDrafts);
+          }
+        } else {
+          const p = protocols.find(x => x.id === id);
+          if (p) {
+            protocolName = p.name;
+            await premiumProtocolsApi.archiveProtocol(id, currentUserEmail);
+          }
         }
-      } else {
-        const p = protocols.find(x => x.id === id);
-        if (p) {
-          protocolName = p.name;
-          await premiumProtocolsApi.archiveProtocol(id, currentUserEmail);
+        await loadData();
+        if (protocolName) {
+          addProtocolAdminLog('Arquivou protocolo', protocolName);
         }
-      }
-      await loadData();
-      if (protocolName) {
-        addProtocolAdminLog('Arquivou protocolo', protocolName);
+      } catch (e: any) {
+        alert(e.message || "Erro ao arquivar protocolo.");
+        await loadData();
       }
     }
   };
 
   const handleRestore = async (id: string) => {
     let protocolName = '';
-    const p = protocols.find(x => x.id === id);
-    if (p) {
-      protocolName = p.name;
-      await premiumProtocolsApi.restoreProtocol(id);
-    } else {
-      const draft = drafts.find(d => d.id === id);
-      if (draft) {
-        protocolName = draft.name;
-        const updatedDraft = { ...draft, status: 'draft' as const, is_active: false };
-        const otherDrafts = drafts.map(d => d.id === id ? updatedDraft : d);
-        saveDraftsToStorage(otherDrafts);
+    try {
+      const p = protocols.find(x => x.id === id);
+      if (p) {
+        protocolName = p.name;
+        await premiumProtocolsApi.restoreProtocol(id);
+      } else {
+        const draft = drafts.find(d => d.id === id);
+        if (draft) {
+          protocolName = draft.name;
+          const updatedDraft = { ...draft, status: 'draft' as const, is_active: false };
+          const otherDrafts = drafts.map(d => d.id === id ? updatedDraft : d);
+          saveDraftsToStorage(otherDrafts);
+        }
       }
-    }
-    await loadData();
-    if (protocolName) {
-      addProtocolAdminLog('Restaurou protocolo', protocolName);
+      await loadData();
+      if (protocolName) {
+        addProtocolAdminLog('Restaurou protocolo', protocolName);
+      }
+    } catch (e: any) {
+      alert(e.message || "Erro ao restaurar protocolo.");
+      await loadData();
     }
   };
 
-  const handleDeletePermanently = async (p: PremiumProtocol) => {
-    await premiumProtocolsApi.deleteProtocolPermanently(p.id);
+  const handleSoftDelete = async (p: PremiumProtocol) => {
     const isADraft = p.id.startsWith('draft-') || drafts.some(d => d.id === p.id);
     if (isADraft) {
       const updatedDrafts = drafts.filter(d => d.id !== p.id);
       saveDraftsToStorage(updatedDrafts);
+    } else {
+      try {
+        await premiumProtocolsApi.softDeleteProtocol(p.id, currentUserEmail);
+      } catch (e: any) {
+        alert(e.message || "Erro ao realizar exclusão lógica.");
+        await loadData();
+        return;
+      }
     }
     await loadData();
-    addProtocolAdminLog('Excluiu permanentemente', p.name);
+    addProtocolAdminLog('Excluiu (Soft Delete)', p.name);
+  };
+
+  const handleDeleteDefinitively = async (p: PremiumProtocol) => {
+    const isADraft = p.id.startsWith('draft-') || drafts.some(d => d.id === p.id);
+    if (isADraft) {
+      const updatedDrafts = drafts.filter(d => d.id !== p.id);
+      saveDraftsToStorage(updatedDrafts);
+    } else {
+      await premiumProtocolsApi.deleteProtocolPermanently(p.id);
+    }
+    await loadData();
+    addProtocolAdminLog('Excluiu permanentemente (Físico)', p.name);
+  };
+
+  const handleRestoreSoftDeleted = async (id: string) => {
+    setLoading(true);
+    try {
+      const success = await premiumProtocolsApi.restoreSoftDeletedProtocol(id);
+      if (success) {
+        await loadData();
+        const restored = protocols.find(p => p.id === id) || deletedProtocols.find(p => p.id === id);
+        addProtocolAdminLog('Restaurou da lixeira lógica', restored ? restored.name : id);
+      }
+    } catch (e: any) {
+      alert(e.message || "Erro ao restaurar da lixeira lógica.");
+      await loadData();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleProtocolActive = async (id: string, isFromDrafts = false) => {
@@ -616,7 +712,12 @@ export const ProtocolManagement: React.FC = () => {
         const updatedList = [...protocols];
         updatedList[pIndex] = updatedItem;
         setProtocols(updatedList);
-        await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+        try {
+          await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+        } catch (e: any) {
+          alert(e.message || "Erro ao alterar status do protocolo.");
+          await loadData();
+        }
       }
     }
   };
@@ -632,7 +733,12 @@ export const ProtocolManagement: React.FC = () => {
         const updatedList = [...protocols];
         updatedList[pIndex] = updatedItem;
         setProtocols(updatedList);
-        await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+        try {
+          await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+        } catch (e: any) {
+          alert(e.message || "Erro ao converter protocolo para Premium.");
+          await loadData();
+        }
       }
     }
   };
@@ -648,7 +754,12 @@ export const ProtocolManagement: React.FC = () => {
         const updatedList = [...protocols];
         updatedList[pIndex] = updatedItem;
         setProtocols(updatedList);
-        await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+        try {
+          await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+        } catch (e: any) {
+          alert(e.message || "Erro ao converter protocolo para Público.");
+          await loadData();
+        }
       }
     }
   };
@@ -666,9 +777,14 @@ export const ProtocolManagement: React.FC = () => {
         };
         const newDrafts = drafts.filter(d => d.id !== id);
         saveDraftsToStorage(newDrafts);
-        await premiumProtocolsApi.createOrUpdateProtocol(published);
-        const updated = await premiumProtocolsApi.getProtocols();
-        setProtocols(updated);
+        try {
+          await premiumProtocolsApi.createOrUpdateProtocol(published);
+          const updated = await premiumProtocolsApi.getProtocols();
+          setProtocols(updated);
+        } catch (e: any) {
+          alert(e.message || "Erro ao publicar protocolo Público.");
+          await loadData();
+        }
       }
     } else {
       const pIndex = protocols.findIndex(p => p.id === id);
@@ -677,7 +793,12 @@ export const ProtocolManagement: React.FC = () => {
         const updatedList = [...protocols];
         updatedList[pIndex] = updatedItem;
         setProtocols(updatedList);
-        await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+        try {
+          await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+        } catch (e: any) {
+          alert(e.message || "Erro ao publicar protocolo.");
+          await loadData();
+        }
       }
     }
   };
@@ -695,9 +816,14 @@ export const ProtocolManagement: React.FC = () => {
         };
         const newDrafts = drafts.filter(d => d.id !== id);
         saveDraftsToStorage(newDrafts);
-        await premiumProtocolsApi.createOrUpdateProtocol(published);
-        const updated = await premiumProtocolsApi.getProtocols();
-        setProtocols(updated);
+        try {
+          await premiumProtocolsApi.createOrUpdateProtocol(published);
+          const updated = await premiumProtocolsApi.getProtocols();
+          setProtocols(updated);
+        } catch (e: any) {
+          alert(e.message || "Erro ao publicar protocolo Premium.");
+          await loadData();
+        }
       }
     } else {
       const pIndex = protocols.findIndex(p => p.id === id);
@@ -706,7 +832,12 @@ export const ProtocolManagement: React.FC = () => {
         const updatedList = [...protocols];
         updatedList[pIndex] = updatedItem;
         setProtocols(updatedList);
-        await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+        try {
+          await premiumProtocolsApi.createOrUpdateProtocol(updatedItem);
+        } catch (e: any) {
+          alert(e.message || "Erro ao publicar protocolo.");
+          await loadData();
+        }
       }
     }
   };
@@ -1768,12 +1899,15 @@ export const ProtocolManagement: React.FC = () => {
 
   // Publish / Save Wizard Flow
   const handleCompleteWizard = async (publishStatus: 'draft' | 'public' | 'premium') => {
+    const existing = editingProtocolId ? protocols.find(p => p.id === editingProtocolId) : null;
+    const currentVersion = existing ? (existing.version || 1) : 1;
+
     const finalProtocol: PremiumProtocol = {
       id: editingProtocolId || `protocol-${Date.now()}`,
       name: name || 'Protocolo Sem Nome',
       description: description || 'Sem descrição cadastrada.',
       image_url: (imageUrl && imageUrl !== 'undefined') ? imageUrl : undefined,
-      version: 1,
+      version: currentVersion,
       premium: publishStatus === 'premium',
       goal,
       difficulty,
@@ -1793,24 +1927,29 @@ export const ProtocolManagement: React.FC = () => {
       version_history: []
     };
 
-    if (publishStatus === 'draft') {
-      // Remove from published if editing published
-      if (editingProtocolId && !drafts.some(d => d.id === editingProtocolId)) {
-        await premiumProtocolsApi.archiveProtocol(editingProtocolId);
+    try {
+      if (publishStatus === 'draft') {
+        // Remove from published if editing published
+        if (editingProtocolId && !drafts.some(d => d.id === editingProtocolId)) {
+          await premiumProtocolsApi.archiveProtocol(editingProtocolId);
+        }
+        const otherDrafts = drafts.filter(d => d.id !== finalProtocol.id);
+        saveDraftsToStorage([...otherDrafts, finalProtocol]);
+      } else {
+        // Remove from drafts if publishing draft
+        if (editingProtocolId && drafts.some(d => d.id === editingProtocolId)) {
+          const updatedDrafts = drafts.filter(d => d.id !== editingProtocolId);
+          saveDraftsToStorage(updatedDrafts);
+        }
+        await premiumProtocolsApi.createOrUpdateProtocol(finalProtocol);
       }
-      const otherDrafts = drafts.filter(d => d.id !== finalProtocol.id);
-      saveDraftsToStorage([...otherDrafts, finalProtocol]);
-    } else {
-      // Remove from drafts if publishing draft
-      if (editingProtocolId && drafts.some(d => d.id === editingProtocolId)) {
-        const updatedDrafts = drafts.filter(d => d.id !== editingProtocolId);
-        saveDraftsToStorage(updatedDrafts);
-      }
-      await premiumProtocolsApi.createOrUpdateProtocol(finalProtocol);
-    }
 
-    await loadData();
-    setIsWizardOpen(false);
+      await loadData();
+      setIsWizardOpen(false);
+    } catch (e: any) {
+      alert(e.message || "Erro ao salvar o protocolo.");
+      await loadData();
+    }
   };
 
   const activeExercises = exercises.filter(ex => ex.is_active);
@@ -1844,6 +1983,14 @@ export const ProtocolManagement: React.FC = () => {
         </div>
         
         <div className="flex flex-wrap gap-2.5">
+          <button
+            onClick={handleRestoreDefaults}
+            className="px-5 h-12 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-amber-200"
+          >
+            <RefreshCw size={13} />
+            Restaurar Padrões
+          </button>
+
           <button
             onClick={() => {
               setSimpleName("");
@@ -1991,8 +2138,9 @@ export const ProtocolManagement: React.FC = () => {
             {/* MEUS PROTOCOLOS TAB (ADMIN WORKSPACE Row List / Bento) */}
             {activeSubTab === 'my_protocols' && (() => {
               // Filters Logic
-              const filteredList = [...protocols, ...drafts].filter(p => {
-                const currentStatus = p.status || (p.is_active !== false ? 'published' : 'draft');
+              const baseProtocols = statusFilter === 'deleted' ? deletedProtocols : protocols;
+              const filteredList = [...baseProtocols, ...drafts].filter(p => {
+                const currentStatus = p.is_deleted ? 'deleted' : (p.status || (p.is_active !== false ? 'published' : 'draft'));
                 
                 // 1. Status Filter
                 if (statusFilter !== 'all' && currentStatus !== statusFilter) return false;
@@ -2108,6 +2256,7 @@ export const ProtocolManagement: React.FC = () => {
                           <option value="published">Publicados</option>
                           <option value="draft">Rascunhos</option>
                           <option value="archived">Lixeira / Arquivados</option>
+                          <option value="deleted">Deletados (Soft Delete)</option>
                         </select>
                       </div>
 
@@ -2269,7 +2418,11 @@ export const ProtocolManagement: React.FC = () => {
 
                                 <td className="p-5">
                                   <div className="flex flex-col gap-1 items-start">
-                                    {currentStatus === 'archived' ? (
+                                    {p.is_deleted ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-red-100 ring-1 ring-red-300 text-red-700 rounded-full">
+                                        <span className="w-1.5 h-1.5 bg-red-600 rounded-full" /> Deletado (Soft)
+                                      </span>
+                                    ) : currentStatus === 'archived' ? (
                                       <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-rose-50 ring-1 ring-rose-200 text-rose-600 rounded-full">
                                         <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" /> Arquivado
                                       </span>
@@ -2286,7 +2439,26 @@ export const ProtocolManagement: React.FC = () => {
                                 </td>
 
                                 <td className="p-5 text-right space-x-1 whitespace-nowrap">
-                                  {currentStatus === 'archived' ? (
+                                  {p.is_deleted ? (
+                                    <>
+                                      <button
+                                        onClick={() => handleRestoreSoftDeleted(p.id)}
+                                        className="p-1.5 text-emerald-600 hover:text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg transition"
+                                        title="Restaurar da Lixeira Lógica"
+                                      >
+                                        <Check size={11} />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setDeletingProtocol(p);
+                                        }}
+                                        className="p-1.5 text-red-500 hover:text-red-700 bg-red-50 border border-red-100 rounded-lg transition"
+                                        title="Excluir Permanentemente (Físico)"
+                                      >
+                                        <Trash2 size={11} />
+                                      </button>
+                                    </>
+                                  ) : currentStatus === 'archived' ? (
                                     <>
                                       <button
                                         onClick={() => handleRestore(p.id)}
@@ -2300,7 +2472,7 @@ export const ProtocolManagement: React.FC = () => {
                                           setDeletingProtocol(p);
                                         }}
                                         className="p-1.5 text-red-500 hover:text-red-700 bg-red-50 border border-red-100 rounded-lg transition"
-                                        title="Excluir Permanentemente"
+                                        title="Excluir (Soft Delete)"
                                       >
                                         <Trash2 size={11} />
                                       </button>
@@ -2744,14 +2916,20 @@ export const ProtocolManagement: React.FC = () => {
                                     {preset.title}
                                   </span>
                                 </div>
-                                <button
-                                  type="button"
+                                <div
+                                  role="button"
+                                  tabIndex={0}
                                   onClick={(e) => handleDeletePreset(preset.id, e)}
-                                  className={`absolute ${isSelected ? 'right-7' : 'right-1.5'} top-1.5 w-5 h-5 rounded-full bg-slate-900/80 hover:bg-red-600 text-slate-200 hover:text-white flex items-center justify-center border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 z-10`}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      handleDeletePreset(preset.id, e as any);
+                                    }
+                                  }}
+                                  className={`absolute ${isSelected ? 'right-7' : 'right-1.5'} top-1.5 w-5 h-5 rounded-full bg-slate-900/80 hover:bg-red-600 text-slate-200 hover:text-white flex items-center justify-center border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 z-10 cursor-pointer`}
                                   title="Excluir imagem de capa"
                                 >
                                   <Trash2 size={10} />
-                                </button>
+                                </div>
                                 {isSelected && (
                                   <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white border border-white/20">
                                     <CheckCircle size={10} strokeWidth={3} />
@@ -3464,14 +3642,20 @@ export const ProtocolManagement: React.FC = () => {
                                       {preset.title}
                                     </span>
                                   </div>
-                                  <button
-                                    type="button"
+                                  <div
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={(e) => handleDeletePreset(preset.id, e)}
-                                    className={`absolute ${isSelected ? 'right-7' : 'right-2'} top-2 w-5 h-5 rounded-full bg-slate-900/80 hover:bg-red-600 text-slate-200 hover:text-white flex items-center justify-center border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 z-10`}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        handleDeletePreset(preset.id, e as any);
+                                      }
+                                    }}
+                                    className={`absolute ${isSelected ? 'right-7' : 'right-2'} top-2 w-5 h-5 rounded-full bg-slate-900/80 hover:bg-red-600 text-slate-200 hover:text-white flex items-center justify-center border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 z-10 cursor-pointer`}
                                     title="Excluir imagem de capa"
                                   >
                                     <Trash2 size={10} />
-                                  </button>
+                                  </div>
                                   {isSelected && (
                                     <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white border border-white/20">
                                       <CheckCircle size={10} strokeWidth={3} />
@@ -4350,14 +4534,20 @@ export const ProtocolManagement: React.FC = () => {
                                 {preset.title}
                               </span>
                             </div>
-                            <button
-                              type="button"
+                            <div
+                              role="button"
+                              tabIndex={0}
                               onClick={(e) => handleDeletePreset(preset.id, e)}
-                              className={`absolute ${isSelected ? 'right-7' : 'right-1.5'} top-1.5 w-5 h-5 rounded-full bg-slate-900/80 hover:bg-red-600 text-slate-200 hover:text-white flex items-center justify-center border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 z-10`}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  handleDeletePreset(preset.id, e as any);
+                                }
+                              }}
+                              className={`absolute ${isSelected ? 'right-7' : 'right-1.5'} top-1.5 w-5 h-5 rounded-full bg-slate-900/80 hover:bg-red-600 text-slate-200 hover:text-white flex items-center justify-center border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 z-10 cursor-pointer`}
                               title="Excluir imagem de capa"
                             >
                               <Trash2 size={10} />
-                            </button>
+                            </div>
                             {isSelected && (
                               <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white border border-white/20">
                                 <CheckCircle size={10} strokeWidth={3} />
@@ -4949,11 +5139,15 @@ export const ProtocolManagement: React.FC = () => {
           >
             <div className="flex items-center gap-3 text-red-600 mb-4">
               <AlertTriangle size={20} className="shrink-0" />
-              <h3 className="text-sm font-black uppercase tracking-tight">Excluir protocolo permanentemente?</h3>
+              <h3 className="text-sm font-black uppercase tracking-tight">
+                {deletingProtocol.is_deleted ? 'Excluir Protocolo Definitivamente?' : 'Excluir Protocolo (Soft Delete)?'}
+              </h3>
             </div>
             
             <p className="text-xs text-slate-500 leading-relaxed mb-6">
-              Esta ação não poderá ser desfeita. O protocolo <strong className="text-slate-950">"{deletingProtocol.name}"</strong> será deletado para sempre dos registros.
+              {deletingProtocol.is_deleted 
+                ? `ATENÇÃO: Esta ação é definitiva e removerá fisicamente o protocolo "${deletingProtocol.name}" de forma permanente do banco de dados.`
+                : `O protocolo "${deletingProtocol.name}" será movido para a lixeira de deletados por meio de exclusão lógica (Soft Delete), preservando o histórico para restauração futura.`}
             </p>
 
             <div className="flex items-center justify-end gap-3">
@@ -4964,13 +5158,17 @@ export const ProtocolManagement: React.FC = () => {
                 Cancelar
               </button>
               <button
-                onClick={() => {
-                    handleDeletePermanently(deletingProtocol);
-                    setDeletingProtocol(null);
+                onClick={async () => {
+                  if (deletingProtocol.is_deleted) {
+                    await handleDeleteDefinitively(deletingProtocol);
+                  } else {
+                    await handleSoftDelete(deletingProtocol);
+                  }
+                  setDeletingProtocol(null);
                 }}
                 className="px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md"
               >
-                Excluir Permanentemente
+                {deletingProtocol.is_deleted ? 'Excluir Definitivamente' : 'Excluir (Soft Delete)'}
               </button>
             </div>
           </motion.div>

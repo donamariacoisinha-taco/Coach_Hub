@@ -15,6 +15,7 @@ import {
   Edit
 } from 'lucide-react';
 import { premiumProtocolsApi, PremiumProtocol } from '../../../lib/api/premiumProtocolsApi';
+import { premiumProtocolRealtimeService } from '../../../lib/api/PremiumProtocolRealtimeService';
 import { authApi } from '../../../lib/api/authApi';
 import { UserProfile } from '../../../types';
 import { isAdmin } from '../../../lib/utils/auth';
@@ -74,15 +75,26 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
       setIsEditingWorkoutId(null);
       setToastMessage("Nome do treino atualizado com sucesso!");
       onRefreshDashboard();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Erro ao atualizar nome do treino:", e);
-      setToastMessage("Ocorreu um erro ao atualizar.");
+      const msg = e?.message || "Ocorreu um erro ao atualizar.";
+      setToastMessage(msg);
+      alert(msg);
     }
   };
 
   // Load state on mount
   useEffect(() => {
     loadData();
+
+    const unsubscribe = premiumProtocolRealtimeService.subscribe((payload) => {
+      console.log('[PremiumLibraryComponent] Real-time protocol update received, re-fetching...', payload);
+      loadData();
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Reset showWorkouts on protocol change

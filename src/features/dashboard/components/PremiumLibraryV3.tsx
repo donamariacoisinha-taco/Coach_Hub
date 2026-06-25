@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { premiumProtocolsApi, PremiumProtocol } from '../../../lib/api/premiumProtocolsApi';
+import { premiumProtocolRealtimeService } from '../../../lib/api/PremiumProtocolRealtimeService';
 import { authApi } from '../../../lib/api/authApi';
 import { UserProfile } from '../../../types';
 import { isAdmin } from '../../../lib/utils/auth';
@@ -27,6 +28,15 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
 
   useEffect(() => {
     loadData();
+
+    const unsubscribe = premiumProtocolRealtimeService.subscribe((payload) => {
+      console.log('[PremiumLibraryV3] Real-time protocol update received, re-fetching...', payload);
+      loadData();
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const loadData = async () => {

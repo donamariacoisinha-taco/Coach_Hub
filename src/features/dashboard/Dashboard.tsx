@@ -26,6 +26,7 @@ import { systemTemplatesApi } from '../../lib/api/systemTemplatesApi';
 import { PremiumLibraryV3 } from './components/PremiumLibraryV3';
 import { PremiumLibraryComponent } from './components/PremiumLibraryComponent';
 import { premiumProtocolsApi } from '../../lib/api/premiumProtocolsApi';
+import { premiumProtocolRealtimeService } from '../../lib/api/PremiumProtocolRealtimeService';
 import { Crown, Sliders } from 'lucide-react';
 import { isAdmin } from '../../lib/utils/auth';
 import { playHapticFeedback } from '../../services/athleteMemoryEngine';
@@ -243,6 +244,16 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       }
     };
     loadPublicProtocols();
+
+    // Subscribe to premium protocol real-time updates
+    const unsubscribe = premiumProtocolRealtimeService.subscribe((payload) => {
+      console.log('[Dashboard] Real-time protocol update received, re-fetching...', payload);
+      loadPublicProtocols();
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [workouts]);
 
   const mappedPublicWorkouts = useMemo(() => {
