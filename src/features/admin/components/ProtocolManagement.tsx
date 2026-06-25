@@ -214,7 +214,45 @@ export const ProtocolManagement: React.FC = () => {
     }
   };
 
-  const allPresetImages = [...customPresetImages, ...PROTOCOL_PRESET_IMAGES];
+  const [deletedPresetIds, setDeletedPresetIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('rubi_deleted_preset_images');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  const allPresetImages = [...customPresetImages, ...PROTOCOL_PRESET_IMAGES].filter(p => !deletedPresetIds.includes(p.id));
+
+  const handleDeletePreset = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('Tem certeza de que deseja ocultar/excluir esta imagem de capa permanentemente das opções?')) {
+      const newDeleted = [...deletedPresetIds, id];
+      setDeletedPresetIds(newDeleted);
+      localStorage.setItem('rubi_deleted_preset_images', JSON.stringify(newDeleted));
+
+      const updatedCustom = customPresetImages.filter(item => item.id !== id);
+      setCustomPresetImages(updatedCustom);
+      localStorage.setItem('rubi_custom_preset_images', JSON.stringify(updatedCustom));
+
+      // Limpar seleção se a imagem apagada estava em uso nos formulários
+      const deletedPreset = [...customPresetImages, ...PROTOCOL_PRESET_IMAGES].find(p => p.id === id);
+      if (deletedPreset) {
+        if (builderImage === deletedPreset.url) setBuilderImage('');
+        if (imageUrl === deletedPreset.url) setImageUrl('');
+        if (currentGeneratedDraft && currentGeneratedDraft.image_url === deletedPreset.url) {
+          setCurrentGeneratedDraft({ ...currentGeneratedDraft, image_url: '' });
+        }
+      }
+
+      setBuilderToast('Imagem de capa removida com sucesso!');
+      setTimeout(() => setBuilderToast(null), 3000);
+    }
+  };
 
   // Step 2 Selection Criteria
   const [critEquipFull, setCritEquipFull] = useState<boolean>(true);
@@ -2672,6 +2710,14 @@ export const ProtocolManagement: React.FC = () => {
                                     {preset.title}
                                   </span>
                                 </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeletePreset(preset.id, e)}
+                                  className={`absolute ${isSelected ? 'right-7' : 'right-1.5'} top-1.5 w-5 h-5 rounded-full bg-slate-900/80 hover:bg-red-600 text-slate-200 hover:text-white flex items-center justify-center border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 z-10`}
+                                  title="Excluir imagem de capa"
+                                >
+                                  <Trash2 size={10} />
+                                </button>
                                 {isSelected && (
                                   <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white border border-white/20">
                                     <CheckCircle size={10} strokeWidth={3} />
@@ -3384,6 +3430,14 @@ export const ProtocolManagement: React.FC = () => {
                                       {preset.title}
                                     </span>
                                   </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeletePreset(preset.id, e)}
+                                    className={`absolute ${isSelected ? 'right-7' : 'right-2'} top-2 w-5 h-5 rounded-full bg-slate-900/80 hover:bg-red-600 text-slate-200 hover:text-white flex items-center justify-center border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 z-10`}
+                                    title="Excluir imagem de capa"
+                                  >
+                                    <Trash2 size={10} />
+                                  </button>
                                   {isSelected && (
                                     <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white border border-white/20">
                                       <CheckCircle size={10} strokeWidth={3} />
@@ -4262,6 +4316,14 @@ export const ProtocolManagement: React.FC = () => {
                                 {preset.title}
                               </span>
                             </div>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeletePreset(preset.id, e)}
+                              className={`absolute ${isSelected ? 'right-7' : 'right-1.5'} top-1.5 w-5 h-5 rounded-full bg-slate-900/80 hover:bg-red-600 text-slate-200 hover:text-white flex items-center justify-center border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 z-10`}
+                              title="Excluir imagem de capa"
+                            >
+                              <Trash2 size={10} />
+                            </button>
                             {isSelected && (
                               <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white border border-white/20">
                                 <CheckCircle size={10} strokeWidth={3} />
