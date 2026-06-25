@@ -1453,26 +1453,27 @@ class PremiumProtocolsApi {
     const deletedRaw = localStorage.getItem('kyron_deleted_protocol_ids');
     const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
 
+    const publicDefaults = INITIAL_PREMIUM_PROTOCOLS.filter(p => !p.premium && !deletedIds.has(p.id));
+
     if (!raw) {
-      const activeDefaults = INITIAL_PREMIUM_PROTOCOLS.filter(p => !deletedIds.has(p.id));
-      localStorage.setItem('rubi_premium_protocols', JSON.stringify(activeDefaults));
-      return activeDefaults;
+      localStorage.setItem('rubi_premium_protocols', JSON.stringify(publicDefaults));
+      return publicDefaults;
     }
     try {
       const parsed = JSON.parse(raw) as PremiumProtocol[];
       // Sync check - guarantee that any new items in our hardcoded array are written to local storage, excluding deleted ones
       const parsedIds = new Set(parsed.map(p => p.id));
-      const missing = INITIAL_PREMIUM_PROTOCOLS.filter(p => !parsedIds.has(p.id) && !deletedIds.has(p.id));
+      const missing = publicDefaults.filter(p => !parsedIds.has(p.id));
+      let merged = parsed;
       if (missing.length > 0) {
-        const merged = [...parsed, ...missing];
-        const filteredMerged = merged.filter(p => !deletedIds.has(p.id));
-        localStorage.setItem('rubi_premium_protocols', JSON.stringify(filteredMerged));
-        return filteredMerged;
+        merged = [...parsed, ...missing];
       }
-      const filteredParsed = parsed.filter(p => !deletedIds.has(p.id));
-      return filteredParsed;
+      // Filter out any premium protocols permanently
+      const filteredMerged = merged.filter(p => !p.premium && !deletedIds.has(p.id));
+      localStorage.setItem('rubi_premium_protocols', JSON.stringify(filteredMerged));
+      return filteredMerged;
     } catch {
-      return INITIAL_PREMIUM_PROTOCOLS.filter(p => !deletedIds.has(p.id));
+      return publicDefaults;
     }
   }
 
@@ -1520,32 +1521,62 @@ class PremiumProtocolsApi {
     });
 
     let dbProtocols: PremiumProtocol[] = [];
+    let dbSuccess = false;
     try {
       const { data, error } = await supabase.from('premium_protocols').select('*');
       if (!error && data) {
+        dbSuccess = true;
+        
+        // Find and delete any premium protocols in the database to fulfill the user's requirement
+        const premiumIds = (data as PremiumProtocol[]).filter(p => p.premium === true).map(p => p.id);
+        if (premiumIds.length > 0) {
+          console.log('[PremiumProtocolsApi] Actively deleting premium protocols from database:', premiumIds);
+          for (const id of premiumIds) {
+            await supabase.from('premium_protocols').delete().eq('id', id);
+          }
+        }
+
         if (data.length === 0) {
           console.log('[PremiumProtocolsApi] Seeding empty premium_protocols table...');
-          for (const p of INITIAL_PREMIUM_PROTOCOLS) {
+          // Only seed non-premium (public) protocols from initial list
+          const publicSeed = INITIAL_PREMIUM_PROTOCOLS.filter(p => !p.premium);
+          for (const p of publicSeed) {
             await supabase.from('premium_protocols').upsert(this.sanitizeForDb(this.sanitizeExercisesOrder(ensureStatus(p))));
           }
+          // Insert seed marker so subsequent queries on any device don't think it's unseeded
+          await supabase.from('premium_protocols').upsert({
+            id: 'seed_marker_v1',
+            name: 'Seed Marker',
+            is_active: false,
+            status: 'archived',
+            premium: false,
+            workouts: []
+          });
           const { data: reFetched } = await supabase.from('premium_protocols').select('*');
           if (reFetched && reFetched.length > 0) {
-            dbProtocols = reFetched as PremiumProtocol[];
+            dbProtocols = (reFetched as PremiumProtocol[]).filter(p => p.id !== 'seed_marker_v1' && !p.premium);
           }
         } else {
-          dbProtocols = data as PremiumProtocol[];
+          dbProtocols = (data as PremiumProtocol[]).filter(p => p.id !== 'seed_marker_v1' && !p.premium);
         }
       }
     } catch (e) {
       console.warn('[PremiumProtocolsApi] DB query failed or table not available. Using local space.', e);
     }
 
+    const initialProtocolIds = new Set(INITIAL_PREMIUM_PROTOCOLS.filter(p => !p.premium).map(p => p.id));
+    const dbProtocolIds = new Set(dbProtocols.map(p => p.id));
+
     // Merge database and local protocols to ensure any locally created protocols
     // (e.g. if DB write failed due to lack of admin permissions/RLS or extra columns) are still available and visible.
     const mergedMap = new Map<string, PremiumProtocol>();
     
-    // 1. Populate with local protocols
+    // 1. Populate with local protocols (which are already public only)
     for (const p of localList) {
+      // If we successfully queried the database, any default protocol that is missing from the DB was deleted!
+      if (dbSuccess && initialProtocolIds.has(p.id) && !dbProtocolIds.has(p.id)) {
+        continue;
+      }
       mergedMap.set(p.id, ensureStatus(p));
     }
     
@@ -1558,7 +1589,8 @@ class PremiumProtocolsApi {
       }));
     }
 
-    return Array.from(mergedMap.values()).filter(p => !deletedIds.has(p.id));
+    // Keep ONLY public protocols (premium !== true) and non-deleted
+    return Array.from(mergedMap.values()).filter(p => !p.premium && !deletedIds.has(p.id));
   }
 
   async getProtocolById(id: string): Promise<PremiumProtocol | null> {
