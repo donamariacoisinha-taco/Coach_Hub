@@ -15,11 +15,15 @@ import {
   Dumbbell, 
   Layers, 
   ChevronRight,
-  GripVertical
+  GripVertical,
+  RotateCcw,
+  Info
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
 import { Exercise, SystemTemplateWorkout, SystemTemplateExercise } from '../../../types';
 import { geminiService } from '../../../services/geminiService';
+import { authApi } from '../../../lib/api/authApi';
+import { adminPreferencesApi } from '../../../lib/api/adminPreferencesApi';
 
 interface ExerciseBuilderComponentProps {
   workouts: SystemTemplateWorkout[];
@@ -29,49 +33,50 @@ interface ExerciseBuilderComponentProps {
   frequency?: number;
 }
 
-const TEMPLATE_STRUCTURES: Record<string, { name: string; muscle: string }[]> = {
+interface TemplateItem {
+  exercise_id: string;
+  fallback_name: string;
+  muscle: string;
+}
+
+const TEMPLATE_STRUCTURES: Record<string, TemplateItem[]> = {
   'PEITORAL': [
-    { name: 'Supino Inclinado', muscle: 'Peito' },
-    { name: 'Supino Reto', muscle: 'Peito' },
-    { name: 'Crucifixo', muscle: 'Peito' },
-    { name: 'Peck Deck', muscle: 'Peito' },
-    { name: 'Paralelas', muscle: 'Peito' }
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896002', fallback_name: 'Supino Inclinado com Halteres', muscle: 'Peito' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896001', fallback_name: 'Supino Reto com Barra', muscle: 'Peito' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896003', fallback_name: 'Crucifixo Reto com Halteres', muscle: 'Peito' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896005', fallback_name: 'Voador (Pec Deck)', muscle: 'Peito' }
   ],
   'COSTAS': [
-    { name: 'Pulldown', muscle: 'Costas' },
-    { name: 'Remada Baixa', muscle: 'Costas' },
-    { name: 'Remada Curvada', muscle: 'Costas' },
-    { name: 'Pullover', muscle: 'Costas' }
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896006', fallback_name: 'Puxada Alta (Pulldown)', muscle: 'Costas' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896007', fallback_name: 'Remada Curvada com Barra', muscle: 'Costas' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896008', fallback_name: 'Remada Baixa Sentada no Cabo', muscle: 'Costas' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896009', fallback_name: 'Barra Fixa (Pull-up)', muscle: 'Costas' }
   ],
   'OMBROS': [
-    { name: 'Desenvolvimento Militar', muscle: 'Ombros' },
-    { name: 'Elevação Lateral', muscle: 'Ombros' },
-    { name: 'Face Pull', muscle: 'Ombros' },
-    { name: 'Elevação Frontal', muscle: 'Ombros' }
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896010', fallback_name: 'Desenvolvimento com Halteres', muscle: 'Ombros' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896011', fallback_name: 'Elevação Lateral com Halteres', muscle: 'Ombros' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896013', fallback_name: 'Crucifixo Invertido com Halteres', muscle: 'Ombros' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896012', fallback_name: 'Elevação Frontal com Halteres', muscle: 'Ombros' }
   ],
   'BRAÇOS': [
-    { name: 'Rosca Direta', muscle: 'Braços' },
-    { name: 'Rosca Alternada', muscle: 'Braços' },
-    { name: 'Tríceps Pulley', muscle: 'Braços' },
-    { name: 'Tríceps Francês', muscle: 'Braços' }
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896020', fallback_name: 'Rosca Direta com Barra W', muscle: 'Braços' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896021', fallback_name: 'Rosca Martelo com Halteres', muscle: 'Braços' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896022', fallback_name: 'Tríceps Pulley (Corda)', muscle: 'Braços' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896023', fallback_name: 'Tríceps Testa com Barra W', muscle: 'Braços' }
   ],
   'QUADRÍCEPS': [
-    { name: 'Agachamento Livre', muscle: 'Pernas' },
-    { name: 'Leg Press', muscle: 'Pernas' },
-    { name: 'Cadeira Extensora', muscle: 'Pernas' },
-    { name: 'Afundo', muscle: 'Pernas' }
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896014', fallback_name: 'Agachamento Livre com Barra', muscle: 'Pernas' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896015', fallback_name: 'Leg Press 45 Graus', muscle: 'Pernas' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896016', fallback_name: 'Cadeira Extensora', muscle: 'Pernas' }
   ],
   'POSTERIOR': [
-    { name: 'Stiff', muscle: 'Pernas' },
-    { name: 'Mesa Flexora', muscle: 'Pernas' },
-    { name: 'Flexora Sentada', muscle: 'Pernas' },
-    { name: 'Glute Ham Raise', muscle: 'Pernas' }
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896018', fallback_name: 'Stiff com Halteres', muscle: 'Pernas' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896017', fallback_name: 'Mesa Flexora', muscle: 'Pernas' }
   ],
   'GLÚTEOS': [
-    { name: 'Hip Thrust', muscle: 'Pernas' },
-    { name: 'Glute Bridge', muscle: 'Pernas' },
-    { name: 'Afundo Búlgaro', muscle: 'Pernas' },
-    { name: 'Abdução Máquina', muscle: 'Pernas' }
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896014', fallback_name: 'Agachamento Livre com Barra', muscle: 'Pernas' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896015', fallback_name: 'Leg Press 45 Graus', muscle: 'Pernas' },
+    { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896018', fallback_name: 'Stiff com Halteres', muscle: 'Pernas' }
   ]
 };
 
@@ -98,7 +103,10 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
   // Multi-selection state
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<string>>(new Set());
   
-  // Favorites & Recents (Persisted in LocalStorage)
+  // Authenticated User ID
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Favorites & Recents (Persisted in LocalStorage and synchronized to Cloud)
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       const stored = localStorage.getItem('kyron_admin_favorites');
@@ -117,6 +125,30 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
     }
   });
 
+  // Bulk Settings States
+  const [bulkSets, setBulkSets] = useState<number>(4);
+  const [bulkReps, setBulkReps] = useState<string>('10');
+  const [bulkRest, setBulkRest] = useState<number>(60);
+  const [bulkWeight, setBulkWeight] = useState<string>('');
+
+  // Undo System States
+  const [undoTimer, setUndoTimer] = useState<any | null>(null);
+  const [undoAction, setUndoAction] = useState<{
+    message: string;
+    previousWorkouts: SystemTemplateWorkout[];
+    timestamp: number;
+  } | null>(null);
+
+  // Protocol Intelligence 1.0 Modal States
+  const [showIntelModal, setShowIntelModal] = useState(false);
+  const [isGeneratingIntel, setIsGeneratingIntel] = useState(false);
+  const [intelError, setIntelError] = useState<string | null>(null);
+  const [intelGoal, setIntelGoal] = useState<string>('Hipertrofia');
+  const [intelLevel, setIntelLevel] = useState<string>('Intermediário');
+  const [intelDays, setIntelDays] = useState<number>(4);
+  const [intelLocation, setIntelLocation] = useState<string>('Academia');
+  const [intelFocus, setIntelFocus] = useState<string>('Pernas completas');
+
   // Smart suggestions
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<{ exercise_name: string; reason: string }[]>([]);
@@ -132,21 +164,100 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
     }
   }, [workouts, activeWorkoutId]);
 
-  // Persist Favorites
-  const toggleFavorite = (exerciseId: string, e: React.MouseEvent) => {
+  // Synchronized Cloud Preferences Load
+  useEffect(() => {
+    const loadCloudPreferences = async () => {
+      try {
+        const user = await authApi.getUser();
+        if (user?.id) {
+          setUserId(user.id);
+          const prefs = await adminPreferencesApi.getPreferences(user.id);
+          if (prefs) {
+            let cloudFavs: string[] = [];
+            let cloudRecents: string[] = [];
+            
+            if (Array.isArray(prefs.favorite_exercises)) {
+              cloudFavs = prefs.favorite_exercises;
+            } else if (typeof prefs.favorite_exercises === 'string') {
+              try { cloudFavs = JSON.parse(prefs.favorite_exercises); } catch {}
+            }
+            
+            if (Array.isArray(prefs.recent_exercises)) {
+              cloudRecents = prefs.recent_exercises;
+            } else if (typeof prefs.recent_exercises === 'string') {
+              try { cloudRecents = JSON.parse(prefs.recent_exercises); } catch {}
+            }
+
+            if (cloudFavs.length > 0) {
+              setFavorites(cloudFavs);
+              localStorage.setItem('kyron_admin_favorites', JSON.stringify(cloudFavs));
+            }
+            if (cloudRecents.length > 0) {
+              setRecents(cloudRecents);
+              localStorage.setItem('kyron_admin_recents', JSON.stringify(cloudRecents));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[ExerciseBuilder] Error loading cloud preferences:', err);
+      }
+    };
+    loadCloudPreferences();
+  }, []);
+
+  // Undo System Actions
+  const registerUndoState = (message: string) => {
+    if (undoTimer) {
+      clearTimeout(undoTimer);
+    }
+    
+    const deepCopy = JSON.parse(JSON.stringify(workouts));
+    setUndoAction({
+      message,
+      previousWorkouts: deepCopy,
+      timestamp: Date.now()
+    });
+    
+    const timer = setTimeout(() => {
+      setUndoAction(null);
+    }, 5000);
+    setUndoTimer(timer);
+  };
+
+  const triggerUndo = () => {
+    if (undoAction) {
+      onChangeWorkouts(undoAction.previousWorkouts);
+      setUndoAction(null);
+      if (undoTimer) {
+        clearTimeout(undoTimer);
+        setUndoTimer(null);
+      }
+    }
+  };
+
+  // Persist Favorites (Local and Cloud)
+  const toggleFavorite = async (exerciseId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = favorites.includes(exerciseId)
       ? favorites.filter(id => id !== exerciseId)
       : [...favorites, exerciseId];
     setFavorites(updated);
     localStorage.setItem('kyron_admin_favorites', JSON.stringify(updated));
+
+    if (userId) {
+      await adminPreferencesApi.savePreferences(userId, updated, recents);
+    }
   };
 
-  // Add to recents helper
-  const addToRecents = (exerciseId: string) => {
+  // Add to recents helper (Local and Cloud)
+  const addToRecents = async (exerciseId: string) => {
     const updated = [exerciseId, ...recents.filter(id => id !== exerciseId)].slice(0, 8);
     setRecents(updated);
     localStorage.setItem('kyron_admin_recents', JSON.stringify(updated));
+
+    if (userId) {
+      await adminPreferencesApi.savePreferences(userId, favorites, updated);
+    }
   };
 
   // Filter & search exercises
@@ -238,6 +349,8 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
   const addSelectedExercises = () => {
     if (!activeWorkoutId || selectedExerciseIds.size === 0) return;
     
+    registerUndoState("Adição múltipla de exercícios concluída");
+    
     const exercisesToAdd = exercises.filter(ex => selectedExerciseIds.has(ex.id));
     
     const updated = workouts.map(w => {
@@ -275,20 +388,25 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
     const structure = TEMPLATE_STRUCTURES[templateKey];
     if (!structure) return;
 
+    registerUndoState(`Template ${templateKey} aplicado`);
+
     const updated = workouts.map(w => {
       if (w.id === activeWorkoutId) {
         const currentList = w.exercises || [];
         const newItems: SystemTemplateExercise[] = [];
         
         structure.forEach((item, index) => {
-          // Find exercise in DB or fallback
-          let foundEx = exercises.find(ex => ex.name.toLowerCase().trim() === item.name.toLowerCase().trim());
+          // Find exercise in DB by ID first, then fallback to name
+          let foundEx = exercises.find(ex => ex.id === item.exercise_id);
           if (!foundEx) {
-            foundEx = exercises.find(ex => ex.name.toLowerCase().includes(item.name.toLowerCase()));
+            foundEx = exercises.find(ex => ex.name.toLowerCase().trim() === item.fallback_name.toLowerCase().trim());
+          }
+          if (!foundEx) {
+            foundEx = exercises.find(ex => ex.name.toLowerCase().includes(item.fallback_name.toLowerCase()));
           }
 
-          const exercise_id = foundEx ? foundEx.id : `fallback-${Date.now()}-${index}`;
-          const exercise_name = foundEx ? foundEx.name : item.name;
+          const exercise_id = foundEx ? foundEx.id : item.exercise_id;
+          const exercise_name = foundEx ? foundEx.name : item.fallback_name;
 
           newItems.push({
             exercise_id,
@@ -484,9 +602,182 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
 
   // Add all AI suggestions at once
   const addAllAiSuggestions = () => {
+    if (aiSuggestions.length === 0) return;
+    registerUndoState("Sugestões da IA Rubi adicionadas");
     aiSuggestions.forEach(s => addAiSuggestedExercise(s.exercise_name));
     setAiSuggestions([]);
     setShowAiPanel(false);
+  };
+
+  // Apply Bulk Settings to All Exercises of the Active Workout Day
+  const applyBulkSettings = () => {
+    if (!activeWorkoutId) return;
+    const activeW = workouts.find(w => w.id === activeWorkoutId);
+    if (!activeW || !activeW.exercises || activeW.exercises.length === 0) return;
+    
+    registerUndoState(`Configuração em lote aplicada em ${activeW.exercises.length} exercícios`);
+
+    const updatedExercises = activeW.exercises.map(te => {
+      const parsedWeight = bulkWeight !== '' ? Number(bulkWeight) : (te.weight || 12);
+      return {
+        ...te,
+        sets: bulkSets,
+        reps: bulkReps,
+        rest_time: bulkRest,
+        weight: parsedWeight,
+        sets_json: Array.from({ length: bulkSets }).map(() => ({
+          reps: bulkReps,
+          weight: parsedWeight,
+          rest_time: bulkRest
+        }))
+      };
+    });
+
+    const updatedWorkouts = workouts.map(w => {
+      if (w.id === activeWorkoutId) {
+        return { ...w, exercises: updatedExercises };
+      }
+      return w;
+    });
+
+    onChangeWorkouts(updatedWorkouts);
+  };
+
+  // Generate complete customized protocol via Protocol Intelligence 1.0 (Rubi AI)
+  const generateProtocolIntel = async () => {
+    setIsGeneratingIntel(true);
+    setIntelError(null);
+    try {
+      const existingNames = exercises.slice(0, 100).map(e => e.name);
+      
+      const response = await geminiService.callAI({
+        prompt: `Como Rubi, Especialista de Alta Performance e Biomecânica do KYRON OS, gere um protocolo inteligente completo:
+        OBJETIVO: ${intelGoal}
+        NÍVEL DO ATLETA: ${intelLevel}
+        FREQUÊNCIA SEMANAL: ${intelDays} dias na semana (portanto, gere exatamente ${intelDays} treinos distintos, por exemplo Treino A, Treino B...)
+        LOCAL DE TREINAMENTO: ${intelLocation}
+        FOCO MUSCULAR PRINCIPAL: ${intelFocus}
+
+        LISTA DE EXERCÍCIOS REAIS NO SISTEMA (Dê prioridade absoluta para usar estes nomes de exercícios se eles se adequarem ao plano de treino):
+        ${JSON.stringify(existingNames)}
+
+        INSTRUÇÕES:
+        1. Divida o treinamento de forma equilibrada em exatamente ${intelDays} sessões de treino (ex: Treino A - Peitoral & Ombros, Treino B...).
+        2. Selecione de 4 a 6 exercícios altamente eficazes e biomecanicamente coerentes para cada uma das sessões.
+        3. Defina séries (entre 3 e 5), repetições (ex: "8-10", "12", "FALHA") e descanso (ex: 60, 90, 120 segundos) ideais para o objetivo e nível.
+        4. Escreva dicas de progressão de carga e execução nas observações ("notes") de cada exercício.
+        5. Crie observações gerais de progressão técnica e biomecânica em "general_progression_tips".
+
+        Retorne estritamente um JSON no seguinte formato de objeto:
+        {
+          "workouts": [
+            {
+              "name": "Treino A - Peitoral & Ombros",
+              "description": "Foco em estímulo tensional e forças empurradoras",
+              "exercises": [
+                {
+                  "exercise_name": "Supino Reto com Barra",
+                  "sets": 4,
+                  "reps": "8-10",
+                  "weight": 15,
+                  "rest_time": 90,
+                  "notes": "Foque na fase excêntrica de 3 segundos, mantendo escápulas aduzidas."
+                }
+              ]
+            }
+          ],
+          "general_progression_tips": "Dicas de progressão..."
+        }`,
+        responseSchema: {
+          type: "object",
+          properties: {
+            workouts: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  exercises: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        exercise_name: { type: "string" },
+                        sets: { type: "number" },
+                        reps: { type: "string" },
+                        weight: { type: "number" },
+                        rest_time: { type: "number" },
+                        notes: { type: "string" }
+                      },
+                      required: ["exercise_name", "sets", "reps", "rest_time"]
+                    }
+                  }
+                },
+                required: ["name", "description", "exercises"]
+              }
+            },
+            general_progression_tips: { type: "string" }
+          },
+          required: ["workouts", "general_progression_tips"]
+        }
+      });
+
+      if (response && Array.isArray(response.workouts)) {
+        registerUndoState("Protocolo Inteligente Gerado");
+
+        const updatedWorkouts = response.workouts.map((w: any, wIdx: number) => {
+          const generatedExs = w.exercises || [];
+          const exercisesList = generatedExs.map((ge: any, idx: number) => {
+            let foundEx = exercises.find(ex => ex.name.toLowerCase().trim() === ge.exercise_name.toLowerCase().trim());
+            if (!foundEx) {
+              foundEx = exercises.find(ex => ex.name.toLowerCase().includes(ge.exercise_name.toLowerCase()) || ge.exercise_name.toLowerCase().includes(ex.name.toLowerCase()));
+            }
+
+            const id = foundEx ? foundEx.id : `fallback-intel-${Date.now()}-${wIdx}-${idx}`;
+            const name = foundEx ? foundEx.name : ge.exercise_name;
+
+            return {
+              exercise_id: id,
+              exercise_name: name,
+              sets: ge.sets || 4,
+              reps: ge.reps || "10",
+              weight: ge.weight || 12,
+              rest_time: ge.rest_time || 60,
+              sort_order: idx + 1,
+              sets_json: Array.from({ length: ge.sets || 4 }).map(() => ({
+                reps: ge.reps || "10",
+                weight: ge.weight || 12,
+                rest_time: ge.rest_time || 60
+              })),
+              notes: ge.notes || ""
+            };
+          });
+
+          return {
+            id: `workout-intel-${Date.now()}-${wIdx}`,
+            name: w.name,
+            description: w.description || "",
+            exercises: exercisesList
+          };
+        });
+
+        onChangeWorkouts(updatedWorkouts);
+        
+        if (updatedWorkouts.length > 0) {
+          setActiveWorkoutId(updatedWorkouts[0].id);
+        }
+
+        setShowIntelModal(false);
+      } else {
+        throw new Error("Formato de resposta inválido retornado pela IA.");
+      }
+    } catch (e: any) {
+      console.error('Error generating intelligent protocol:', e);
+      setIntelError(e?.message || "Ocorreu um erro ao comunicar com a inteligência artificial Rubi.");
+    } finally {
+      setIsGeneratingIntel(false);
+    }
   };
 
   // HTML5 Drag & Drop states
@@ -512,8 +803,38 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
   // Active workout details
   const activeWorkout = workouts.find(w => w.id === activeWorkoutId) || workouts[0];
 
+  const addedIds = useMemo(() => {
+    return new Set(activeWorkout?.exercises?.map(te => te.exercise_id) || []);
+  }, [activeWorkout]);
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      {/* Undo Banner Toast Notification */}
+      <AnimatePresence>
+        {undoAction && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-4 right-4 z-50 flex items-center gap-3 bg-slate-900 border border-slate-800 text-white px-4 py-3 rounded-2xl shadow-xl max-w-sm"
+          >
+            <div className="p-1.5 bg-slate-800 rounded-lg">
+              <RotateCcw size={14} className="text-blue-400 animate-spin" style={{ animationDuration: '4s' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Ação em lote realizada</p>
+              <p className="text-xs text-slate-200 font-bold truncate leading-tight">{undoAction.description}</p>
+            </div>
+            <button
+              onClick={triggerUndo}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black uppercase tracking-wider text-[10px] rounded-xl transition-all"
+            >
+              Desfazer
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* LEFT COLUMN: EXERCISE LIBRARY */}
       <div className="lg:col-span-5 bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm flex flex-col h-[760px]">
@@ -579,38 +900,51 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
                 <Star size={11} fill="currentColor" /> Exercícios Favoritos
               </span>
               <div className="grid grid-cols-1 gap-1.5">
-                {favoriteExercisesList.map(ex => (
-                  <div 
-                    key={`fav-${ex.id}`}
-                    onClick={() => addSingleExercise(ex)}
-                    className="group flex items-center justify-between p-2.5 bg-amber-50/40 border border-amber-100/70 hover:border-amber-400 hover:bg-amber-50 rounded-xl cursor-pointer transition-all"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <input
-                        type="checkbox"
-                        checked={selectedExerciseIds.has(ex.id)}
-                        onChange={(e) => toggleSelectExercise(ex.id, e as any)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-3.5 h-3.5 rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-xs font-black text-slate-800 truncate">{ex.name}</p>
-                        <span className="text-[9px] text-amber-700/80 font-bold uppercase">{ex.muscle_group} • {ex.equipment || 'Livre'}</span>
+                {favoriteExercisesList.map(ex => {
+                  const isAdded = addedIds.has(ex.id);
+                  return (
+                    <div 
+                      key={`fav-${ex.id}`}
+                      onClick={() => addSingleExercise(ex)}
+                      className={`group flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${
+                        isAdded
+                          ? 'bg-emerald-50/25 border border-emerald-300/70 hover:border-emerald-400 hover:bg-emerald-50/40'
+                          : 'bg-amber-50/40 border border-amber-100/70 hover:border-amber-400 hover:bg-amber-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedExerciseIds.has(ex.id)}
+                          onChange={(e) => toggleSelectExercise(ex.id, e as any)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-slate-800 truncate">{ex.name}</p>
+                          <span className="text-[9px] text-amber-700/80 font-bold uppercase">{ex.muscle_group} • {ex.equipment || 'Livre'}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button 
+                          onClick={(e) => toggleFavorite(ex.id, e)}
+                          className="p-1 text-amber-500 hover:text-amber-600"
+                        >
+                          <Star size={12} fill="currentColor" />
+                        </button>
+                        {isAdded ? (
+                          <span className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-0.5 shrink-0 bg-emerald-100/50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                            ✓ Já adicionado
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black text-amber-600 uppercase group-hover:translate-x-0.5 transition-transform shrink-0 flex items-center gap-0.5">
+                            <Plus size={11} /> Adicionar
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button 
-                        onClick={(e) => toggleFavorite(ex.id, e)}
-                        className="p-1 text-amber-500 hover:text-amber-600"
-                      >
-                        <Star size={12} fill="currentColor" />
-                      </button>
-                      <span className="text-[10px] font-black text-amber-600 uppercase group-hover:translate-x-0.5 transition-transform shrink-0 flex items-center gap-0.5">
-                        <Plus size={11} /> Adicionar
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -622,38 +956,51 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
                 <Clock size={11} /> Utilizados Recentemente
               </span>
               <div className="grid grid-cols-1 gap-1.5">
-                {recentExercisesList.map(ex => (
-                  <div 
-                    key={`rec-${ex.id}`}
-                    onClick={() => addSingleExercise(ex)}
-                    className="group flex items-center justify-between p-2.5 bg-blue-50/20 border border-blue-100/40 hover:border-blue-400 hover:bg-blue-50/50 rounded-xl cursor-pointer transition-all"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <input
-                        type="checkbox"
-                        checked={selectedExerciseIds.has(ex.id)}
-                        onChange={(e) => toggleSelectExercise(ex.id, e as any)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-3.5 h-3.5 rounded border-slate-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-xs font-black text-slate-800 truncate">{ex.name}</p>
-                        <span className="text-[9px] text-blue-700/80 font-bold uppercase">{ex.muscle_group} • {ex.equipment || 'Livre'}</span>
+                {recentExercisesList.map(ex => {
+                  const isAdded = addedIds.has(ex.id);
+                  return (
+                    <div 
+                      key={`rec-${ex.id}`}
+                      onClick={() => addSingleExercise(ex)}
+                      className={`group flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${
+                        isAdded
+                          ? 'bg-emerald-50/25 border border-emerald-300/70 hover:border-emerald-400 hover:bg-emerald-50/40'
+                          : 'bg-blue-50/20 border border-blue-100/40 hover:border-blue-400 hover:bg-blue-50/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedExerciseIds.has(ex.id)}
+                          onChange={(e) => toggleSelectExercise(ex.id, e as any)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-slate-800 truncate">{ex.name}</p>
+                          <span className="text-[9px] text-blue-700/80 font-bold uppercase">{ex.muscle_group} • {ex.equipment || 'Livre'}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button 
+                          onClick={(e) => toggleFavorite(ex.id, e)}
+                          className="p-1 text-slate-300 hover:text-amber-500 transition-colors"
+                        >
+                          <Star size={12} />
+                        </button>
+                        {isAdded ? (
+                          <span className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-0.5 shrink-0 bg-emerald-100/50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                            ✓ Já adicionado
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black text-blue-600 uppercase group-hover:translate-x-0.5 transition-transform shrink-0 flex items-center gap-0.5">
+                            <Plus size={11} /> Adicionar
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button 
-                        onClick={(e) => toggleFavorite(ex.id, e)}
-                        className="p-1 text-slate-300 hover:text-amber-500"
-                      >
-                        <Star size={12} />
-                      </button>
-                      <span className="text-[10px] font-black text-blue-600 uppercase group-hover:translate-x-0.5 transition-transform shrink-0 flex items-center gap-0.5">
-                        <Plus size={11} /> Adicionar
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -675,38 +1022,51 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
             </div>
 
             <div className="grid grid-cols-1 gap-1.5">
-              {standardExercisesList.slice(0, 40).map(ex => (
-                <div 
-                  key={`std-${ex.id}`}
-                  onClick={() => addSingleExercise(ex)}
-                  className="group flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100/70 border border-slate-200/80 hover:border-slate-300 rounded-xl cursor-pointer transition-all"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={selectedExerciseIds.has(ex.id)}
-                      onChange={(e) => toggleSelectExercise(ex.id, e as any)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-800 truncate">{ex.name}</p>
-                      <span className="text-[9px] text-slate-400 uppercase tracking-tight">{ex.muscle_group} • {ex.equipment || 'Livre'}</span>
+              {standardExercisesList.slice(0, 40).map(ex => {
+                const isAdded = addedIds.has(ex.id);
+                return (
+                  <div 
+                    key={`std-${ex.id}`}
+                    onClick={() => addSingleExercise(ex)}
+                    className={`group flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${
+                      isAdded
+                        ? 'bg-emerald-50/20 border border-emerald-300/60 hover:border-emerald-400 hover:bg-emerald-50/30'
+                        : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200/80 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={selectedExerciseIds.has(ex.id)}
+                        onChange={(e) => toggleSelectExercise(ex.id, e as any)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate">{ex.name}</p>
+                        <span className="text-[9px] text-slate-400 uppercase tracking-tight">{ex.muscle_group} • {ex.equipment || 'Livre'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button 
+                        onClick={(e) => toggleFavorite(ex.id, e)}
+                        className="p-1 text-slate-300 hover:text-amber-500 transition-colors"
+                      >
+                        <Star size={12} />
+                      </button>
+                      {isAdded ? (
+                        <span className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-0.5 shrink-0 bg-emerald-100/50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                          ✓ Já adicionado
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-600 uppercase group-hover:translate-x-0.5 transition-transform shrink-0 flex items-center gap-0.5">
+                          <Plus size={11} /> Inserir
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button 
-                      onClick={(e) => toggleFavorite(ex.id, e)}
-                      className="p-1 text-slate-300 hover:text-amber-500 transition-colors"
-                    >
-                      <Star size={12} />
-                    </button>
-                    <span className="text-[10px] font-bold text-slate-600 uppercase group-hover:translate-x-0.5 transition-transform shrink-0 flex items-center gap-0.5">
-                      <Plus size={11} /> Inserir
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               {filteredExercises.length === 0 && (
                 <div className="text-center py-8 text-slate-400 text-xs">
@@ -747,7 +1107,17 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
               <p className="text-[10px] text-slate-400">Verifique o balanço biomecânico do treinamento.</p>
             </div>
             
-            <div className="flex items-center gap-2 self-start sm:self-auto">
+            <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap sm:flex-nowrap">
+              {/* Intel Generator Trigger */}
+              <button
+                type="button"
+                onClick={() => setShowIntelModal(true)}
+                className="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-650 hover:to-purple-750 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md shadow-indigo-500/15 shrink-0"
+              >
+                <Brain size={11} className="text-indigo-200 animate-pulse" />
+                🧬 Gerar com IA
+              </button>
+
               {/* Muscle Template Trigger */}
               <div className="relative group/tpl">
                 <button
@@ -950,6 +1320,86 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
                 </div>
               </div>
 
+              {/* CONFIGURAÇÃO EM LOTE */}
+              {activeWorkout.exercises && activeWorkout.exercises.length > 0 && (
+                <div className="mt-3.5 p-3.5 bg-slate-50/50 border border-slate-200/60 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 bg-slate-900 rounded-lg text-white">
+                      <Layers size={12} />
+                    </div>
+                    <div>
+                      <h5 className="text-[10px] font-black uppercase text-slate-800 tracking-wider">Configuração em Lote</h5>
+                      <p className="text-[9px] text-slate-400">Aplicar parâmetros iguais para os {activeWorkout.exercises.length} exercícios.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Sets */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">Séries:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={bulkSets}
+                        onChange={(e) => setBulkSets(Math.max(1, Number(e.target.value)))}
+                        className="w-10 bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-center font-bold text-slate-800 text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-500/20"
+                      />
+                    </div>
+
+                    {/* Reps */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">Reps:</span>
+                      <input
+                        type="text"
+                        placeholder="10"
+                        value={bulkReps}
+                        onChange={(e) => setBulkReps(e.target.value)}
+                        className="w-14 bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-center font-bold text-slate-800 text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-500/20"
+                      />
+                    </div>
+
+                    {/* Carga */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">Carga:</span>
+                      <input
+                        type="text"
+                        placeholder="Manter"
+                        value={bulkWeight}
+                        onChange={(e) => setBulkWeight(e.target.value)}
+                        className="w-16 bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-center font-bold text-slate-800 text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-500/20"
+                      />
+                    </div>
+
+                    {/* Descanso */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">Descanso:</span>
+                      <select
+                        value={bulkRest}
+                        onChange={(e) => setBulkRest(Number(e.target.value))}
+                        className="bg-white border border-slate-200 rounded-lg px-1 py-1 text-[10px] font-bold text-slate-800 focus:outline-none"
+                      >
+                        <option value={30}>30s</option>
+                        <option value={45}>45s</option>
+                        <option value={60}>60s</option>
+                        <option value={90}>90s</option>
+                        <option value={120}>120s</option>
+                        <option value={150}>150s</option>
+                        <option value={180}>180s</option>
+                      </select>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={applyBulkSettings}
+                      className="px-3.5 py-1.5 bg-slate-950 hover:bg-slate-800 active:bg-slate-900 text-white font-black uppercase text-[9px] tracking-wider rounded-xl transition-all shadow-sm"
+                    >
+                      Aplicar
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Active workout Exercises Table */}
               <div className="flex-1 overflow-y-auto mt-4 space-y-2 pr-1">
                 {(activeWorkout.exercises || []).map((te, index) => (
@@ -1072,6 +1522,133 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
         </div>
 
       </div>
+
+      {/* PROTOCOL INTELLIGENCE MODAL */}
+      {showIntelModal && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-100 rounded-[2.5rem] w-full max-w-md p-7 shadow-2xl flex flex-col relative overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+            
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="p-2 bg-indigo-50 rounded-2xl text-indigo-600">
+                <Brain size={20} className="animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Protocol Intelligence 1.0</h3>
+                <p className="text-[10px] text-slate-400">Geração automatizada de treinos por Rubi AI.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 flex-1 overflow-y-auto pr-1">
+              {/* Goal */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Objetivo Principal</label>
+                <input
+                  type="text"
+                  value={intelGoal}
+                  onChange={(e) => setIntelGoal(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500/20"
+                  placeholder="Ex: Hipertrofia de peitorais e ombros com foco em força tensional"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Level */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Nível do Aluno</label>
+                  <select
+                    value={intelLevel}
+                    onChange={(e) => setIntelLevel(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none"
+                  >
+                    <option value="Iniciante">Iniciante</option>
+                    <option value="Intermediário">Intermediário</option>
+                    <option value="Avançado">Avançado</option>
+                    <option value="Atleta Pro">Atleta Pro</option>
+                  </select>
+                </div>
+
+                {/* Days */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Treinos Semanais (Dias)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="7"
+                    value={intelDays}
+                    onChange={(e) => setIntelDays(Math.min(7, Math.max(1, Number(e.target.value))))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Location */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Equipamentos / Local</label>
+                  <select
+                    value={intelLocation}
+                    onChange={(e) => setIntelLocation(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none"
+                  >
+                    <option value="Academia Completa">Academia Completa</option>
+                    <option value="Estúdio / Peso Livre">Estúdio / Peso Livre</option>
+                    <option value="Home Gym">Home Gym</option>
+                    <option value="Calistenia / Peso Corporal">Calistenia / Peso Corporal</option>
+                  </select>
+                </div>
+
+                {/* Focus */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Foco de Musculatura</label>
+                  <input
+                    type="text"
+                    value={intelFocus}
+                    onChange={(e) => setIntelFocus(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 focus:outline-none"
+                    placeholder="Ex: Deltoide Lateral, Dorsal"
+                  />
+                </div>
+              </div>
+
+              {intelError && (
+                <div className="p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-[10px] font-bold leading-relaxed">
+                  {intelError}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowIntelModal(false)}
+                disabled={isGeneratingIntel}
+                className="px-4 py-2 text-[10px] font-black uppercase text-slate-400 hover:text-slate-650 tracking-wider transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={generateProtocolIntel}
+                disabled={isGeneratingIntel}
+                className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black uppercase tracking-wider text-[10px] rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-indigo-500/10 disabled:opacity-50"
+              >
+                {isGeneratingIntel ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
+                    Gerando Protocolo...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={11} className="text-indigo-200" />
+                    Iniciar Geração Inteligente
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
