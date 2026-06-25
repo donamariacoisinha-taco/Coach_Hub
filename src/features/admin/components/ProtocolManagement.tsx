@@ -593,7 +593,12 @@ export const ProtocolManagement: React.FC = () => {
     if (isFromDrafts) {
       const updatedDrafts = drafts.map(d => {
         if (d.id === id) {
-          return { ...d, is_active: d.is_active === false ? true : false };
+          const nextActive = d.is_active === false ? true : false;
+          return { 
+            ...d, 
+            is_active: nextActive,
+            status: nextActive ? 'published' : 'draft'
+          };
         }
         return d;
       });
@@ -602,7 +607,12 @@ export const ProtocolManagement: React.FC = () => {
       const pIndex = protocols.findIndex(p => p.id === id);
       if (pIndex > -1) {
         const pCurrent = protocols[pIndex];
-        const updatedItem = { ...pCurrent, is_active: pCurrent.is_active === false ? true : false };
+        const nextActive = pCurrent.is_active === false ? true : false;
+        const updatedItem = { 
+          ...pCurrent, 
+          is_active: nextActive,
+          status: nextActive ? 'published' : 'draft'
+        };
         const updatedList = [...protocols];
         updatedList[pIndex] = updatedItem;
         setProtocols(updatedList);
@@ -651,6 +661,7 @@ export const ProtocolManagement: React.FC = () => {
           ...draftToPublish,
           premium: false,
           is_active: true,
+          status: 'published',
           updated_at: new Date().toISOString()
         };
         const newDrafts = drafts.filter(d => d.id !== id);
@@ -662,7 +673,7 @@ export const ProtocolManagement: React.FC = () => {
     } else {
       const pIndex = protocols.findIndex(p => p.id === id);
       if (pIndex > -1) {
-        const updatedItem = { ...protocols[pIndex], premium: false, is_active: true };
+        const updatedItem = { ...protocols[pIndex], premium: false, is_active: true, status: 'published' };
         const updatedList = [...protocols];
         updatedList[pIndex] = updatedItem;
         setProtocols(updatedList);
@@ -679,6 +690,7 @@ export const ProtocolManagement: React.FC = () => {
           ...draftToPublish,
           premium: true,
           is_active: true,
+          status: 'published',
           updated_at: new Date().toISOString()
         };
         const newDrafts = drafts.filter(d => d.id !== id);
@@ -690,7 +702,7 @@ export const ProtocolManagement: React.FC = () => {
     } else {
       const pIndex = protocols.findIndex(p => p.id === id);
       if (pIndex > -1) {
-        const updatedItem = { ...protocols[pIndex], premium: true, is_active: true };
+        const updatedItem = { ...protocols[pIndex], premium: true, is_active: true, status: 'published' };
         const updatedList = [...protocols];
         updatedList[pIndex] = updatedItem;
         setProtocols(updatedList);
@@ -1444,6 +1456,8 @@ export const ProtocolManagement: React.FC = () => {
     const publishedObj: PremiumProtocol = {
       ...currentGeneratedDraft,
       premium: isPremiumPub,
+      is_active: true,
+      status: 'published',
       athletes_count: currentGeneratedDraft.athletes_count || 24,
       completion_rate: currentGeneratedDraft.completion_rate || 94,
       strength_increase_pct: currentGeneratedDraft.strength_increase_pct || 16,
