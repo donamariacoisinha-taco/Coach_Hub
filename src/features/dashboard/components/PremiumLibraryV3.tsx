@@ -31,20 +31,33 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
 
   const loadData = async () => {
     const list = await premiumProtocolsApi.getProtocols();
+    console.log("DEBUG: All protocols returned by API:", list.map(p => ({ id: p.id, premium: p.premium, status: p.status, is_active: p.is_active })));
     const filteredList = list.filter(p => {
       // Keep only active protocols
-      if (p.is_active === false) return false;
+      if (p.is_active === false) {
+          console.log(`DEBUG: Filtering out protocol ${p.id} due to inactive`);
+          return false;
+      }
       
       // Allow published and potentially missing status, but NOT archived or draft
       const status = p.status || 'published';
-      return status !== 'archived' && status !== 'draft';
+      const isPublished = status !== 'archived' && status !== 'draft';
+      
+      if (!isPublished) {
+          console.log(`DEBUG: Filtering out protocol ${p.id} due to status: ${status}`);
+      } else {
+          console.log(`DEBUG: Keeping protocol ${p.id} (premium: ${p.premium}, status: ${status})`);
+      }
+      
+      return isPublished;
     });
+    console.log("DEBUG: Filtered protocols:", filteredList.map(p => ({ id: p.id, premium: p.premium })));
     setProtocols(filteredList);
   };
 
   const filteredProtocols = useMemo(() => {
     return protocols.filter(p => {
-      return activeTab === 'premium' ? p.premium : !p.premium;
+      return activeTab === 'premium' ? !!p.premium : !p.premium;
     });
   }, [protocols, activeTab]);
 

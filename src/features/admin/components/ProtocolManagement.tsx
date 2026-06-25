@@ -58,7 +58,6 @@ export const ProtocolManagement: React.FC = () => {
 
   // Deletion Safety Modal States
   const [deletingProtocol, setDeletingProtocol] = useState<PremiumProtocol | null>(null);
-  const [deleteProtocolInput, setDeleteProtocolInput] = useState('');
 
   // Current logged in admin details
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('admin@kyron.os');
@@ -2277,7 +2276,6 @@ export const ProtocolManagement: React.FC = () => {
                                       <button
                                         onClick={() => {
                                           setDeletingProtocol(p);
-                                          setDeleteProtocolInput('');
                                         }}
                                         className="p-1.5 text-red-500 hover:text-red-700 bg-red-50 border border-red-100 rounded-lg transition"
                                         title="Excluir Permanentemente"
@@ -4936,19 +4934,6 @@ export const ProtocolManagement: React.FC = () => {
               Esta ação não poderá ser desfeita. O protocolo <strong className="text-slate-950">"{deletingProtocol.name}"</strong> será deletado para sempre dos registros.
             </p>
 
-            <div className="space-y-4 mb-6">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Digite EXCLUIR para continuar:
-              </label>
-              <input
-                type="text"
-                value={deleteProtocolInput}
-                onChange={(e) => setDeleteProtocolInput(e.target.value)}
-                placeholder="EXCLUIR"
-                className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-black text-slate-900 uppercase placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-              />
-            </div>
-
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setDeletingProtocol(null)}
@@ -4958,12 +4943,9 @@ export const ProtocolManagement: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  if (deleteProtocolInput === 'EXCLUIR') {
                     handleDeletePermanently(deletingProtocol);
                     setDeletingProtocol(null);
-                  }
                 }}
-                disabled={deleteProtocolInput !== 'EXCLUIR'}
                 className="px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md"
               >
                 Excluir Permanentemente
