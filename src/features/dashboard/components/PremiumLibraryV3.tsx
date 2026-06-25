@@ -33,7 +33,7 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
     const list = await premiumProtocolsApi.getProtocols();
     const filteredList = list.filter(p => {
       if (p.is_active === false) return false;
-      const status = p.status === 'draft' ? 'published' : (p.status || 'published');
+      const status = p.status || 'published';
       if (status !== 'published') return false;
       return true;
     });

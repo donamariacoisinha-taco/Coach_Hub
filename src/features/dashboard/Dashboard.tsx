@@ -234,7 +234,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         setLoadingPublic(true);
         const allProtocols = await premiumProtocolsApi.getProtocols();
         // Filtrar protocolos com premium === false (públicos do administrador) e ativos
-        const publics = allProtocols.filter(p => p.premium === false && p.is_active !== false);
+        const publics = allProtocols.filter(p => p.premium === false && p.is_active !== false && (p.status || 'published') === 'published');
         setPublicProtocols(publics);
       } catch (e) {
         console.warn("Error loading public protocols:", e);
