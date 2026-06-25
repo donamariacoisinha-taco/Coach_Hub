@@ -15,6 +15,9 @@ export const workoutApi = {
           supabase.from('workout_history').select('*').eq('user_id', userId).not('completed_at', 'is', null).gt('exercises_count', 0).order('completed_at', { ascending: false })
         ]);
 
+        console.log(`[workoutApi] Fetched data for userId: ${userId}`);
+        console.log(`[workoutApi] Workouts count: ${workoutsRes.data?.length}`);
+
         if (profileRes.error) throw profileRes.error;
         if (foldersRes.error) throw foldersRes.error;
         if (workoutsRes.error) throw workoutsRes.error;
