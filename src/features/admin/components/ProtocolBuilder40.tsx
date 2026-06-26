@@ -27,7 +27,9 @@ import {
   ChevronDown,
   ChevronUp,
   Settings,
-  Image as ImageIcon
+  Image as ImageIcon,
+  CloudLightning,
+  Send
 } from 'lucide-react';
 import { useProtocolBuilder } from '../hooks/useProtocolBuilder';
 import { ProtocolHeader } from './ProtocolHeader';
@@ -505,134 +507,175 @@ export const ProtocolBuilder40: React.FC = () => {
             exit={{ opacity: 0, y: -15 }}
             className="flex flex-col gap-6"
           >
-            {/* Fixed Action Toolbar (Sticky on top on Desktop, Fixed on bottom on Mobile) */}
-            <div className="sticky top-0 lg:relative z-40 bg-white/95 backdrop-blur-md shadow-md lg:shadow-none border border-slate-200/80 lg:border-none rounded-2xl p-3 lg:p-0 flex flex-wrap items-center justify-between gap-3 mb-2">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={cancelEditing}
-                  className="p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200/40 cursor-pointer transition-all active:scale-95 flex items-center justify-center"
-                  title="Voltar para a Lista"
-                >
-                  <X size={15} />
-                </button>
-                <div>
-                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                    Builder Workspace 4.1
-                  </h4>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                    {isCreating ? 'Novo Protocolo' : `Editando: ${selectedProtocol?.name || 'Protocolo'}`}
-                  </p>
+            {/* Two-Level High-Performance Workspace Toolbar */}
+            <div className="flex flex-col gap-3 mb-4 bg-white/50 backdrop-blur-sm p-4 rounded-3xl border border-slate-200/50">
+              
+              {/* LEVEL 1: Primary Controls (Title, Status, Global Actions) */}
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={cancelEditing}
+                    className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200/30 cursor-pointer transition-all active:scale-95 flex items-center justify-center shrink-0"
+                    title="Voltar para a Lista"
+                  >
+                    <X size={14} />
+                  </button>
+                  <div className="min-w-0">
+                    <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5 leading-tight">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                      Kyron Protocol Builder 5.2
+                    </h4>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 truncate max-w-[200px] md:max-w-xs">
+                      {isCreating ? 'Novo Protocolo' : `Editando: ${selectedProtocol?.name || 'Protocolo'}`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Center: Realtime Sync & Autosave Status */}
+                <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-100 px-3.5 py-1.5 rounded-2xl shrink-0">
+                  <CloudLightning size={12} className="text-blue-500 animate-bounce" />
+                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">
+                    {saving ? 'Salvando na nuvem...' : hasChanges ? 'Modificações não salvas' : 'Sincronizado na Nuvem'}
+                  </span>
+                </div>
+
+                {/* Right: Principal Actions */}
+                <div className="flex items-center gap-2 shrink-0 ml-auto md:ml-0">
+                  {/* Salvar (Draft) */}
+                  <button
+                    type="button"
+                    onClick={saveProtocol}
+                    disabled={saving}
+                    className={`h-9 px-3.5 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                      hasChanges
+                        ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer shadow-sm'
+                        : 'bg-slate-50 text-slate-300 border border-slate-100 cursor-not-allowed'
+                    }`}
+                  >
+                    {saving ? <RefreshCw size={11} className="animate-spin text-slate-400" /> : <Save size={11} />}
+                    Salvar Rascunho
+                  </button>
+
+                  {/* Publicar (Sets status to published & saves) */}
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={async () => {
+                      updateProtocolField('status', 'published');
+                      setTimeout(() => {
+                        saveProtocol();
+                      }, 100);
+                    }}
+                    className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-blue-500/10"
+                  >
+                    <Send size={11} />
+                    Publicar Protocolo
+                  </button>
                 </div>
               </div>
 
-              {/* Toolbar Actions container */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {/* Desfazer (Undo) */}
-                <button
-                  type="button"
-                  onClick={undo}
-                  disabled={!canUndo}
-                  className={`h-9 px-3 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                    canUndo
-                      ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer'
-                      : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'
-                  }`}
-                  title="Desfazer alteração (Ctrl + Z)"
-                >
-                  <Undo2 size={12} />
-                  Desfazer
-                </button>
+              {/* Divider */}
+              <div className="border-t border-slate-100 w-full my-1" />
 
-                {/* Refazer (Redo) */}
-                <button
-                  type="button"
-                  onClick={redo}
-                  disabled={!canRedo}
-                  className={`h-9 px-3 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                    canRedo
-                      ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer'
-                      : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'
-                  }`}
-                  title="Refazer alteração (Ctrl + Shift + Z)"
-                >
-                  <Redo2 size={12} />
-                  Refazer
-                </button>
+              {/* LEVEL 2: Direct Editor Shortcuts (High Density Bar) */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {/* Desfazer */}
+                  <button
+                    type="button"
+                    onClick={undo}
+                    disabled={!canUndo}
+                    className={`h-8 px-2.5 rounded-lg border text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all ${
+                      canUndo
+                        ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer'
+                        : 'bg-slate-50/55 border-slate-100 text-slate-300 cursor-not-allowed'
+                    }`}
+                    title="Desfazer (Ctrl + Z)"
+                  >
+                    <Undo2 size={11} />
+                    Desfazer
+                  </button>
 
-                {/* Duplicar Dia ou Exercícios */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedExerciseIds.length > 0) {
-                      bulkDuplicate();
-                    } else if (selectedDayId) {
-                      const dayObj = days.find(d => d.id === selectedDayId);
-                      if (dayObj) duplicateDay(dayObj);
-                    }
-                  }}
-                  disabled={!selectedDayId}
-                  className={`h-9 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
-                  title="Duplica seleção ativa (Dia ou Exercícios)"
-                >
-                  <Copy size={12} />
-                  Duplicar
-                </button>
+                  {/* Refazer */}
+                  <button
+                    type="button"
+                    onClick={redo}
+                    disabled={!canRedo}
+                    className={`h-8 px-2.5 rounded-lg border text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all ${
+                      canRedo
+                        ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer'
+                        : 'bg-slate-50/55 border-slate-100 text-slate-300 cursor-not-allowed'
+                    }`}
+                    title="Refazer (Ctrl + Shift + Z)"
+                  >
+                    <Redo2 size={11} />
+                    Refazer
+                  </button>
 
-                {/* Excluir Dia ou Exercícios */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedExerciseIds.length > 0) {
-                      bulkDelete();
-                    } else if (selectedDayId) {
-                      removeDay(selectedDayId);
-                    }
-                  }}
-                  disabled={!selectedDayId}
-                  className={`h-9 px-3 bg-rose-50 border border-rose-200 hover:bg-rose-100/50 text-rose-700 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
-                  title="Exclui seleção ativa (Dia ou Exercícios)"
-                >
-                  <Trash2 size={12} />
-                  Excluir
-                </button>
+                  {/* Vertical Separator */}
+                  <div className="w-px h-5 bg-slate-200/60 mx-1 hidden sm:block" />
 
-                {/* Adicionar Dia */}
-                <button
-                  type="button"
-                  onClick={addDay}
-                  className="h-9 px-3 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Plus size={12} />
-                  Add Dia
-                </button>
+                  {/* Adicionar Dia */}
+                  <button
+                    type="button"
+                    onClick={addDay}
+                    className="h-8 px-2.5 bg-blue-50 border border-blue-100 hover:bg-blue-100/80 text-blue-700 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <Plus size={11} />
+                    Novo Dia
+                  </button>
 
-                {/* Adicionar Exercício / Buscar */}
-                <button
-                  type="button"
-                  onClick={handleFocusSearch}
-                  disabled={!selectedDayId}
-                  className="h-9 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Search size={12} />
-                  Add Exercício
-                </button>
+                  {/* Adicionar Exercício */}
+                  <button
+                    type="button"
+                    onClick={handleFocusSearch}
+                    disabled={!selectedDayId}
+                    className="h-8 px-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Plus size={11} />
+                    Add Exercício
+                  </button>
+                </div>
 
-                {/* Salvar Tudo */}
-                <button
-                  type="button"
-                  onClick={saveProtocol}
-                  disabled={saving}
-                  className={`h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                    hasChanges
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-md shadow-blue-500/10'
-                      : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200/30'
-                  }`}
-                >
-                  {saving ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
-                  Salvar
-                </button>
+                <div className="flex items-center gap-1.5 ml-auto md:ml-0">
+                  {/* Duplicar Seleção */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedExerciseIds.length > 0) {
+                        bulkDuplicate();
+                      } else if (selectedDayId) {
+                        const dayObj = days.find(d => d.id === selectedDayId);
+                        if (dayObj) duplicateDay(dayObj);
+                      }
+                    }}
+                    disabled={!selectedDayId}
+                    className="h-8 px-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Duplicar Dia ou Exercícios selecionados"
+                  >
+                    <Copy size={11} />
+                    Duplicar
+                  </button>
+
+                  {/* Excluir Seleção */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedExerciseIds.length > 0) {
+                        bulkDelete();
+                      } else if (selectedDayId) {
+                        removeDay(selectedDayId);
+                      }
+                    }}
+                    disabled={!selectedDayId}
+                    className="h-8 px-2.5 bg-rose-50 border border-rose-200 hover:bg-rose-100/50 text-rose-700 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Excluir Dia ou Exercícios selecionados"
+                  >
+                    <Trash2 size={11} />
+                    Excluir
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -701,88 +744,90 @@ export const ProtocolBuilder40: React.FC = () => {
               </button>
             </div>
 
-            {/* Main Workspace Grid: Four Columns on Desktop */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Main Workspace: 4 Columns with beautiful flexbox percentages on Desktop */}
+            <div className="flex flex-col lg:flex-row gap-4 items-start w-full">
               
               {/* ==========================================
-                 COLUMN 1: PROTOCOL GENERAL DATA (3 Cols)
+                 COLUMN 1: PROTOCOL GENERAL DATA (15% Width)
                  ========================================== */}
-              <div className={`lg:col-span-3 bg-white rounded-3xl border border-slate-200/50 shadow-sm p-5 flex flex-col gap-5 ${
+              <div className={`w-full lg:w-[15%] shrink-0 bg-white rounded-3xl border border-slate-200/50 shadow-sm p-4 flex flex-col gap-4 ${
                 activeMobileTab === 'info' ? 'block' : 'hidden lg:flex'
               }`}>
-                <div>
-                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <FileText size={14} className="text-blue-500" />
-                    Protocolo
-                  </h4>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Identidade & Escopo</p>
+                {/* Visual Cover Header */}
+                <div className="relative h-20 rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 shrink-0">
+                  <img
+                    src={selectedProtocol?.image_url || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=400'}
+                    alt={selectedProtocol?.name || 'Protocolo'}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 to-transparent" />
+                  <div className="absolute bottom-2 left-2 right-2">
+                    <span className="text-[8px] font-black uppercase tracking-wider text-white bg-blue-600/90 px-1.5 py-0.5 rounded">
+                      {selectedProtocol?.goal || 'Geral'}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="space-y-4">
-                  {/* Name field */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Nome do Protocolo</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: Hipertrofia Avançada Masculina"
-                      value={selectedProtocol?.name || ''}
-                      onChange={(e) => updateProtocolField('name', e.target.value)}
-                      className="w-full h-10 px-3.5 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-800 placeholder:text-slate-300 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500/10 transition-all"
-                    />
-                  </div>
+                <div className="flex flex-col">
+                  {/* Inline editable document-like name */}
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nome do Protocolo"
+                    value={selectedProtocol?.name || ''}
+                    onChange={(e) => updateProtocolField('name', e.target.value)}
+                    className="bg-transparent border-none p-0 text-xs font-black text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0 w-full"
+                  />
+                  {/* Inline editable document-like description */}
+                  <textarea
+                    placeholder="Adicione diretrizes e foco deste protocolo..."
+                    value={selectedProtocol?.description || ''}
+                    onChange={(e) => updateProtocolField('description', e.target.value)}
+                    rows={2}
+                    className="bg-transparent border-none p-0 text-[10px] text-slate-400 placeholder:text-slate-300 font-semibold focus:outline-none focus:ring-0 w-full resize-none leading-normal mt-1"
+                  />
+                </div>
 
-                  {/* Description field */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Diretrizes & Foco</label>
-                    <textarea
-                      placeholder="Ex: Foco no ganho de massa, público intermediário..."
-                      value={selectedProtocol?.description || ''}
-                      onChange={(e) => updateProtocolField('description', e.target.value)}
-                      rows={2}
-                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs font-semibold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500/10 transition-all resize-none leading-relaxed"
-                    />
-                  </div>
-
+                <div className="border-t border-slate-100 pt-3 space-y-3">
                   {/* Goal & Weeks */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Objetivo</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Objetivo</span>
                       <input
                         type="text"
                         placeholder="Hipertrofia"
                         value={selectedProtocol?.goal || ''}
                         onChange={(e) => updateProtocolField('goal', e.target.value)}
-                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
+                        className="bg-transparent border-none p-0 text-[10px] font-black text-slate-700 focus:outline-none focus:ring-0"
                       />
                     </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Semanas (Ciclo)</label>
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Semanas</span>
                       <input
                         type="number"
                         min={1}
                         value={selectedProtocol?.duration_weeks || 4}
                         onChange={(e) => updateProtocolField('duration_weeks', Number(e.target.value) || 1)}
-                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white transition-all text-center"
+                        className="bg-transparent border-none p-0 text-[10px] font-black text-slate-700 focus:outline-none focus:ring-0"
                       />
                     </div>
                   </div>
 
-                  {/* Advanced Configuration Accordion Trigger */}
+                  {/* Advanced settings dropdown toggle */}
                   <button
                     type="button"
                     onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="w-full flex items-center justify-between py-2 text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-none cursor-pointer"
+                    className="w-full flex items-center justify-between text-[8px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-none cursor-pointer pt-1"
                   >
-                    <span className="flex items-center gap-1.5">
-                      <Settings size={12} className={showAdvanced ? 'text-blue-500 animate-spin-slow' : ''} />
-                      Configurações Avançadas
+                    <span className="flex items-center gap-1">
+                      <Settings size={10} />
+                      Editar Detalhes
                     </span>
-                    {showAdvanced ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    {showAdvanced ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                   </button>
 
-                  {/* Advanced Collapsible content */}
+                  {/* Collapsed advanced form fields */}
                   <AnimatePresence initial={false}>
                     {showAdvanced && (
                       <motion.div
@@ -790,105 +835,59 @@ export const ProtocolBuilder40: React.FC = () => {
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.15 }}
-                        className="overflow-hidden space-y-4 pt-1"
+                        className="overflow-hidden space-y-3 pt-1 border-t border-slate-100"
                       >
-                        {/* Image URL field */}
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Capa do Protocolo (URL)</label>
-                          <div className="relative">
-                            <input
-                              type="url"
-                              placeholder="https://images.unsplash.com/photo-..."
-                              value={selectedProtocol?.image_url || ''}
-                              onChange={(e) => updateProtocolField('image_url', e.target.value)}
-                              className="w-full h-10 pl-3 pr-8 rounded-xl bg-slate-50 border border-slate-100 text-xs font-semibold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
-                            />
-                            <ImageIcon size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                          </div>
+                        {/* Capa URL */}
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">URL da Imagem</label>
+                          <input
+                            type="url"
+                            placeholder="https://..."
+                            value={selectedProtocol?.image_url || ''}
+                            onChange={(e) => updateProtocolField('image_url', e.target.value)}
+                            className="h-7 px-2 rounded bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-700 focus:outline-none focus:border-blue-500"
+                          />
                         </div>
 
-                        {/* Category & Status */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Categoria</label>
-                            <select
-                              value={selectedProtocol?.category}
-                              onChange={(e) => updateProtocolField('category', e.target.value)}
-                              className="w-full h-10 px-2 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
-                            >
-                              <option value="public">Gratuita</option>
-                              <option value="premium">Premium</option>
-                            </select>
-                          </div>
-
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Status</label>
-                            <select
-                              value={selectedProtocol?.status}
-                              onChange={(e) => updateProtocolField('status', e.target.value)}
-                              className="w-full h-10 px-2 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
-                            >
-                              <option value="draft">Rascunho</option>
-                              <option value="published">Publicado</option>
-                            </select>
-                          </div>
+                        {/* Categoria */}
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Categoria</label>
+                          <select
+                            value={selectedProtocol?.category}
+                            onChange={(e) => updateProtocolField('category', e.target.value)}
+                            className="h-7 px-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 focus:outline-none cursor-pointer"
+                          >
+                            <option value="public">Gratuita</option>
+                            <option value="premium">Premium</option>
+                          </select>
                         </div>
 
-                        {/* Difficulty & Est. Duration */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Dificuldade</label>
-                            <select
-                              value={selectedProtocol?.difficulty || 'Iniciante'}
-                              onChange={(e) => updateProtocolField('difficulty', e.target.value)}
-                              className="w-full h-10 px-2 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
-                            >
-                              <option value="Iniciante">Iniciante</option>
-                              <option value="Intermediário">Intermediário</option>
-                              <option value="Avançado">Avançado</option>
-                              <option value="Elite">Elite</option>
-                            </select>
-                          </div>
-
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Duração (Min)</label>
-                            <input
-                              type="number"
-                              min={1}
-                              value={selectedProtocol?.estimated_duration || 60}
-                              onChange={(e) => updateProtocolField('estimated_duration', Number(e.target.value) || 1)}
-                              className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none text-center"
-                            />
-                          </div>
+                        {/* Status */}
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Status</label>
+                          <select
+                            value={selectedProtocol?.status}
+                            onChange={(e) => updateProtocolField('status', e.target.value)}
+                            className="h-7 px-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 focus:outline-none cursor-pointer"
+                          >
+                            <option value="draft">Rascunho</option>
+                            <option value="published">Publicado</option>
+                          </select>
                         </div>
 
-                        {/* Environment & Active Switch */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Ambiente</label>
-                            <select
-                              value={selectedProtocol?.environment || 'Academia'}
-                              onChange={(e) => updateProtocolField('environment', e.target.value)}
-                              className="w-full h-10 px-2 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
-                            >
-                              <option value="Academia">Academia</option>
-                              <option value="Home Gym">Home Gym</option>
-                              <option value="Calistenia / Parque">Parque</option>
-                            </select>
-                          </div>
-
-                          <div className="flex items-center gap-2 mt-4 bg-slate-50 px-3 rounded-xl border border-slate-100/60 h-10">
-                            <input
-                              type="checkbox"
-                              id="isActiveToggle"
-                              checked={selectedProtocol?.is_active !== false}
-                              onChange={(e) => updateProtocolField('is_active', e.target.checked)}
-                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-200 cursor-pointer"
-                            />
-                            <label htmlFor="isActiveToggle" className="text-[9px] font-black uppercase tracking-wider text-slate-500 cursor-pointer select-none">
-                              Ativo
-                            </label>
-                          </div>
+                        {/* Dificuldade */}
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Dificuldade</label>
+                          <select
+                            value={selectedProtocol?.difficulty || 'Iniciante'}
+                            onChange={(e) => updateProtocolField('difficulty', e.target.value)}
+                            className="h-7 px-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 focus:outline-none cursor-pointer"
+                          >
+                            <option value="Iniciante">Iniciante</option>
+                            <option value="Intermediário">Intermediário</option>
+                            <option value="Avançado">Avançado</option>
+                            <option value="Elite">Elite</option>
+                          </select>
                         </div>
                       </motion.div>
                     )}
@@ -897,9 +896,9 @@ export const ProtocolBuilder40: React.FC = () => {
               </div>
 
               {/* ==========================================
-                 COLUMN 2: PROTOCOL DAYS (2 Cols)
+                 COLUMN 2: PROTOCOL DAYS (15% Width)
                  ========================================== */}
-              <div className={`lg:col-span-2 ${
+              <div className={`w-full lg:w-[15%] shrink-0 ${
                 activeMobileTab === 'days' ? 'block' : 'hidden lg:block'
               }`}>
                 <ProtocolDays
@@ -913,13 +912,14 @@ export const ProtocolBuilder40: React.FC = () => {
                   onUpdateDayField={updateDayField}
                   onReorderDays={reorderDays}
                   onMoveExerciseToDay={moveExerciseToDay}
+                  exercises={exercises}
                 />
               </div>
 
               {/* ==========================================
-                 COLUMN 3: SELECT DAY EXERCISES LIST (4 Cols)
+                 COLUMN 3: ACTIVE DAY EXERCISES LIST (55% Width)
                  ========================================== */}
-              <div className={`lg:col-span-4 ${
+              <div className={`w-full lg:w-[55%] shrink-0 ${
                 activeMobileTab === 'exercises' ? 'block' : 'hidden lg:block'
               }`}>
                 {selectedDayId ? (
@@ -943,7 +943,7 @@ export const ProtocolBuilder40: React.FC = () => {
                     onMoveExerciseToDay={moveExerciseToDay}
                   />
                 ) : (
-                  <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-12 text-center flex flex-col items-center justify-center min-h-[350px]">
+                  <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm p-12 text-center flex flex-col items-center justify-center min-h-[350px]">
                     <div className="w-12 h-12 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center text-slate-400 mb-4">
                       <Calendar size={22} />
                     </div>
@@ -956,143 +956,112 @@ export const ProtocolBuilder40: React.FC = () => {
               </div>
 
               {/* ====================================================
-                 COLUMN 4: SMART FIXED METRICS & ANALYTICS SIDEBAR (3 Cols)
+                 COLUMN 4: SMART FIXED METRICS & ANALYTICS SIDEBAR (15% Width)
                  ==================================================== */}
-              <div className={`lg:col-span-3 flex flex-col gap-5 ${
+              <div className={`w-full lg:w-[15%] shrink-0 ${
                 activeMobileTab === 'metrics' ? 'block' : 'hidden lg:flex'
               }`}>
-                {/* 1. Productivity Ticking Stopwatch widget */}
-                <div className="bg-slate-900 text-slate-100 rounded-3xl p-5 border border-slate-800 shadow-md flex items-center justify-between">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-blue-400 border border-slate-700/50 shrink-0">
-                      <Clock size={14} className="animate-pulse" />
-                    </div>
-                    <div className="min-w-0">
-                      <h5 className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Ergonomia & Foco</h5>
-                      <p className="text-xs font-bold text-slate-100 truncate mt-0.5">Tempo Ativo de Montagem</p>
-                    </div>
+                {/* Unified Continuous Sidebar */}
+                <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm overflow-hidden flex flex-col w-full">
+                  {/* Sidebar Header */}
+                  <div className="p-4 pb-2 border-b border-slate-100">
+                    <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                      Painel Inteligente
+                    </h5>
                   </div>
-                  <div className="text-right shrink-0">
-                    <span className="font-mono text-xs font-black tracking-tight text-white px-2.5 py-1.5 bg-slate-800 border border-slate-700/50 rounded-lg shadow-inner">
-                      {formatTimer(secondsElapsed)}
-                    </span>
-                  </div>
-                </div>
 
-                {/* 2. Micro Stats Board */}
-                <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-[10px] font-black uppercase text-slate-800 tracking-wider">Métricas do Ciclo</h5>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Tempo Real</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Exercícios</span>
-                      <p className="text-base font-black text-slate-800 mt-1">{totals.exercisesCount}</p>
-                    </div>
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Séries Semanais</span>
-                      <p className="text-base font-black text-slate-800 mt-1">{totals.setsCount}</p>
-                    </div>
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Dias de Treino</span>
-                      <p className="text-base font-black text-slate-800 mt-1">{totals.daysCount}</p>
-                    </div>
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Status Sync</span>
-                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-wider mt-1.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 animate-ping" />
-                        {autosaveStatus === 'dirty' ? 'Editando' : 'Sincronizado'}
-                      </p>
+                  {/* Section 1: Atividade & Ergonomia */}
+                  <div className="p-4 border-b border-slate-150 bg-slate-50/50">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-2">Atividade</span>
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Clock size={11} className="text-blue-500 animate-pulse" />
+                        <span className="text-[10px] font-mono font-black text-slate-700 truncate">{formatTimer(secondsElapsed)}</span>
+                      </div>
+                      <span className="text-[8px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1 shrink-0">
+                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />
+                        Sync
+                      </span>
                     </div>
                   </div>
-                </div>
 
-                {/* 3. Muscular Distribution Progress list */}
-                <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm p-5 flex flex-col gap-4">
-                  <div>
-                    <h5 className="text-[10px] font-black uppercase text-slate-800 tracking-wider">Volume de Treino Semanal</h5>
-                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Séries por grupo muscular (Alvo: 10-20 séries)</p>
+                  {/* Section 2: Resumo do Ciclo */}
+                  <div className="p-4 border-b border-slate-150">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-2">Ciclo</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
+                        <p className="text-[14px] font-black text-slate-800 leading-none">{totals.exercisesCount}</p>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5 block">Exer.</span>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
+                        <p className="text-[14px] font-black text-slate-800 leading-none">{totals.setsCount}</p>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5 block">Séries</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-3.5 max-h-[340px] overflow-y-auto pr-1 scrollbar-thin">
-                    {Object.entries(muscleDistribution).map(([muscle, setsRaw]) => {
-                      const sets = setsRaw as number;
-                      // Target ranges checklist: Under (sets < 10), Optimal (10 <= sets <= 20), Over (sets > 20)
-                      let rangeStatus = 'Insuficiente';
-                      let barColor = 'bg-sky-400';
-                      if (sets >= 10 && sets <= 20) {
-                        rangeStatus = 'Ideal';
-                        barColor = 'bg-blue-600';
-                      } else if (sets > 20) {
-                        rangeStatus = 'Sobrecarga';
-                        barColor = 'bg-amber-500';
-                      } else if (sets === 0) {
-                        rangeStatus = 'Zero';
-                        barColor = 'bg-slate-200';
-                      }
 
-                      return (
-                        <div key={muscle} className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px] font-black text-slate-700 uppercase tracking-wider">
-                            <span>{muscle}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-500 font-mono text-[10px]">{sets} {sets === 1 ? 'série' : 'séries'}</span>
-                              {sets > 0 && (
-                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                                  rangeStatus === 'Ideal'
-                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                                    : rangeStatus === 'Sobrecarga'
-                                    ? 'bg-amber-50 text-amber-600 border border-amber-100'
-                                    : 'bg-sky-50 text-sky-600 border border-sky-100'
-                                }`}>
-                                  {rangeStatus}
-                                </span>
-                              )}
+                  {/* Section 3: Volume Semanal (Distribution list) */}
+                  <div className="p-4 border-b border-slate-150 max-h-[220px] overflow-y-auto no-scrollbar">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-2">Volume Semanal</span>
+                    <div className="space-y-2.5">
+                      {Object.entries(muscleDistribution).map(([muscle, setsRaw]) => {
+                        const sets = setsRaw as number;
+                        let barColor = 'bg-sky-400';
+                        let rangeStatus = 'Insuf.';
+                        if (sets >= 10 && sets <= 20) {
+                          barColor = 'bg-blue-600';
+                          rangeStatus = 'Ideal';
+                        } else if (sets > 20) {
+                          barColor = 'bg-amber-500';
+                          rangeStatus = 'Max';
+                        } else if (sets === 0) {
+                          barColor = 'bg-slate-200';
+                          rangeStatus = 'Zero';
+                        }
+
+                        return (
+                          <div key={muscle} className="space-y-1">
+                            <div className="flex items-center justify-between text-[9px] font-black text-slate-600 uppercase tracking-wider">
+                              <span className="truncate max-w-[50px]">{muscle}</span>
+                              <span className="text-[8px] text-slate-400 font-bold">{sets} s. ({rangeStatus})</span>
+                            </div>
+                            <div className="h-1 bg-slate-100 rounded-full overflow-hidden relative">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${Math.min(100, (sets / 24) * 100)}%` }}
+                                className={`h-full rounded-full ${barColor}`}
+                              />
                             </div>
                           </div>
-                          <div className="h-1.5 bg-slate-100 border border-slate-200/20 rounded-full overflow-hidden relative">
-                            {/* Tick mark at optimal range starts (10 sets) and ends (20 sets) */}
-                            <div className="absolute left-[41.6%] top-0 bottom-0 w-px bg-white/40 z-10" /> {/* 10/24 */}
-                            <div className="absolute left-[83.3%] top-0 bottom-0 w-px bg-white/40 z-10" /> {/* 20/24 */}
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${Math.min(100, (sets / 24) * 100)}%` }}
-                              className={`h-full rounded-full transition-all ${barColor}`}
-                            />
-                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Section 4: Diagnóstico Biomecânico Alerts */}
+                  <div className="p-4 max-h-[180px] overflow-y-auto no-scrollbar">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-2">Diagnóstico</span>
+                    <div className="space-y-1.5">
+                      {balanceIndicators.map((ind, i) => (
+                        <div
+                          key={i}
+                          className={`p-2 rounded-xl border flex items-start gap-1.5 text-[9px] font-bold uppercase tracking-wider leading-tight ${
+                            ind.type === 'success'
+                              ? 'bg-emerald-50/40 border-emerald-100 text-emerald-700'
+                              : 'bg-amber-50/40 border-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {ind.type === 'success' ? (
+                            <CheckCircle2 size={10} className="shrink-0 text-emerald-600 mt-0.5" />
+                          ) : (
+                            <AlertTriangle size={10} className="shrink-0 text-amber-600 animate-pulse mt-0.5" />
+                          )}
+                          <span className="leading-tight truncate block w-full">{ind.text}</span>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
                 </div>
-
-                {/* 4. Workout Balance dynamic alerts */}
-                <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm p-5 flex flex-col gap-4">
-                  <div>
-                    <h5 className="text-[10px] font-black uppercase text-slate-800 tracking-wider">Diagnóstico Biomecânico</h5>
-                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Balanciamento Científico de Cargas</p>
-                  </div>
-                  <div className="space-y-2.5">
-                    {balanceIndicators.map((ind, i) => (
-                      <div
-                        key={i}
-                        className={`p-3 rounded-2xl border flex items-start gap-2.5 text-[10px] font-black uppercase tracking-wider leading-relaxed ${
-                          ind.type === 'success'
-                            ? 'bg-emerald-50/50 border-emerald-100 text-emerald-700'
-                            : 'bg-amber-50/50 border-amber-100 text-amber-700'
-                        }`}
-                      >
-                        {ind.type === 'success' ? (
-                          <CheckCircle2 size={13} className="shrink-0 text-emerald-600 mt-0.5" />
-                        ) : (
-                          <AlertTriangle size={13} className="shrink-0 text-amber-600 animate-pulse mt-0.5" />
-                        )}
-                        <span className="leading-tight">{ind.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
               </div>
 
             </div>

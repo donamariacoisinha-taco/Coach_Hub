@@ -106,9 +106,9 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
       }`}
     >
       {/* 1. COMPACT STATE PANEL */}
-      <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-2 px-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3 select-none">
         {/* Left Section: Drag, Checkbox, Image & Title */}
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {/* Grab Handle */}
           <div
             draggable
@@ -124,7 +124,7 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
             className="p-1 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 rounded flex items-center justify-center shrink-0"
             title="Arraste para reordenar"
           >
-            <GripVertical size={14} />
+            <GripVertical size={13} />
           </div>
 
           {/* Selector Checkbox */}
@@ -133,7 +133,7 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
               type="checkbox"
               checked={isSelected}
               onChange={onToggleSelect}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 shrink-0 cursor-pointer"
+              className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 shrink-0 cursor-pointer"
               title="Selecionar exercício"
             />
           )}
@@ -142,13 +142,13 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
           <img
             src={details?.image_url || fallbackImg}
             alt={details?.name || "Exercício"}
-            className="w-10 h-10 rounded-xl object-cover shrink-0 border border-slate-100"
+            className="w-8 h-8 rounded-lg object-cover shrink-0 border border-slate-100/80"
             referrerPolicy="no-referrer"
           />
 
           {/* Exercise Meta */}
-          <div className="min-w-0 flex-1 md:max-w-[200px]">
-            <h5 className="font-bold text-xs text-slate-800 truncate leading-tight">
+          <div className="min-w-0 flex-1 lg:max-w-[220px]">
+            <h5 className="font-bold text-xs text-slate-800 truncate leading-none">
               {details?.name || "Carregando Exercício..."}
             </h5>
             <span className="inline-block text-[8px] font-black uppercase tracking-wider text-slate-400 mt-1">
@@ -158,105 +158,112 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
         </div>
 
         {/* Middle Section: Quick Inline Fields (Sets, Reps, Rest, RPE) */}
-        <div className="grid grid-cols-4 gap-2 shrink-0 w-full md:w-auto md:min-w-[320px]">
+        <div className="flex items-center gap-4 shrink-0 bg-slate-50/50 p-1 px-2 rounded-lg border border-slate-100/85">
           {/* Sets */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Séries</span>
+          <div className="flex items-center gap-1">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Séries</span>
             <input
               type="number"
               min={1}
               value={exercise.sets}
               onChange={(e) => onUpdateField('sets', Number(e.target.value) || 3)}
-              className="h-8 px-2 rounded-lg bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 transition-all text-center"
+              className="h-6 w-9 rounded bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-all text-center"
             />
           </div>
+
+          <div className="w-px h-3.5 bg-slate-200" />
 
           {/* Reps */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Reps</span>
+          <div className="flex items-center gap-1">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Reps</span>
             <input
               type="text"
-              placeholder="10-12"
+              placeholder="10"
               value={exercise.reps}
               onChange={(e) => onUpdateField('reps', e.target.value)}
-              className="h-8 px-2 rounded-lg bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 transition-all text-center"
+              className="h-6 w-12 rounded bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-all text-center"
             />
           </div>
 
+          <div className="w-px h-3.5 bg-slate-200" />
+
           {/* Rest */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Des. (s)</span>
+          <div className="flex items-center gap-1">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Rest</span>
             <input
               type="number"
               placeholder="60"
               value={exercise.rest_seconds || ''}
               onChange={(e) => onUpdateField('rest_seconds', Number(e.target.value) || 0)}
-              className="h-8 px-2 rounded-lg bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 transition-all text-center"
+              className="h-6 w-11 rounded bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-all text-center"
             />
+            <span className="text-[9px] text-slate-400 font-bold">s</span>
           </div>
 
+          <div className="w-px h-3.5 bg-slate-200" />
+
           {/* RPE */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">RPE</span>
+          <div className="flex items-center gap-1">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">RPE</span>
             <input
               type="text"
               placeholder="9"
               value={exercise.rpe || ''}
               onChange={(e) => onUpdateField('rpe', e.target.value)}
-              className="h-8 px-2 rounded-lg bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 transition-all text-center"
+              className="h-6 w-9 rounded bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-all text-center"
             />
           </div>
         </div>
 
         {/* Right Section: Compact toolbar actions */}
-        <div className="flex items-center justify-end gap-1 shrink-0">
+        <div className="flex items-center justify-end gap-1 shrink-0 opacity-80 hover:opacity-100 transition-opacity">
           <button
             type="button"
             onClick={() => onMove('up')}
             disabled={isFirst}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg disabled:opacity-20 bg-transparent border-none cursor-pointer"
+            className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded disabled:opacity-20 bg-transparent border-none cursor-pointer"
             title="Mover para cima"
           >
-            <ArrowUp size={12} />
+            <ArrowUp size={11} />
           </button>
           <button
             type="button"
             onClick={() => onMove('down')}
             disabled={isLast}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg disabled:opacity-20 bg-transparent border-none cursor-pointer"
+            className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded disabled:opacity-20 bg-transparent border-none cursor-pointer"
             title="Mover para baixo"
           >
-            <ArrowDown size={12} />
+            <ArrowDown size={11} />
           </button>
           <button
             type="button"
             onClick={onDuplicate}
-            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg bg-transparent border-none cursor-pointer"
+            className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded bg-transparent border-none cursor-pointer"
             title="Duplicar"
           >
-            <Copy size={12} />
+            <Copy size={11} />
           </button>
           <button
             type="button"
             onClick={onDelete}
-            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg bg-transparent border-none cursor-pointer"
+            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded bg-transparent border-none cursor-pointer"
             title="Remover"
           >
-            <Trash2 size={12} />
+            <Trash2 size={11} />
           </button>
           
-          <div className="w-px h-5 bg-slate-100 mx-1" />
+          <div className="w-px h-4 bg-slate-200 mx-1" />
 
           {/* Expand/Collapse Toggle Arrow */}
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`p-1.5 rounded-lg border-none cursor-pointer transition-colors ${
-              isExpanded ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+            className={`p-1 rounded cursor-pointer border-none transition-colors ${
+              isExpanded ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
             }`}
             title={isExpanded ? "Recolher detalhes" : "Expandir detalhes"}
           >
-            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
         </div>
       </div>

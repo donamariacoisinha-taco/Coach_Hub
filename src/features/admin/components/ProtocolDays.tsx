@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, Copy, ArrowUp, ArrowDown, Sparkles, Calendar } from 'lucide-react';
+import { Plus, Trash2, Copy, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
 import { PremiumProtocolDay } from '../../../types/protocol_4_0';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -14,6 +14,7 @@ interface ProtocolDaysProps {
   onUpdateDayField?: (dayId: string, field: keyof PremiumProtocolDay, value: any) => void;
   onReorderDays?: (fromIndex: number, toIndex: number) => void;
   onMoveExerciseToDay?: (fromDayId: string, exerciseIndex: number, toDayId: string) => void;
+  exercises?: Record<string, any[]>;
 }
 
 export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
@@ -26,7 +27,8 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
   onMoveDay,
   onUpdateDayField,
   onReorderDays,
-  onMoveExerciseToDay
+  onMoveExerciseToDay,
+  exercises = {}
 }) => {
   const [draggedOverDayId, setDraggedOverDayId] = React.useState<string | null>(null);
 
@@ -81,37 +83,34 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm p-4 flex flex-col gap-4">
+      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
         <div>
-          <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-            <Calendar size={16} className="text-blue-500" />
-            Dias do Protocolo
+          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            Microciclo
           </h4>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Estrutura de Treinos</p>
         </div>
         <button
           type="button"
           onClick={onAddDay}
-          className="h-9 px-3 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 border border-blue-200/40 cursor-pointer"
+          className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg transition-all border-none bg-transparent cursor-pointer"
+          title="Adicionar Novo Dia"
         >
           <Plus size={14} />
-          Add Dia
         </button>
       </div>
 
-      <div className="relative pl-2.5 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
-        {/* Timeline Axis Track */}
+      <div className="relative pl-1 max-h-[500px] overflow-y-auto pr-1 scrollbar-none">
+        {/* Continuous vertical timeline track line */}
         {days.length > 1 && (
-          <div className="absolute left-[19px] top-4 bottom-8 w-0.5 bg-slate-100" />
+          <div className="absolute left-[13px] top-4 bottom-8 w-px bg-slate-100" />
         )}
 
         <AnimatePresence initial={false}>
           {days.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 flex flex-col items-center justify-center gap-2">
-              <Calendar size={24} className="text-slate-300" />
-              <p className="text-xs font-bold uppercase tracking-wider">Nenhum dia</p>
-              <p className="text-[10px] text-slate-400">Adicione treinos para montar a periodização</p>
+            <div className="text-center py-8 text-slate-400 flex flex-col items-center justify-center gap-2">
+              <Calendar size={20} className="text-slate-300" />
+              <p className="text-[10px] font-black uppercase tracking-wider">Sem treinos</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -119,10 +118,12 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
                 const isSelected = selectedDayId === day.id;
                 const isDraggedOver = draggedOverDayId === day.id;
                 const letter = getDayLetter(index);
+                const exerciseCount = exercises[day.id]?.length || 0;
+                
                 return (
                   <motion.div
                     key={day.id}
-                    initial={{ opacity: 0, x: -10 }}
+                    initial={{ opacity: 0, x: -5 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     onClick={() => onSelectDay(day.id)}
@@ -131,30 +132,26 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
                     onDragOver={(e) => handleDragOver(e, day.id)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, index, day.id)}
-                    className={`group relative flex items-start gap-4 p-3.5 rounded-2xl cursor-pointer transition-all ${
+                    className={`group relative flex items-start gap-3 p-2 rounded-xl cursor-pointer transition-all ${
                       isDraggedOver
-                        ? 'bg-blue-50/40 ring-2 ring-dashed ring-blue-400 scale-[1.01]'
+                        ? 'bg-blue-50/40 ring-1 ring-dashed ring-blue-400'
                         : isSelected
-                        ? 'bg-slate-50/80 border border-slate-200/50 shadow-sm'
-                        : 'hover:bg-slate-50/50 border border-transparent'
+                        ? 'bg-slate-50/80 border border-slate-150 shadow-sm'
+                        : 'hover:bg-slate-50/40 border border-transparent'
                     }`}
                   >
-                    {/* Timeline Node Badge */}
-                    <div
-                      title="Arraste para reordenar"
-                      className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black uppercase shrink-0 transition-all cursor-grab active:cursor-grabbing ${
-                        isSelected
-                          ? 'bg-blue-600 text-white ring-4 ring-blue-50 shadow-sm shadow-blue-500/20'
-                          : 'bg-white text-slate-500 border border-slate-200 shadow-sm group-hover:border-slate-400 group-hover:text-slate-700'
-                      }`}
-                    >
-                      {letter}
+                    {/* Minimal Timeline dot indicator */}
+                    <div className="flex items-center justify-center h-5 shrink-0 mt-0.5">
+                      {isSelected ? (
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-600 ring-4 ring-blue-100/60 z-10" />
+                      ) : (
+                        <div className="w-2 h-2 rounded-full bg-slate-300 group-hover:bg-slate-400 z-10 transition-colors" />
+                      )}
                     </div>
 
-                    {/* Timeline Content */}
-                    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                      {/* Row 1: Title Input & Floating actions */}
-                      <div className="flex items-center justify-between gap-2">
+                    {/* Timeline text inputs and counters */}
+                    <div className="flex-1 min-w-0 flex flex-col">
+                      <div className="flex items-center justify-between gap-1">
                         <div className="min-w-0 flex-1">
                           <input
                             type="text"
@@ -175,8 +172,8 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
                           />
                         </div>
 
-                        {/* Hover Quick actions bar */}
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
+                        {/* Floating actions on Hover */}
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -226,7 +223,7 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
                         </div>
                       </div>
 
-                      {/* Row 2: Description input */}
+                      {/* Day description (e.g. Muscle focus: Upper) */}
                       <input
                         type="text"
                         value={day.description || ''}
@@ -238,10 +235,15 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
                             onSelectDay(day.id);
                           }
                         }}
-                        placeholder="Ex: Quadríceps e Glúteos"
+                        placeholder="Ex: Upper"
                         onClick={(e) => e.stopPropagation()}
-                        className="bg-transparent border-none p-0 text-[10px] text-slate-400 placeholder:text-slate-300 font-medium focus:outline-none focus:ring-0 w-full"
+                        className="bg-transparent border-none p-0 text-[10px] text-slate-400 placeholder:text-slate-300 font-semibold focus:outline-none focus:ring-0 w-full"
                       />
+
+                      {/* Exercise Count indicator */}
+                      <span className="text-[9px] font-mono font-bold text-slate-400 mt-0.5">
+                        {exerciseCount} {exerciseCount === 1 ? 'exercício' : 'exercícios'}
+                      </span>
                     </div>
                   </motion.div>
                 );
@@ -253,3 +255,4 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
     </div>
   );
 };
+

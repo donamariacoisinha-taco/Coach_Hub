@@ -255,8 +255,8 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Inline Search & Add Exercise bar */}
-      <div className="flex flex-col gap-3">
+      {/* macOS Spotlight-like Fixed Search Bar (at the top of Editor Column) */}
+      <div className="flex flex-col gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
         <div className="relative">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -286,7 +286,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
                 setShowDropdown(false);
               }
             }}
-            className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-100 text-xs placeholder:text-slate-400 font-semibold focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner"
+            className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border border-slate-200 text-xs placeholder:text-slate-400 font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/10 transition-all shadow-inner"
           />
         </div>
 
@@ -303,7 +303,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
               className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-full transition-all border shrink-0 cursor-pointer ${
                 activeTag === tag
                   ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                  : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
               }`}
             >
               {tag}
@@ -318,7 +318,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 5 }}
-              className="relative bg-white border border-slate-200/60 shadow-xl rounded-2xl z-50 p-2 overflow-hidden max-h-[300px] overflow-y-auto mt-1"
+              className="absolute bg-white border border-slate-200 shadow-xl rounded-2xl z-50 p-2 overflow-hidden max-h-[300px] overflow-y-auto mt-11 left-6 right-6"
             >
               <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-slate-50">
                 <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
