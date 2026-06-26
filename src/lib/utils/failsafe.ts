@@ -4,6 +4,37 @@ import { exerciseApi } from '../api/exerciseApi';
 import { fallbackExercises } from '../api/fallbackExercises';
 import { normalizeMuscleGroup, sortExercisesAnatomically } from '../../types';
 
+const safeLocalStorage = {
+  getItem(key: string): string | null {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+    } catch (e) {
+      console.warn('[Failsafe] Error reading from localStorage:', e);
+    }
+    return null;
+  },
+  setItem(key: string, value: string): void {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch (e) {
+      console.warn('[Failsafe] Error writing to localStorage:', e);
+    }
+  },
+  removeItem(key: string): void {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(key);
+      }
+    } catch (e) {
+      console.warn('[Failsafe] Error removing from localStorage:', e);
+    }
+  }
+};
+
 export interface AuditReport {
   protocol: {
     id: string;
@@ -45,7 +76,7 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
     console.log(`%c[KYRON_OS_DIAGNOSTIC] Starting Critical Audit & Failsafe for ${email} (ID: ${userId})`, 'color: #3b82f6; font-weight: bold;');
 
     // 1. Fetch user onboarding parameters from localStorage or DB
-    const storedOnboarding = localStorage.getItem(`kyron_onboarding_v21_${userId}`);
+    const storedOnboarding = safeLocalStorage.getItem(`kyron_onboarding_v21_${userId}`);
     let onboardingData: any = {};
     if (storedOnboarding) {
       try {
@@ -88,7 +119,7 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
     };
 
     // Query active plan folder to verify matches
-    let favoriteFolderId = passedFolderId || localStorage.getItem('favorite_workout_folder_id') || onboardingData.active_plan_id;
+    let favoriteFolderId = passedFolderId || safeLocalStorage.getItem('favorite_workout_folder_id') || onboardingData.active_plan_id;
 
     // Strict validation: Ignore any non-UUID inputs (e.g. "public_admin", "uncategorized", "null", "undefined")
     if (favoriteFolderId && !isUUID(favoriteFolderId)) {
@@ -105,7 +136,7 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
         .maybeSingle();
       if (dbProfile?.active_plan_id && isUUID(dbProfile.active_plan_id)) {
         favoriteFolderId = dbProfile.active_plan_id;
-        localStorage.setItem('favorite_workout_folder_id', favoriteFolderId);
+        safeLocalStorage.setItem('favorite_workout_folder_id', favoriteFolderId);
         console.log('[KYRON_OS_DIAGNOSTIC] Resolved active_plan_id from profiles DB:', favoriteFolderId);
       }
     }
@@ -121,7 +152,7 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
         const firstValidFolder = userFolders.find(uf => isUUID(uf.id));
         if (firstValidFolder) {
           favoriteFolderId = firstValidFolder.id;
-          localStorage.setItem('favorite_workout_folder_id', favoriteFolderId);
+          safeLocalStorage.setItem('favorite_workout_folder_id', favoriteFolderId);
           console.log('[KYRON_OS_DIAGNOSTIC] Resolved first existing user folder from DB:', favoriteFolderId);
         }
       }
@@ -132,7 +163,7 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
       console.warn('[KYRON_OS_DIAGNOSTIC] No folder found in DB or storage. Dynamically creating brand-new folder...');
       const newFolder = await workoutApi.createFolder(userId, 'Kyron OS: Plano Personalizado');
       favoriteFolderId = newFolder.id;
-      localStorage.setItem('favorite_workout_folder_id', favoriteFolderId);
+      safeLocalStorage.setItem('favorite_workout_folder_id', favoriteFolderId);
       
       // Update profile DB
       await supabase.from('profiles').update({ active_plan_id: favoriteFolderId }).eq('id', userId);
@@ -299,7 +330,7 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
           ];
 
           candidates = allExercises.filter(ex => 
-            emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase()))
+            ex && ex.name && emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase()))
           );
 
           // If still less than 5, grab any active exercises to guarantee a sheet
@@ -369,7 +400,7 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
       ];
 
       let emergencyExs = allExercises.filter(ex => 
-        emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase()))
+        ex && ex.name && emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase()))
       );
 
       if (emergencyExs.length === 0) {

@@ -29,7 +29,9 @@ import {
   Settings,
   Image as ImageIcon,
   CloudLightning,
-  Send
+  Send,
+  ArrowLeft,
+  Cloud
 } from 'lucide-react';
 import { useProtocolBuilder } from '../hooks/useProtocolBuilder';
 import { ProtocolHeader } from './ProtocolHeader';
@@ -99,6 +101,10 @@ export const ProtocolBuilder40: React.FC = () => {
 
   // Toggle advanced protocol configuration fields
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Collapsible drawer and sidebar states for high-efficiency layout
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Local clipboard state for copying exercises
   const [copiedExerciseData, setCopiedExerciseData] = useState<any[]>([]);
@@ -498,184 +504,324 @@ export const ProtocolBuilder40: React.FC = () => {
           </motion.div>
         ) : (
           /* =========================================================================
-             2. EDITING / CREATING THREE-COLUMN WORKSPACE
+             2. EDITING / CREATING TWO-COLUMN DESKTOP WORKSPACE
              ========================================================================= */
           <motion.div
             key="workspace-view"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
-            className="flex flex-col gap-6"
+            className="flex flex-col gap-5 relative min-h-screen animate-fade-in"
           >
-            {/* Two-Level High-Performance Workspace Toolbar */}
-            <div className="flex flex-col gap-3 mb-4 bg-white/50 backdrop-blur-sm p-4 rounded-3xl border border-slate-200/50">
-              
-              {/* LEVEL 1: Primary Controls (Title, Status, Global Actions) */}
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={cancelEditing}
-                    className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200/30 cursor-pointer transition-all active:scale-95 flex items-center justify-center shrink-0"
-                    title="Voltar para a Lista"
+            {/* Sliding Left Drawer for Protocol Metadata */}
+            <AnimatePresence>
+              {isDrawerOpen && (
+                <>
+                  {/* Backdrop overlay */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.4 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setIsDrawerOpen(false)}
+                    className="fixed inset-0 bg-slate-950 z-40 backdrop-blur-sm"
+                  />
+                  
+                  {/* Drawer Panel */}
+                  <motion.div
+                    initial={{ x: '-100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '-100%' }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                    className="fixed left-0 top-0 bottom-0 w-[360px] bg-white shadow-2xl z-50 p-6 overflow-y-auto border-r border-slate-200 flex flex-col gap-5 text-slate-800"
                   >
-                    <X size={14} />
-                  </button>
-                  <div className="min-w-0">
-                    <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5 leading-tight">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-                      Kyron Protocol Builder 5.2
-                    </h4>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 truncate max-w-[200px] md:max-w-xs">
-                      {isCreating ? 'Novo Protocolo' : `Editando: ${selectedProtocol?.name || 'Protocolo'}`}
-                    </p>
-                  </div>
-                </div>
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4 shrink-0">
+                      <div>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          Dados do Protocolo
+                        </h4>
+                        <p className="text-xs font-black text-slate-800 mt-0.5 uppercase">
+                          Configurações Gerais
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsDrawerOpen(false)}
+                        className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg transition-all border-none bg-transparent cursor-pointer animate-fade-in"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
 
-                {/* Center: Realtime Sync & Autosave Status */}
-                <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-100 px-3.5 py-1.5 rounded-2xl shrink-0">
-                  <CloudLightning size={12} className="text-blue-500 animate-bounce" />
-                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">
-                    {saving ? 'Salvando na nuvem...' : hasChanges ? 'Modificações não salvas' : 'Sincronizado na Nuvem'}
+                    <div className="flex-1 overflow-y-auto space-y-5 pr-1 no-scrollbar">
+                      {/* Visual Cover Header */}
+                      <div className="relative h-28 rounded-2xl overflow-hidden bg-slate-100 border border-slate-150 shrink-0 shadow-inner">
+                        <img
+                          src={selectedProtocol?.image_url || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=400'}
+                          alt={selectedProtocol?.name || 'Protocolo'}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 to-transparent" />
+                        <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-white bg-blue-600 px-2 py-0.5 rounded-md">
+                            {selectedProtocol?.goal || 'Geral'}
+                          </span>
+                          <span className="text-[8px] font-black uppercase tracking-wider text-white bg-slate-900/80 px-2 py-0.5 rounded-md border border-slate-700">
+                            v{selectedProtocol?.version || 1}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Text inputs */}
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Nome do Protocolo</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Ex: Protocolo de Hipertrofia Avançada"
+                            value={selectedProtocol?.name || ''}
+                            onChange={(e) => updateProtocolField('name', e.target.value)}
+                            className="h-9 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Diretrizes e Notas Gerais</label>
+                          <textarea
+                            placeholder="Adicione diretrizes, recomendações de cardio ou foco principal deste protocolo..."
+                            value={selectedProtocol?.description || ''}
+                            onChange={(e) => updateProtocolField('description', e.target.value)}
+                            rows={3}
+                            className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white resize-none leading-relaxed"
+                          />
+                        </div>
+
+                        {/* Goal & Weeks */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Objetivo</label>
+                            <input
+                              type="text"
+                              placeholder="Hipertrofia"
+                              value={selectedProtocol?.goal || ''}
+                              onChange={(e) => updateProtocolField('goal', e.target.value)}
+                              className="h-9 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Semanas</label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={selectedProtocol?.duration_weeks || 4}
+                              onChange={(e) => updateProtocolField('duration_weeks', Number(e.target.value) || 1)}
+                              className="h-9 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Image URL */}
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">URL da Imagem de Capa</label>
+                          <input
+                            type="url"
+                            placeholder="https://..."
+                            value={selectedProtocol?.image_url || ''}
+                            onChange={(e) => updateProtocolField('image_url', e.target.value)}
+                            className="h-9 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white"
+                          />
+                        </div>
+
+                        {/* Select settings */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Categoria</label>
+                            <select
+                              value={selectedProtocol?.category}
+                              onChange={(e) => updateProtocolField('category', e.target.value)}
+                              className="h-9 px-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                            >
+                              <option value="public">Gratuita</option>
+                              <option value="premium">Premium</option>
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Dificuldade</label>
+                            <select
+                              value={selectedProtocol?.difficulty || 'Iniciante'}
+                              onChange={(e) => updateProtocolField('difficulty', e.target.value)}
+                              className="h-9 px-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                            >
+                              <option value="Iniciante">Iniciante</option>
+                              <option value="Intermediário">Intermediário</option>
+                              <option value="Avançado">Avançado</option>
+                              <option value="Elite">Elite</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Status */}
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Status de Publicação</label>
+                          <select
+                            value={selectedProtocol?.status}
+                            onChange={(e) => updateProtocolField('status', e.target.value)}
+                            className="h-9 px-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                          >
+                            <option value="draft">Rascunho</option>
+                            <option value="published">Publicado</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-150 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setIsDrawerOpen(false)}
+                        className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border-none shadow-md animate-fade-in"
+                      >
+                        Salvar e Fechar
+                      </button>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+
+            {/* Compact Header (Max 72px) */}
+            <div className="flex items-center justify-between h-[72px] min-h-[72px] px-6 bg-white border-b border-slate-200 shrink-0 select-none mb-4 rounded-3xl shadow-sm">
+              {/* Left Section: Back button & Protocol Name */}
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-xl transition-all active:scale-95 flex items-center justify-center shrink-0"
+                  title="Voltar para a Lista"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+                <div className="min-w-0">
+                  <h1 className="text-sm font-black text-slate-900 truncate leading-none">
+                    {selectedProtocol?.name || 'Novo Protocolo'}
+                  </h1>
+                  <span className="inline-block text-[8px] font-black uppercase tracking-widest text-slate-400 mt-1">
+                    Kyron Protocol Builder 6.0
                   </span>
-                </div>
-
-                {/* Right: Principal Actions */}
-                <div className="flex items-center gap-2 shrink-0 ml-auto md:ml-0">
-                  {/* Salvar (Draft) */}
-                  <button
-                    type="button"
-                    onClick={saveProtocol}
-                    disabled={saving}
-                    className={`h-9 px-3.5 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                      hasChanges
-                        ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer shadow-sm'
-                        : 'bg-slate-50 text-slate-300 border border-slate-100 cursor-not-allowed'
-                    }`}
-                  >
-                    {saving ? <RefreshCw size={11} className="animate-spin text-slate-400" /> : <Save size={11} />}
-                    Salvar Rascunho
-                  </button>
-
-                  {/* Publicar (Sets status to published & saves) */}
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={async () => {
-                      updateProtocolField('status', 'published');
-                      setTimeout(() => {
-                        saveProtocol();
-                      }, 100);
-                    }}
-                    className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-blue-500/10"
-                  >
-                    <Send size={11} />
-                    Publicar Protocolo
-                  </button>
                 </div>
               </div>
 
-              {/* Divider */}
-              <div className="border-t border-slate-100 w-full my-1" />
+              {/* Center Section: Sync Status & Discreet Undo/Redo */}
+              <div className="hidden md:flex items-center gap-4">
+                {/* Realtime Sync Status */}
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  {saving ? (
+                    <RefreshCw size={11} className="animate-spin text-blue-500" />
+                  ) : hasChanges ? (
+                    <CloudLightning size={11} className="text-amber-500 animate-pulse" />
+                  ) : (
+                    <Cloud size={11} className="text-emerald-500" />
+                  )}
+                  <span className="text-[9px] font-black uppercase tracking-wider">
+                    {saving ? 'Salvando...' : hasChanges ? 'Modificações não salvas' : 'Sincronizado'}
+                  </span>
+                </div>
 
-              {/* LEVEL 2: Direct Editor Shortcuts (High Density Bar) */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {/* Desfazer */}
+                {/* Discreet Undo / Redo buttons */}
+                <div className="flex items-center gap-1 bg-slate-100/60 p-0.5 rounded-lg border border-slate-200/50">
                   <button
                     type="button"
                     onClick={undo}
                     disabled={!canUndo}
-                    className={`h-8 px-2.5 rounded-lg border text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all ${
+                    className={`p-1.5 rounded-md border-none bg-transparent transition-all ${
                       canUndo
-                        ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer'
-                        : 'bg-slate-50/55 border-slate-100 text-slate-300 cursor-not-allowed'
+                        ? 'text-slate-600 hover:text-slate-900 hover:bg-white cursor-pointer'
+                        : 'text-slate-300 cursor-not-allowed'
                     }`}
                     title="Desfazer (Ctrl + Z)"
                   >
-                    <Undo2 size={11} />
-                    Desfazer
+                    <Undo2 size={12} />
                   </button>
-
-                  {/* Refazer */}
                   <button
                     type="button"
                     onClick={redo}
                     disabled={!canRedo}
-                    className={`h-8 px-2.5 rounded-lg border text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all ${
+                    className={`p-1.5 rounded-md border-none bg-transparent transition-all ${
                       canRedo
-                        ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer'
-                        : 'bg-slate-50/55 border-slate-100 text-slate-300 cursor-not-allowed'
+                        ? 'text-slate-600 hover:text-slate-900 hover:bg-white cursor-pointer'
+                        : 'text-slate-300 cursor-not-allowed'
                     }`}
                     title="Refazer (Ctrl + Shift + Z)"
                   >
-                    <Redo2 size={11} />
-                    Refazer
-                  </button>
-
-                  {/* Vertical Separator */}
-                  <div className="w-px h-5 bg-slate-200/60 mx-1 hidden sm:block" />
-
-                  {/* Adicionar Dia */}
-                  <button
-                    type="button"
-                    onClick={addDay}
-                    className="h-8 px-2.5 bg-blue-50 border border-blue-100 hover:bg-blue-100/80 text-blue-700 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
-                  >
-                    <Plus size={11} />
-                    Novo Dia
-                  </button>
-
-                  {/* Adicionar Exercício */}
-                  <button
-                    type="button"
-                    onClick={handleFocusSearch}
-                    disabled={!selectedDayId}
-                    className="h-8 px-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <Plus size={11} />
-                    Add Exercício
+                    <Redo2 size={12} />
                   </button>
                 </div>
+              </div>
 
-                <div className="flex items-center gap-1.5 ml-auto md:ml-0">
-                  {/* Duplicar Seleção */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedExerciseIds.length > 0) {
-                        bulkDuplicate();
-                      } else if (selectedDayId) {
-                        const dayObj = days.find(d => d.id === selectedDayId);
-                        if (dayObj) duplicateDay(dayObj);
-                      }
-                    }}
-                    disabled={!selectedDayId}
-                    className="h-8 px-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                    title="Duplicar Dia ou Exercícios selecionados"
-                  >
-                    <Copy size={11} />
-                    Duplicar
-                  </button>
+              {/* Right Section: Main Actions & Sidebar/Drawer toggles */}
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Dados do Protocolo (Left Drawer Toggle) */}
+                <button
+                  type="button"
+                  onClick={() => setIsDrawerOpen(true)}
+                  className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
+                    isDrawerOpen
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title="Dados do Protocolo (Configurações)"
+                >
+                  <Settings size={14} />
+                </button>
 
-                  {/* Excluir Seleção */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedExerciseIds.length > 0) {
-                        bulkDelete();
-                      } else if (selectedDayId) {
-                        removeDay(selectedDayId);
-                      }
-                    }}
-                    disabled={!selectedDayId}
-                    className="h-8 px-2.5 bg-rose-50 border border-rose-200 hover:bg-rose-100/50 text-rose-700 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                    title="Excluir Dia ou Exercícios selecionados"
-                  >
-                    <Trash2 size={11} />
-                    Excluir
-                  </button>
-                </div>
+                {/* Painel Inteligente (Right Sidebar Toggle) */}
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
+                    isSidebarOpen
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title="Painel Inteligente (Métricas)"
+                >
+                  <Activity size={14} />
+                </button>
+
+                {/* Vertical Divider */}
+                <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block" />
+
+                {/* Salvar Rascunho (Draft) */}
+                <button
+                  type="button"
+                  onClick={saveProtocol}
+                  disabled={saving}
+                  className={`h-9 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                    hasChanges
+                      ? 'bg-white border border-slate-250 text-slate-800 hover:bg-slate-50 cursor-pointer shadow-sm'
+                      : 'bg-slate-50 text-slate-300 border border-slate-100 cursor-not-allowed'
+                  }`}
+                >
+                  {saving ? <RefreshCw size={11} className="animate-spin text-slate-400" /> : <Save size={11} />}
+                  Salvar
+                </button>
+
+                {/* Publicar */}
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={async () => {
+                    updateProtocolField('status', 'published');
+                    setTimeout(() => {
+                      saveProtocol();
+                    }, 100);
+                  }}
+                  className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-blue-500/10"
+                >
+                  <Send size={11} />
+                  Publicar
+                </button>
               </div>
             </div>
 
@@ -744,163 +890,14 @@ export const ProtocolBuilder40: React.FC = () => {
               </button>
             </div>
 
-            {/* Main Workspace: 4 Columns with beautiful flexbox percentages on Desktop */}
+            {/* Main Workspace: 2-Column Responsive Layout */}
             <div className="flex flex-col lg:flex-row gap-4 items-start w-full">
               
-              {/* ==========================================
-                 COLUMN 1: PROTOCOL GENERAL DATA (15% Width)
-                 ========================================== */}
-              <div className={`w-full lg:w-[15%] shrink-0 bg-white rounded-3xl border border-slate-200/50 shadow-sm p-4 flex flex-col gap-4 ${
-                activeMobileTab === 'info' ? 'block' : 'hidden lg:flex'
+              {/* EDITOR COLUMN (occupies 72% if Sidebar is open, 100% if closed!) */}
+              <div className={`w-full flex flex-col gap-4 transition-all duration-300 ${
+                isSidebarOpen ? 'lg:w-[72%]' : 'lg:w-[100%]'
               }`}>
-                {/* Visual Cover Header */}
-                <div className="relative h-20 rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 shrink-0">
-                  <img
-                    src={selectedProtocol?.image_url || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=400'}
-                    alt={selectedProtocol?.name || 'Protocolo'}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 to-transparent" />
-                  <div className="absolute bottom-2 left-2 right-2">
-                    <span className="text-[8px] font-black uppercase tracking-wider text-white bg-blue-600/90 px-1.5 py-0.5 rounded">
-                      {selectedProtocol?.goal || 'Geral'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col">
-                  {/* Inline editable document-like name */}
-                  <input
-                    type="text"
-                    required
-                    placeholder="Nome do Protocolo"
-                    value={selectedProtocol?.name || ''}
-                    onChange={(e) => updateProtocolField('name', e.target.value)}
-                    className="bg-transparent border-none p-0 text-xs font-black text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0 w-full"
-                  />
-                  {/* Inline editable document-like description */}
-                  <textarea
-                    placeholder="Adicione diretrizes e foco deste protocolo..."
-                    value={selectedProtocol?.description || ''}
-                    onChange={(e) => updateProtocolField('description', e.target.value)}
-                    rows={2}
-                    className="bg-transparent border-none p-0 text-[10px] text-slate-400 placeholder:text-slate-300 font-semibold focus:outline-none focus:ring-0 w-full resize-none leading-normal mt-1"
-                  />
-                </div>
-
-                <div className="border-t border-slate-100 pt-3 space-y-3">
-                  {/* Goal & Weeks */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Objetivo</span>
-                      <input
-                        type="text"
-                        placeholder="Hipertrofia"
-                        value={selectedProtocol?.goal || ''}
-                        onChange={(e) => updateProtocolField('goal', e.target.value)}
-                        className="bg-transparent border-none p-0 text-[10px] font-black text-slate-700 focus:outline-none focus:ring-0"
-                      />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Semanas</span>
-                      <input
-                        type="number"
-                        min={1}
-                        value={selectedProtocol?.duration_weeks || 4}
-                        onChange={(e) => updateProtocolField('duration_weeks', Number(e.target.value) || 1)}
-                        className="bg-transparent border-none p-0 text-[10px] font-black text-slate-700 focus:outline-none focus:ring-0"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Advanced settings dropdown toggle */}
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="w-full flex items-center justify-between text-[8px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-none cursor-pointer pt-1"
-                  >
-                    <span className="flex items-center gap-1">
-                      <Settings size={10} />
-                      Editar Detalhes
-                    </span>
-                    {showAdvanced ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                  </button>
-
-                  {/* Collapsed advanced form fields */}
-                  <AnimatePresence initial={false}>
-                    {showAdvanced && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.15 }}
-                        className="overflow-hidden space-y-3 pt-1 border-t border-slate-100"
-                      >
-                        {/* Capa URL */}
-                        <div className="flex flex-col gap-0.5">
-                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">URL da Imagem</label>
-                          <input
-                            type="url"
-                            placeholder="https://..."
-                            value={selectedProtocol?.image_url || ''}
-                            onChange={(e) => updateProtocolField('image_url', e.target.value)}
-                            className="h-7 px-2 rounded bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-700 focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-
-                        {/* Categoria */}
-                        <div className="flex flex-col gap-0.5">
-                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Categoria</label>
-                          <select
-                            value={selectedProtocol?.category}
-                            onChange={(e) => updateProtocolField('category', e.target.value)}
-                            className="h-7 px-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 focus:outline-none cursor-pointer"
-                          >
-                            <option value="public">Gratuita</option>
-                            <option value="premium">Premium</option>
-                          </select>
-                        </div>
-
-                        {/* Status */}
-                        <div className="flex flex-col gap-0.5">
-                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Status</label>
-                          <select
-                            value={selectedProtocol?.status}
-                            onChange={(e) => updateProtocolField('status', e.target.value)}
-                            className="h-7 px-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 focus:outline-none cursor-pointer"
-                          >
-                            <option value="draft">Rascunho</option>
-                            <option value="published">Publicado</option>
-                          </select>
-                        </div>
-
-                        {/* Dificuldade */}
-                        <div className="flex flex-col gap-0.5">
-                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Dificuldade</label>
-                          <select
-                            value={selectedProtocol?.difficulty || 'Iniciante'}
-                            onChange={(e) => updateProtocolField('difficulty', e.target.value)}
-                            className="h-7 px-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 focus:outline-none cursor-pointer"
-                          >
-                            <option value="Iniciante">Iniciante</option>
-                            <option value="Intermediário">Intermediário</option>
-                            <option value="Avançado">Avançado</option>
-                            <option value="Elite">Elite</option>
-                          </select>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              {/* ==========================================
-                 COLUMN 2: PROTOCOL DAYS (15% Width)
-                 ========================================== */}
-              <div className={`w-full lg:w-[15%] shrink-0 ${
-                activeMobileTab === 'days' ? 'block' : 'hidden lg:block'
-              }`}>
+                {/* Horizontal day tabs at the top of active editor area */}
                 <ProtocolDays
                   days={days}
                   selectedDayId={selectedDayId}
@@ -914,14 +911,7 @@ export const ProtocolBuilder40: React.FC = () => {
                   onMoveExerciseToDay={moveExerciseToDay}
                   exercises={exercises}
                 />
-              </div>
 
-              {/* ==========================================
-                 COLUMN 3: ACTIVE DAY EXERCISES LIST (55% Width)
-                 ========================================== */}
-              <div className={`w-full lg:w-[55%] shrink-0 ${
-                activeMobileTab === 'exercises' ? 'block' : 'hidden lg:block'
-              }`}>
                 {selectedDayId ? (
                   <ProtocolExerciseList
                     exercises={activeDayExercises}
@@ -941,97 +931,117 @@ export const ProtocolBuilder40: React.FC = () => {
                     onBulkDelete={bulkDelete}
                     onReorderExercises={reorderExercises}
                     onMoveExerciseToDay={moveExerciseToDay}
+                    onUpdateDayField={updateDayField}
                   />
                 ) : (
                   <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm p-12 text-center flex flex-col items-center justify-center min-h-[350px]">
                     <div className="w-12 h-12 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center text-slate-400 mb-4">
                       <Calendar size={22} />
                     </div>
-                    <h5 className="text-xs font-black text-slate-800 uppercase tracking-wider">Crie ou Selecione um Dia</h5>
+                    <h5 className="text-xs font-black text-slate-800 uppercase tracking-wider">Crie ou Selecione um Treino</h5>
                     <p className="text-[10px] text-slate-400 max-w-[200px] mt-1.5 leading-relaxed">
-                      Selecione um treino na Coluna 2 para iniciar a prescrição dos exercícios.
+                      Selecione uma aba de treino acima ou crie um novo treino para iniciar a prescrição de exercícios.
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* ====================================================
-                 COLUMN 4: SMART FIXED METRICS & ANALYTICS SIDEBAR (15% Width)
-                 ==================================================== */}
-              <div className={`w-full lg:w-[15%] shrink-0 ${
-                activeMobileTab === 'metrics' ? 'block' : 'hidden lg:flex'
-              }`}>
-                {/* Unified Continuous Sidebar */}
-                <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm overflow-hidden flex flex-col w-full">
+              {/* SMART ANALYTICS COLLAPSIBLE SIDEBAR (28% width) */}
+              {isSidebarOpen && (
+                <div className={`w-full lg:w-[28%] shrink-0 bg-white rounded-3xl border border-slate-200/50 shadow-sm overflow-hidden flex flex-col ${
+                  activeMobileTab === 'metrics' ? 'block' : 'hidden lg:flex'
+                }`}>
                   {/* Sidebar Header */}
-                  <div className="p-4 pb-2 border-b border-slate-100">
-                    <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                      Painel Inteligente
+                  <div className="p-4 pb-2.5 border-b border-slate-100 flex items-center justify-between">
+                    <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                      Painel de Inteligência
                     </h5>
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarOpen(false)}
+                      className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase border-none bg-transparent cursor-pointer hidden lg:block"
+                    >
+                      Ocultar
+                    </button>
                   </div>
 
-                  {/* Section 1: Atividade & Ergonomia */}
-                  <div className="p-4 border-b border-slate-150 bg-slate-50/50">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-2">Atividade</span>
+                  {/* Section 1: Active Timer */}
+                  <div className="p-4 border-b border-slate-150 bg-slate-50/40">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-2">Tempo de Edição</span>
                     <div className="flex items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Clock size={11} className="text-blue-500 animate-pulse" />
                         <span className="text-[10px] font-mono font-black text-slate-700 truncate">{formatTimer(secondsElapsed)}</span>
                       </div>
-                      <span className="text-[8px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1 shrink-0">
+                      <span className="text-[8px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1 shrink-0 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
                         <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />
-                        Sync
+                        Ativo
                       </span>
                     </div>
                   </div>
 
                   {/* Section 2: Resumo do Ciclo */}
                   <div className="p-4 border-b border-slate-150">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-2">Ciclo</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-2">Volume Total do Ciclo</span>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
-                        <p className="text-[14px] font-black text-slate-800 leading-none">{totals.exercisesCount}</p>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5 block">Exer.</span>
+                      <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-2.5 text-center shadow-inner">
+                        <p className="text-[15px] font-black text-slate-800 leading-none">{totals.exercisesCount}</p>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5 block">Exercícios</span>
                       </div>
-                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
-                        <p className="text-[14px] font-black text-slate-800 leading-none">{totals.setsCount}</p>
+                      <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-2.5 text-center shadow-inner">
+                        <p className="text-[15px] font-black text-slate-800 leading-none">{totals.setsCount}</p>
                         <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5 block">Séries</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Section 3: Volume Semanal (Distribution list) */}
-                  <div className="p-4 border-b border-slate-150 max-h-[220px] overflow-y-auto no-scrollbar">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-2">Volume Semanal</span>
-                    <div className="space-y-2.5">
+                  {/* Section 3: Weekly Volume distribution with WARNINGS & COACH INSTRUCTIONS */}
+                  <div className="p-4 border-b border-slate-150 max-h-[280px] overflow-y-auto pr-2 scrollbar-none space-y-3">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Distribuição de Volume Semanal</span>
+                    
+                    <div className="space-y-3 pt-1">
                       {Object.entries(muscleDistribution).map(([muscle, setsRaw]) => {
                         const sets = setsRaw as number;
-                        let barColor = 'bg-sky-400';
-                        let rangeStatus = 'Insuf.';
-                        if (sets >= 10 && sets <= 20) {
-                          barColor = 'bg-blue-600';
-                          rangeStatus = 'Ideal';
+                        
+                        // Let's compute custom coaching tips and alerts
+                        let barColor = 'bg-slate-200';
+                        let rangeStatus = 'Sem séries';
+                        let coachTip = 'Nenhum exercício prescrito para este grupo.';
+                        
+                        if (sets > 0 && sets < 10) {
+                          barColor = 'bg-amber-400';
+                          rangeStatus = 'Volume Baixo';
+                          coachTip = `⚠ Volume insuficiente. Adicione +${10 - sets} séries para alcançar estímulo mínimo.`;
+                        } else if (sets >= 10 && sets <= 20) {
+                          barColor = 'bg-emerald-500';
+                          rangeStatus = 'Faixa Ideal';
+                          coachTip = '✔ Hipertrofia ótima. Distribuição muscular perfeita.';
                         } else if (sets > 20) {
-                          barColor = 'bg-amber-500';
-                          rangeStatus = 'Max';
-                        } else if (sets === 0) {
-                          barColor = 'bg-slate-200';
-                          rangeStatus = 'Zero';
+                          barColor = 'bg-rose-500';
+                          rangeStatus = 'Volume Elevado';
+                          coachTip = `⚠ Atenção: Risco de overtraining. Sugerido reduzir -${sets - 20} séries.`;
                         }
 
                         return (
-                          <div key={muscle} className="space-y-1">
-                            <div className="flex items-center justify-between text-[9px] font-black text-slate-600 uppercase tracking-wider">
-                              <span className="truncate max-w-[50px]">{muscle}</span>
-                              <span className="text-[8px] text-slate-400 font-bold">{sets} s. ({rangeStatus})</span>
+                          <div key={muscle} className="space-y-1 bg-slate-50/40 p-2 rounded-xl border border-slate-100/60">
+                            <div className="flex items-center justify-between text-[9px] font-black text-slate-700 uppercase tracking-wider">
+                              <span>{muscle}</span>
+                              <span className="text-[8px] font-black text-slate-400">{sets} s. ({rangeStatus})</span>
                             </div>
-                            <div className="h-1 bg-slate-100 rounded-full overflow-hidden relative">
+                            
+                            {/* Progress bar */}
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden relative">
                               <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${Math.min(100, (sets / 24) * 100)}%` }}
                                 className={`h-full rounded-full ${barColor}`}
                               />
                             </div>
+
+                            {/* Intelligent Coach Tip Text */}
+                            <p className="text-[8px] font-semibold leading-normal text-slate-500 mt-1">
+                              {coachTip}
+                            </p>
                           </div>
                         );
                       })}
@@ -1039,8 +1049,8 @@ export const ProtocolBuilder40: React.FC = () => {
                   </div>
 
                   {/* Section 4: Diagnóstico Biomecânico Alerts */}
-                  <div className="p-4 max-h-[180px] overflow-y-auto no-scrollbar">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-2">Diagnóstico</span>
+                  <div className="p-4 max-h-[180px] overflow-y-auto pr-2 scrollbar-none">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-2">Diagnóstico Biomecânico</span>
                     <div className="space-y-1.5">
                       {balanceIndicators.map((ind, i) => (
                         <div
@@ -1062,7 +1072,7 @@ export const ProtocolBuilder40: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
             </div>
           </motion.div>

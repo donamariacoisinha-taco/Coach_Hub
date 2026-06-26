@@ -25,6 +25,7 @@ interface ProtocolExerciseListProps {
   onBulkDelete: () => void;
   onReorderExercises?: (dayId: string, fromIndex: number, toIndex: number) => void;
   onMoveExerciseToDay?: (fromDayId: string, fromIndex: number, toDayId: string) => void;
+  onUpdateDayField?: (dayId: string, field: any, value: any) => void;
 }
 
 export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
@@ -44,7 +45,8 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
   onBulkDuplicate,
   onBulkDelete,
   onReorderExercises,
-  onMoveExerciseToDay
+  onMoveExerciseToDay,
+  onUpdateDayField
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -100,7 +102,9 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
     setHighlightedIndex(0);
   }, [filteredLibrary]);
 
-  const handleSelectFromLibrary = (exerciseId: string, keepOpen = false) => {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleSelectFromLibrary = (exerciseId: string, keepOpen = true) => {
     onAddExercise(exerciseId);
     if (!keepOpen) {
       setSearchQuery('');
@@ -109,6 +113,11 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
       setSearchQuery('');
       setShowDropdown(true);
     }
+
+    // Maintain focus on search input for continuous workflow
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 10);
 
     // Save and rotate recent exercise list
     const updatedRecents = [exerciseId, ...recentIds.filter(id => id !== exerciseId)].slice(0, 12);
@@ -147,10 +156,23 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
             />
           )}
           <div>
-            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <Dumbbell size={15} className="text-blue-500" />
-              Exercícios de {selectedDayTitle}
-            </h4>
+            <div className="flex items-center gap-2">
+              <Dumbbell size={15} className="text-blue-500 shrink-0" />
+              {onUpdateDayField && selectedDayId ? (
+                <input
+                  type="text"
+                  value={selectedDayTitle}
+                  onChange={(e) => onUpdateDayField(selectedDayId, 'title', e.target.value)}
+                  placeholder="Nome do Treino"
+                  title="Clique para renomear este treino"
+                  className="bg-transparent border-none p-0 text-sm font-black text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0 w-48 sm:w-64 transition-all focus:bg-slate-50 rounded px-1"
+                />
+              ) : (
+                <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                  Exercícios de {selectedDayTitle}
+                </h4>
+              )}
+            </div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
               Prescrição e Carga
             </p>
@@ -260,6 +282,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
         <div className="relative">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
+            ref={inputRef}
             type="text"
             placeholder="Pesquisar & adicionar exercício ao treino..."
             value={searchQuery}
@@ -375,13 +398,21 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
       <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
         <AnimatePresence initial={false}>
           {exercises.length === 0 ? (
-            <div className="text-center py-16 text-slate-400 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-slate-100 rounded-2xl">
+            <div className="text-center py-16 text-slate-400 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-slate-100 rounded-2xl p-6">
               <Dumbbell size={32} className="text-slate-300 animate-bounce" />
               <div>
-                <p className="text-xs font-bold text-slate-600">Nenhum exercício neste dia</p>
-                <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] mx-auto">
-                  Use o campo acima para buscar e adicionar exercícios para criar o treino deste dia.
+                <p className="text-xs font-black text-slate-700 uppercase tracking-wider">Este treino ainda não tem exercícios.</p>
+                <p className="text-[10px] text-slate-400 mt-1 max-w-[280px] mx-auto leading-relaxed">
+                  Busque um exercício acima ou pressione Enter para adicionar rapidamente.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.focus()}
+                  className="mt-4 h-8 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/50 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm mx-auto"
+                >
+                  <Plus size={11} />
+                  + Adicionar primeiro exercício
+                </button>
               </div>
             </div>
           ) : (

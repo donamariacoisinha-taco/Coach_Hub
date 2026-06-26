@@ -4,14 +4,12 @@ import {
   ArrowDown, 
   Copy, 
   Trash2, 
-  Clock, 
   Flame, 
   Zap, 
   Layers,
   GripVertical,
   ChevronDown,
-  ChevronUp,
-  FileText
+  ChevronUp
 } from 'lucide-react';
 import { PremiumProtocolExercise } from '../../../types/protocol_4_0';
 import { motion, AnimatePresence } from 'motion/react';
@@ -97,18 +95,18 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`bg-white rounded-2xl border transition-all flex flex-col ${
+      className={`bg-white rounded-xl border transition-all flex flex-col ${
         isDraggedOver 
-          ? 'border-dashed border-blue-500 bg-blue-50/10 scale-[1.005] shadow-md' 
+          ? 'border-dashed border-blue-500 bg-blue-50/10 scale-[1.002] shadow-sm' 
           : isSelected 
           ? 'border-blue-300 bg-blue-50/5 shadow-sm' 
-          : 'border-slate-100 hover:border-slate-200/80 hover:shadow-sm'
+          : 'border-slate-100 hover:border-slate-200/80'
       }`}
     >
-      {/* 1. COMPACT STATE PANEL */}
-      <div className="p-2 px-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3 select-none">
+      {/* 1. STUNNING HIGH-DENSITY COMPACT STATE (Exactly one horizontal line on Desktop) */}
+      <div className="p-2 px-3 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 select-none text-[11px]">
         {/* Left Section: Drag, Checkbox, Image & Title */}
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0 flex-1 lg:max-w-[40%]">
           {/* Grab Handle */}
           <div
             draggable
@@ -121,7 +119,7 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
               }));
               e.dataTransfer.effectAllowed = 'move';
             }}
-            className="p-1 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 rounded flex items-center justify-center shrink-0"
+            className="p-1 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 rounded shrink-0 flex items-center justify-center"
             title="Arraste para reordenar"
           >
             <GripVertical size={13} />
@@ -134,7 +132,7 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
               checked={isSelected}
               onChange={onToggleSelect}
               className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 shrink-0 cursor-pointer"
-              title="Selecionar exercício"
+              title="Selecionar"
             />
           )}
 
@@ -142,81 +140,81 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
           <img
             src={details?.image_url || fallbackImg}
             alt={details?.name || "Exercício"}
-            className="w-8 h-8 rounded-lg object-cover shrink-0 border border-slate-100/80"
+            className="w-7 h-7 rounded-md object-cover shrink-0 border border-slate-100/80"
             referrerPolicy="no-referrer"
           />
 
-          {/* Exercise Meta */}
-          <div className="min-w-0 flex-1 lg:max-w-[220px]">
-            <h5 className="font-bold text-xs text-slate-800 truncate leading-none">
+          {/* Exercise Meta (Name & Muscle) */}
+          <div className="min-w-0 flex-1">
+            <h5 className="font-extrabold text-slate-800 truncate leading-none">
               {details?.name || "Carregando Exercício..."}
             </h5>
-            <span className="inline-block text-[8px] font-black uppercase tracking-wider text-slate-400 mt-1">
+            <span className="inline-block text-[8px] font-black uppercase tracking-wider text-slate-400 mt-0.5">
               {details?.muscle_group || "Geral"}
             </span>
           </div>
         </div>
 
-        {/* Middle Section: Quick Inline Fields (Sets, Reps, Rest, RPE) */}
-        <div className="flex items-center gap-4 shrink-0 bg-slate-50/50 p-1 px-2 rounded-lg border border-slate-100/85">
+        {/* Middle Section: Quick Inline Fields (Sets, Reps, Rest, RPE) aligned horizontally */}
+        <div className="flex flex-wrap items-center gap-3 shrink-0 py-1 px-2 rounded-lg bg-slate-50/50 border border-slate-100/80">
           {/* Sets */}
-          <div className="flex items-center gap-1">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Séries</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Séries</span>
             <input
               type="number"
               min={1}
               value={exercise.sets}
               onChange={(e) => onUpdateField('sets', Number(e.target.value) || 3)}
-              className="h-6 w-9 rounded bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-all text-center"
+              className="h-6 w-9 rounded bg-white border border-slate-200 text-xs font-black text-slate-700 focus:outline-none focus:border-blue-500 text-center"
             />
           </div>
 
-          <div className="w-px h-3.5 bg-slate-200" />
+          <div className="w-px h-3 bg-slate-200 hidden lg:block" />
 
           {/* Reps */}
-          <div className="flex items-center gap-1">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Reps</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Reps</span>
             <input
               type="text"
               placeholder="10"
               value={exercise.reps}
               onChange={(e) => onUpdateField('reps', e.target.value)}
-              className="h-6 w-12 rounded bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-all text-center"
+              className="h-6 w-12 rounded bg-white border border-slate-200 text-xs font-black text-slate-700 focus:outline-none focus:border-blue-500 text-center"
             />
           </div>
 
-          <div className="w-px h-3.5 bg-slate-200" />
+          <div className="w-px h-3 bg-slate-200 hidden lg:block" />
 
           {/* Rest */}
-          <div className="flex items-center gap-1">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Rest</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Rest</span>
             <input
               type="number"
               placeholder="60"
               value={exercise.rest_seconds || ''}
               onChange={(e) => onUpdateField('rest_seconds', Number(e.target.value) || 0)}
-              className="h-6 w-11 rounded bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-all text-center"
+              className="h-6 w-11 rounded bg-white border border-slate-200 text-xs font-black text-slate-700 focus:outline-none focus:border-blue-500 text-center"
             />
             <span className="text-[9px] text-slate-400 font-bold">s</span>
           </div>
 
-          <div className="w-px h-3.5 bg-slate-200" />
+          <div className="w-px h-3 bg-slate-200 hidden lg:block" />
 
           {/* RPE */}
-          <div className="flex items-center gap-1">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">RPE</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">RPE</span>
             <input
               type="text"
               placeholder="9"
               value={exercise.rpe || ''}
               onChange={(e) => onUpdateField('rpe', e.target.value)}
-              className="h-6 w-9 rounded bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-all text-center"
+              className="h-6 w-9 rounded bg-white border border-slate-200 text-xs font-black text-slate-700 focus:outline-none focus:border-blue-500 text-center"
             />
           </div>
         </div>
 
         {/* Right Section: Compact toolbar actions */}
-        <div className="flex items-center justify-end gap-1 shrink-0 opacity-80 hover:opacity-100 transition-opacity">
+        <div className="flex items-center justify-end gap-1.5 shrink-0 ml-auto lg:ml-0">
           <button
             type="button"
             onClick={() => onMove('up')}
@@ -252,23 +250,24 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
             <Trash2 size={11} />
           </button>
           
-          <div className="w-px h-4 bg-slate-200 mx-1" />
+          <div className="w-px h-3.5 bg-slate-200 mx-1 hidden lg:block" />
 
           {/* Expand/Collapse Toggle Arrow */}
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`p-1 rounded cursor-pointer border-none transition-colors ${
-              isExpanded ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+            className={`p-1 rounded cursor-pointer border-none transition-colors flex items-center justify-center gap-1.5 text-[9px] font-black uppercase px-2 py-1 ${
+              isExpanded ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'
             }`}
             title={isExpanded ? "Recolher detalhes" : "Expandir detalhes"}
           >
-            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            Detalhes
+            {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
           </button>
         </div>
       </div>
 
-      {/* 2. EXPANDED STATE PANEL */}
+      {/* 2. EXPANDED STATE PANEL (Smooth dropdown) */}
       <AnimatePresence initial={false}>
         {isExpanded && (
           <motion.div
@@ -276,43 +275,43 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="overflow-hidden border-t border-slate-50 bg-slate-50/30"
+            className="overflow-hidden border-t border-slate-50 bg-slate-50/20"
           >
-            <div className="p-4 flex flex-col gap-4">
+            <div className="p-4 flex flex-col gap-3.5 text-[11px]">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {/* Carga */}
                 <div className="flex flex-col gap-1">
-                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Carga / Tipo</span>
+                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-450">Carga / Tipo</span>
                   <input
                     type="text"
                     placeholder="Ex: 40kg, Halteres"
                     value={exercise.load_type || ''}
                     onChange={(e) => onUpdateField('load_type', e.target.value)}
-                    className="h-9 px-3 rounded-xl bg-white border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/10 transition-all"
+                    className="h-8 px-2.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500"
                   />
                 </div>
 
                 {/* Cadência */}
                 <div className="flex flex-col gap-1">
-                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Cadência</span>
+                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-450">Cadência</span>
                   <input
                     type="text"
                     placeholder="Ex: 3010, Controlada"
                     value={exercise.cadence || ''}
                     onChange={(e) => onUpdateField('cadence', e.target.value)}
-                    className="h-9 px-3 rounded-xl bg-white border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/10 transition-all"
+                    className="h-8 px-2.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500"
                   />
                 </div>
 
                 {/* Tempo */}
                 <div className="flex flex-col gap-1">
-                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Tempo sob Tensão</span>
+                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-450">Tempo sob Tensão</span>
                   <input
                     type="text"
                     placeholder="Ex: 45s, Sem pausa"
                     value={exercise.tempo || ''}
                     onChange={(e) => onUpdateField('tempo', e.target.value)}
-                    className="h-9 px-3 rounded-xl bg-white border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/10 transition-all"
+                    className="h-8 px-2.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500"
                   />
                 </div>
               </div>
@@ -323,13 +322,13 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
                 <button
                   type="button"
                   onClick={() => onUpdateField('drop_set', !exercise.drop_set)}
-                  className={`h-8 px-3 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border cursor-pointer select-none ${
+                  className={`h-7 px-2.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border cursor-pointer select-none ${
                     exercise.drop_set
-                      ? 'bg-amber-500 border-amber-500 text-white shadow-sm shadow-amber-500/10'
+                      ? 'bg-amber-500 border-amber-500 text-white shadow-sm'
                       : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                   }`}
                 >
-                  <Flame size={11} className={exercise.drop_set ? 'text-white' : 'text-amber-500'} />
+                  <Flame size={11} />
                   Drop-Set
                 </button>
 
@@ -337,13 +336,13 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
                 <button
                   type="button"
                   onClick={() => onUpdateField('rest_pause', !exercise.rest_pause)}
-                  className={`h-8 px-3 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border cursor-pointer select-none ${
+                  className={`h-7 px-2.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border cursor-pointer select-none ${
                     exercise.rest_pause
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/10'
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
                       : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                   }`}
                 >
-                  <Zap size={11} className={exercise.rest_pause ? 'text-white' : 'text-indigo-500'} />
+                  <Zap size={11} />
                   Rest-Pause
                 </button>
 
@@ -351,26 +350,26 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
                 <button
                   type="button"
                   onClick={() => onUpdateField('superset', !exercise.superset)}
-                  className={`h-8 px-3 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border cursor-pointer select-none ${
+                  className={`h-7 px-2.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border cursor-pointer select-none ${
                     exercise.superset
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-600/10'
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
                       : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                   }`}
                 >
-                  <Layers size={11} className={exercise.superset ? 'text-white' : 'text-blue-500'} />
+                  <Layers size={11} />
                   Super-Série
                 </button>
               </div>
 
               {/* Instructions / Notes */}
               <div className="flex flex-col gap-1">
-                <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Instruções Técnicas / Observações</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-slate-450">Instruções Técnicas / Observações / Notas</span>
                 <textarea
-                  placeholder="Ex: Focar na máxima contração isométrica no final do movimento, cadenciar bem a descida."
+                  placeholder="Instruções específicas para o atleta..."
                   rows={2}
                   value={exercise.notes || ''}
                   onChange={(e) => onUpdateField('notes', e.target.value)}
-                  className="w-full p-3 rounded-xl bg-white border border-slate-100 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/10 transition-all resize-none leading-relaxed"
+                  className="w-full p-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 resize-none leading-relaxed"
                 />
               </div>
             </div>
