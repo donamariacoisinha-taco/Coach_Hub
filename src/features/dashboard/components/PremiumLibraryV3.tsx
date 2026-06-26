@@ -23,7 +23,7 @@ const GRADIENTS = [
 
 export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onRefreshDashboard, onTabChange }) => {
   const [protocols, setProtocols] = useState<PremiumProtocol[]>([]);
-  const [activeTab, setActiveTab] = useState<'public' | 'premium'>('premium');
+  const [activeTab, setActiveTab] = useState<'public' | 'premium'>('public');
   const [selectedProtocol, setSelectedProtocol] = useState<PremiumProtocol | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);

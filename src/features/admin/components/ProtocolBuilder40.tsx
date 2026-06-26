@@ -39,6 +39,7 @@ import { ProtocolDays } from './ProtocolDays';
 import { ProtocolExerciseList } from './ProtocolExerciseList';
 import { ProtocolToolbar } from './ProtocolToolbar';
 import { motion, AnimatePresence } from 'motion/react';
+import { mediaApi } from '../api/mediaApi';
 
 export const ProtocolBuilder40: React.FC = () => {
   const {
@@ -108,6 +109,59 @@ export const ProtocolBuilder40: React.FC = () => {
 
   // Local clipboard state for copying exercises
   const [copiedExerciseData, setCopiedExerciseData] = useState<any[]>([]);
+
+  // Protocol image uploading state
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleProtocolImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate type: JPG, JPEG, PNG, WEBP
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setUploadError('Formato inválido. Use JPG, JPEG, PNG ou WEBP.');
+      return;
+    }
+
+    // Validate size: Max 5MB
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setUploadError('O arquivo é muito grande. Tamanho máximo permitido: 5MB.');
+      return;
+    }
+
+    setUploadingImage(true);
+    setUploadError(null);
+
+    try {
+      const path = `protocol-${selectedProtocol?.id || 'new'}`;
+      // Try 'protocol-images' bucket first
+      const publicUrl = await mediaApi.uploadAsset(file, path, 'protocol-images');
+      
+      if (!publicUrl || publicUrl === 'undefined' || publicUrl === 'null') {
+        throw new Error('Retornou URL inválida');
+      }
+
+      updateProtocolField('image_url', publicUrl);
+    } catch (err: any) {
+      console.error('[PROTOCOL_IMAGE_UPLOAD_ERROR]', err);
+      try {
+        console.log('[PROTOCOL_IMAGE_UPLOAD] Retrying with fallback bucket exercise-images...');
+        const path = `protocol-${selectedProtocol?.id || 'new'}`;
+        const publicUrl = await mediaApi.uploadAsset(file, path, 'exercise-images');
+        if (!publicUrl || publicUrl === 'undefined' || publicUrl === 'null') {
+          throw new Error('Retornou URL inválida no fallback');
+        }
+        updateProtocolField('image_url', publicUrl);
+      } catch (fallbackErr: any) {
+        setUploadError('Erro ao enviar imagem. Tente novamente.');
+      }
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   // Productivity stopwatch
   const [secondsElapsed, setSecondsElapsed] = useState(0);
@@ -607,6 +661,24 @@ export const ProtocolBuilder40: React.FC = () => {
                                 </button>
                               ))}
                             </div>
+                          </div>
+
+                          {/* Upload image button */}
+                          <div className="mt-1 flex flex-col gap-1">
+                            <label className="text-[9px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-dashed border-blue-300 rounded-xl px-3 py-2 flex items-center justify-center gap-2 cursor-pointer transition-all text-center">
+                              <ImageIcon size={14} className="shrink-0" />
+                              {uploadingImage ? 'Enviando...' : 'Enviar Imagem Própria (Max 5MB)'}
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/jpg,image/png,image/webp"
+                                onChange={handleProtocolImageUpload}
+                                disabled={uploadingImage}
+                                className="hidden"
+                              />
+                            </label>
+                            {uploadError && (
+                              <p className="text-[10px] font-bold text-rose-500 leading-tight mt-0.5">{uploadError}</p>
+                            )}
                           </div>
                         </div>
 

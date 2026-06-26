@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ArrowUp, 
   ArrowDown, 
@@ -9,9 +9,12 @@ import {
   Layers,
   GripVertical,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  RefreshCw,
+  Search
 } from 'lucide-react';
 import { PremiumProtocolExercise } from '../../../types/protocol_4_0';
+import { Exercise } from '../../../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ExerciseDetails {
@@ -34,6 +37,8 @@ interface ProtocolExerciseCardProps {
   onToggleSelect?: () => void;
   onReorder?: (fromIndex: number, toIndex: number) => void;
   onMoveToDay?: (fromDayId: string, fromIndex: number, toDayId: string) => void;
+  exerciseLibrary?: Exercise[];
+  onReplaceExercise?: (newExerciseId: string) => void;
 }
 
 export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.memo(({
@@ -49,11 +54,35 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
   isSelected = false,
   onToggleSelect,
   onReorder,
-  onMoveToDay
+  onMoveToDay,
+  exerciseLibrary,
+  onReplaceExercise
 }) => {
   const fallbackImg = "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=200&auto=format&fit=crop";
   const [isDraggedOver, setIsDraggedOver] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isReplacing, setIsReplacing] = useState(false);
+  const [replaceSearchQuery, setReplaceSearchQuery] = useState('');
+
+  const filteredReplaceLibrary = useMemo(() => {
+    if (!exerciseLibrary) return [];
+    if (!replaceSearchQuery.trim()) {
+      const targetMuscle = details?.muscle_group || '';
+      const sameMuscle = exerciseLibrary.filter(ex => 
+        ex.id !== exercise.exercise_id &&
+        (ex.muscle_group || '').toLowerCase() === targetMuscle.toLowerCase()
+      );
+      if (sameMuscle.length > 0) return sameMuscle.slice(0, 5);
+      return exerciseLibrary.filter(ex => ex.id !== exercise.exercise_id).slice(0, 5);
+    }
+    const q = replaceSearchQuery.toLowerCase();
+    return exerciseLibrary.filter(ex => 
+      ex.id !== exercise.exercise_id &&
+      (ex.name.toLowerCase().includes(q) || 
+       (ex.muscle_group || '').toLowerCase().includes(q) ||
+       (ex.equipment || '').toLowerCase().includes(q))
+    ).slice(0, 5);
+  }, [replaceSearchQuery, exerciseLibrary, exercise.exercise_id, details?.muscle_group]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -243,6 +272,16 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
           </button>
           <button
             type="button"
+            onClick={() => setIsReplacing(!isReplacing)}
+            className={`p-1 rounded cursor-pointer border-none transition-colors flex items-center justify-center ${
+              isReplacing ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
+            }`}
+            title="Substituir exercício"
+          >
+            <RefreshCw size={11} />
+          </button>
+          <button
+            type="button"
             onClick={onDelete}
             className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded bg-transparent border-none cursor-pointer"
             title="Remover"
@@ -372,6 +411,81 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
                   className="w-full p-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 resize-none leading-relaxed"
                 />
               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 3. INLINE REPLACEMENT UI */}
+      <AnimatePresence>
+        {isReplacing && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-t border-slate-100 bg-slate-50/50 p-3"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                Substituir por...
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsReplacing(false);
+                  setReplaceSearchQuery('');
+                }}
+                className="text-[10px] font-bold text-slate-400 hover:text-slate-600 border-none bg-transparent cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+            
+            <div className="relative mb-2">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Pesquisar exercício substituto..."
+                value={replaceSearchQuery}
+                onChange={(e) => setReplaceSearchQuery(e.target.value)}
+                className="w-full h-8 pl-8 pr-3 rounded-lg bg-white border border-slate-200 text-xs placeholder:text-slate-400 font-semibold focus:outline-none focus:border-blue-500 font-bold"
+              />
+            </div>
+
+            <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
+              {filteredReplaceLibrary.length === 0 ? (
+                <div className="text-center py-4 text-slate-400 text-[10px] font-semibold">
+                  Nenhum exercício encontrado.
+                </div>
+              ) : (
+                filteredReplaceLibrary.map((ex) => (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => {
+                      if (onReplaceExercise) {
+                        onReplaceExercise(ex.id);
+                      } else {
+                        onUpdateField('exercise_id', ex.id);
+                      }
+                      setIsReplacing(false);
+                      setReplaceSearchQuery('');
+                    }}
+                    className="w-full flex items-center gap-2 p-1.5 rounded-lg transition-colors hover:bg-white border-none text-left cursor-pointer"
+                  >
+                    <img
+                      src={ex.image_url || fallbackImg}
+                      alt={ex.name}
+                      className="w-6 h-6 rounded object-cover border border-slate-100 shrink-0"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-extrabold text-slate-800 truncate">{ex.name}</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{ex.muscle_group || 'Geral'}</p>
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </motion.div>
         )}

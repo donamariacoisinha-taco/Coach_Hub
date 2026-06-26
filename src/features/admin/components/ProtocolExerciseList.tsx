@@ -63,13 +63,115 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
     }
   });
 
+  // Helper to check if muscle group matches the filter tag including variations
+  const checkMuscleMatch = (exerciseMuscle: string | undefined, filter: string): boolean => {
+    if (!exerciseMuscle) return false;
+    const m = exerciseMuscle.toLowerCase().trim();
+    const f = filter.toLowerCase().trim();
+
+    if (f === 'peitoral') {
+      return m === 'peito' || m === 'chest' || m === 'peitoral';
+    }
+    if (f === 'costas') {
+      return m === 'costas' || m === 'back' || m === 'dorsais' || m === 'eretores';
+    }
+    if (f === 'dorsais') {
+      return m === 'dorsais' || m === 'dorsal' || m === 'costas' || m === 'lats';
+    }
+    if (f === 'ombros') {
+      return m === 'ombros' || m === 'ombro' || m === 'deltoides' || m === 'deltoids' || m === 'shoulders';
+    }
+    if (f === 'bíceps') {
+      return m === 'biceps' || m === 'bíceps';
+    }
+    if (f === 'tríceps') {
+      return m === 'triceps' || m === 'tríceps';
+    }
+    if (f === 'braços') {
+      return m === 'braço' || m === 'braços' || m === 'arms' || m === 'bíceps' || m === 'tríceps' || m === 'antebraço';
+    }
+    if (f === 'abdômen') {
+      return m === 'abdômen' || m === 'abdomen' || m === 'abs' || m === 'abdominais' || m === 'abdominal';
+    }
+    if (f === 'core') {
+      return m === 'core' || m === 'abdômen' || m === 'core/lombar' || m === 'lombar';
+    }
+    if (f === 'oblíquos') {
+      return m === 'oblíquos' || m === 'obliquos' || m === 'oblique' || m === 'obliques';
+    }
+    if (f === 'eretores') {
+      return m === 'eretores' || m === 'erectors' || m === 'lombar';
+    }
+    if (f === 'quadríceps') {
+      return m === 'quadriceps' || m === 'quad' || m === 'quadríceps' || m === 'quads';
+    }
+    if (f === 'posterior de coxa') {
+      return m === 'posterior' || m === 'posterior de coxa' || m === 'isquiotibiais' || m === 'hamstrings' || m === 'posterior coxa';
+    }
+    if (f === 'glúteos') {
+      return m === 'gluteo' || m === 'glúteo' || m === 'glutes' || m === 'glúteos';
+    }
+    if (f === 'adutores') {
+      return m === 'adutores' || m === 'adutor';
+    }
+    if (f === 'abdutores') {
+      return m === 'abdutores' || m === 'abdutor';
+    }
+    if (f === 'panturrilhas') {
+      return m === 'panturrilha' || m === 'panturrilhas' || m === 'calves' || m === 'panturilha';
+    }
+    if (f === 'pernas') {
+      return m === 'perna' || m === 'pernas' || m === 'legs' || m === 'quadríceps' || m === 'posterior de coxa' || m === 'glúteos' || m === 'panturrilhas' || m === 'adutores' || m === 'abdutores';
+    }
+    if (f === 'cardio') {
+      return m === 'cardio' || m === 'aeróbico' || m === 'aerobico';
+    }
+    if (f === 'mobilidade') {
+      return m === 'mobilidade' || m === 'alongamento' || m === 'flexibilidade';
+    }
+
+    return m === f;
+  };
+
   // Unique dynamic muscle groups list
   const muscleGroups = useMemo(() => {
-    const groups = new Set<string>();
+    const fixedGroups = [
+      'Todos',
+      'Recentes',
+      'Peitoral',
+      'Costas',
+      'Dorsais',
+      'Ombros',
+      'Bíceps',
+      'Tríceps',
+      'Braços',
+      'Abdômen',
+      'Core',
+      'Oblíquos',
+      'Eretores',
+      'Quadríceps',
+      'Posterior de Coxa',
+      'Glúteos',
+      'Adutores',
+      'Abdutores',
+      'Panturrilhas',
+      'Pernas',
+      'Cardio',
+      'Mobilidade'
+    ];
+
+    const dbGroups = new Set<string>();
     exerciseLibrary.forEach((ex) => {
-      if (ex.muscle_group) groups.add(ex.muscle_group);
+      if (ex.muscle_group) {
+        const mg = ex.muscle_group;
+        const alreadyCovered = fixedGroups.some(fg => checkMuscleMatch(mg, fg));
+        if (!alreadyCovered) {
+          dbGroups.add(mg);
+        }
+      }
     });
-    return ['Todos', 'Recentes', ...Array.from(groups).sort().slice(0, 8)];
+
+    return [...fixedGroups, ...Array.from(dbGroups).sort()];
   }, [exerciseLibrary]);
 
   // High performance filtered local list
@@ -80,7 +182,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
     if (activeTag === 'Recentes') {
       result = result.filter((ex) => recentIds.includes(ex.id));
     } else if (activeTag !== 'Todos') {
-      result = result.filter((ex) => (ex.muscle_group || '').toLowerCase() === activeTag.toLowerCase());
+      result = result.filter((ex) => checkMuscleMatch(ex.muscle_group, activeTag));
     }
 
     // 2. Query Search Filtering
@@ -435,6 +537,8 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
                       image_url: details.image_url
                     } : undefined}
                     index={idx}
+                    exerciseLibrary={exerciseLibrary}
+                    onReplaceExercise={(newExId) => onUpdateExercise(idx, 'exercise_id', newExId)}
                     onUpdateField={(field, val) => onUpdateExercise(idx, field, val)}
                     onDelete={() => onDeleteExercise(idx)}
                     onDuplicate={() => onDuplicateExercise(idx)}
