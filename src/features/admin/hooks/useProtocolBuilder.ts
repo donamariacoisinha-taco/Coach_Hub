@@ -817,6 +817,42 @@ export const useProtocolBuilder = () => {
     }
   }, [selectedProtocol, currentUserId, showToast]);
 
+  const pasteExercises = useCallback((dayId: string, exercisesToPaste: any[]) => {
+    if (!dayId || !exercisesToPaste || exercisesToPaste.length === 0) return;
+
+    const currentExList = [...(exercises[dayId] || [])];
+    const nextIndex = currentExList.length;
+
+    const newExs = exercisesToPaste.map((ex, idx) => {
+      const tempExId = `temp_ex_paste_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 3)}`;
+      return {
+        id: tempExId,
+        day_id: dayId,
+        exercise_id: ex.exercise_id,
+        exercise_order: nextIndex + idx + 1,
+        sets: ex.sets ?? 3,
+        reps: ex.reps ?? '10',
+        rest_seconds: ex.rest_seconds ?? 60,
+        load_type: ex.load_type ?? '',
+        rpe: ex.rpe ?? '',
+        tempo: ex.tempo ?? '',
+        cadence: ex.cadence ?? '',
+        notes: ex.notes ?? '',
+        drop_set: ex.drop_set ?? false,
+        rest_pause: ex.rest_pause ?? false,
+        superset: ex.superset ?? false
+      };
+    });
+
+    const nextExercises = {
+      ...exercises,
+      [dayId]: [...currentExList, ...newExs]
+    };
+
+    commitState(days, nextExercises);
+    showToast('success', `${exercisesToPaste.length} ${exercisesToPaste.length === 1 ? 'exercício colado' : 'exercícios colados'}.`);
+  }, [exercises, days, commitState, showToast]);
+
   // 9. Autosave Effect (debounced local autosave)
   useEffect(() => {
     if (!selectedProtocol || isCreating || loading || saving || autosaveStatus !== 'dirty') return;
@@ -896,6 +932,7 @@ export const useProtocolBuilder = () => {
     isCreating,
     days,
     selectedDayId,
+    exercises,
     activeDayExercises: selectedDayId ? (exercises[selectedDayId] || []) : [],
     toast,
     conflictError,
@@ -922,6 +959,7 @@ export const useProtocolBuilder = () => {
     moveDay,
     reorderDays,
     addExercise,
+    pasteExercises,
     updateExercise,
     deleteExercise,
     duplicateExercise,

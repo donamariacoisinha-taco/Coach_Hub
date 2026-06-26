@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   Plus, 
   Search, 
@@ -19,6 +19,11 @@ import {
   Layers,
   Sparkles,
   MapPin,
+  Undo2,
+  Redo2,
+  Copy,
+  Activity,
+  Check,
   Image as ImageIcon
 } from 'lucide-react';
 import { useProtocolBuilder } from '../hooks/useProtocolBuilder';
@@ -38,6 +43,7 @@ export const ProtocolBuilder40: React.FC = () => {
     isCreating,
     days,
     selectedDayId,
+    exercises,
     activeDayExercises,
     toast,
     conflictError,
@@ -53,6 +59,7 @@ export const ProtocolBuilder40: React.FC = () => {
     duplicateDay,
     moveDay,
     addExercise,
+    pasteExercises,
     updateExercise,
     deleteExercise,
     duplicateExercise,
@@ -82,6 +89,151 @@ export const ProtocolBuilder40: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Mobile Tab state: 'info' | 'days' | 'exercises' | 'metrics'
+  const [activeMobileTab, setActiveMobileTab] = useState<'info' | 'days' | 'exercises' | 'metrics'>('exercises');
+
+  // Local clipboard state for copying exercises
+  const [copiedExerciseData, setCopiedExerciseData] = useState<any[]>([]);
+
+  // Productivity stopwatch
+  const [secondsElapsed, setSecondsElapsed] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (selectedProtocol || isCreating) {
+      interval = setInterval(() => {
+        setSecondsElapsed((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setSecondsElapsed(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [selectedProtocol, isCreating]);
+
+  const formatTimer = (secs: number) => {
+    const mins = Math.floor(secs / 60);
+    const remainingSecs = secs % 60;
+    return `${mins.toString().padStart(2, '0')}m ${remainingSecs.toString().padStart(2, '0')}s`;
+  };
+
+  // Helper function to focus exercise search input
+  const handleFocusSearch = () => {
+    setActiveMobileTab('exercises');
+    setTimeout(() => {
+      const input = document.querySelector('input[placeholder*="Pesquisar & Adicionar"]') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 50);
+  };
+
+  // Function to handle keyboard copying
+  const handleCopy = useCallback(() => {
+    if (!selectedDayId || selectedExerciseIds.length === 0) return;
+    const toCopy = activeDayExercises.filter(ex => selectedExerciseIds.includes(ex.id));
+    if (toCopy.length > 0) {
+      setCopiedExerciseData(toCopy);
+    }
+  }, [selectedDayId, selectedExerciseIds, activeDayExercises]);
+
+  const handlePaste = useCallback(() => {
+    if (!selectedDayId || copiedExerciseData.length === 0) return;
+    pasteExercises(selectedDayId, copiedExerciseData);
+  }, [selectedDayId, copiedExerciseData, pasteExercises]);
+
+  // Muscular Distribution calculations
+  const muscleDistribution = useMemo(() => {
+    const dist: Record<string, number> = {
+      'Peitoral': 0,
+      'Costas': 0,
+      'Quadríceps': 0,
+      'Posterior': 0,
+      'Glúteos': 0,
+      'Ombros': 0,
+      'Bíceps': 0,
+      'Tríceps': 0,
+      'Panturrilhas': 0,
+      'Core': 0,
+    };
+
+    const exerciseMap = new Map();
+    exerciseLibrary.forEach(ex => exerciseMap.set(ex.id, ex));
+
+    Object.values(exercises).forEach((list) => {
+      if (Array.isArray(list)) {
+        list.forEach((pEx) => {
+          const details = exerciseMap.get(pEx.exercise_id);
+          const muscle = details?.muscle_group || 'Outros';
+          const sets = Number(pEx.sets) || 0;
+
+          if (muscle.includes('Peito') || muscle.includes('Peitoral')) {
+            dist['Peitoral'] += sets;
+          } else if (muscle.includes('Costas') || muscle.includes('Dorsal')) {
+            dist['Costas'] += sets;
+          } else if (muscle.includes('Quadriceps') || muscle.includes('Quadríceps') || muscle.includes('Anterior de Coxa')) {
+            dist['Quadríceps'] += sets;
+          } else if (muscle.includes('Posterior') || muscle.includes('Isquiotibiais')) {
+            dist['Posterior'] += sets;
+          } else if (muscle.includes('Glúteo') || muscle.includes('Glúteos')) {
+            dist['Glúteos'] += sets;
+          } else if (muscle.includes('Ombro') || muscle.includes('Deltoide') || muscle.includes('Ombros')) {
+            dist['Ombros'] += sets;
+          } else if (muscle.includes('Bíceps') || muscle.includes('Biceps')) {
+            dist['Bíceps'] += sets;
+          } else if (muscle.includes('Tríceps') || muscle.includes('Triceps')) {
+            dist['Tríceps'] += sets;
+          } else if (muscle.includes('Panturrilha') || muscle.includes('Panturrilhas') || muscle.includes('Gastrocnêmio')) {
+            dist['Panturrilhas'] += sets;
+          } else if (muscle.includes('Abdom') || muscle.includes('Core') || muscle.includes('Abdômen') || muscle.includes('Lombar')) {
+            dist['Core'] += sets;
+          }
+        });
+      }
+    });
+
+    return dist;
+  }, [exercises, exerciseLibrary]);
+
+  // Balance Indicators
+  const balanceIndicators = useMemo(() => {
+    const indicators: { type: 'success' | 'warning'; text: string }[] = [];
+    
+    const peitoral = (muscleDistribution['Peitoral'] || 0) as number;
+    const quadriceps = (muscleDistribution['Quadríceps'] || 0) as number;
+    const posterior = (muscleDistribution['Posterior'] || 0) as number;
+    const panturrilhas = (muscleDistribution['Panturrilhas'] || 0) as number;
+    const totalSets = Object.values(muscleDistribution).reduce((a, b) => (a as number) + ((b || 0) as number), 0) as number;
+
+    if (totalSets === 0) {
+      return [{ type: 'warning' as const, text: 'Adicione exercícios para ver o balanço' }];
+    }
+
+    if (totalSets > 60) {
+      indicators.push({ type: 'warning' as const, text: 'Volume semanal total muito alto (>60 séries)' });
+    }
+    if (posterior < 6) {
+      indicators.push({ type: 'warning' as const, text: 'Posterior pouco estimulado (<6 séries)' });
+    }
+    if (panturrilhas === 0) {
+      indicators.push({ type: 'warning' as const, text: 'Panturrilhas ausentes' });
+    }
+    if (peitoral > 24) {
+      indicators.push({ type: 'warning' as const, text: 'Peitoral acima do recomendado (>24 séries)' });
+    }
+    if (quadriceps > 0 && posterior > 0 && quadriceps / posterior > 2) {
+      indicators.push({ type: 'warning' as const, text: 'Desbalanço: Quadríceps muito maior que Posterior' });
+    }
+
+    if (indicators.length === 0) {
+      indicators.push({ type: 'success' as const, text: 'Excelente Equilíbrio Biomecânico' });
+    }
+
+    return indicators;
+  }, [muscleDistribution]);
+
   // Keyboard Shortcuts listener for high-productivity workouts structuring
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -106,6 +258,33 @@ export const ProtocolBuilder40: React.FC = () => {
         redo();
       }
 
+      // 4. Copy (Ctrl+C or Cmd+C)
+      if (isCmdOrCtrl && e.key.toLowerCase() === 'c' && !isInput) {
+        if (selectedExerciseIds.length > 0) {
+          e.preventDefault();
+          handleCopy();
+        }
+      }
+
+      // 5. Paste (Ctrl+V or Cmd+V)
+      if (isCmdOrCtrl && e.key.toLowerCase() === 'v' && !isInput) {
+        if (copiedExerciseData.length > 0) {
+          e.preventDefault();
+          handlePaste();
+        }
+      }
+
+      // 6. Duplicate Day (Ctrl+Shift+D or Cmd+Shift+D)
+      if (isCmdOrCtrl && e.shiftKey && e.key.toLowerCase() === 'd') {
+        if (selectedDayId) {
+          e.preventDefault();
+          const dayObj = days.find(d => d.id === selectedDayId);
+          if (dayObj) {
+            duplicateDay(dayObj);
+          }
+        }
+      }
+
       // Safeguard input typing from triggering other navigation/bulk commands
       if (isInput) {
         if (e.key === 'Escape') {
@@ -117,7 +296,7 @@ export const ProtocolBuilder40: React.FC = () => {
         return;
       }
 
-      // 4. Duplicate (Ctrl+D or Cmd+D) - Only when active exercises selected
+      // 7. Duplicate Selection (Ctrl+D or Cmd+D) - Only when active exercises selected
       if (isCmdOrCtrl && e.key.toLowerCase() === 'd') {
         if (selectedExerciseIds.length > 0) {
           e.preventDefault();
@@ -125,7 +304,7 @@ export const ProtocolBuilder40: React.FC = () => {
         }
       }
 
-      // 5. Delete (Delete or Backspace) - When active exercises selected
+      // 8. Delete (Delete or Backspace) - When active exercises selected
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedExerciseIds.length > 0) {
           e.preventDefault();
@@ -133,7 +312,7 @@ export const ProtocolBuilder40: React.FC = () => {
         }
       }
 
-      // 6. Escape (to clear select lists or cancel workflow)
+      // 9. Escape (to clear select lists or cancel workflow)
       if (e.key === 'Escape') {
         if (selectedExerciseIds.length > 0) {
           e.preventDefault();
@@ -159,7 +338,13 @@ export const ProtocolBuilder40: React.FC = () => {
     bulkDuplicate, 
     bulkDelete, 
     setSelectedExerciseIds, 
-    cancelEditing
+    cancelEditing,
+    selectedDayId,
+    copiedExerciseData,
+    handleCopy,
+    handlePaste,
+    days,
+    duplicateDay
   ]);
 
   // Filtered protocols list
@@ -314,16 +499,136 @@ export const ProtocolBuilder40: React.FC = () => {
             exit={{ opacity: 0, y: -15 }}
             className="flex flex-col gap-6"
           >
-            {/* Header bar */}
-            <ProtocolHeader
-              selectedProtocol={selectedProtocol}
-              isCreating={isCreating}
-              isSaving={saving}
-              onCancel={cancelEditing}
-              onSave={saveProtocol}
-              onDelete={selectedProtocol?.id ? softDeleteProtocol : undefined}
-              hasChanges={hasChanges}
-            />
+            {/* Fixed Action Toolbar (Sticky on top on Desktop, Fixed on bottom on Mobile) */}
+            <div className="sticky top-0 lg:relative z-40 bg-white/95 backdrop-blur-md shadow-md lg:shadow-none border border-slate-200/80 lg:border-none rounded-2xl p-3 lg:p-0 flex flex-wrap items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200/40 cursor-pointer transition-all active:scale-95 flex items-center justify-center"
+                  title="Voltar para a Lista"
+                >
+                  <X size={15} />
+                </button>
+                <div>
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                    Builder Workspace 4.1
+                  </h4>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                    {isCreating ? 'Novo Protocolo' : `Editando: ${selectedProtocol?.name || 'Protocolo'}`}
+                  </p>
+                </div>
+              </div>
+
+              {/* Toolbar Actions container */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Desfazer (Undo) */}
+                <button
+                  type="button"
+                  onClick={undo}
+                  disabled={!canUndo}
+                  className={`h-9 px-3 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                    canUndo
+                      ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer'
+                      : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'
+                  }`}
+                  title="Desfazer alteração (Ctrl + Z)"
+                >
+                  <Undo2 size={12} />
+                  Desfazer
+                </button>
+
+                {/* Refazer (Redo) */}
+                <button
+                  type="button"
+                  onClick={redo}
+                  disabled={!canRedo}
+                  className={`h-9 px-3 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                    canRedo
+                      ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer'
+                      : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'
+                  }`}
+                  title="Refazer alteração (Ctrl + Shift + Z)"
+                >
+                  <Redo2 size={12} />
+                  Refazer
+                </button>
+
+                {/* Duplicar Dia ou Exercícios */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedExerciseIds.length > 0) {
+                      bulkDuplicate();
+                    } else if (selectedDayId) {
+                      const dayObj = days.find(d => d.id === selectedDayId);
+                      if (dayObj) duplicateDay(dayObj);
+                    }
+                  }}
+                  disabled={!selectedDayId}
+                  className={`h-9 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
+                  title="Duplica seleção ativa (Dia ou Exercícios)"
+                >
+                  <Copy size={12} />
+                  Duplicar
+                </button>
+
+                {/* Excluir Dia ou Exercícios */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedExerciseIds.length > 0) {
+                      bulkDelete();
+                    } else if (selectedDayId) {
+                      removeDay(selectedDayId);
+                    }
+                  }}
+                  disabled={!selectedDayId}
+                  className={`h-9 px-3 bg-rose-50 border border-rose-200 hover:bg-rose-100/50 text-rose-700 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
+                  title="Exclui seleção ativa (Dia ou Exercícios)"
+                >
+                  <Trash2 size={12} />
+                  Excluir
+                </button>
+
+                {/* Adicionar Dia */}
+                <button
+                  type="button"
+                  onClick={addDay}
+                  className="h-9 px-3 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Plus size={12} />
+                  Add Dia
+                </button>
+
+                {/* Adicionar Exercício / Buscar */}
+                <button
+                  type="button"
+                  onClick={handleFocusSearch}
+                  disabled={!selectedDayId}
+                  className="h-9 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Search size={12} />
+                  Add Exercício
+                </button>
+
+                {/* Salvar Tudo */}
+                <button
+                  type="button"
+                  onClick={saveProtocol}
+                  disabled={saving}
+                  className={`h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                    hasChanges
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-md shadow-blue-500/10'
+                      : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200/30'
+                  }`}
+                >
+                  {saving ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
+                  Salvar
+                </button>
+              </div>
+            </div>
 
             {/* Conflict Alert overlay if any */}
             {conflictError && (
@@ -346,33 +651,65 @@ export const ProtocolBuilder40: React.FC = () => {
               </div>
             )}
 
-            {/* Protocol Stat Summary Toolbar */}
-            <ProtocolToolbar
-              daysCount={totals.daysCount}
-              exercisesCount={totals.exercisesCount}
-              setsCount={totals.setsCount}
-              volumeIndex={totals.volumeIndex}
-              estimatedDuration={totals.estimatedDuration}
-              difficulty={selectedProtocol?.difficulty || 'Iniciante'}
-              category={selectedProtocol?.category || 'Pública'}
-              durationWeeks={selectedProtocol?.duration_weeks || 4}
-              autosaveStatus={autosaveStatus}
-              canUndo={canUndo}
-              canRedo={canRedo}
-              onUndo={undo}
-              onRedo={redo}
-            />
+            {/* Mobile-Only Segmented View Switcher Tabs */}
+            <div className="flex lg:hidden bg-slate-100 border border-slate-200/60 p-1 rounded-2xl gap-1">
+              <button
+                type="button"
+                onClick={() => setActiveMobileTab('info')}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                  activeMobileTab === 'info' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <FileText size={13} />
+                Geral
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveMobileTab('days')}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                  activeMobileTab === 'days' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Calendar size={13} />
+                Dias ({days.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveMobileTab('exercises')}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                  activeMobileTab === 'exercises' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Dumbbell size={13} />
+                Treino
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveMobileTab('metrics')}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                  activeMobileTab === 'metrics' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Activity size={13} />
+                Métricas
+              </button>
+            </div>
 
-            {/* Main Workspace Grid: Three Columns */}
+            {/* Main Workspace Grid: Four Columns on Desktop */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               
               {/* ==========================================
-                 COLUMN 1: PROTOCOL GENERAL DATA (4 Cols)
+                 COLUMN 1: PROTOCOL GENERAL DATA (3 Cols)
                  ========================================== */}
-              <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 flex flex-col gap-5">
+              <div className={`lg:col-span-3 bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 flex flex-col gap-5 ${
+                activeMobileTab === 'info' ? 'block' : 'hidden lg:flex'
+              }`}>
                 <div>
-                  <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Dados do Protocolo</h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configurações Principais</p>
+                  <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText size={16} className="text-blue-500" />
+                    Protocolo
+                  </h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Dados Cadastrais</p>
                 </div>
 
                 <div className="space-y-4">
@@ -423,7 +760,7 @@ export const ProtocolBuilder40: React.FC = () => {
                       <select
                         value={selectedProtocol?.category}
                         onChange={(e) => updateProtocolField('category', e.target.value)}
-                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500"
+                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
                       >
                         <option value="public">Gratuita</option>
                         <option value="premium">Premium</option>
@@ -435,7 +772,7 @@ export const ProtocolBuilder40: React.FC = () => {
                       <select
                         value={selectedProtocol?.status}
                         onChange={(e) => updateProtocolField('status', e.target.value)}
-                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500"
+                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
                       >
                         <option value="draft">Rascunho</option>
                         <option value="published">Publicado</option>
@@ -461,7 +798,7 @@ export const ProtocolBuilder40: React.FC = () => {
                       <select
                         value={selectedProtocol?.difficulty || 'Iniciante'}
                         onChange={(e) => updateProtocolField('difficulty', e.target.value)}
-                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none"
+                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
                       >
                         <option value="Iniciante">Iniciante</option>
                         <option value="Intermediário">Intermediário</option>
@@ -503,7 +840,7 @@ export const ProtocolBuilder40: React.FC = () => {
                       <select
                         value={selectedProtocol?.environment || 'Academia'}
                         onChange={(e) => updateProtocolField('environment', e.target.value)}
-                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none"
+                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
                       >
                         <option value="Academia">Academia</option>
                         <option value="Home Gym">Home Gym</option>
@@ -528,9 +865,11 @@ export const ProtocolBuilder40: React.FC = () => {
               </div>
 
               {/* ==========================================
-                 COLUMN 2: PROTOCOL DAYS (3 Cols)
+                 COLUMN 2: PROTOCOL DAYS (2 Cols)
                  ========================================== */}
-              <div className="lg:col-span-3">
+              <div className={`lg:col-span-2 ${
+                activeMobileTab === 'days' ? 'block' : 'hidden lg:block'
+              }`}>
                 <ProtocolDays
                   days={days}
                   selectedDayId={selectedDayId}
@@ -546,9 +885,11 @@ export const ProtocolBuilder40: React.FC = () => {
               </div>
 
               {/* ==========================================
-                 COLUMN 3: SELECT DAY EXERCISES LIST (5 Cols)
+                 COLUMN 3: SELECT DAY EXERCISES LIST (4 Cols)
                  ========================================== */}
-              <div className="lg:col-span-5">
+              <div className={`lg:col-span-4 ${
+                activeMobileTab === 'exercises' ? 'block' : 'hidden lg:block'
+              }`}>
                 {selectedDayId ? (
                   <ProtocolExerciseList
                     exercises={activeDayExercises}
@@ -580,6 +921,119 @@ export const ProtocolBuilder40: React.FC = () => {
                     </p>
                   </div>
                 )}
+              </div>
+
+              {/* ====================================================
+                 COLUMN 4: SMART FIXED METRICS & ANALYTICS SIDEBAR (3 Cols)
+                 ==================================================== */}
+              <div className={`lg:col-span-3 flex flex-col gap-5 ${
+                activeMobileTab === 'metrics' ? 'block' : 'hidden lg:flex'
+              }`}>
+                {/* 1. Productivity Ticking Stopwatch widget */}
+                <div className="bg-slate-900 text-slate-100 rounded-2xl p-4 border border-slate-800/80 shadow-md flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-blue-400 border border-slate-700/50">
+                      <Clock size={16} className="animate-pulse" />
+                    </div>
+                    <div>
+                      <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Foco na Produtividade</h5>
+                      <p className="text-xs font-bold text-slate-300">Tempo de montagem ativo</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono text-sm font-black tracking-tight text-white px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-lg">
+                      {formatTimer(secondsElapsed)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. Micro Stats Board */}
+                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4 space-y-4">
+                  <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Métricas do Ciclo</h5>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Exercícios</span>
+                      <p className="text-sm font-black text-slate-800 mt-1">{totals.exercisesCount}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Séries Semanais</span>
+                      <p className="text-sm font-black text-slate-800 mt-1">{totals.setsCount}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Dias de Treino</span>
+                      <p className="text-sm font-black text-slate-800 mt-1">{totals.daysCount}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Status Sync</span>
+                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider mt-1.5 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+                        {autosaveStatus === 'dirty' ? 'Editando' : 'Sincronizado'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Muscular Distribution Progress list */}
+                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex flex-col gap-4">
+                  <div>
+                    <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Distribuição Muscular</h5>
+                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Séries por agrupamento muscular</p>
+                  </div>
+                  <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
+                    {Object.entries(muscleDistribution).map(([muscle, setsRaw]) => {
+                      const sets = setsRaw as number;
+                      return (
+                        <div key={muscle} className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                            <span>{muscle}</span>
+                            <span className="text-slate-500 font-mono text-[10px]">{sets} {sets === 1 ? 'série' : 'séries'}</span>
+                          </div>
+                          <div className="h-2 bg-slate-100 border border-slate-200/20 rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.min(100, (sets / 24) * 100)}%` }}
+                              className={`h-full rounded-full transition-all ${
+                                sets === 0
+                                  ? 'bg-slate-200'
+                                  : sets > 20
+                                  ? 'bg-amber-500'
+                                  : 'bg-blue-600'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 4. Workout Balance dynamic alerts */}
+                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex flex-col gap-4">
+                  <div>
+                    <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Balanço Biomecânico</h5>
+                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Diagnóstico Técnico</p>
+                  </div>
+                  <div className="space-y-2">
+                    {balanceIndicators.map((ind, i) => (
+                      <div
+                        key={i}
+                        className={`p-3 rounded-2xl border flex items-start gap-2.5 text-[10px] font-black uppercase tracking-wider ${
+                          ind.type === 'success'
+                            ? 'bg-emerald-50/50 border-emerald-200/50 text-emerald-700'
+                            : 'bg-amber-50/50 border-amber-200/50 text-amber-700'
+                        }`}
+                      >
+                        {ind.type === 'success' ? (
+                          <CheckCircle2 size={13} className="shrink-0 text-emerald-500" />
+                        ) : (
+                          <AlertTriangle size={13} className="shrink-0 text-amber-500 animate-pulse" />
+                        )}
+                        <span className="leading-tight">{ind.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
               </div>
 
             </div>

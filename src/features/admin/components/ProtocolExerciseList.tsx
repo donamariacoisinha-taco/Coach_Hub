@@ -49,6 +49,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeTag, setActiveTag] = useState('Todos');
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   // Load Recents list from LocalStorage for ultra-high trainer productivity
   const [recentIds, setRecentIds] = useState<string[]>(() => {
@@ -94,10 +95,20 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
     return result.slice(0, 10);
   }, [searchQuery, exerciseLibrary, activeTag, recentIds]);
 
-  const handleSelectFromLibrary = (exerciseId: string) => {
+  // Reset highlighted index when filtered library changes
+  React.useEffect(() => {
+    setHighlightedIndex(0);
+  }, [filteredLibrary]);
+
+  const handleSelectFromLibrary = (exerciseId: string, keepOpen = false) => {
     onAddExercise(exerciseId);
-    setSearchQuery('');
-    setShowDropdown(false);
+    if (!keepOpen) {
+      setSearchQuery('');
+      setShowDropdown(false);
+    } else {
+      setSearchQuery('');
+      setShowDropdown(true);
+    }
 
     // Save and rotate recent exercise list
     const updatedRecents = [exerciseId, ...recentIds.filter(id => id !== exerciseId)].slice(0, 12);
@@ -257,6 +268,24 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
               setShowDropdown(true);
             }}
             onFocus={() => setShowDropdown(true)}
+            onKeyDown={(e) => {
+              if (!showDropdown || filteredLibrary.length === 0) return;
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setHighlightedIndex((prev) => (prev + 1) % filteredLibrary.length);
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setHighlightedIndex((prev) => (prev - 1 + filteredLibrary.length) % filteredLibrary.length);
+              } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const selected = filteredLibrary[highlightedIndex];
+                if (selected) {
+                  handleSelectFromLibrary(selected.id, true);
+                }
+              } else if (e.key === 'Escape') {
+                setShowDropdown(false);
+              }
+            }}
             className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 text-xs placeholder:text-slate-400 font-semibold focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
           />
         </div>
@@ -309,26 +338,33 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
                   Nenhum exercício correspondente.
                 </div>
               ) : (
-                filteredLibrary.map((ex) => (
-                  <button
-                    key={ex.id}
-                    type="button"
-                    onClick={() => handleSelectFromLibrary(ex.id)}
-                    className="w-full flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl transition-colors border-none text-left cursor-pointer"
-                  >
-                    <img
-                      src={ex.image_url || "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=200&auto=format&fit=crop"}
-                      alt={ex.name}
-                      className="w-9 h-9 rounded-lg object-cover border border-slate-100 shrink-0"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-bold text-slate-800 truncate">{ex.name}</p>
-                      <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">{ex.muscle_group || 'Geral'}</p>
-                    </div>
-                    <PlusCircle size={14} className="text-blue-500 hover:text-blue-600 shrink-0" />
-                  </button>
-                ))
+                filteredLibrary.map((ex, idx) => {
+                  const isHighlighted = idx === highlightedIndex;
+                  return (
+                    <button
+                      key={ex.id}
+                      type="button"
+                      onClick={() => handleSelectFromLibrary(ex.id)}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl transition-colors border-none text-left cursor-pointer ${
+                        isHighlighted 
+                          ? 'bg-blue-50/70 border-l-4 border-l-blue-500 font-bold' 
+                          : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      <img
+                        src={ex.image_url || "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=200&auto=format&fit=crop"}
+                        alt={ex.name}
+                        className="w-9 h-9 rounded-lg object-cover border border-slate-100 shrink-0"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-[11px] truncate ${isHighlighted ? 'text-blue-700 font-extrabold' : 'text-slate-800 font-bold'}`}>{ex.name}</p>
+                        <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">{ex.muscle_group || 'Geral'}</p>
+                      </div>
+                      <PlusCircle size={14} className={isHighlighted ? 'text-blue-600' : 'text-blue-500 hover:text-blue-600 shrink-0'} />
+                    </button>
+                  );
+                })
               )}
             </motion.div>
           )}

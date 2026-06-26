@@ -58,8 +58,18 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
     const goal = onboardingData.primary_goal || 'Performance';
     const environment = onboardingData.training_environment || 'gym_full';
     const level = onboardingData.training_experience || 'beginner';
-    const restrictions: string[] = onboardingData.restrictions || ['Nenhuma'];
-    const dislikes: string[] = onboardingData.exercise_dislikes || [];
+    
+    // Ensure restrictions and dislikes are safely parsed as arrays
+    const rawRestrictions = onboardingData.restrictions;
+    const restrictions: string[] = Array.isArray(rawRestrictions)
+      ? rawRestrictions
+      : (typeof rawRestrictions === 'string' && rawRestrictions ? [rawRestrictions] : ['Nenhuma']);
+
+    const rawDislikes = onboardingData.exercise_dislikes;
+    const dislikes: string[] = Array.isArray(rawDislikes)
+      ? rawDislikes
+      : (typeof rawDislikes === 'string' && rawDislikes ? [rawDislikes] : []);
+
     const activeProtocolId = onboardingData.active_protocol_id || 'failsafe-id';
 
     report.filters.rulesEvaluation.push(`Goal: ${goal}`);
@@ -72,8 +82,19 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
     let protocolName = 'Kyron OS Adaptativo';
     let protocolStatus = 'Active';
 
+    const isUUID = (val: any): boolean => {
+      if (typeof val !== 'string') return false;
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+    };
+
     // Query active plan folder to verify matches
     let favoriteFolderId = passedFolderId || localStorage.getItem('favorite_workout_folder_id') || onboardingData.active_plan_id;
+
+    // Strict validation: Ignore any non-UUID inputs (e.g. "public_admin", "uncategorized", "null", "undefined")
+    if (favoriteFolderId && !isUUID(favoriteFolderId)) {
+      console.warn('[KYRON_OS_DIAGNOSTIC] favoriteFolderId is not a valid UUID, ignoring and resetting:', favoriteFolderId);
+      favoriteFolderId = null;
+    }
 
     // DB lookup fallback if favoriteFolderId is null/undefined
     if (!favoriteFolderId) {
@@ -82,7 +103,7 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
         .select('active_plan_id')
         .eq('id', userId)
         .maybeSingle();
-      if (dbProfile?.active_plan_id) {
+      if (dbProfile?.active_plan_id && isUUID(dbProfile.active_plan_id)) {
         favoriteFolderId = dbProfile.active_plan_id;
         localStorage.setItem('favorite_workout_folder_id', favoriteFolderId);
         console.log('[KYRON_OS_DIAGNOSTIC] Resolved active_plan_id from profiles DB:', favoriteFolderId);
@@ -97,14 +118,17 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (userFolders && userFolders.length > 0) {
-        favoriteFolderId = userFolders[0].id;
-        localStorage.setItem('favorite_workout_folder_id', favoriteFolderId);
-        console.log('[KYRON_OS_DIAGNOSTIC] Resolved first existing user folder from DB:', favoriteFolderId);
+        const firstValidFolder = userFolders.find(uf => isUUID(uf.id));
+        if (firstValidFolder) {
+          favoriteFolderId = firstValidFolder.id;
+          localStorage.setItem('favorite_workout_folder_id', favoriteFolderId);
+          console.log('[KYRON_OS_DIAGNOSTIC] Resolved first existing user folder from DB:', favoriteFolderId);
+        }
       }
     }
 
     // If STILL null, dynamically create a brand-new folder!
-    if (!favoriteFolderId) {
+    if (!favoriteFolderId || !isUUID(favoriteFolderId)) {
       console.warn('[KYRON_OS_DIAGNOSTIC] No folder found in DB or storage. Dynamically creating brand-new folder...');
       const newFolder = await workoutApi.createFolder(userId, 'Kyron OS: Plano Personalizado');
       favoriteFolderId = newFolder.id;
@@ -148,19 +172,21 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
     // Load ALL exercises available in DB or fallback
     let allExercises: any[] = [];
     try {
-      allExercises = await exerciseApi.getExercises();
+      const res = await exerciseApi.getExercises();
+      allExercises = Array.isArray(res) ? res : fallbackExercises;
     } catch {
       allExercises = fallbackExercises;
     }
 
     report.filters.totalAvailable = allExercises.length;
-    const muscleGroups = Array.from(new Set(allExercises.map(e => e.muscle_group || 'Outros')));
+    const muscleGroups = Array.from(new Set(allExercises.map(e => e?.muscle_group || 'Outros')));
     report.filters.muscleGroupsFound = muscleGroups;
 
     // Apply onboarding rules evaluation
     const filteredAvailableExs = allExercises.filter(ex => {
+      if (!ex) return false;
       if (ex.is_active === false) return false;
-      const nameLower = ex.name.toLowerCase();
+      const nameLower = (ex.name || '').toLowerCase();
 
       // 1. Dislikes
       if (dislikes.some(d => nameLower.includes(d.toLowerCase()))) {
@@ -223,13 +249,13 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
       const linkedExs = relations || [];
       report.workouts.push({
         id: cat.id,
-        name: cat.name,
+        name: cat.name || 'Treino Sem Nome',
         protocolName: protocolName,
         exerciseCount: linkedExs.length,
-        exercises: linkedExs.map(r => ({ id: r.exercise_id, name: r.exercise_name_snapshot }))
+        exercises: linkedExs.map(r => ({ id: r.exercise_id || '', name: r.exercise_name_snapshot || 'Exercício' }))
       });
 
-      console.log(`- Workout ID: ${cat.id} | Name: ${cat.name} | Linked Exercises: ${linkedExs.length}`);
+      console.log(`- Workout ID: ${cat.id} | Name: ${cat.name || 'Treino Sem Nome'} | Linked Exercises: ${linkedExs.length}`);
       linkedExs.forEach(r => {
         console.log(`  * Relationship mapped -> Workout: ${cat.id} | Exercise: ${r.exercise_id} | Name: ${r.exercise_name_snapshot}`);
       });
@@ -237,12 +263,12 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
       // 4. AUTOCORRECTION & FAILSAFE RULE COMPLIANCE:
       // Minimum: 5 exercises. Maximum: 10 exercises. No workout empty!
       if (linkedExs.length < 5 || linkedExs.length > 10) {
-        console.warn(`[KYRON_OS_DIAGNOSTIC] Workout "${cat.name}" has ${linkedExs.length} exercises. Out of boundaries [5 - 10]. Triggering Failsafe Autocorrect...`);
+        console.warn(`[KYRON_OS_DIAGNOSTIC] Workout "${cat.name || 'Treino Sem Nome'}" has ${linkedExs.length} exercises. Out of boundaries [5 - 10]. Triggering Failsafe Autocorrect...`);
         report.autocorrected = true;
-        report.actionsTaken.push(`Corrected workout "${cat.name}" exercise count from ${linkedExs.length} to meet [5-10] rule.`);
+        report.actionsTaken.push(`Corrected workout "${cat.name || 'Treino Sem Nome'}" exercise count from ${linkedExs.length} to meet [5-10] rule.`);
 
         // Determine compatible exercises based on category name or split muscle hints
-        const catNameLower = cat.name.toLowerCase();
+        const catNameLower = (cat.name || '').toLowerCase();
         let targetMuscles: string[] = [];
         if (catNameLower.includes('superior') || catNameLower.includes('peito') || catNameLower.includes('costas') || catNameLower.includes('ombro') || catNameLower.includes('braço')) {
           targetMuscles = ['Peito', 'Costas', 'Ombros', 'Braços'];
