@@ -104,7 +104,7 @@ export const ProtocolBuilder40: React.FC = () => {
 
   // Collapsible drawer and sidebar states for high-efficiency layout
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Local clipboard state for copying exercises
   const [copiedExerciseData, setCopiedExerciseData] = useState<any[]>([]);
@@ -375,8 +375,11 @@ export const ProtocolBuilder40: React.FC = () => {
 
   // Selected Day Title
   const activeDayTitle = useMemo(() => {
-    const found = days.find((d) => d.id === selectedDayId);
-    return found ? found.title || 'Este Dia' : 'Este Dia';
+    const foundIdx = days.findIndex((d) => d.id === selectedDayId);
+    if (foundIdx === -1) return 'Este Dia';
+    const found = days[foundIdx];
+    const letter = String.fromCharCode(65 + foundIdx); // A, B, C, etc.
+    return found.title || `Treino ${letter}`;
   }, [days, selectedDayId]);
 
   return (
@@ -513,180 +516,226 @@ export const ProtocolBuilder40: React.FC = () => {
             exit={{ opacity: 0, y: -15 }}
             className="flex flex-col gap-5 relative min-h-screen animate-fade-in"
           >
-            {/* Sliding Left Drawer for Protocol Metadata */}
+            {/* Central Big Modal for Protocol Metadata */}
             <AnimatePresence>
               {isDrawerOpen && (
-                <>
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
                   {/* Backdrop overlay */}
                   <motion.div
                     initial={{ opacity: 0 }}
-                    animate={{ opacity: 0.4 }}
+                    animate={{ opacity: 0.6 }}
                     exit={{ opacity: 0 }}
                     onClick={() => setIsDrawerOpen(false)}
-                    className="fixed inset-0 bg-slate-950 z-40 backdrop-blur-sm"
+                    className="fixed inset-0 bg-slate-950/50 backdrop-blur-md"
                   />
                   
-                  {/* Drawer Panel */}
+                  {/* Modal Container */}
                   <motion.div
-                    initial={{ x: '-100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '-100%' }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                    className="fixed left-0 top-0 bottom-0 w-[360px] bg-white shadow-2xl z-50 p-6 overflow-y-auto border-r border-slate-200 flex flex-col gap-5 text-slate-800"
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                    transition={{ type: 'spring', duration: 0.4 }}
+                    className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] overflow-hidden text-slate-800"
                   >
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-4 shrink-0">
+                    {/* Modal Header */}
+                    <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100 bg-slate-50/50 shrink-0">
                       <div>
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">
+                          Configurações Gerais
+                        </span>
+                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-wide mt-1">
                           Dados do Protocolo
                         </h4>
-                        <p className="text-xs font-black text-slate-800 mt-0.5 uppercase">
-                          Configurações Gerais
-                        </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setIsDrawerOpen(false)}
-                        className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg transition-all border-none bg-transparent cursor-pointer animate-fade-in"
+                        className="p-1.5 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-lg transition-all border-none bg-transparent cursor-pointer flex items-center justify-center"
                       >
-                        <X size={16} />
+                        <X size={18} />
                       </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto space-y-5 pr-1 no-scrollbar">
-                      {/* Visual Cover Header */}
-                      <div className="relative h-28 rounded-2xl overflow-hidden bg-slate-100 border border-slate-150 shrink-0 shadow-inner">
-                        <img
-                          src={selectedProtocol?.image_url || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=400'}
-                          alt={selectedProtocol?.name || 'Protocolo'}
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 to-transparent" />
-                        <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center">
-                          <span className="text-[8px] font-black uppercase tracking-wider text-white bg-blue-600 px-2 py-0.5 rounded-md">
-                            {selectedProtocol?.goal || 'Geral'}
-                          </span>
-                          <span className="text-[8px] font-black uppercase tracking-wider text-white bg-slate-900/80 px-2 py-0.5 rounded-md border border-slate-700">
-                            v{selectedProtocol?.version || 1}
-                          </span>
+                    {/* Modal Body - Scrollable content */}
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+                      
+                      {/* Top Row: Visual Cover & Main Info (Grid) */}
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                        
+                        {/* Column 1: Image and Presets (5 cols) */}
+                        <div className="md:col-span-5 flex flex-col gap-3">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Imagem de Capa</label>
+                          <div className="relative h-44 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner group">
+                            <img
+                              src={selectedProtocol?.image_url || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=600'}
+                              alt={selectedProtocol?.name || 'Protocolo'}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                            <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center">
+                              <span className="text-[9px] font-black uppercase tracking-wider text-white bg-blue-600 px-2.5 py-0.5 rounded-md shadow">
+                                {selectedProtocol?.goal || 'Geral'}
+                              </span>
+                              <span className="text-[9px] font-black uppercase tracking-wider text-white bg-slate-900/90 px-2.5 py-0.5 rounded-md border border-slate-700 shadow">
+                                v{selectedProtocol?.version || 1}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Preset Images Buttons */}
+                          <div>
+                            <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">Escolher presets de capa</span>
+                            <div className="grid grid-cols-4 gap-2">
+                              {[
+                                { name: 'Força', url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=400' },
+                                { name: 'Corrida', url: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=400' },
+                                { name: 'Funcional', url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=400' },
+                                { name: 'Mind', url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400' },
+                              ].map((preset, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => updateProtocolField('image_url', preset.url)}
+                                  className={`text-[9px] font-bold py-1 px-1.5 rounded-lg border text-center transition-all cursor-pointer truncate ${
+                                    selectedProtocol?.image_url === preset.url
+                                      ? 'bg-blue-50 border-blue-500 text-blue-700 font-black'
+                                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {preset.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Column 2: Protocol Name & Description (7 cols) */}
+                        <div className="md:col-span-7 flex flex-col gap-4">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Nome do Protocolo</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Ex: Protocolo de Hipertrofia Avançada"
+                              value={selectedProtocol?.name || ''}
+                              onChange={(e) => updateProtocolField('name', e.target.value)}
+                              className="h-10 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-1.5 flex-1">
+                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Diretrizes e Notas Gerais</label>
+                            <textarea
+                              placeholder="Adicione diretrizes, recomendações de cardio ou foco principal deste protocolo..."
+                              value={selectedProtocol?.description || ''}
+                              onChange={(e) => updateProtocolField('description', e.target.value)}
+                              className="w-full flex-1 min-h-[100px] p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all resize-none leading-relaxed"
+                            />
+                          </div>
                         </div>
                       </div>
 
-                      {/* Text inputs */}
-                      <div className="space-y-4">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Nome do Protocolo</label>
+                      {/* Divider */}
+                      <div className="h-px bg-slate-100" />
+
+                      {/* Bottom Row: Specs Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                        
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Objetivo</label>
                           <input
                             type="text"
-                            required
-                            placeholder="Ex: Protocolo de Hipertrofia Avançada"
-                            value={selectedProtocol?.name || ''}
-                            onChange={(e) => updateProtocolField('name', e.target.value)}
-                            className="h-9 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white"
+                            placeholder="Ex: Hipertrofia, Definição"
+                            value={selectedProtocol?.goal || ''}
+                            onChange={(e) => updateProtocolField('goal', e.target.value)}
+                            className="h-10 px-3 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                           />
                         </div>
 
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Diretrizes e Notas Gerais</label>
-                          <textarea
-                            placeholder="Adicione diretrizes, recomendações de cardio ou foco principal deste protocolo..."
-                            value={selectedProtocol?.description || ''}
-                            onChange={(e) => updateProtocolField('description', e.target.value)}
-                            rows={3}
-                            className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white resize-none leading-relaxed"
-                          />
-                        </div>
-
-                        {/* Goal & Weeks */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Objetivo</label>
-                            <input
-                              type="text"
-                              placeholder="Hipertrofia"
-                              value={selectedProtocol?.goal || ''}
-                              onChange={(e) => updateProtocolField('goal', e.target.value)}
-                              className="h-9 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Semanas</label>
-                            <input
-                              type="number"
-                              min={1}
-                              value={selectedProtocol?.duration_weeks || 4}
-                              onChange={(e) => updateProtocolField('duration_weeks', Number(e.target.value) || 1)}
-                              className="h-9 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Image URL */}
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">URL da Imagem de Capa</label>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Duração (Semanas)</label>
                           <input
-                            type="url"
-                            placeholder="https://..."
-                            value={selectedProtocol?.image_url || ''}
-                            onChange={(e) => updateProtocolField('image_url', e.target.value)}
-                            className="h-9 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white"
+                            type="number"
+                            min={1}
+                            max={52}
+                            value={selectedProtocol?.duration_weeks || 4}
+                            onChange={(e) => updateProtocolField('duration_weeks', Number(e.target.value) || 1)}
+                            className="h-10 px-3 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                           />
                         </div>
 
-                        {/* Select settings */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Categoria</label>
-                            <select
-                              value={selectedProtocol?.category}
-                              onChange={(e) => updateProtocolField('category', e.target.value)}
-                              className="h-9 px-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
-                            >
-                              <option value="public">Gratuita</option>
-                              <option value="premium">Premium</option>
-                            </select>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Dificuldade</label>
-                            <select
-                              value={selectedProtocol?.difficulty || 'Iniciante'}
-                              onChange={(e) => updateProtocolField('difficulty', e.target.value)}
-                              className="h-9 px-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
-                            >
-                              <option value="Iniciante">Iniciante</option>
-                              <option value="Intermediário">Intermediário</option>
-                              <option value="Avançado">Avançado</option>
-                              <option value="Elite">Elite</option>
-                            </select>
-                          </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Dificuldade</label>
+                          <select
+                            value={selectedProtocol?.difficulty || 'Iniciante'}
+                            onChange={(e) => updateProtocolField('difficulty', e.target.value)}
+                            className="h-10 px-3 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-850 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
+                          >
+                            <option value="Iniciante">Iniciante</option>
+                            <option value="Intermediário">Intermediário</option>
+                            <option value="Avançado">Avançado</option>
+                            <option value="Elite">Elite</option>
+                          </select>
                         </div>
 
-                        {/* Status */}
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Status de Publicação</label>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Categoria de Acesso</label>
                           <select
-                            value={selectedProtocol?.status}
+                            value={selectedProtocol?.category || 'public'}
+                            onChange={(e) => updateProtocolField('category', e.target.value)}
+                            className="h-10 px-3 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-850 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
+                          >
+                            <option value="public">Gratuita</option>
+                            <option value="premium">Premium</option>
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Status de Publicação</label>
+                          <select
+                            value={selectedProtocol?.status || 'draft'}
                             onChange={(e) => updateProtocolField('status', e.target.value)}
-                            className="h-9 px-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                            className="h-10 px-3 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-850 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
                           >
                             <option value="draft">Rascunho</option>
                             <option value="published">Publicado</option>
                           </select>
                         </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">URL da Imagem Personalizada</label>
+                          <input
+                            type="url"
+                            placeholder="https://..."
+                            value={selectedProtocol?.image_url || ''}
+                            onChange={(e) => updateProtocolField('image_url', e.target.value)}
+                            className="h-10 px-3 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                          />
+                        </div>
+
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-150 shrink-0">
+                    {/* Modal Footer */}
+                    <div className="px-6 py-4.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3 shrink-0">
                       <button
                         type="button"
                         onClick={() => setIsDrawerOpen(false)}
-                        className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border-none shadow-md animate-fade-in"
+                        className="h-10 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer border-none"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsDrawerOpen(false)}
+                        className="h-10 px-6 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer border-none shadow-md shadow-slate-900/10"
                       >
                         Salvar e Fechar
                       </button>
                     </div>
                   </motion.div>
-                </>
+                </div>
               )}
             </AnimatePresence>
 
