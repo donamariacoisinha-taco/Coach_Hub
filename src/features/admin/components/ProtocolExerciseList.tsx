@@ -133,9 +133,9 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
   }, [exerciseLibrary]);
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 flex flex-col gap-5">
+    <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm p-6 flex flex-col gap-5">
       {/* List Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
           {exercises.length > 0 && (
             <input
@@ -147,17 +147,17 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
             />
           )}
           <div>
-            <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <Dumbbell size={16} className="text-blue-500" />
+            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <Dumbbell size={15} className="text-blue-500" />
               Exercícios de {selectedDayTitle}
             </h4>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-              Prescrição Detalhada
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+              Prescrição e Carga
             </p>
           </div>
         </div>
-        <div className="text-[10px] font-black text-slate-400 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 uppercase tracking-widest shrink-0 self-start sm:self-center">
-          Total: {exercises.length} {exercises.length === 1 ? 'exercício' : 'exercícios'}
+        <div className="text-[10px] font-bold text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1 uppercase tracking-wider shrink-0 self-start sm:self-center">
+          {exercises.length} {exercises.length === 1 ? 'exercício' : 'exercícios'}
         </div>
       </div>
 
@@ -256,12 +256,12 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
       </AnimatePresence>
 
       {/* Inline Search & Add Exercise bar */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         <div className="relative">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Pesquisar & Adicionar exercício..."
+            placeholder="Pesquisar & adicionar exercício ao treino..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -286,12 +286,12 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
                 setShowDropdown(false);
               }
             }}
-            className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 text-xs placeholder:text-slate-400 font-semibold focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
+            className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-100 text-xs placeholder:text-slate-400 font-semibold focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner"
           />
         </div>
 
         {/* Horizontal tag pills for filtering */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 no-scrollbar max-w-full">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar max-w-full">
           {muscleGroups.map((tag) => (
             <button
               key={tag}
@@ -303,7 +303,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
               className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-full transition-all border shrink-0 cursor-pointer ${
                 activeTag === tag
                   ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                  : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
               }`}
             >
               {tag}
@@ -318,7 +318,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 5 }}
-              className="relative bg-white border border-slate-200 shadow-xl rounded-2xl z-50 p-2 overflow-hidden max-h-[300px] overflow-y-auto mt-1"
+              className="relative bg-white border border-slate-200/60 shadow-xl rounded-2xl z-50 p-2 overflow-hidden max-h-[300px] overflow-y-auto mt-1"
             >
               <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-slate-50">
                 <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">

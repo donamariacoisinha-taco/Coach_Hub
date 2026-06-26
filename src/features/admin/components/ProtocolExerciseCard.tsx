@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   ArrowUp, 
   ArrowDown, 
@@ -8,9 +8,13 @@ import {
   Flame, 
   Zap, 
   Layers,
-  GripVertical
+  GripVertical,
+  ChevronDown,
+  ChevronUp,
+  FileText
 } from 'lucide-react';
 import { PremiumProtocolExercise } from '../../../types/protocol_4_0';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface ExerciseDetails {
   name: string;
@@ -50,7 +54,8 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
   onMoveToDay
 }) => {
   const fallbackImg = "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=200&auto=format&fit=crop";
-  const [isDraggedOver, setIsDraggedOver] = React.useState(false);
+  const [isDraggedOver, setIsDraggedOver] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -92,17 +97,18 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`bg-white rounded-3xl border shadow-sm p-5 hover:shadow-md transition-all flex flex-col gap-4 ${
+      className={`bg-white rounded-2xl border transition-all flex flex-col ${
         isDraggedOver 
-          ? 'border-dashed border-blue-500 bg-blue-50/20 scale-[1.01]' 
+          ? 'border-dashed border-blue-500 bg-blue-50/10 scale-[1.005] shadow-md' 
           : isSelected 
-          ? 'border-blue-400 bg-blue-50/10 shadow-sm' 
-          : 'border-slate-200/60'
+          ? 'border-blue-300 bg-blue-50/5 shadow-sm' 
+          : 'border-slate-100 hover:border-slate-200/80 hover:shadow-sm'
       }`}
     >
-      {/* Exercise identity & Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-2 min-w-0">
+      {/* 1. COMPACT STATE PANEL */}
+      <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Left Section: Drag, Checkbox, Image & Title */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {/* Grab Handle */}
           <div
             draggable
@@ -115,226 +121,255 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
               }));
               e.dataTransfer.effectAllowed = 'move';
             }}
-            className="p-1 cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 rounded flex items-center justify-center shrink-0"
-            title="Arraste para mover o exercício"
+            className="p-1 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 rounded flex items-center justify-center shrink-0"
+            title="Arraste para reordenar"
           >
-            <GripVertical size={16} />
+            <GripVertical size={14} />
           </div>
 
-          {/* Mass Action Checkbox */}
+          {/* Selector Checkbox */}
           {onToggleSelect && (
             <input
               type="checkbox"
               checked={isSelected}
               onChange={onToggleSelect}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 mr-1 shrink-0 cursor-pointer"
-              title="Selecionar exercício para ações em massa"
+              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 shrink-0 cursor-pointer"
+              title="Selecionar exercício"
             />
           )}
 
+          {/* Exercise Image */}
           <img
             src={details?.image_url || fallbackImg}
             alt={details?.name || "Exercício"}
-            className="w-12 h-12 rounded-2xl object-cover shrink-0 border border-slate-100 ml-1"
+            className="w-10 h-10 rounded-xl object-cover shrink-0 border border-slate-100"
             referrerPolicy="no-referrer"
           />
-          <div className="min-w-0 ml-1">
-            <h5 className="font-bold text-xs text-slate-900 truncate">
+
+          {/* Exercise Meta */}
+          <div className="min-w-0 flex-1 md:max-w-[200px]">
+            <h5 className="font-bold text-xs text-slate-800 truncate leading-tight">
               {details?.name || "Carregando Exercício..."}
             </h5>
-            <span className="inline-block text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md mt-1 border border-slate-200/50">
+            <span className="inline-block text-[8px] font-black uppercase tracking-wider text-slate-400 mt-1">
               {details?.muscle_group || "Geral"}
             </span>
           </div>
         </div>
 
-        {/* Action Toolbar */}
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onMove('up')}
-            disabled={isFirst}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors border-none bg-transparent cursor-pointer disabled:opacity-30"
-            title="Mover para cima"
-          >
-            <ArrowUp size={13} />
-          </button>
-          <button
-            type="button"
-            onClick={() => onMove('down')}
-            disabled={isLast}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors border-none bg-transparent cursor-pointer disabled:opacity-30"
-            title="Mover para baixo"
-          >
-            <ArrowDown size={13} />
-          </button>
-          <button
-            type="button"
-            onClick={onDuplicate}
-            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
-            title="Duplicar exercício"
-          >
-            <Copy size={13} />
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
-            title="Remover exercício"
-          >
-            <Trash2 size={13} />
-          </button>
-        </div>
-      </div>
+        {/* Middle Section: Quick Inline Fields (Sets, Reps, Rest, RPE) */}
+        <div className="grid grid-cols-4 gap-2 shrink-0 w-full md:w-auto md:min-w-[320px]">
+          {/* Sets */}
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Séries</span>
+            <input
+              type="number"
+              min={1}
+              value={exercise.sets}
+              onChange={(e) => onUpdateField('sets', Number(e.target.value) || 3)}
+              className="h-8 px-2 rounded-lg bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 transition-all text-center"
+            />
+          </div>
 
-      {/* Grid: Form fields */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
-        {/* Sets */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Séries</label>
-          <input
-            type="number"
-            min={1}
-            value={exercise.sets}
-            onChange={(e) => onUpdateField('sets', Number(e.target.value) || 3)}
-            className="h-9 px-2.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-          />
-        </div>
+          {/* Reps */}
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Reps</span>
+            <input
+              type="text"
+              placeholder="10-12"
+              value={exercise.reps}
+              onChange={(e) => onUpdateField('reps', e.target.value)}
+              className="h-8 px-2 rounded-lg bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 transition-all text-center"
+            />
+          </div>
 
-        {/* Reps */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Reps</label>
-          <input
-            type="text"
-            placeholder="Ex: 8-12, 10, Falha"
-            value={exercise.reps}
-            onChange={(e) => onUpdateField('reps', e.target.value)}
-            className="h-9 px-2.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-          />
-        </div>
-
-        {/* Rest seconds */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Descanso (s)</label>
-          <div className="relative">
+          {/* Rest */}
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Des. (s)</span>
             <input
               type="number"
               placeholder="60"
               value={exercise.rest_seconds || ''}
               onChange={(e) => onUpdateField('rest_seconds', Number(e.target.value) || 0)}
-              className="h-9 w-full pl-2.5 pr-6 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
+              className="h-8 px-2 rounded-lg bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 transition-all text-center"
             />
-            <Clock size={10} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
           </div>
-        </div>
 
-        {/* Load type / Carga */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Carga / Tipo</label>
-          <input
-            type="text"
-            placeholder="Ex: 30kg, RPE 8"
-            value={exercise.load_type || ''}
-            onChange={(e) => onUpdateField('load_type', e.target.value)}
-            className="h-9 px-2.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-          />
-        </div>
-      </div>
-
-      {/* Advanced Methodologies Checkboxes (Drop-set, Rest-pause, Superset) */}
-      <div className="flex items-center gap-4 border-t border-slate-100 pt-3">
-        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={!!exercise.drop_set}
-            onChange={(e) => onUpdateField('drop_set', e.target.checked)}
-            className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-200"
-          />
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
-            <Flame size={10} className="text-amber-500" />
-            Drop-Set
-          </span>
-        </label>
-
-        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={!!exercise.rest_pause}
-            onChange={(e) => onUpdateField('rest_pause', e.target.checked)}
-            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-200"
-          />
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
-            <Zap size={10} className="text-indigo-500" />
-            Rest-Pause
-          </span>
-        </label>
-
-        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={!!exercise.superset}
-            onChange={(e) => onUpdateField('superset', e.target.checked)}
-            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-200"
-          />
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
-            <Layers size={10} className="text-blue-500" />
-            Super-Série
-          </span>
-        </label>
-      </div>
-
-      {/* RPE, Tempo, Cadence & Notes row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-100 pt-3">
-        <div className="grid grid-cols-3 gap-2">
           {/* RPE */}
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] font-black uppercase text-slate-400">RPE</span>
+            <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">RPE</span>
             <input
               type="text"
               placeholder="9"
               value={exercise.rpe || ''}
               onChange={(e) => onUpdateField('rpe', e.target.value)}
-              className="h-8 px-2 rounded-lg bg-slate-50 border border-slate-200/60 text-[10px] font-bold text-slate-700"
-            />
-          </div>
-
-          {/* Cadence */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] font-black uppercase text-slate-400">Cadência</span>
-            <input
-              type="text"
-              placeholder="3010"
-              value={exercise.cadence || ''}
-              onChange={(e) => onUpdateField('cadence', e.target.value)}
-              className="h-8 px-2 rounded-lg bg-slate-50 border border-slate-200/60 text-[10px] font-bold text-slate-700"
-            />
-          </div>
-
-          {/* Tempo */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] font-black uppercase text-slate-400">Tempo</span>
-            <input
-              type="text"
-              placeholder="2s"
-              value={exercise.tempo || ''}
-              onChange={(e) => onUpdateField('tempo', e.target.value)}
-              className="h-8 px-2 rounded-lg bg-slate-50 border border-slate-200/60 text-[10px] font-bold text-slate-700"
+              className="h-8 px-2 rounded-lg bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 transition-all text-center"
             />
           </div>
         </div>
 
-        {/* Notes */}
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[8px] font-black uppercase text-slate-400">Instruções / Notas</span>
-          <input
-            type="text"
-            placeholder="Ex: Foco no pico de contração."
-            value={exercise.notes || ''}
-            onChange={(e) => onUpdateField('notes', e.target.value)}
-            className="h-8 px-2.5 rounded-lg bg-slate-50 border border-slate-200/60 text-[10px] font-semibold text-slate-700 focus:bg-white"
-          />
+        {/* Right Section: Compact toolbar actions */}
+        <div className="flex items-center justify-end gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => onMove('up')}
+            disabled={isFirst}
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg disabled:opacity-20 bg-transparent border-none cursor-pointer"
+            title="Mover para cima"
+          >
+            <ArrowUp size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove('down')}
+            disabled={isLast}
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg disabled:opacity-20 bg-transparent border-none cursor-pointer"
+            title="Mover para baixo"
+          >
+            <ArrowDown size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={onDuplicate}
+            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg bg-transparent border-none cursor-pointer"
+            title="Duplicar"
+          >
+            <Copy size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg bg-transparent border-none cursor-pointer"
+            title="Remover"
+          >
+            <Trash2 size={12} />
+          </button>
+          
+          <div className="w-px h-5 bg-slate-100 mx-1" />
+
+          {/* Expand/Collapse Toggle Arrow */}
+          <button
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={`p-1.5 rounded-lg border-none cursor-pointer transition-colors ${
+              isExpanded ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+            }`}
+            title={isExpanded ? "Recolher detalhes" : "Expandir detalhes"}
+          >
+            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
         </div>
       </div>
+
+      {/* 2. EXPANDED STATE PANEL */}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden border-t border-slate-50 bg-slate-50/30"
+          >
+            <div className="p-4 flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Carga */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Carga / Tipo</span>
+                  <input
+                    type="text"
+                    placeholder="Ex: 40kg, Halteres"
+                    value={exercise.load_type || ''}
+                    onChange={(e) => onUpdateField('load_type', e.target.value)}
+                    className="h-9 px-3 rounded-xl bg-white border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/10 transition-all"
+                  />
+                </div>
+
+                {/* Cadência */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Cadência</span>
+                  <input
+                    type="text"
+                    placeholder="Ex: 3010, Controlada"
+                    value={exercise.cadence || ''}
+                    onChange={(e) => onUpdateField('cadence', e.target.value)}
+                    className="h-9 px-3 rounded-xl bg-white border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/10 transition-all"
+                  />
+                </div>
+
+                {/* Tempo */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Tempo sob Tensão</span>
+                  <input
+                    type="text"
+                    placeholder="Ex: 45s, Sem pausa"
+                    value={exercise.tempo || ''}
+                    onChange={(e) => onUpdateField('tempo', e.target.value)}
+                    className="h-9 px-3 rounded-xl bg-white border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/10 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Advanced Methodology Toggle Pills */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {/* Drop-set */}
+                <button
+                  type="button"
+                  onClick={() => onUpdateField('drop_set', !exercise.drop_set)}
+                  className={`h-8 px-3 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border cursor-pointer select-none ${
+                    exercise.drop_set
+                      ? 'bg-amber-500 border-amber-500 text-white shadow-sm shadow-amber-500/10'
+                      : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  <Flame size={11} className={exercise.drop_set ? 'text-white' : 'text-amber-500'} />
+                  Drop-Set
+                </button>
+
+                {/* Rest-pause */}
+                <button
+                  type="button"
+                  onClick={() => onUpdateField('rest_pause', !exercise.rest_pause)}
+                  className={`h-8 px-3 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border cursor-pointer select-none ${
+                    exercise.rest_pause
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/10'
+                      : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  <Zap size={11} className={exercise.rest_pause ? 'text-white' : 'text-indigo-500'} />
+                  Rest-Pause
+                </button>
+
+                {/* Super-série */}
+                <button
+                  type="button"
+                  onClick={() => onUpdateField('superset', !exercise.superset)}
+                  className={`h-8 px-3 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border cursor-pointer select-none ${
+                    exercise.superset
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-600/10'
+                      : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  <Layers size={11} className={exercise.superset ? 'text-white' : 'text-blue-500'} />
+                  Super-Série
+                </button>
+              </div>
+
+              {/* Instructions / Notes */}
+              <div className="flex flex-col gap-1">
+                <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Instruções Técnicas / Observações</span>
+                <textarea
+                  placeholder="Ex: Focar na máxima contração isométrica no final do movimento, cadenciar bem a descida."
+                  rows={2}
+                  value={exercise.notes || ''}
+                  onChange={(e) => onUpdateField('notes', e.target.value)}
+                  className="w-full p-3 rounded-xl bg-white border border-slate-100 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/10 transition-all resize-none leading-relaxed"
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });

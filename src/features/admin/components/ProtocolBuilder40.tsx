@@ -24,6 +24,9 @@ import {
   Copy,
   Activity,
   Check,
+  ChevronDown,
+  ChevronUp,
+  Settings,
   Image as ImageIcon
 } from 'lucide-react';
 import { useProtocolBuilder } from '../hooks/useProtocolBuilder';
@@ -91,6 +94,9 @@ export const ProtocolBuilder40: React.FC = () => {
 
   // Mobile Tab state: 'info' | 'days' | 'exercises' | 'metrics'
   const [activeMobileTab, setActiveMobileTab] = useState<'info' | 'days' | 'exercises' | 'metrics'>('exercises');
+
+  // Toggle advanced protocol configuration fields
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Local clipboard state for copying exercises
   const [copiedExerciseData, setCopiedExerciseData] = useState<any[]>([]);
@@ -701,166 +707,192 @@ export const ProtocolBuilder40: React.FC = () => {
               {/* ==========================================
                  COLUMN 1: PROTOCOL GENERAL DATA (3 Cols)
                  ========================================== */}
-              <div className={`lg:col-span-3 bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 flex flex-col gap-5 ${
+              <div className={`lg:col-span-3 bg-white rounded-3xl border border-slate-200/50 shadow-sm p-5 flex flex-col gap-5 ${
                 activeMobileTab === 'info' ? 'block' : 'hidden lg:flex'
               }`}>
                 <div>
-                  <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <FileText size={16} className="text-blue-500" />
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText size={14} className="text-blue-500" />
                     Protocolo
                   </h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Dados Cadastrais</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Identidade & Escopo</p>
                 </div>
 
                 <div className="space-y-4">
                   {/* Name field */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nome do Protocolo</label>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Nome do Protocolo</label>
                     <input
                       type="text"
                       required
                       placeholder="Ex: Hipertrofia Avançada Masculina"
                       value={selectedProtocol?.name || ''}
                       onChange={(e) => updateProtocolField('name', e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
+                      className="w-full h-10 px-3.5 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-800 placeholder:text-slate-300 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500/10 transition-all"
                     />
                   </div>
 
                   {/* Description field */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Descrição Detalhada</label>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Diretrizes & Foco</label>
                     <textarea
-                      placeholder="Foco, público-alvo, detalhes do ciclo..."
+                      placeholder="Ex: Foco no ganho de massa, público intermediário..."
                       value={selectedProtocol?.description || ''}
                       onChange={(e) => updateProtocolField('description', e.target.value)}
-                      rows={3}
-                      className="w-full p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-all resize-none leading-relaxed"
+                      rows={2}
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs font-semibold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500/10 transition-all resize-none leading-relaxed"
                     />
                   </div>
 
-                  {/* Image URL field */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">URL da Imagem</label>
-                    <div className="relative">
-                      <input
-                        type="url"
-                        placeholder="https://images.unsplash.com/photo-..."
-                        value={selectedProtocol?.image_url || ''}
-                        onChange={(e) => updateProtocolField('image_url', e.target.value)}
-                        className="w-full h-11 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
-                      />
-                      <ImageIcon size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    </div>
-                  </div>
-
-                  {/* Category & Status */}
+                  {/* Goal & Weeks */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Categoria</label>
-                      <select
-                        value={selectedProtocol?.category}
-                        onChange={(e) => updateProtocolField('category', e.target.value)}
-                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
-                      >
-                        <option value="public">Gratuita</option>
-                        <option value="premium">Premium</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</label>
-                      <select
-                        value={selectedProtocol?.status}
-                        onChange={(e) => updateProtocolField('status', e.target.value)}
-                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
-                      >
-                        <option value="draft">Rascunho</option>
-                        <option value="published">Publicado</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Goal & Difficulty */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Objetivo</label>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Objetivo</label>
                       <input
                         type="text"
-                        placeholder="Ex: Hipertrofia"
+                        placeholder="Hipertrofia"
                         value={selectedProtocol?.goal || ''}
                         onChange={(e) => updateProtocolField('goal', e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500 transition-all"
+                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
                       />
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nível</label>
-                      <select
-                        value={selectedProtocol?.difficulty || 'Iniciante'}
-                        onChange={(e) => updateProtocolField('difficulty', e.target.value)}
-                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
-                      >
-                        <option value="Iniciante">Iniciante</option>
-                        <option value="Intermediário">Intermediário</option>
-                        <option value="Avançado">Avançado</option>
-                        <option value="Elite">Elite</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Weeks & Estimated Duration */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Semanas (Ciclo)</label>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Semanas (Ciclo)</label>
                       <input
                         type="number"
                         min={1}
                         value={selectedProtocol?.duration_weeks || 4}
                         onChange={(e) => updateProtocolField('duration_weeks', Number(e.target.value) || 1)}
-                        className="w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Duração Est. (Min)</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={selectedProtocol?.estimated_duration || 60}
-                        onChange={(e) => updateProtocolField('estimated_duration', Number(e.target.value) || 1)}
-                        className="w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none"
+                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white transition-all text-center"
                       />
                     </div>
                   </div>
 
-                  {/* Environment & Active Switch */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ambiente</label>
-                      <select
-                        value={selectedProtocol?.environment || 'Academia'}
-                        onChange={(e) => updateProtocolField('environment', e.target.value)}
-                        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                  {/* Advanced Configuration Accordion Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    className="w-full flex items-center justify-between py-2 text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-none cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Settings size={12} className={showAdvanced ? 'text-blue-500 animate-spin-slow' : ''} />
+                      Configurações Avançadas
+                    </span>
+                    {showAdvanced ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
+
+                  {/* Advanced Collapsible content */}
+                  <AnimatePresence initial={false}>
+                    {showAdvanced && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="overflow-hidden space-y-4 pt-1"
                       >
-                        <option value="Academia">Academia</option>
-                        <option value="Home Gym">Home Gym</option>
-                        <option value="Calistenia / Parque">Parque</option>
-                      </select>
-                    </div>
+                        {/* Image URL field */}
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Capa do Protocolo (URL)</label>
+                          <div className="relative">
+                            <input
+                              type="url"
+                              placeholder="https://images.unsplash.com/photo-..."
+                              value={selectedProtocol?.image_url || ''}
+                              onChange={(e) => updateProtocolField('image_url', e.target.value)}
+                              className="w-full h-10 pl-3 pr-8 rounded-xl bg-slate-50 border border-slate-100 text-xs font-semibold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
+                            />
+                            <ImageIcon size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          </div>
+                        </div>
 
-                    <div className="flex items-center gap-2 mt-4.5 bg-slate-50 px-3 rounded-xl border border-slate-100">
-                      <input
-                        type="checkbox"
-                        id="isActiveToggle"
-                        checked={selectedProtocol?.is_active !== false}
-                        onChange={(e) => updateProtocolField('is_active', e.target.checked)}
-                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-200 cursor-pointer"
-                      />
-                      <label htmlFor="isActiveToggle" className="text-[10px] font-black uppercase tracking-wider text-slate-600 cursor-pointer select-none">
-                        Ativo
-                      </label>
-                    </div>
-                  </div>
+                        {/* Category & Status */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Categoria</label>
+                            <select
+                              value={selectedProtocol?.category}
+                              onChange={(e) => updateProtocolField('category', e.target.value)}
+                              className="w-full h-10 px-2 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                            >
+                              <option value="public">Gratuita</option>
+                              <option value="premium">Premium</option>
+                            </select>
+                          </div>
+
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Status</label>
+                            <select
+                              value={selectedProtocol?.status}
+                              onChange={(e) => updateProtocolField('status', e.target.value)}
+                              className="w-full h-10 px-2 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                            >
+                              <option value="draft">Rascunho</option>
+                              <option value="published">Publicado</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Difficulty & Est. Duration */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Dificuldade</label>
+                            <select
+                              value={selectedProtocol?.difficulty || 'Iniciante'}
+                              onChange={(e) => updateProtocolField('difficulty', e.target.value)}
+                              className="w-full h-10 px-2 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                            >
+                              <option value="Iniciante">Iniciante</option>
+                              <option value="Intermediário">Intermediário</option>
+                              <option value="Avançado">Avançado</option>
+                              <option value="Elite">Elite</option>
+                            </select>
+                          </div>
+
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Duração (Min)</label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={selectedProtocol?.estimated_duration || 60}
+                              onChange={(e) => updateProtocolField('estimated_duration', Number(e.target.value) || 1)}
+                              className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none text-center"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Environment & Active Switch */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[8px] font-black uppercase tracking-wider text-slate-400">Ambiente</label>
+                            <select
+                              value={selectedProtocol?.environment || 'Academia'}
+                              onChange={(e) => updateProtocolField('environment', e.target.value)}
+                              className="w-full h-10 px-2 rounded-xl bg-slate-50 border border-slate-100 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                            >
+                              <option value="Academia">Academia</option>
+                              <option value="Home Gym">Home Gym</option>
+                              <option value="Calistenia / Parque">Parque</option>
+                            </select>
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-4 bg-slate-50 px-3 rounded-xl border border-slate-100/60 h-10">
+                            <input
+                              type="checkbox"
+                              id="isActiveToggle"
+                              checked={selectedProtocol?.is_active !== false}
+                              onChange={(e) => updateProtocolField('is_active', e.target.checked)}
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-200 cursor-pointer"
+                            />
+                            <label htmlFor="isActiveToggle" className="text-[9px] font-black uppercase tracking-wider text-slate-500 cursor-pointer select-none">
+                              Ativo
+                            </label>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
@@ -930,43 +962,46 @@ export const ProtocolBuilder40: React.FC = () => {
                 activeMobileTab === 'metrics' ? 'block' : 'hidden lg:flex'
               }`}>
                 {/* 1. Productivity Ticking Stopwatch widget */}
-                <div className="bg-slate-900 text-slate-100 rounded-2xl p-4 border border-slate-800/80 shadow-md flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-blue-400 border border-slate-700/50">
-                      <Clock size={16} className="animate-pulse" />
+                <div className="bg-slate-900 text-slate-100 rounded-3xl p-5 border border-slate-800 shadow-md flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-blue-400 border border-slate-700/50 shrink-0">
+                      <Clock size={14} className="animate-pulse" />
                     </div>
-                    <div>
-                      <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Foco na Produtividade</h5>
-                      <p className="text-xs font-bold text-slate-300">Tempo de montagem ativo</p>
+                    <div className="min-w-0">
+                      <h5 className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Ergonomia & Foco</h5>
+                      <p className="text-xs font-bold text-slate-100 truncate mt-0.5">Tempo Ativo de Montagem</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="font-mono text-sm font-black tracking-tight text-white px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-lg">
+                  <div className="text-right shrink-0">
+                    <span className="font-mono text-xs font-black tracking-tight text-white px-2.5 py-1.5 bg-slate-800 border border-slate-700/50 rounded-lg shadow-inner">
                       {formatTimer(secondsElapsed)}
                     </span>
                   </div>
                 </div>
 
                 {/* 2. Micro Stats Board */}
-                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4 space-y-4">
-                  <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Métricas do Ciclo</h5>
+                <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-[10px] font-black uppercase text-slate-800 tracking-wider">Métricas do Ciclo</h5>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Tempo Real</span>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Exercícios</span>
-                      <p className="text-sm font-black text-slate-800 mt-1">{totals.exercisesCount}</p>
+                      <p className="text-base font-black text-slate-800 mt-1">{totals.exercisesCount}</p>
                     </div>
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Séries Semanais</span>
-                      <p className="text-sm font-black text-slate-800 mt-1">{totals.setsCount}</p>
+                      <p className="text-base font-black text-slate-800 mt-1">{totals.setsCount}</p>
                     </div>
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Dias de Treino</span>
-                      <p className="text-sm font-black text-slate-800 mt-1">{totals.daysCount}</p>
+                      <p className="text-base font-black text-slate-800 mt-1">{totals.daysCount}</p>
                     </div>
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Status Sync</span>
-                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider mt-1.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-wider mt-1.5 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 animate-ping" />
                         {autosaveStatus === 'dirty' ? 'Editando' : 'Sincronizado'}
                       </p>
                     </div>
@@ -974,31 +1009,55 @@ export const ProtocolBuilder40: React.FC = () => {
                 </div>
 
                 {/* 3. Muscular Distribution Progress list */}
-                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex flex-col gap-4">
+                <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm p-5 flex flex-col gap-4">
                   <div>
-                    <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Distribuição Muscular</h5>
-                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Séries por agrupamento muscular</p>
+                    <h5 className="text-[10px] font-black uppercase text-slate-800 tracking-wider">Volume de Treino Semanal</h5>
+                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Séries por grupo muscular (Alvo: 10-20 séries)</p>
                   </div>
-                  <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
+                  <div className="space-y-3.5 max-h-[340px] overflow-y-auto pr-1 scrollbar-thin">
                     {Object.entries(muscleDistribution).map(([muscle, setsRaw]) => {
                       const sets = setsRaw as number;
+                      // Target ranges checklist: Under (sets < 10), Optimal (10 <= sets <= 20), Over (sets > 20)
+                      let rangeStatus = 'Insuficiente';
+                      let barColor = 'bg-sky-400';
+                      if (sets >= 10 && sets <= 20) {
+                        rangeStatus = 'Ideal';
+                        barColor = 'bg-blue-600';
+                      } else if (sets > 20) {
+                        rangeStatus = 'Sobrecarga';
+                        barColor = 'bg-amber-500';
+                      } else if (sets === 0) {
+                        rangeStatus = 'Zero';
+                        barColor = 'bg-slate-200';
+                      }
+
                       return (
                         <div key={muscle} className="space-y-1.5">
                           <div className="flex items-center justify-between text-[11px] font-black text-slate-700 uppercase tracking-wider">
                             <span>{muscle}</span>
-                            <span className="text-slate-500 font-mono text-[10px]">{sets} {sets === 1 ? 'série' : 'séries'}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-mono text-[10px]">{sets} {sets === 1 ? 'série' : 'séries'}</span>
+                              {sets > 0 && (
+                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                  rangeStatus === 'Ideal'
+                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                    : rangeStatus === 'Sobrecarga'
+                                    ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                                    : 'bg-sky-50 text-sky-600 border border-sky-100'
+                                }`}>
+                                  {rangeStatus}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="h-2 bg-slate-100 border border-slate-200/20 rounded-full overflow-hidden">
+                          <div className="h-1.5 bg-slate-100 border border-slate-200/20 rounded-full overflow-hidden relative">
+                            {/* Tick mark at optimal range starts (10 sets) and ends (20 sets) */}
+                            <div className="absolute left-[41.6%] top-0 bottom-0 w-px bg-white/40 z-10" /> {/* 10/24 */}
+                            <div className="absolute left-[83.3%] top-0 bottom-0 w-px bg-white/40 z-10" /> {/* 20/24 */}
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${Math.min(100, (sets / 24) * 100)}%` }}
-                              className={`h-full rounded-full transition-all ${
-                                sets === 0
-                                  ? 'bg-slate-200'
-                                  : sets > 20
-                                  ? 'bg-amber-500'
-                                  : 'bg-blue-600'
-                              }`}
+                              className={`h-full rounded-full transition-all ${barColor}`}
                             />
                           </div>
                         </div>
@@ -1008,25 +1067,25 @@ export const ProtocolBuilder40: React.FC = () => {
                 </div>
 
                 {/* 4. Workout Balance dynamic alerts */}
-                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex flex-col gap-4">
+                <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm p-5 flex flex-col gap-4">
                   <div>
-                    <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Balanço Biomecânico</h5>
-                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Diagnóstico Técnico</p>
+                    <h5 className="text-[10px] font-black uppercase text-slate-800 tracking-wider">Diagnóstico Biomecânico</h5>
+                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Balanciamento Científico de Cargas</p>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {balanceIndicators.map((ind, i) => (
                       <div
                         key={i}
-                        className={`p-3 rounded-2xl border flex items-start gap-2.5 text-[10px] font-black uppercase tracking-wider ${
+                        className={`p-3 rounded-2xl border flex items-start gap-2.5 text-[10px] font-black uppercase tracking-wider leading-relaxed ${
                           ind.type === 'success'
-                            ? 'bg-emerald-50/50 border-emerald-200/50 text-emerald-700'
-                            : 'bg-amber-50/50 border-amber-200/50 text-amber-700'
+                            ? 'bg-emerald-50/50 border-emerald-100 text-emerald-700'
+                            : 'bg-amber-50/50 border-amber-100 text-amber-700'
                         }`}
                       >
                         {ind.type === 'success' ? (
-                          <CheckCircle2 size={13} className="shrink-0 text-emerald-500" />
+                          <CheckCircle2 size={13} className="shrink-0 text-emerald-600 mt-0.5" />
                         ) : (
-                          <AlertTriangle size={13} className="shrink-0 text-amber-500 animate-pulse" />
+                          <AlertTriangle size={13} className="shrink-0 text-amber-600 animate-pulse mt-0.5" />
                         )}
                         <span className="leading-tight">{ind.text}</span>
                       </div>
