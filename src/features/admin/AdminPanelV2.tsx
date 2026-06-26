@@ -34,7 +34,7 @@ import AutoFixQueue from './components/AutoFixQueue';
 import PerformanceDashboard from './components/PerformanceDashboard';
 import RubiIntelligenceModal from './components/RubiIntelligenceModal';
 import { GlobalTemplatesManager } from './components/GlobalTemplatesManager';
-import { ProtocolManagement } from './components/ProtocolManagement';
+import { ProtocolBuilder40 } from './components/ProtocolBuilder40';
 import { UserManagement } from './components/UserManagement';
 
 interface AdminPanelV2Props {
@@ -221,7 +221,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
               >
                   {activeTab === 'dashboard' && <ExecutiveDashboard />}
                   {activeTab === 'library' && <LibraryOSV25 />}
-                  {activeTab === 'protocols' && <ProtocolManagement />}
+                  {activeTab === 'protocols' && <ProtocolBuilder40 />}
                   {activeTab === 'users' && <UserManagement />}
                   {activeTab === 'settings' && <SettingsLogs />}
               </motion.div>
