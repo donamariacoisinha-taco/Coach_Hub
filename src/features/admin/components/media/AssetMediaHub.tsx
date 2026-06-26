@@ -49,6 +49,24 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate type and size for images
+    if (field === 'image_url' || field === 'thumbnail_url') {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        showError('Formato inválido. Use JPG, JPEG, PNG ou WEBP.');
+        if (e.target) e.target.value = '';
+        return;
+      }
+
+      // Max size: 5MB
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        showError('O arquivo é muito grande. Tamanho máximo permitido: 5MB.');
+        if (e.target) e.target.value = '';
+        return;
+      }
+    }
+
     // For images, we open the adjustment modal first
     if (field === 'image_url' || field === 'thumbnail_url') {
       const reader = new FileReader();
@@ -156,7 +174,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
         {/* Main Image */}
         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center justify-between">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Imagem Principal (1509 x 1042)</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Imagem Principal (Widescreen - 1408 × 768)</h4>
             <div className="flex items-center gap-2">
               {localData.image_url && (
                 <button 
@@ -178,12 +196,12 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
             </div>
           </div>
           
-          <div className="aspect-[3/2] bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 overflow-hidden relative group">
+          <div className="aspect-[1408/768] bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 overflow-hidden relative group">
             {localData.image_url ? (
               <img 
                 src={localData.image_url} 
                 alt="Preview" 
-                className="w-full h-full object-contain" 
+                className="w-full h-full object-cover" 
                 referrerPolicy="no-referrer"
               />
             ) : (
@@ -200,6 +218,11 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
               </div>
               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'image_url')} />
             </label>
+          </div>
+          <div className="text-center mt-2">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+              Recomendado: 1408 × 768.<br />Para melhor resultado, use imagem em 1408 × 768.
+            </p>
           </div>
         </div>
 
@@ -309,7 +332,7 @@ export const AssetMediaHub: React.FC<Props> = ({ exercise, onUpdate }) => {
             image={adjustingImage.src}
             onClose={() => setAdjustingImage(null)}
             onConfirm={handleCropConfirm}
-            aspect={1.5}
+            aspect={1408 / 768}
           />
         )}
       </AnimatePresence>

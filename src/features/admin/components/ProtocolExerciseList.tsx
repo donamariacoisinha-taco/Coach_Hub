@@ -52,6 +52,8 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeTag, setActiveTag] = useState('Todos');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [selectedLibraryIds, setSelectedLibraryIds] = useState<string[]>([]);
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
 
   // Load Recents list from LocalStorage for ultra-high trainer productivity
   const [recentIds, setRecentIds] = useState<string[]>(() => {
@@ -196,7 +198,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
     }
 
     // Limit output to prevent UI lag while maintaining immediate responsiveness
-    return result.slice(0, 10);
+    return result.slice(0, 40);
   }, [searchQuery, exerciseLibrary, activeTag, recentIds]);
 
   // Reset highlighted index when filtered library changes
@@ -225,6 +227,26 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
     const updatedRecents = [exerciseId, ...recentIds.filter(id => id !== exerciseId)].slice(0, 12);
     setRecentIds(updatedRecents);
     localStorage.setItem('kyron_recent_exercise_ids', JSON.stringify(updatedRecents));
+  };
+
+  const handleAddSelected = () => {
+    // 1. Preserve visual list order of library items
+    const orderedSelectedIds = [...selectedLibraryIds];
+    
+    // 2. Add each exercise to the workout
+    orderedSelectedIds.forEach((id) => {
+      onAddExercise(id);
+    });
+
+    // 3. Clear selection and close list
+    setSelectedLibraryIds([]);
+    setShowDropdown(false);
+  };
+
+  const toggleSelectLibraryId = (id: string) => {
+    setSelectedLibraryIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
   const isAllChecked = useMemo(() => {
@@ -380,7 +402,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
       </AnimatePresence>
 
       {/* macOS Spotlight-like Fixed Search Bar (at the top of Editor Column) */}
-      <div className="flex flex-col gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+      <div className="flex flex-col gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100 relative">
         <div className="relative">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -405,6 +427,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
                 e.preventDefault();
                 const selected = filteredLibrary[highlightedIndex];
                 if (selected) {
+                  // Enter still triggers individual selection keeping panel open
                   handleSelectFromLibrary(selected.id, true);
                 }
               } else if (e.key === 'Escape') {
@@ -436,6 +459,21 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
           ))}
         </div>
 
+        {/* Backdrop for click outside close */}
+        {showDropdown && (
+          <div 
+            className="fixed inset-0 z-40 bg-transparent" 
+            onClick={() => {
+              if (selectedLibraryIds.length === 0) {
+                setShowDropdown(false);
+              } else {
+                setShowCloseWarning(true);
+                setTimeout(() => setShowCloseWarning(false), 3000);
+              }
+            }}
+          />
+        )}
+
         {/* Search Results Dropdown Overlay */}
         <AnimatePresence>
           {showDropdown && (searchQuery.trim().length > 0 || activeTag !== 'Todos') && (
@@ -443,53 +481,160 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 5 }}
-              className="absolute bg-white border border-slate-200 shadow-xl rounded-2xl z-50 p-2 overflow-hidden max-h-[300px] overflow-y-auto mt-11 left-6 right-6"
+              className="absolute bg-white border border-slate-200 shadow-2xl rounded-2xl z-50 p-3 flex flex-col max-h-[420px] overflow-hidden mt-11 left-0 right-0 w-full"
             >
-              <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-slate-50">
-                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+              {/* Warning Banner */}
+              {showCloseWarning && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -5 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  className="bg-amber-500 text-white px-3 py-2 text-center rounded-xl text-[10px] font-black uppercase tracking-wider mb-2 animate-pulse leading-snug"
+                >
+                  Você tem exercícios selecionados! Adicione-os ou cancele a seleção para fechar.
+                </motion.div>
+              )}
+
+              <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-slate-100 shrink-0">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                   Exercícios Disponíveis ({activeTag})
                 </span>
                 <button
                   type="button"
-                  onClick={() => setShowDropdown(false)}
-                  className="text-[10px] font-bold text-slate-400 hover:text-slate-600 border-none bg-transparent cursor-pointer"
+                  onClick={() => {
+                    setSelectedLibraryIds([]);
+                    setShowDropdown(false);
+                  }}
+                  className="text-[10px] font-bold text-slate-500 hover:text-slate-800 border-none bg-transparent cursor-pointer hover:underline transition-all"
                 >
                   Fechar
                 </button>
               </div>
 
               {filteredLibrary.length === 0 ? (
-                <div className="text-center py-6 text-slate-400 text-xs font-semibold">
+                <div className="text-center py-8 text-slate-400 text-xs font-semibold flex-1 flex items-center justify-center">
                   Nenhum exercício correspondente.
                 </div>
               ) : (
-                filteredLibrary.map((ex, idx) => {
-                  const isHighlighted = idx === highlightedIndex;
-                  return (
-                    <button
-                      key={ex.id}
-                      type="button"
-                      onClick={() => handleSelectFromLibrary(ex.id)}
-                      className={`w-full flex items-center gap-3 p-2 rounded-xl transition-colors border-none text-left cursor-pointer ${
-                        isHighlighted 
-                          ? 'bg-blue-50/70 border-l-4 border-l-blue-500 font-bold' 
-                          : 'hover:bg-slate-50'
-                      }`}
-                    >
-                      <img
-                        src={ex.image_url || "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=200&auto=format&fit=crop"}
-                        alt={ex.name}
-                        className="w-9 h-9 rounded-lg object-cover border border-slate-100 shrink-0"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-[11px] truncate ${isHighlighted ? 'text-blue-700 font-extrabold' : 'text-slate-800 font-bold'}`}>{ex.name}</p>
-                        <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">{ex.muscle_group || 'Geral'}</p>
+                <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 py-1 scrollbar-thin scrollbar-thumb-slate-200">
+                  {filteredLibrary.map((ex, idx) => {
+                    const isHighlighted = idx === highlightedIndex;
+                    const isSelected = selectedLibraryIds.includes(ex.id);
+                    const isAlreadyAdded = exercises.some(item => item.exercise_id === ex.id);
+
+                    return (
+                      <div
+                        key={ex.id}
+                        onClick={() => toggleSelectLibraryId(ex.id)}
+                        className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all border-none text-left cursor-pointer group ${
+                          isSelected 
+                            ? 'bg-blue-50/60 border-l-4 border-l-blue-500 font-bold shadow-sm' 
+                            : isHighlighted
+                              ? 'bg-slate-50/80'
+                              : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        {/* Checkbox */}
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}} // handled by click of row
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
+                        />
+
+                        {/* Image cropped to 1408x768 */}
+                        <div className="w-14 h-8 aspect-[1408/768] rounded-lg overflow-hidden border border-slate-100 shrink-0 relative bg-slate-50">
+                          <img
+                            src={ex.image_url || "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=200&auto=format&fit=crop"}
+                            alt={ex.name}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+
+                        {/* Text */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className={`text-[11px] truncate leading-tight ${isSelected ? 'text-blue-700 font-extrabold' : 'text-slate-800 font-bold'}`}>
+                              {ex.name}
+                            </p>
+                            
+                            {isAlreadyAdded && (
+                              <span className="text-[8px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 shrink-0">
+                                Já adicionado
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">
+                              {ex.muscle_group || 'Geral'}
+                            </span>
+                            {ex.equipment && (
+                              <>
+                                <span className="text-slate-300 text-[8px]">•</span>
+                                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">
+                                  {ex.equipment}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Quick Add Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectFromLibrary(ex.id, true);
+                          }}
+                          className="p-1.5 hover:bg-blue-100 text-blue-500 hover:text-blue-600 rounded-lg transition-colors border-none cursor-pointer flex items-center justify-center shrink-0"
+                          title="Adicionar imediatamente"
+                        >
+                          <PlusCircle size={15} />
+                        </button>
                       </div>
-                      <PlusCircle size={14} className={isHighlighted ? 'text-blue-600' : 'text-blue-500 hover:text-blue-600 shrink-0'} />
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Multi-Select Actions Bar */}
+              {selectedLibraryIds.length > 0 && (
+                <div className="bg-slate-900 text-white p-2.5 rounded-2xl flex items-center justify-between gap-2 mt-2 shadow-xl border border-slate-800 shrink-0">
+                  <div className="flex items-center gap-1.5 pl-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-300">
+                      {selectedLibraryIds.length} {selectedLibraryIds.length === 1 ? 'selecionado' : 'selecionados'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleAddSelected}
+                      className="h-7 px-3 bg-blue-600 text-white hover:bg-blue-500 rounded-xl font-bold text-[9px] uppercase tracking-wider flex items-center gap-1 border-none cursor-pointer transition-all shadow-md active:scale-95"
+                    >
+                      <Check size={11} />
+                      Adicionar
                     </button>
-                  );
-                })
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLibraryIds([])}
+                      className="h-7 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-[9px] uppercase tracking-wider border-none cursor-pointer transition-all active:scale-95"
+                    >
+                      Limpar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedLibraryIds([]);
+                        setShowDropdown(false);
+                      }}
+                      className="h-7 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl font-bold text-[9px] uppercase tracking-wider border-none cursor-pointer transition-all active:scale-95"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </div>
               )}
             </motion.div>
           )}

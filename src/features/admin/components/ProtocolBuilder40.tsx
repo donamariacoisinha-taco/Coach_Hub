@@ -676,6 +676,9 @@ export const ProtocolBuilder40: React.FC = () => {
                                 className="hidden"
                               />
                             </label>
+                            <p className="text-[8px] font-bold text-slate-400 text-center uppercase tracking-wider mt-0.5">
+                              Recomendado: 1408 × 768. Para melhor resultado, use imagem em 1408 × 768.
+                            </p>
                             {uploadError && (
                               <p className="text-[10px] font-bold text-rose-500 leading-tight mt-0.5">{uploadError}</p>
                             )}
