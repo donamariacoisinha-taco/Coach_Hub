@@ -293,140 +293,153 @@ export async function runProtocolFailsafeAndAudit(userId: string, email: string,
 
       // 4. AUTOCORRECTION & FAILSAFE RULE COMPLIANCE:
       // Minimum: 5 exercises. Maximum: 10 exercises. No workout empty!
-      if (linkedExs.length < 5 || linkedExs.length > 10) {
-        console.warn(`[KYRON_OS_DIAGNOSTIC] Workout "${cat.name || 'Treino Sem Nome'}" has ${linkedExs.length} exercises. Out of boundaries [5 - 10]. Triggering Failsafe Autocorrect...`);
-        report.autocorrected = true;
-        report.actionsTaken.push(`Corrected workout "${cat.name || 'Treino Sem Nome'}" exercise count from ${linkedExs.length} to meet [5-10] rule.`);
+      try {
+        if (linkedExs.length < 5 || linkedExs.length > 10) {
+          console.warn(`[KYRON_OS_DIAGNOSTIC] Workout "${cat.name || 'Treino Sem Nome'}" has ${linkedExs.length} exercises. Out of boundaries [5 - 10]. Triggering Failsafe Autocorrect...`);
+          report.autocorrected = true;
+          report.actionsTaken.push(`Corrected workout "${cat.name || 'Treino Sem Nome'}" exercise count from ${linkedExs.length} to meet [5-10] rule.`);
 
-        // Determine compatible exercises based on category name or split muscle hints
-        const catNameLower = (cat.name || '').toLowerCase();
-        let targetMuscles: string[] = [];
-        if (catNameLower.includes('superior') || catNameLower.includes('peito') || catNameLower.includes('costas') || catNameLower.includes('ombro') || catNameLower.includes('braço')) {
-          targetMuscles = ['Peito', 'Costas', 'Ombros', 'Braços'];
-        } else if (catNameLower.includes('inferior') || catNameLower.includes('perna') || catNameLower.includes('glúteo') || catNameLower.includes('quad')) {
-          targetMuscles = ['Pernas'];
-        } else {
-          targetMuscles = ['Peito', 'Costas', 'Ombros', 'Pernas', 'Braços', 'Abdômen'];
-        }
+          // Determine compatible exercises based on category name or split muscle hints
+          const catNameLower = (cat.name || '').toLowerCase();
+          let targetMuscles: string[] = [];
+          if (catNameLower.includes('superior') || catNameLower.includes('peito') || catNameLower.includes('costas') || catNameLower.includes('ombro') || catNameLower.includes('braço')) {
+            targetMuscles = ['Peito', 'Costas', 'Ombros', 'Braços'];
+          } else if (catNameLower.includes('inferior') || catNameLower.includes('perna') || catNameLower.includes('glúteo') || catNameLower.includes('quad')) {
+            targetMuscles = ['Pernas'];
+          } else {
+            targetMuscles = ['Peito', 'Costas', 'Ombros', 'Pernas', 'Braços', 'Abdômen'];
+          }
 
-        // Filter compatible exercises
-        let candidates = filteredAvailableExs.filter(ex => {
-          const normMuscle = normalizeMuscleGroup(ex.muscle_group || '');
-          return targetMuscles.some(tm => normalizeMuscleGroup(tm).toLowerCase() === normMuscle.toLowerCase());
-        });
+          // Filter compatible exercises
+          let candidates = filteredAvailableExs.filter(ex => {
+            if (!ex) return false;
+            const normMuscle = normalizeMuscleGroup(ex.muscle_group || '');
+            return targetMuscles.some(tm => normalizeMuscleGroup(tm).toLowerCase() === normMuscle.toLowerCase());
+          });
 
-        // FALLBACK DE EMERGÊNCIA: If no compatible exercises found under filters, use emergency database list
-        if (candidates.length < 5) {
-          console.warn('[KYRON_OS_DIAGNOSTIC] Too few matching exercises under strict filters. Activating emergency fallback database...');
-          
-          // Emergency exercise list names
-          const emergencyNames = [
-            'Leg Press',
-            'Supino Máquina',
-            'Puxada Frontal',
-            'Desenvolvimento Máquina',
-            'Mesa Flexora',
-            'Prancha'
-          ];
-
-          candidates = allExercises.filter(ex => 
-            ex && ex.name && emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase()))
-          );
-
-          // If still less than 5, grab any active exercises to guarantee a sheet
+          // FALLBACK DE EMERGÊNCIA: If no compatible exercises found under filters, use emergency database list
           if (candidates.length < 5) {
-            candidates = allExercises.slice(0, 6);
+            console.warn('[KYRON_OS_DIAGNOSTIC] Too few matching exercises under strict filters. Activating emergency fallback database...');
+            
+            // Emergency exercise list names
+            const emergencyNames = [
+              'Leg Press',
+              'Supino Máquina',
+              'Puxada Frontal',
+              'Desenvolvimento Máquina',
+              'Mesa Flexora',
+              'Prancha'
+            ];
+
+            candidates = allExercises.filter(ex => 
+              ex && ex.name && emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase()))
+            );
+
+            // If still less than 5, grab any active exercises to guarantee a sheet
+            if (candidates.length < 5) {
+              candidates = allExercises.slice(0, 6).filter(Boolean);
+            }
+          }
+
+          // Shuffle and take between 5 and 8 exercises (target average of 6) to stay strictly between 5 and 10
+          const shuffled = [...candidates].filter(Boolean).sort(() => 0.5 - Math.random());
+          const finalSelection = sortExercisesAnatomically(shuffled.slice(0, Math.min(8, Math.max(5, shuffled.length)))).filter(ex => ex && ex.id);
+
+          if (finalSelection.length > 0) {
+            // Remove existing exercises
+            await supabase.from('workout_exercises').delete().eq('category_id', cat.id);
+
+            // Map payload
+            const finalPayload = finalSelection.map((ex, index) => {
+              const setsCount = level === 'advanced' ? 4 : 3;
+              const repsValue = level === 'beginner' ? '12' : '10';
+              const rest = 60;
+
+              return {
+                category_id: cat.id,
+                exercise_id: ex.id,
+                exercise_name_snapshot: ex.name,
+                sets: setsCount,
+                reps: repsValue,
+                weight: level === 'beginner' ? 10 : 20,
+                rest_time: rest,
+                sort_order: index + 1,
+                sets_json: Array.from({ length: setsCount }, () => ({
+                  reps: repsValue,
+                  weight: level === 'beginner' ? 10 : 20,
+                  rest_time: rest
+                }))
+              };
+            });
+
+            if (finalPayload.length > 0) {
+              await workoutApi.insertWorkoutExercises(finalPayload);
+              console.log(`[KYRON_OS_DIAGNOSTIC] Workout "${cat.name}" autocorrected successfully with ${finalPayload.length} exercises.`);
+            }
           }
         }
-
-        // Shuffle and take between 5 and 8 exercises (target average of 6) to stay strictly between 5 and 10
-        const shuffled = [...candidates].sort(() => 0.5 - Math.random());
-        const finalSelection = sortExercisesAnatomically(shuffled.slice(0, Math.min(8, Math.max(5, shuffled.length))));
-
-        // Remove existing exercises
-        await supabase.from('workout_exercises').delete().eq('category_id', cat.id);
-
-        // Map payload
-        const finalPayload = finalSelection.map((ex, index) => {
-          const setsCount = level === 'advanced' ? 4 : 3;
-          const repsValue = level === 'beginner' ? '12' : '10';
-          const rest = 60;
-
-          return {
-            category_id: cat.id,
-            exercise_id: ex.id,
-            exercise_name_snapshot: ex.name,
-            sets: setsCount,
-            reps: repsValue,
-            weight: level === 'beginner' ? 10 : 20,
-            rest_time: rest,
-            sort_order: index + 1,
-            sets_json: Array.from({ length: setsCount }, () => ({
-              reps: repsValue,
-              weight: level === 'beginner' ? 10 : 20,
-              rest_time: rest
-            }))
-          };
-        });
-
-        if (finalPayload.length > 0) {
-          await workoutApi.insertWorkoutExercises(finalPayload);
-          console.log(`[KYRON_OS_DIAGNOSTIC] Workout "${cat.name}" autocorrected successfully with ${finalPayload.length} exercises.`);
-        }
+      } catch (workoutErr: any) {
+        console.warn(`[KYRON_OS_DIAGNOSTIC] Failsafe correction failed for category ${cat.name || cat.id}:`, workoutErr?.message || workoutErr);
       }
     }
 
     // Double check: if no workouts/categories exist at all, create emergency plan Treino A
-    if (activeCategories.length === 0 && favoriteFolderId) {
-      console.warn('[KYRON_OS_DIAGNOSTIC] Severe Failsafe triggered - Zero workouts found. Generating emergency "Treino A - Ativação Geral"...');
-      report.autocorrected = true;
-      report.actionsTaken.push('Created emergency "Treino A" as folder had zero categories.');
+    try {
+      if (activeCategories.length === 0 && favoriteFolderId) {
+        console.warn('[KYRON_OS_DIAGNOSTIC] Severe Failsafe triggered - Zero workouts found. Generating emergency "Treino A - Ativação Geral"...');
+        report.autocorrected = true;
+        report.actionsTaken.push('Created emergency "Treino A" as folder had zero categories.');
 
-      const cat = await workoutApi.createCategory({
-        user_id: userId,
-        folder_id: favoriteFolderId,
-        name: 'Treino A — Ativação Geral',
-        description: 'Treino adaptativo de ativação emergencial.'
-      });
+        const cat = await workoutApi.createCategory({
+          user_id: userId,
+          folder_id: favoriteFolderId,
+          name: 'Treino A — Ativação Geral',
+          description: 'Treino adaptativo de ativação emergencial.'
+        });
 
-      // Emergency exercises
-      const emergencyNames = [
-        'Leg Press',
-        'Supino Máquina',
-        'Puxada Frontal',
-        'Desenvolvimento Máquina',
-        'Mesa Flexora',
-        'Prancha'
-      ];
+        // Emergency exercises
+        const emergencyNames = [
+          'Leg Press',
+          'Supino Máquina',
+          'Puxada Frontal',
+          'Desenvolvimento Máquina',
+          'Mesa Flexora',
+          'Prancha'
+        ];
 
-      let emergencyExs = allExercises.filter(ex => 
-        ex && ex.name && emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase()))
-      );
+        let emergencyExs = allExercises.filter(ex => 
+          ex && ex.name && emergencyNames.some(eName => ex.name.toLowerCase().includes(eName.toLowerCase()))
+        );
 
-      if (emergencyExs.length === 0) {
-        emergencyExs = allExercises.slice(0, 6);
+        if (emergencyExs.length === 0) {
+          emergencyExs = allExercises.slice(0, 6).filter(Boolean);
+        }
+
+        const sortedEmergencyExs = sortExercisesAnatomically(emergencyExs).filter(ex => ex && ex.id);
+
+        const finalPayload = sortedEmergencyExs.map((ex, index) => ({
+          category_id: cat.id,
+          exercise_id: ex.id,
+          exercise_name_snapshot: ex.name,
+          sets: 3,
+          reps: '12',
+          weight: 15,
+          rest_time: 60,
+          sort_order: index + 1,
+          sets_json: [
+            { reps: '12', weight: 15, rest_time: 60 },
+            { reps: '12', weight: 15, rest_time: 60 },
+            { reps: '12', weight: 15, rest_time: 60 }
+          ]
+        }));
+
+        if (finalPayload.length > 0) {
+          await workoutApi.insertWorkoutExercises(finalPayload);
+          console.log('[KYRON_OS_DIAGNOSTIC] Emergency "Treino A" created and populated with standard exercises.');
+        }
       }
-
-      const sortedEmergencyExs = sortExercisesAnatomically(emergencyExs);
-
-      const finalPayload = sortedEmergencyExs.map((ex, index) => ({
-        category_id: cat.id,
-        exercise_id: ex.id,
-        exercise_name_snapshot: ex.name,
-        sets: 3,
-        reps: '12',
-        weight: 15,
-        rest_time: 60,
-        sort_order: index + 1,
-        sets_json: [
-          { reps: '12', weight: 15, rest_time: 60 },
-          { reps: '12', weight: 15, rest_time: 60 },
-          { reps: '12', weight: 15, rest_time: 60 }
-        ]
-      }));
-
-      await workoutApi.insertWorkoutExercises(finalPayload);
-      console.log('[KYRON_OS_DIAGNOSTIC] Emergency "Treino A" created and populated with 6 standard exercises.');
+    } catch (emergencyErr: any) {
+      console.warn('[KYRON_OS_DIAGNOSTIC] Emergency category generation failed:', emergencyErr?.message || emergencyErr);
     }
 
     console.log(`%c[KYRON_OS_DIAGNOSTIC] Audit Complete. Status autocorrected: ${report.autocorrected}`, 'color: #10b981; font-weight: bold;');

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { premiumProtocolsApi, PremiumProtocol } from '../../../lib/api/premiumProtocolsApi';
+import { premiumProtocolsApi, PremiumProtocol, getProtocolAccessType } from '../../../lib/api/premiumProtocolsApi';
 import { premiumProtocolRealtimeService } from '../../../lib/api/PremiumProtocolRealtimeService';
 import { authApi } from '../../../lib/api/authApi';
 import { UserProfile } from '../../../types';
@@ -25,6 +25,8 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
   const [protocols, setProtocols] = useState<PremiumProtocol[]>([]);
   const [activeTab, setActiveTab] = useState<'public' | 'premium'>('premium');
   const [selectedProtocol, setSelectedProtocol] = useState<PremiumProtocol | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -54,9 +56,54 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
 
   const filteredProtocols = useMemo(() => {
     return protocols.filter(p => {
-      return activeTab === 'premium' ? !!p.premium : !p.premium;
+      const accessType = getProtocolAccessType(p);
+      console.log('[LIBRARY_PROTOCOL]', {
+        id: p.id,
+        name: p.name,
+        accessType,
+        category: p.category,
+        premium: p.premium,
+        is_premium: p.is_premium,
+        status: p.status,
+        is_active: p.is_active,
+        is_deleted: p.is_deleted
+      });
+      return activeTab === accessType;
     });
   }, [protocols, activeTab]);
+
+  const handleOpenProtocolDetail = async (p: PremiumProtocol) => {
+    setLoadingDetail(true);
+    setDetailError(null);
+    setSelectedProtocol(p);
+    
+    try {
+      console.log('[PROTOCOL_DETAIL_LOAD] Starting load for:', p.id);
+      
+      const fullProtocol = await premiumProtocolsApi.getProtocolById(p.id);
+      
+      if (!fullProtocol) {
+        setDetailError('Protocolo não encontrado.');
+        console.log('[PROTOCOL_DETAIL_LOAD] Protocol not found:', p.id);
+        setLoadingDetail(false);
+        return;
+      }
+      
+      setSelectedProtocol(fullProtocol);
+      
+      console.log('[PROTOCOL_DETAIL_LOAD] Success:', {
+        id: fullProtocol.id,
+        name: fullProtocol.name,
+        daysCount: fullProtocol.workouts?.length || 0,
+        hasLegacyWorkouts: !!(p.workouts && p.workouts.length > 0)
+      });
+    } catch (err) {
+      console.error('[PROTOCOL_DETAIL_LOAD] Error loading protocol:', err);
+      setDetailError('Não foi possível carregar este protocolo.');
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
 
   const getGradientForGoal = (goal: string) => {
     const g = goal?.toLowerCase() || '';
@@ -150,7 +197,7 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
               <div className="p-5 pt-0">
                 <button 
                   className="w-full bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-colors"
-                  onClick={() => setSelectedProtocol(p)}
+                  onClick={() => handleOpenProtocolDetail(p)}
                 >
                   Ver Protocolo
                 </button>
@@ -171,22 +218,45 @@ export const PremiumLibraryV3: React.FC<PremiumLibraryV3Props> = ({ profile, onR
             <h2 className="text-2xl font-bold">{selectedProtocol.name}</h2>
             <p className="text-slate-600 mt-2">{selectedProtocol.description}</p>
             
-            <div className="mt-6 max-h-80 overflow-y-auto pr-2">
-              {selectedProtocol.workouts.map(workout => (
-                <div key={workout.id} className="mb-4">
-                  <h4 className="font-semibold text-slate-800">{workout.name}</h4>
-                  <ul className="text-sm text-slate-600 list-disc ml-4 mt-1">
-                    {workout.exercises.map((exercise, idx) => (
-                      <li key={idx}>{exercise.exercise_name} - {exercise.sets}x{exercise.reps}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+            {loadingDetail ? (
+              <div className="mt-8 flex flex-col items-center justify-center py-12">
+                <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-slate-500 text-sm mt-3 font-medium">Carregando detalhes do protocolo...</p>
+              </div>
+            ) : detailError ? (
+              <div className="mt-8 text-center py-8 bg-red-50/50 border border-red-100 rounded-2xl p-4">
+                <p className="text-red-600 font-semibold text-sm">{detailError}</p>
+              </div>
+            ) : !selectedProtocol.workouts || selectedProtocol.workouts.length === 0 ? (
+              <div className="mt-8 text-center py-8 bg-slate-50 rounded-2xl p-4 border border-dashed border-slate-200">
+                <p className="text-slate-500 text-sm font-medium">Este protocolo ainda não possui treinos cadastrados.</p>
+              </div>
+            ) : (
+              <div className="mt-6 max-h-80 overflow-y-auto pr-2">
+                {selectedProtocol.workouts.map(workout => (
+                  <div key={workout.id} className="mb-4">
+                    <h4 className="font-semibold text-slate-800">{workout.name}</h4>
+                    <ul className="text-sm text-slate-600 list-disc ml-4 mt-1">
+                      {workout.exercises.map((exercise, idx) => (
+                        <li key={idx}>
+                          {exercise.exercise_name || 'Exercício'} - {exercise.sets}x{exercise.reps}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-6 flex gap-3">
                 <button className="flex-1 px-4 py-2 bg-slate-100 rounded-lg" onClick={() => setSelectedProtocol(null)}>Fechar</button>
-                <button className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg" onClick={() => handleClone(selectedProtocol)}>Adicionar ao meu treino</button>
+                <button 
+                  disabled={loadingDetail || !!detailError || !selectedProtocol.workouts || selectedProtocol.workouts.length === 0}
+                  className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" 
+                  onClick={() => handleClone(selectedProtocol)}
+                >
+                  Adicionar ao meu treino
+                </button>
             </div>
           </motion.div>
         </div>

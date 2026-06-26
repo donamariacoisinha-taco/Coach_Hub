@@ -1451,6 +1451,19 @@ export const INITIAL_PREMIUM_PROTOCOLS: PremiumProtocol[] = [
   }
 ];
 
+export function getProtocolAccessType(protocol: any): 'premium' | 'public' {
+  if (!protocol) return 'public';
+  if (
+    protocol.category === 'premium' ||
+    protocol.access_type === 'premium' ||
+    protocol.premium === true ||
+    protocol.is_premium === true
+  ) {
+    return 'premium';
+  }
+  return 'public';
+}
+
 class PremiumProtocolsApi {
   private sanitizeForDb(protocol: PremiumProtocol) {
     const { 
@@ -1492,17 +1505,8 @@ class PremiumProtocolsApi {
     try {
       const { data, error } = await supabase.from('premium_protocols').select('*');
       if (!error && data) {
-        // Find and delete any premium protocols in the database to fulfill the user's requirement
-        const premiumIds = (data as PremiumProtocol[]).filter(p => p.premium === true).map(p => p.id);
-        if (premiumIds.length > 0) {
-          console.log('[PremiumProtocolsApi] Actively deleting premium protocols from database:', premiumIds);
-          for (const id of premiumIds) {
-            await supabase.from('premium_protocols').delete().eq('id', id);
-          }
-        }
-
         return (data as PremiumProtocol[])
-          .filter(p => p.id !== 'seed_marker_v1' && !p.premium && p.is_deleted !== true)
+          .filter(p => p.id !== 'seed_marker_v1' && p.is_deleted !== true)
           .map(ensureStatus);
       }
     } catch (e) {
@@ -1510,7 +1514,7 @@ class PremiumProtocolsApi {
     }
 
     // Default static fallback (no localStorage caching, no re-creating database elements from local cache)
-    return INITIAL_PREMIUM_PROTOCOLS.filter(p => !p.premium).map(ensureStatus);
+    return INITIAL_PREMIUM_PROTOCOLS.map(ensureStatus);
   }
 
   async restoreDefaultProtocols(): Promise<boolean> {
@@ -1520,8 +1524,8 @@ class PremiumProtocolsApi {
     });
 
     try {
-      const publicSeed = INITIAL_PREMIUM_PROTOCOLS.filter(p => !p.premium);
-      for (const p of publicSeed) {
+      const allSeed = INITIAL_PREMIUM_PROTOCOLS;
+      for (const p of allSeed) {
         await supabase.from('premium_protocols').upsert(this.sanitizeForDb(this.sanitizeExercisesOrder(ensureStatus(p))));
       }
       return true;
@@ -1532,8 +1536,57 @@ class PremiumProtocolsApi {
   }
 
   async getProtocolById(id: string): Promise<PremiumProtocol | null> {
+    // 1. Fetch protocols
     const list = await this.getProtocols();
-    return list.find(p => p.id === id) || null;
+    const p = list.find(p => p.id === id) || null;
+    
+    if (p) {
+      // 2. Fetch relational days and exercises and populate p.workouts if empty or always as priority
+      try {
+        const { data: daysData, error: daysErr } = await supabase
+          .from('premium_protocol_days')
+          .select('*')
+          .eq('protocol_id', p.id)
+          .order('day_number');
+          
+        if (!daysErr && daysData && daysData.length > 0) {
+          const dayIds = daysData.map(d => d.id);
+          const { data: exercisesData, error: exErr } = await supabase
+            .from('premium_protocol_exercises')
+            .select('*')
+            .in('day_id', dayIds)
+            .order('exercise_order');
+            
+          if (!exErr && exercisesData) {
+            // Fetch exercise names to map UUIDs
+            const { data: exNames } = await supabase.from('exercises').select('id, name');
+            const exerciseNameMap = new Map((exNames || []).map(e => [e.id, e.name]));
+            
+            p.workouts = daysData.map(d => {
+              const dayExercises = exercisesData.filter(e => e.day_id === d.id);
+              return {
+                id: d.id,
+                name: d.title || `Treino ${String.fromCharCode(65 + d.day_number - 1)}`,
+                description: d.description || '',
+                exercises: dayExercises.map(e => ({
+                  exercise_id: e.exercise_id,
+                  exercise_name: exerciseNameMap.get(e.exercise_id) || 'Exercício Desconhecido',
+                  sets: e.sets,
+                  reps: e.reps,
+                  weight: 0,
+                  rest_time: e.rest_seconds || 60,
+                  sort_order: e.exercise_order || 1,
+                  sets_json: []
+                }))
+              };
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[PremiumProtocolsApi] Failed to enrich protocol workouts from relational tables:', e);
+      }
+    }
+    return p;
   }
 
   async createOrUpdateProtocol(protocol: PremiumProtocol): Promise<PremiumProtocol> {

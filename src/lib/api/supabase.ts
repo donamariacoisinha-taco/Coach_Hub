@@ -1,8 +1,22 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://eqnkuqkadtywgfsoilpe.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_ufX-voHVkHsMwKxN7mlWMA_vfh1rSIB';
+const getEnvVar = (name: string, fallback: string): string => {
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[name]) {
+      return import.meta.env[name];
+    }
+  } catch (e) {}
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env[name]) {
+      return process.env[name] as string;
+    }
+  } catch (e) {}
+  return fallback;
+};
+
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL', 'https://eqnkuqkadtywgfsoilpe.supabase.co');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY', 'sb_publishable_ufX-voHVkHsMwKxN7mlWMA_vfh1rSIB');
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
