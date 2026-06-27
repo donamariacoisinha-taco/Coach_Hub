@@ -38,7 +38,6 @@ import { ProtocolHeader } from './ProtocolHeader';
 import { ProtocolDays } from './ProtocolDays';
 import { ProtocolExerciseList } from './ProtocolExerciseList';
 import { ProtocolToolbar } from './ProtocolToolbar';
-import { BiomechanicsVolumePanel } from './BiomechanicsVolumePanel';
 import { motion, AnimatePresence } from 'motion/react';
 import { mediaApi } from '../api/mediaApi';
 
@@ -107,7 +106,6 @@ export const ProtocolBuilder40: React.FC = () => {
   // Collapsible drawer and sidebar states for high-efficiency layout
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<'summary' | 'biomechanics'>('biomechanics');
 
   // Local clipboard state for copying exercises
   const [copiedExerciseData, setCopiedExerciseData] = useState<any[]>([]);
@@ -1091,151 +1089,114 @@ export const ProtocolBuilder40: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Tab Selector inside Sidebar */}
-                  <div className="flex border-b border-slate-100 bg-slate-50/50 p-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setSidebarTab('summary')}
-                      className={`flex-1 py-1.5 px-3 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all duration-150 border-none cursor-pointer ${
-                        sidebarTab === 'summary'
-                          ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50 font-black'
-                          : 'bg-transparent text-slate-400 hover:text-slate-600 font-bold'
-                      }`}
-                    >
-                      Resumo Geral
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSidebarTab('biomechanics')}
-                      className={`flex-1 py-1.5 px-3 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all duration-150 border-none cursor-pointer ${
-                        sidebarTab === 'biomechanics'
-                          ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50 font-black'
-                          : 'bg-transparent text-slate-400 hover:text-slate-600 font-bold'
-                      }`}
-                    >
-                      Análise Biomecânica
-                    </button>
-                  </div>
-
-                  {sidebarTab === 'biomechanics' ? (
-                    <div className="flex-1 overflow-hidden">
-                      <BiomechanicsVolumePanel
-                        exercises={exercises}
-                        exerciseLibrary={exerciseLibrary}
-                        selectedDayId={selectedDayId}
-                        days={days}
-                      />
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                    {/* Section 1: Active Timer */}
+                    <div className="p-4 border-b border-slate-150 bg-slate-50/40">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-2">Tempo de Edição</span>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Clock size={11} className="text-blue-500 animate-pulse" />
+                          <span className="text-[10px] font-mono font-black text-slate-700 truncate">{formatTimer(secondsElapsed)}</span>
+                        </div>
+                        <span className="text-[8px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1 shrink-0 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />
+                          Ativo
+                        </span>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                      {/* Section 1: Active Timer */}
-                      <div className="p-4 border-b border-slate-150 bg-slate-50/40">
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-2">Tempo de Edição</span>
-                        <div className="flex items-center justify-between gap-1.5">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <Clock size={11} className="text-blue-500 animate-pulse" />
-                            <span className="text-[10px] font-mono font-black text-slate-700 truncate">{formatTimer(secondsElapsed)}</span>
-                          </div>
-                          <span className="text-[8px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1 shrink-0 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />
-                            Ativo
-                          </span>
+
+                    {/* Section 2: Resumo do Ciclo */}
+                    <div className="p-4 border-b border-slate-150">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-2">Volume Total do Ciclo</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-2.5 text-center shadow-inner">
+                          <p className="text-[15px] font-black text-slate-800 leading-none">{totals.exercisesCount}</p>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5 block">Exercícios</span>
+                        </div>
+                        <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-2.5 text-center shadow-inner">
+                          <p className="text-[15px] font-black text-slate-800 leading-none">{totals.setsCount}</p>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5 block">Séries</span>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Section 2: Resumo do Ciclo */}
-                      <div className="p-4 border-b border-slate-150">
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-2">Volume Total do Ciclo</span>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-2.5 text-center shadow-inner">
-                            <p className="text-[15px] font-black text-slate-800 leading-none">{totals.exercisesCount}</p>
-                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5 block">Exercícios</span>
-                          </div>
-                          <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-2.5 text-center shadow-inner">
-                            <p className="text-[15px] font-black text-slate-800 leading-none">{totals.setsCount}</p>
-                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5 block">Séries</span>
-                          </div>
-                        </div>
-                      </div>
+                    {/* Section 3: Weekly Volume distribution with WARNINGS & COACH INSTRUCTIONS */}
+                    <div className="p-4 border-b border-slate-150 flex-1 overflow-y-auto pr-2 scrollbar-none space-y-3">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Distribuição de Volume Semanal</span>
+                      
+                      <div className="space-y-3 pt-1">
+                        {Object.entries(muscleDistribution).map(([muscle, setsRaw]) => {
+                          const sets = setsRaw as number;
+                          
+                          // Let's compute custom coaching tips and alerts
+                          let barColor = 'bg-slate-200';
+                          let rangeStatus = 'Sem séries';
+                          let coachTip = 'Nenhum exercício prescrito para este grupo.';
+                          
+                          if (sets > 0 && sets < 10) {
+                            barColor = 'bg-amber-400';
+                            rangeStatus = 'Volume Baixo';
+                            coachTip = `⚠ Volume insuficiente. Adicione +${10 - sets} séries para alcançar estímulo mínimo.`;
+                          } else if (sets >= 10 && sets <= 20) {
+                            barColor = 'bg-emerald-500';
+                            rangeStatus = 'Faixa Ideal';
+                            coachTip = '✔ Hipertrofia ótima. Distribuição muscular perfeita.';
+                          } else if (sets > 20) {
+                            barColor = 'bg-rose-500';
+                            rangeStatus = 'Volume Elevado';
+                            coachTip = `⚠ Atenção: Risco de overtraining. Sugerido reduzir -${sets - 20} séries.`;
+                          }
 
-                      {/* Section 3: Weekly Volume distribution with WARNINGS & COACH INSTRUCTIONS */}
-                      <div className="p-4 border-b border-slate-150 flex-1 overflow-y-auto pr-2 scrollbar-none space-y-3">
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Distribuição de Volume Semanal</span>
-                        
-                        <div className="space-y-3 pt-1">
-                          {Object.entries(muscleDistribution).map(([muscle, setsRaw]) => {
-                            const sets = setsRaw as number;
-                            
-                            // Let's compute custom coaching tips and alerts
-                            let barColor = 'bg-slate-200';
-                            let rangeStatus = 'Sem séries';
-                            let coachTip = 'Nenhum exercício prescrito para este grupo.';
-                            
-                            if (sets > 0 && sets < 10) {
-                              barColor = 'bg-amber-400';
-                              rangeStatus = 'Volume Baixo';
-                              coachTip = `⚠ Volume insuficiente. Adicione +${10 - sets} séries para alcançar estímulo mínimo.`;
-                            } else if (sets >= 10 && sets <= 20) {
-                              barColor = 'bg-emerald-500';
-                              rangeStatus = 'Faixa Ideal';
-                              coachTip = '✔ Hipertrofia ótima. Distribuição muscular perfeita.';
-                            } else if (sets > 20) {
-                              barColor = 'bg-rose-500';
-                              rangeStatus = 'Volume Elevado';
-                              coachTip = `⚠ Atenção: Risco de overtraining. Sugerido reduzir -${sets - 20} séries.`;
-                            }
-
-                            return (
-                              <div key={muscle} className="space-y-1 bg-slate-50/40 p-2 rounded-xl border border-slate-100/60">
-                                <div className="flex items-center justify-between text-[9px] font-black text-slate-700 uppercase tracking-wider">
-                                  <span>{muscle}</span>
-                                  <span className="text-[8px] font-black text-slate-400">{sets} s. ({rangeStatus})</span>
-                                </div>
-                                
-                                {/* Progress bar */}
-                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden relative">
-                                  <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${Math.min(100, (sets / 24) * 100)}%` }}
-                                    className={`h-full rounded-full ${barColor}`}
-                                  />
-                                </div>
-
-                                {/* Intelligent Coach Tip Text */}
-                                <p className="text-[8px] font-semibold leading-normal text-slate-500 mt-1">
-                                  {coachTip}
-                                </p>
+                          return (
+                            <div key={muscle} className="space-y-1 bg-slate-50/40 p-2 rounded-xl border border-slate-100/60">
+                              <div className="flex items-center justify-between text-[9px] font-black text-slate-700 uppercase tracking-wider">
+                                <span>{muscle}</span>
+                                <span className="text-[8px] font-black text-slate-400">{sets} s. ({rangeStatus})</span>
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+                              
+                              {/* Progress bar */}
+                              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden relative">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${Math.min(100, (sets / 24) * 100)}%` }}
+                                  className={`h-full rounded-full ${barColor}`}
+                                />
+                              </div>
 
-                      {/* Section 4: Diagnóstico Biomecânico Alerts */}
-                      <div className="p-4 max-h-[180px] overflow-y-auto pr-2 scrollbar-none shrink-0 border-t border-slate-100 bg-slate-50/10">
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-2">Diagnóstico Biomecânico</span>
-                        <div className="space-y-1.5">
-                          {balanceIndicators.map((ind, i) => (
-                            <div
-                              key={i}
-                              className={`p-2 rounded-xl border flex items-start gap-1.5 text-[9px] font-bold uppercase tracking-wider leading-tight ${
-                                ind.type === 'success'
-                                  ? 'bg-emerald-50/40 border-emerald-100 text-emerald-700'
-                                  : 'bg-amber-50/40 border-amber-100 text-amber-700'
-                              }`}
-                            >
-                              {ind.type === 'success' ? (
-                                <CheckCircle2 size={10} className="shrink-0 text-emerald-600 mt-0.5" />
-                              ) : (
-                                <AlertTriangle size={10} className="shrink-0 text-amber-600 animate-pulse mt-0.5" />
-                              )}
-                              <span className="leading-tight truncate block w-full">{ind.text}</span>
+                              {/* Intelligent Coach Tip Text */}
+                              <p className="text-[8px] font-semibold leading-normal text-slate-500 mt-1">
+                                {coachTip}
+                              </p>
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  )}
+
+                    {/* Section 4: Diagnóstico Biomecânico Alerts */}
+                    <div className="p-4 max-h-[180px] overflow-y-auto pr-2 scrollbar-none shrink-0 border-t border-slate-100 bg-slate-50/10">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-2">Diagnóstico Biomecânico</span>
+                      <div className="space-y-1.5">
+                        {balanceIndicators.map((ind, i) => (
+                          <div
+                            key={i}
+                            className={`p-2 rounded-xl border flex items-start gap-1.5 text-[9px] font-bold uppercase tracking-wider leading-tight ${
+                              ind.type === 'success'
+                                ? 'bg-emerald-50/40 border-emerald-100 text-emerald-700'
+                                : 'bg-amber-50/40 border-amber-100 text-amber-700'
+                            }`}
+                          >
+                            {ind.type === 'success' ? (
+                              <CheckCircle2 size={10} className="shrink-0 text-emerald-600 mt-0.5" />
+                            ) : (
+                              <AlertTriangle size={10} className="shrink-0 text-amber-600 animate-pulse mt-0.5" />
+                            )}
+                            <span className="leading-tight truncate block w-full">{ind.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
