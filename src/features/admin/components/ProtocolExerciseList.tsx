@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Search, Dumbbell, Play, PlusCircle, Check, HelpCircle, Copy, Trash2 } from 'lucide-react';
 import { PremiumProtocolExercise } from '../../../types/protocol_4_0';
 import { Exercise } from '../../../types';
+import { getExerciseBiomechanics } from '../../../lib/exercises/exerciseTaxonomy';
 import { ProtocolExerciseCard } from './ProtocolExerciseCard';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -105,146 +106,343 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
     'Abdutores'
   ], []);
 
-  // Helper to check if muscle group matches the filter tag including variations and subgrupos
-  const checkMuscleMatch = (exercise: Exercise, filter: string): boolean => {
-    if (!exercise) return false;
+  // 1. Regra principal de fonte biomecânica
+  const getBiomechanics = (exercise: Exercise) => {
+    if (exercise.biomechanics) {
+      return exercise.biomechanics;
+    }
+    return getExerciseBiomechanics(exercise);
+  };
+
+  const getMatchScore = (exercise: Exercise, filter: string): number => {
+    if (!exercise) return 0;
+    const f = filter.toLowerCase().trim();
+    if (f === 'todos') return 1;
+
+    const biomechanics = getBiomechanics(exercise);
+    const primaryGroup = (biomechanics.primary_group || '').toLowerCase().trim();
+    const agonistMuscles = (biomechanics.agonist_muscles || []).map(m => m.toLowerCase().trim());
+    const synergistMuscles = (biomechanics.synergist_muscles || []).map(m => m.toLowerCase().trim());
+    const antagonistMuscles = (biomechanics.antagonist_muscles || []).map(m => m.toLowerCase().trim());
+    const tags = (biomechanics.tags || []).map(t => t.toLowerCase().trim());
+
     const mg = (exercise.muscle_group || '').toLowerCase().trim();
+    const sub = (exercise.subgroup || '').toLowerCase().trim();
     const name = (exercise.name || '').toLowerCase().trim();
     const desc = ((exercise.description || '') + ' ' + (exercise.instructions || '')).toLowerCase();
-    const sec = (exercise.secondary_muscles || []).map(s => s.toLowerCase());
-    const f = filter.toLowerCase().trim();
+    const sec = (exercise.secondary_muscles || []).map(s => s.toLowerCase().trim());
 
-    if (f === 'todos') return true;
+    const hasWord = (term: string) => name.includes(term) || desc.includes(term) || sec.some(s => s.includes(term)) || tags.includes(term);
 
-    // Helper functions for easy searching
-    const hasWord = (term: string) => name.includes(term) || desc.includes(term) || sec.some(s => s.includes(term));
+    // Antagonist exclusion check
+    // "Não fazer um exercício aparecer no filtro de um músculo apenas porque ele está em antagonist_muscles."
+    let isAntagonist = false;
+    if (f === 'costas' && (antagonistMuscles.includes('latíssimo do dorso') || antagonistMuscles.includes('romboides') || antagonistMuscles.includes('trapézio'))) {
+      isAntagonist = true;
+    }
+    if (f === 'peitoral' && (antagonistMuscles.includes('peitoral superior') || antagonistMuscles.includes('peitoral médio') || antagonistMuscles.includes('peitoral inferior'))) {
+      isAntagonist = true;
+    }
+    if (f === 'tríceps' && antagonistMuscles.includes('tríceps braquial')) {
+      isAntagonist = true;
+    }
+    if (f === 'bíceps' && antagonistMuscles.includes('bíceps braquial')) {
+      isAntagonist = true;
+    }
+    if (f === 'quadríceps' && antagonistMuscles.includes('quadríceps')) {
+      isAntagonist = true;
+    }
+    if (f === 'isquiotibiais' && (antagonistMuscles.includes('isquiotibiais') || antagonistMuscles.includes('posterior de coxa'))) {
+      isAntagonist = true;
+    }
+    if (f === 'glúteos' && antagonistMuscles.some(m => m.includes('glúteo'))) {
+      isAntagonist = true;
+    }
 
-    // MAIN GROUPS MAPPING
+    if (isAntagonist && !agonistMuscles.includes(f) && !synergistMuscles.includes(f) && mg !== f) {
+      return 0; // Exclude if matched ONLY as antagonist
+    }
+
+    // MAIN GROUPS
     if (f === 'peitoral') {
-      return mg === 'peito' || mg === 'chest' || mg === 'peitoral' || hasWord('supino') || hasWord('crucifixo') || hasWord('peitoral') || hasWord('peito');
+      if (primaryGroup === 'peitoral') return 10;
+      if (mg === 'peito' || mg === 'chest' || mg === 'peitoral') return 5;
+      if (hasWord('supino') || hasWord('crucifixo') || hasWord('peitoral') || hasWord('peito')) return 2;
+      return 0;
     }
     if (f === 'costas') {
-      return mg === 'costas' || mg === 'back' || mg === 'dorsais' || mg === 'eretores' || hasWord('remada') || hasWord('puxada') || hasWord('pulldown') || hasWord('pullover') || hasWord('dorsal');
+      if (primaryGroup === 'costas') return 10;
+      if (mg === 'costas' || mg === 'back' || mg === 'dorsais') return 5;
+      if (hasWord('remada') || hasWord('puxada') || hasWord('pulldown') || hasWord('pullover') || hasWord('dorsal')) return 2;
+      return 0;
     }
     if (f === 'ombros') {
-      return mg === 'ombros' || mg === 'ombro' || mg === 'deltoides' || mg === 'deltoids' || mg === 'shoulders' || hasWord('deltoide') || hasWord('ombro') || hasWord('elevação lateral') || hasWord('desenvolvimento');
+      if (primaryGroup === 'ombros' || primaryGroup === 'ombro') return 10;
+      if (mg === 'ombros' || mg === 'ombro' || mg === 'deltoides' || mg === 'shoulders') return 5;
+      if (hasWord('deltoide') || hasWord('ombro') || hasWord('elevação lateral') || hasWord('desenvolvimento')) return 2;
+      return 0;
     }
     if (f === 'braços') {
-      return mg === 'braço' || mg === 'braços' || mg === 'arms' || mg === 'bíceps' || mg === 'tríceps' || mg === 'antebraço' || 
-             hasWord('bíceps') || hasWord('tríceps') || hasWord('antebraço') || hasWord('rosca') || hasWord('triceps') || hasWord('biceps') || hasWord('braço');
+      if (primaryGroup === 'braços' || primaryGroup === 'braço') return 10;
+      if (mg === 'braço' || mg === 'braços' || mg === 'arms' || mg === 'bíceps' || mg === 'tríceps' || mg === 'antebraço') return 5;
+      if (hasWord('bíceps') || hasWord('tríceps') || hasWord('antebraço') || hasWord('rosca') || hasWord('triceps') || hasWord('biceps') || hasWord('braço')) return 2;
+      return 0;
     }
     if (f === 'core') {
-      return mg === 'core' || mg === 'abdômen' || mg === 'abs' || mg === 'obliquos' || mg === 'eretores' || mg === 'lombar' || 
-             hasWord('core') || hasWord('prancha') || hasWord('lombar') || hasWord('transverso') || hasWord('abdominal');
+      if (primaryGroup === 'core') return 10;
+      if (mg === 'core' || mg === 'abdômen' || mg === 'abs' || mg === 'obliquos') return 5;
+      if (hasWord('core') || hasWord('prancha') || hasWord('lombar') || hasWord('transverso') || hasWord('abdominal')) return 2;
+      return 0;
     }
     if (f === 'pernas') {
-      return mg === 'perna' || mg === 'pernas' || mg === 'legs' || mg === 'quadríceps' || mg === 'posterior' || mg === 'glúteos' || mg === 'panturrilhas' || mg === 'adutores' || mg === 'abdutores' ||
-             hasWord('agachamento') || hasWord('leg press') || hasWord('extensora') || hasWord('flexora') || hasWord('stiff') || hasWord('glúteo') || hasWord('panturrilha');
+      if (primaryGroup === 'pernas' || primaryGroup === 'perna') return 10;
+      if (mg === 'perna' || mg === 'pernas' || mg === 'legs' || mg === 'quadríceps' || mg === 'posterior' || mg === 'glúteos' || mg === 'panturrilhas' || mg === 'adutores' || mg === 'abdutores') return 5;
+      if (hasWord('agachamento') || hasWord('leg press') || hasWord('extensora') || hasWord('flexora') || hasWord('stiff') || hasWord('glúteo') || hasWord('panturrilha')) return 2;
+      return 0;
+    }
+    if (f === 'glúteos') {
+      if (primaryGroup === 'glúteos' || primaryGroup === 'glúteo') return 10;
+      if (mg === 'gluteo' || mg === 'glúteo' || mg === 'glutes' || mg === 'glúteos') return 5;
+      if (hasWord('glúteo') || hasWord('gluteo') || hasWord('pélvica')) return 2;
+      return 0;
     }
     if (f === 'cardio') {
-      return mg === 'cardio' || mg === 'aerobico' || mg === 'aeróbico' || hasWord('corrida') || hasWord('esteira') || hasWord('bike') || hasWord('elíptico') || hasWord('cardio');
+      if (primaryGroup === 'cardio' || primaryGroup === 'cardiorrespiratório') return 10;
+      if (mg === 'cardio' || mg === 'aerobico' || mg === 'aeróbico') return 5;
+      if (hasWord('corrida') || hasWord('esteira') || hasWord('bike') || hasWord('elíptico') || hasWord('cardio')) return 2;
+      return 0;
     }
     if (f === 'mobilidade') {
-      return mg === 'mobilidade' || mg === 'alongamento' || mg === 'flexibilidade' || hasWord('mobilidade') || hasWord('alongamento') || hasWord('flexibilidade');
+      if (primaryGroup === 'mobilidade') return 10;
+      if (mg === 'mobilidade' || mg === 'alongamento' || mg === 'flexibilidade') return 5;
+      if (hasWord('mobilidade') || hasWord('alongamento') || hasWord('flexibilidade')) return 2;
+      return 0;
     }
 
-    // SUBGROUPS MAPPING
+    // SUBGROUPS
     // Peitoral subgrupos
     if (f === 'peitoral superior') {
-      const isPeito = mg === 'peito' || mg === 'chest' || mg === 'peitoral' || hasWord('supino') || hasWord('crucifixo') || hasWord('peitoral') || hasWord('peito');
-      return isPeito && (hasWord('inclinado') || hasWord('superior') || hasWord('inclined') || hasWord('clavicular'));
+      if (primaryGroup === 'peitoral') {
+        if (agonistMuscles.includes('peitoral superior')) return 10;
+        if (synergistMuscles.includes('peitoral superior')) return 5;
+      }
+      const isPeito = mg === 'peito' || mg === 'chest' || mg === 'peitoral' || hasWord('supino') || hasWord('crucifixo');
+      if (isPeito && (hasWord('inclinado') || hasWord('superior') || hasWord('inclined') || hasWord('clavicular'))) return 2;
+      return 0;
     }
     if (f === 'peitoral médio') {
-      const isPeito = mg === 'peito' || mg === 'chest' || mg === 'peitoral' || hasWord('supino') || hasWord('crucifixo') || hasWord('peitoral') || hasWord('peito');
-      return isPeito && (hasWord('reto') || hasWord('médio') || hasWord('medio') || hasWord('flat') || (!hasWord('inclinado') && !hasWord('superior') && !hasWord('declinado') && !hasWord('inferior')));
+      if (primaryGroup === 'peitoral') {
+        if (agonistMuscles.includes('peitoral médio')) return 10;
+        if (synergistMuscles.includes('peitoral médio')) return 5;
+      }
+      const isPeito = mg === 'peito' || mg === 'chest' || mg === 'peitoral' || hasWord('supino') || hasWord('crucifixo');
+      if (isPeito && (hasWord('reto') || hasWord('médio') || hasWord('medio') || hasWord('flat') || (!hasWord('inclinado') && !hasWord('superior') && !hasWord('declinado') && !hasWord('inferior')))) return 2;
+      return 0;
     }
     if (f === 'peitoral inferior') {
-      const isPeito = mg === 'peito' || mg === 'chest' || mg === 'peitoral' || hasWord('supino') || hasWord('crucifixo') || hasWord('peitoral') || hasWord('peito');
-      return isPeito && (hasWord('declinado') || hasWord('inferior') || hasWord('declined') || hasWord('infra') || hasWord('cross over alto') || hasWord('crossover alto') || hasWord('cross over baixo'));
+      if (primaryGroup === 'peitoral') {
+        if (agonistMuscles.includes('peitoral inferior')) return 10;
+        if (synergistMuscles.includes('peitoral inferior')) return 5;
+      }
+      const isPeito = mg === 'peito' || mg === 'chest' || mg === 'peitoral' || hasWord('supino') || hasWord('crucifixo');
+      if (isPeito && (hasWord('declinado') || hasWord('inferior') || hasWord('declined') || hasWord('infra') || hasWord('cross over alto') || hasWord('crossover alto') || hasWord('cross over baixo'))) return 2;
+      return 0;
     }
 
     // Costas / Dorsais subgrupos
-    if (f === 'dorsais') {
-      return mg === 'dorsais' || mg === 'dorsal' || mg === 'lats' || hasWord('dorsal') || hasWord('puxada') || hasWord('pulldown') || hasWord('puxador');
+    if (f === 'dorsais' || f === 'latíssimo do dorso') {
+      if (primaryGroup === 'costas') {
+        if (agonistMuscles.includes('latíssimo do dorso')) return 10;
+        if (synergistMuscles.includes('latíssimo do dorso')) return 5;
+      }
+      if (mg === 'dorsais' || mg === 'dorsal' || mg === 'lats' || hasWord('dorsal') || hasWord('puxada') || hasWord('pulldown') || hasWord('puxador')) return 2;
+      return 0;
     }
     if (f === 'espessura de costas') {
-      const isCostas = mg === 'costas' || mg === 'back' || mg === 'dorsais' || mg === 'eretores' || hasWord('remada') || hasWord('puxada') || hasWord('pulldown') || hasWord('pullover') || hasWord('dorsal');
-      return isCostas && (hasWord('remada') || hasWord('row') || hasWord('meio de costas') || hasWord('espessura'));
+      if (primaryGroup === 'costas') {
+        if (agonistMuscles.includes('romboides') || agonistMuscles.includes('trapézio médio') || agonistMuscles.includes('trapézio inferior')) return 10;
+        if (synergistMuscles.includes('romboides') || synergistMuscles.includes('trapézio médio')) return 5;
+      }
+      const isCostas = mg === 'costas' || mg === 'back' || mg === 'dorsais' || mg === 'eretores' || hasWord('remada') || hasWord('puxada') || hasWord('pulldown');
+      if (isCostas && (hasWord('remada') || hasWord('row') || hasWord('meio de costas') || hasWord('espessura'))) return 2;
+      return 0;
     }
     if (f === 'trapézio') {
-      return mg === 'trapezio' || mg === 'trapézio' || mg === 'trapezius' || hasWord('trapézio') || hasWord('trapezio') || hasWord('encolhimento') || hasWord('remada alta');
+      if (primaryGroup === 'costas' || primaryGroup === 'ombros') {
+        if (agonistMuscles.some(m => m.includes('trapézio'))) return 10;
+        if (synergistMuscles.some(m => m.includes('trapézio'))) return 5;
+      }
+      if (mg === 'trapezio' || mg === 'trapézio' || mg === 'trapezius' || hasWord('trapézio') || hasWord('trapezio') || hasWord('encolhimento') || hasWord('remada alta')) return 2;
+      return 0;
     }
-    if (f === 'lombar / eretores') {
-      return mg === 'eretores' || mg === 'erectors' || mg === 'lombar' || hasWord('eretor') || hasWord('lombar') || hasWord('extensão de tronco') || hasWord('hiperextensão');
+    if (f === 'lombar / eretores' || f === 'eretores da espinha') {
+      if (primaryGroup === 'core' || primaryGroup === 'costas') {
+        if (agonistMuscles.some(m => m.includes('eretores') || m.includes('lombar') || m.includes('eretores da espinha'))) return 10;
+        if (synergistMuscles.some(m => m.includes('eretores') || m.includes('lombar') || m.includes('eretores da espinha'))) return 5;
+      }
+      if (mg === 'eretores' || mg === 'erectors' || mg === 'lombar' || hasWord('eretor') || hasWord('lombar') || hasWord('extensão de tronco') || hasWord('hiperextensão')) return 2;
+      return 0;
     }
 
     // Ombros subgrupos
     if (f === 'deltoide anterior') {
+      if (primaryGroup === 'ombros' || primaryGroup === 'ombro') {
+        if (agonistMuscles.includes('deltoide anterior')) return 10;
+        if (synergistMuscles.includes('deltoide anterior')) return 5;
+      }
       const isOmbro = mg === 'ombros' || mg === 'ombro' || mg === 'deltoides' || mg === 'shoulders' || hasWord('deltoide') || hasWord('ombro');
-      return isOmbro && (hasWord('anterior') || hasWord('desenvolvimento') || hasWord('front'));
+      if (isOmbro && (hasWord('anterior') || hasWord('desenvolvimento') || hasWord('front'))) return 2;
+      return 0;
     }
     if (f === 'deltoide lateral') {
+      if (primaryGroup === 'ombros' || primaryGroup === 'ombro') {
+        if (agonistMuscles.includes('deltoide lateral')) return 10;
+        if (synergistMuscles.includes('deltoide lateral')) return 5;
+      }
       const isOmbro = mg === 'ombros' || mg === 'ombro' || mg === 'deltoides' || mg === 'shoulders' || hasWord('deltoide') || hasWord('ombro');
-      return isOmbro && (hasWord('lateral') || hasWord('elevação lateral') || hasWord('side deltoid'));
+      if (isOmbro && (hasWord('lateral') || hasWord('elevação lateral') || hasWord('side deltoid'))) return 2;
+      return 0;
     }
     if (f === 'deltoide posterior') {
+      if (primaryGroup === 'ombros' || primaryGroup === 'ombro' || primaryGroup === 'costas') {
+        if (agonistMuscles.includes('deltoide posterior')) return 10;
+        if (synergistMuscles.includes('deltoide posterior')) return 5;
+      }
       const isOmbro = mg === 'ombros' || mg === 'ombro' || mg === 'deltoides' || mg === 'shoulders' || hasWord('deltoide') || hasWord('ombro');
-      return isOmbro && (hasWord('posterior') || hasWord('reverso') || hasWord('crucifixo inverso') || hasWord('rear deltoid'));
+      if (isOmbro && (hasWord('posterior') || hasWord('reverso') || hasWord('crucifixo inverso') || hasWord('rear deltoid'))) return 2;
+      return 0;
     }
 
     // Braços subgrupos
-    if (f === 'bíceps') {
-      return mg === 'biceps' || mg === 'bíceps' || hasWord('bíceps') || hasWord('biceps') || hasWord('rosca');
+    if (f === 'bíceps' || f === 'bíceps braquial') {
+      if (primaryGroup === 'braços' || primaryGroup === 'braço') {
+        if (agonistMuscles.includes('bíceps braquial')) return 10;
+        if (synergistMuscles.includes('bíceps braquial')) return 5;
+      }
+      if (mg === 'biceps' || mg === 'bíceps' || hasWord('bíceps') || hasWord('biceps') || hasWord('rosca')) return 2;
+      return 0;
     }
-    if (f === 'tríceps') {
-      return mg === 'triceps' || mg === 'tríceps' || hasWord('tríceps') || hasWord('triceps') || hasWord('testa') || hasWord('corda') || hasWord('pulley');
+    if (f === 'tríceps' || f === 'tríceps braquial') {
+      if (primaryGroup === 'braços' || primaryGroup === 'braço' || primaryGroup === 'peitoral' || primaryGroup === 'ombros') {
+        if (agonistMuscles.includes('tríceps braquial')) return 10;
+        if (synergistMuscles.includes('tríceps braquial')) return 5;
+      }
+      if (mg === 'triceps' || mg === 'tríceps' || hasWord('tríceps') || hasWord('triceps') || hasWord('testa') || hasWord('corda') || hasWord('pulley')) return 2;
+      return 0;
     }
-    if (f === 'antebraço') {
-      return mg === 'antebraço' || mg === 'antebraços' || mg === 'forearm' || hasWord('antebraço') || hasWord('forearm') || hasWord('punho');
+    if (f === 'antebraço' || f === 'antebraços') {
+      if (primaryGroup === 'braços' || primaryGroup === 'braço') {
+        if (agonistMuscles.includes('antebraços') || agonistMuscles.includes('braquiorradial')) return 10;
+        if (synergistMuscles.includes('antebraços') || synergistMuscles.includes('braquiorradial')) return 5;
+      }
+      if (mg === 'antebraço' || mg === 'antebraços' || mg === 'forearm' || hasWord('antebraço') || hasWord('forearm') || hasWord('punho')) return 2;
+      return 0;
     }
 
     // Core subgrupos
-    if (f === 'abdômen') {
-      return mg === 'abdômen' || mg === 'abdomen' || mg === 'abs' || mg === 'abdominais' || mg === 'abdominal' || hasWord('abdominal') || hasWord('abdômen');
+    if (f === 'abdômen' || f === 'reto abdominal') {
+      if (primaryGroup === 'core') {
+        if (agonistMuscles.includes('reto abdominal') || agonistMuscles.includes('abdômen superior') || agonistMuscles.includes('abdômen inferior')) return 10;
+        if (synergistMuscles.includes('reto abdominal')) return 5;
+      }
+      if (mg === 'abdômen' || mg === 'abdomen' || mg === 'abs' || mg === 'abdominais' || mg === 'abdominal' || hasWord('abdominal') || hasWord('abdômen')) return 2;
+      return 0;
     }
     if (f === 'abdômen superior') {
+      if (primaryGroup === 'core') {
+        if (agonistMuscles.includes('abdômen superior') || agonistMuscles.includes('reto abdominal')) return 10;
+        if (synergistMuscles.includes('abdômen superior')) return 5;
+      }
       const isAbs = mg === 'abdômen' || mg === 'abdomen' || mg === 'abs' || mg === 'abdominais' || mg === 'abdominal' || hasWord('abdominal') || hasWord('abdômen');
-      return isAbs && (hasWord('superior') || hasWord('supra') || hasWord('crunch'));
+      if (isAbs && (hasWord('superior') || hasWord('supra') || hasWord('crunch'))) return 2;
+      return 0;
     }
     if (f === 'abdômen inferior') {
+      if (primaryGroup === 'core') {
+        if (agonistMuscles.includes('abdômen inferior')) return 10;
+        if (synergistMuscles.includes('abdômen inferior') || (agonistMuscles.includes('reto abdominal') && hasWord('infra'))) return 5;
+      }
       const isAbs = mg === 'abdômen' || mg === 'abdomen' || mg === 'abs' || mg === 'abdominais' || mg === 'abdominal' || hasWord('abdominal') || hasWord('abdômen');
-      return isAbs && (hasWord('inferior') || hasWord('infra') || hasWord('leg raise') || hasWord('elevação de perna'));
+      if (isAbs && (hasWord('inferior') || hasWord('infra') || hasWord('leg raise') || hasWord('elevação de perna'))) return 2;
+      return 0;
     }
     if (f === 'oblíquos') {
-      return mg === 'oblíquos' || mg === 'obliquos' || mg === 'oblique' || hasWord('oblíquo') || hasWord('obliquo') || hasWord('obliques') || hasWord('russian twist');
+      if (primaryGroup === 'core') {
+        if (agonistMuscles.includes('oblíquos')) return 10;
+        if (synergistMuscles.includes('oblíquos')) return 5;
+      }
+      if (mg === 'oblíquos' || mg === 'obliquos' || mg === 'oblique' || hasWord('oblíquo') || hasWord('obliquo') || hasWord('obliques') || hasWord('russian twist')) return 2;
+      return 0;
     }
-    if (f === 'core profundo') {
+    if (f === 'core profundo' || f === 'transverso abdominal') {
+      if (primaryGroup === 'core') {
+        if (agonistMuscles.includes('core profundo') || agonistMuscles.includes('transverso abdominal')) return 10;
+        if (synergistMuscles.includes('core profundo') || synergistMuscles.includes('transverso abdominal')) return 5;
+      }
       const isCore = mg === 'core' || mg === 'abdômen' || mg === 'obliquos' || mg === 'eretores' || mg === 'lombar' || hasWord('core');
-      return isCore && (hasWord('prancha') || hasWord('plank') || hasWord('transverso') || hasWord('profundo') || hasWord('perdigueiro'));
+      if (isCore && (hasWord('prancha') || hasWord('plank') || hasWord('transverso') || hasWord('profundo') || hasWord('perdigueiro'))) return 2;
+      return 0;
     }
 
     // Pernas subgrupos
     if (f === 'quadríceps') {
-      return mg === 'quadriceps' || mg === 'quad' || mg === 'quadríceps' || mg === 'quads' || hasWord('quadríceps') || hasWord('quadriceps') || hasWord('extensora') || hasWord('leg press') || hasWord('hack') || hasWord('agachamento');
+      if (primaryGroup === 'pernas' || primaryGroup === 'perna') {
+        if (agonistMuscles.includes('quadríceps')) return 10;
+        if (synergistMuscles.includes('quadríceps')) return 5;
+      }
+      if (mg === 'quadriceps' || mg === 'quad' || mg === 'quadríceps' || mg === 'quads' || hasWord('quadríceps') || hasWord('quadriceps') || hasWord('extensora') || hasWord('leg press') || hasWord('hack') || hasWord('agachamento')) return 2;
+      return 0;
     }
-    if (f === 'posterior de coxa') {
-      return mg === 'posterior' || mg === 'posterior de coxa' || mg === 'isquiotibiais' || mg === 'hamstrings' || hasWord('posterior de coxa') || hasWord('isquiotibiais') || hasWord('flexora') || hasWord('stiff');
+    if (f === 'posterior de coxa' || f === 'isquiotibiais') {
+      if (primaryGroup === 'pernas' || primaryGroup === 'perna') {
+        if (agonistMuscles.includes('isquiotibiais') || agonistMuscles.includes('posterior de coxa')) return 10;
+        if (synergistMuscles.includes('isquiotibiais') || synergistMuscles.includes('posterior de coxa')) return 5;
+      }
+      if (mg === 'posterior' || mg === 'posterior de coxa' || mg === 'isquiotibiais' || mg === 'hamstrings' || hasWord('posterior de coxa') || hasWord('isquiotibiais') || hasWord('flexora') || hasWord('stiff')) return 2;
+      return 0;
     }
     if (f === 'glúteos') {
-      return mg === 'gluteo' || mg === 'glúteo' || mg === 'glutes' || mg === 'glúteos' || hasWord('glúteo') || hasWord('gluteo') || hasWord('pélvica') || hasWord('pelve');
+      if (primaryGroup === 'glúteos' || primaryGroup === 'glúteo' || primaryGroup === 'pernas') {
+        if (agonistMuscles.some(m => m.includes('glúteo'))) return 10;
+        if (synergistMuscles.some(m => m.includes('glúteo'))) return 5;
+      }
+      if (mg === 'gluteo' || mg === 'glúteo' || mg === 'glutes' || mg === 'glúteos') return 5;
+      if (hasWord('glúteo') || hasWord('gluteo') || hasWord('pélvica')) return 2;
+      return 0;
     }
-    if (f === 'panturrilhas') {
-      return mg === 'panturrilha' || mg === 'panturrilhas' || mg === 'calves' || hasWord('panturrilha') || hasWord('gêmeos');
+    if (f === 'panturrilhas' || f === 'gastrocnêmio' || f === 'sóleo') {
+      if (primaryGroup === 'pernas' || primaryGroup === 'perna') {
+        if (agonistMuscles.includes('panturrilhas') || agonistMuscles.includes('gastrocnêmio') || agonistMuscles.includes('sóleo')) return 10;
+        if (synergistMuscles.includes('panturrilhas')) return 5;
+      }
+      if (mg === 'panturrilha' || mg === 'panturrilhas' || mg === 'calves' || hasWord('panturrilha') || hasWord('gêmeos')) return 2;
+      return 0;
     }
     if (f === 'adutores') {
-      return mg === 'adutores' || mg === 'adutor' || hasWord('adutor');
+      if (primaryGroup === 'pernas' || primaryGroup === 'perna') {
+        if (agonistMuscles.includes('adutores')) return 10;
+        if (synergistMuscles.includes('adutores')) return 5;
+      }
+      if (mg === 'adutores' || mg === 'adutor' || hasWord('adutor')) return 2;
+      return 0;
     }
     if (f === 'abdutores') {
-      return mg === 'abdutores' || mg === 'abdutor' || hasWord('abdutor');
+      if (primaryGroup === 'pernas' || primaryGroup === 'perna' || primaryGroup === 'glúteos') {
+        if (agonistMuscles.includes('abdutores') || agonistMuscles.includes('glúteo médio') || agonistMuscles.includes('glúteo mínimo')) return 10;
+        if (synergistMuscles.includes('abdutores')) return 5;
+      }
+      if (mg === 'abdutores' || mg === 'abdutor' || hasWord('abdutor')) return 2;
+      return 0;
     }
 
     // Fallback exact/substring matching on muscle_group
-    return mg.includes(f) || f.includes(mg);
+    if (mg.includes(f) || f.includes(mg) || sub.includes(f)) return 1;
+    return 0;
+  };
+
+  // Helper to check if muscle group matches the filter tag including variations and subgrupos
+  const checkMuscleMatch = (exercise: Exercise, filter: string): boolean => {
+    return getMatchScore(exercise, filter) > 0;
   };
 
   // Unique dynamic uncovered muscle groups from database to avoid losing custom inputs
@@ -276,12 +474,35 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
 
     // 2. Query Search Filtering
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((ex) => 
-        ex.name.toLowerCase().includes(q) || 
-        (ex.muscle_group || '').toLowerCase().includes(q) ||
-        (ex.equipment || '').toLowerCase().includes(q)
-      );
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((ex) => {
+        const bio = getBiomechanics(ex);
+        const nameMatch = ex.name.toLowerCase().includes(q);
+        const legacyMgMatch = (ex.muscle_group || '').toLowerCase().includes(q);
+        const legacyEquipMatch = (ex.equipment || '').toLowerCase().includes(q);
+        
+        const bioGroupMatch = (bio.primary_group || '').toLowerCase().includes(q);
+        const bioAgonistsMatch = (bio.agonist_muscles || []).some(m => m.toLowerCase().includes(q));
+        const bioSynergistsMatch = (bio.synergist_muscles || []).some(m => m.toLowerCase().includes(q));
+        const bioEquipMatch = (bio.equipment_needed || []).some(e => e.toLowerCase().includes(q));
+        const bioTagsMatch = (bio.tags || []).some(t => t.toLowerCase().includes(q));
+
+        return nameMatch || legacyMgMatch || legacyEquipMatch || bioGroupMatch || bioAgonistsMatch || bioSynergistsMatch || bioEquipMatch || bioTagsMatch;
+      });
+    }
+
+    // Prioritize by biomechanical match score (Agonist > Synergist) and then alphabetically by name
+    if (activeTag !== 'Todos' && activeTag !== 'Recentes') {
+      result = [...result].sort((a, b) => {
+        const scoreA = getMatchScore(a, activeTag);
+        const scoreB = getMatchScore(b, activeTag);
+        if (scoreA !== scoreB) {
+          return scoreB - scoreA;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    } else {
+      result = [...result].sort((a, b) => a.name.localeCompare(b.name));
     }
 
     // Limit output to prevent UI lag while maintaining immediate responsiveness
@@ -698,6 +919,14 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
                                 </span>
                               </>
                             )}
+                            <span className="text-slate-300 text-[8px]">•</span>
+                            <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider scale-[0.95] origin-left shrink-0 ${
+                              ex.biomechanics 
+                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                                : 'bg-amber-50/70 text-amber-600 border border-amber-100/50'
+                            }`}>
+                              {ex.biomechanics ? 'Biomecânica validada' : 'Inferido'}
+                            </span>
                           </div>
                         </div>
 

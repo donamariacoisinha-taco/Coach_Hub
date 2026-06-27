@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { PremiumProtocolExercise } from '../../../types/protocol_4_0';
 import { Exercise } from '../../../types';
+import { getExerciseBiomechanics } from '../../../lib/exercises/exerciseTaxonomy';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ExerciseDetails {
@@ -66,22 +67,85 @@ export const ProtocolExerciseCard: React.FC<ProtocolExerciseCardProps> = React.m
 
   const filteredReplaceLibrary = useMemo(() => {
     if (!exerciseLibrary) return [];
-    if (!replaceSearchQuery.trim()) {
-      const targetMuscle = details?.muscle_group || '';
-      const sameMuscle = exerciseLibrary.filter(ex => 
-        ex.id !== exercise.exercise_id &&
-        (ex.muscle_group || '').toLowerCase() === targetMuscle.toLowerCase()
+    
+    const currentEx = exerciseLibrary.find(ex => ex.id === exercise.exercise_id);
+    const getBiomechanics = (ex: Exercise) => ex.biomechanics || getExerciseBiomechanics(ex);
+    
+    // Calculate match score for replacement candidates
+    const getReplacementScore = (candidate: Exercise) => {
+      if (!currentEx) {
+        // Fallback to legacy muscle_group match
+        const sameMuscle = (candidate.muscle_group || '').toLowerCase() === (details?.muscle_group || '').toLowerCase();
+        return sameMuscle ? 10 : 0;
+      }
+      
+      const curBio = getBiomechanics(currentEx);
+      const candBio = getBiomechanics(candidate);
+      
+      let score = 0;
+      
+      // Pattern match: Isolation vs Compound
+      if (curBio.movement_pattern && candBio.movement_pattern && curBio.movement_pattern === candBio.movement_pattern) {
+        score += 5;
+      }
+      
+      // Primary group match
+      if (curBio.primary_group && candBio.primary_group && curBio.primary_group === candBio.primary_group) {
+        score += 10;
+      }
+      
+      // Agonist muscle overlap
+      const curAgonists = curBio.agonist_muscles || [];
+      const candAgonists = candBio.agonist_muscles || [];
+      curAgonists.forEach(am => {
+        if (candAgonists.includes(am)) {
+          score += 6;
+        }
+      });
+
+      // Synergist overlap
+      const curSynergists = curBio.synergist_muscles || [];
+      const candSynergists = candBio.synergist_muscles || [];
+      curSynergists.forEach(sm => {
+        if (candSynergists.includes(sm)) {
+          score += 2;
+        }
+      });
+      
+      // Equipment overlap
+      const curEquip = curBio.equipment_needed || [];
+      const candEquip = candBio.equipment_needed || [];
+      curEquip.forEach(eq => {
+        if (candEquip.includes(eq)) {
+          score += 1;
+        }
+      });
+      
+      return score;
+    };
+
+    // Filter library candidates excluding the current exercise itself
+    let candidates = exerciseLibrary.filter(ex => ex.id !== exercise.exercise_id);
+
+    // Apply text query filtering if present
+    if (replaceSearchQuery.trim()) {
+      const q = replaceSearchQuery.toLowerCase();
+      candidates = candidates.filter(ex => 
+        ex.name.toLowerCase().includes(q) || 
+        (ex.muscle_group || '').toLowerCase().includes(q) ||
+        (ex.equipment || '').toLowerCase().includes(q)
       );
-      if (sameMuscle.length > 0) return sameMuscle.slice(0, 5);
-      return exerciseLibrary.filter(ex => ex.id !== exercise.exercise_id).slice(0, 5);
     }
-    const q = replaceSearchQuery.toLowerCase();
-    return exerciseLibrary.filter(ex => 
-      ex.id !== exercise.exercise_id &&
-      (ex.name.toLowerCase().includes(q) || 
-       (ex.muscle_group || '').toLowerCase().includes(q) ||
-       (ex.equipment || '').toLowerCase().includes(q))
-    ).slice(0, 5);
+
+    // Sort candidates by replacement suitability score (descending) and alphabetically
+    return candidates.sort((a, b) => {
+      const scoreA = getReplacementScore(a);
+      const scoreB = getReplacementScore(b);
+      if (scoreA !== scoreB) {
+        return scoreB - scoreA;
+      }
+      return a.name.localeCompare(b.name);
+    }).slice(0, 5);
   }, [replaceSearchQuery, exerciseLibrary, exercise.exercise_id, details?.muscle_group]);
 
   const handleDragOver = (e: React.DragEvent) => {

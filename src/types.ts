@@ -161,6 +161,8 @@ export interface Exercise {
   is_active: boolean;
   image_url?: string;
   equipment?: string;
+  subgroup?: string;
+  tags?: string[];
   difficulty_level: 'beginner' | 'intermediate' | 'advanced';
   technical_prompt?: string;
   anatomical_cut?: string;
@@ -175,7 +177,7 @@ export interface Exercise {
   
   // Governance & Quality
   curation_status?: 'draft' | 'approved' | 'premium' | 'archived';
-  movement_pattern?: 'push' | 'pull' | 'hinge' | 'squat' | 'lunge' | 'carry' | 'isolation';
+  movement_pattern?: 'push' | 'pull' | 'hinge' | 'squat' | 'lunge' | 'carry' | 'isolation' | 'rotation' | 'anti_rotation' | 'flexion' | 'extension' | 'cardio' | 'mobility' | string;
   plane?: 'horizontal' | 'vertical' | 'sagittal' | 'frontal' | 'transverse';
   training_goal?: 'strength' | 'hypertrophy' | 'power' | 'endurance';
   quality_score?: number; // 0-100
@@ -225,6 +227,19 @@ export interface Exercise {
   administrator_favorite?: boolean;
   protocol_priority?: boolean;
   alternatives?: string[];
+  biomechanics?: ExerciseBiomechanics;
+}
+
+export interface ExerciseBiomechanics {
+  primary_group: string;
+  agonist_muscles: string[];
+  synergist_muscles: string[];
+  stabilizer_muscles: string[];
+  antagonist_muscles: string[];
+  movement_pattern: string;
+  equipment_needed: string[];
+  primary_joint_actions: string[];
+  tags: string[];
 }
 
 export interface EKEContext {

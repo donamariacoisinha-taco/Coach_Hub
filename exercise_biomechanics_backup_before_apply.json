@@ -1,0 +1,1194 @@
+[
+  {
+    "id": "1948313d-69b4-43b1-8975-adbdc986eb07",
+    "name": "Abdominal infra",
+    "biomechanics": null,
+    "muscle_group": "Abdômen",
+    "subgroup": "Abdômen",
+    "equipment": "Solo"
+  },
+  {
+    "id": "1048c8f1-b3ee-42b8-91d2-7065bdf5612f",
+    "name": "Abdominal na máquina",
+    "biomechanics": null,
+    "muscle_group": "Core",
+    "subgroup": "Abdômen",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "26f10166-e4e3-4eea-b6d1-a99d62758143",
+    "name": "Abdominal no cabo",
+    "biomechanics": null,
+    "muscle_group": "Core",
+    "subgroup": "Abdômen",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "151abd1e-8dc2-4de4-8cd8-b044cb7f2af9",
+    "name": "Abdominal supra",
+    "biomechanics": null,
+    "muscle_group": "Core",
+    "subgroup": "Abdômen",
+    "equipment": "Solo"
+  },
+  {
+    "id": "dab903cd-7b57-4ae7-9101-c6c908a0b594",
+    "name": "Abdominal Supra",
+    "biomechanics": null,
+    "muscle_group": "Abdominais",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "53fb259e-85ea-468f-85a3-e3941bc0ac72",
+    "name": "Afundo com barra",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Quadríceps/Glúteos",
+    "equipment": "Barra"
+  },
+  {
+    "id": "e6ab00ef-c7a3-4a29-b832-618a78ca821a",
+    "name": "Afundo com halteres",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Quadríceps/Glúteos",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "251edb0e-4184-4338-86a9-b0e359b8704f",
+    "name": "Afundo no Smith",
+    "biomechanics": null,
+    "muscle_group": "Quadríceps ",
+    "subgroup": "Quadríceps/Glúteos",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "17f6fd9a-ed73-4c29-b8df-e99dc306680f",
+    "name": "Agachamento búlgaro",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Quadríceps/Glúteos",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "27235ea0-9b14-4a6a-b6d6-33a0f3ba2ca5",
+    "name": "Agachamento frontal",
+    "biomechanics": null,
+    "muscle_group": "Quadríceps",
+    "subgroup": "Quadríceps",
+    "equipment": "Barra"
+  },
+  {
+    "id": "4cb9a5c6-c12f-4ccf-b400-dbd3b77a8ed7",
+    "name": "Agachamento Hacker",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "ae8740d4-0ffb-4b91-9b40-1fb023f4e417",
+    "name": "Agachamento livre",
+    "biomechanics": null,
+    "muscle_group": "Quadríceps",
+    "subgroup": "Quadríceps",
+    "equipment": "Barra"
+  },
+  {
+    "id": "c0d430af-a5a8-4290-a660-a5336aecb750",
+    "name": "Agachamento Livre",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "82739822-c2f1-4986-8cb4-489777e2d68b",
+    "name": "Agachamento no Crossover",
+    "biomechanics": null,
+    "muscle_group": "Quadríceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "e8783793-6213-4553-b966-46c294deeb58",
+    "name": "Agachamento Sumô ",
+    "biomechanics": null,
+    "muscle_group": "Quadríceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "d6135f81-6869-489e-96b5-ff97c64fbe54",
+    "name": "Agachamento terra",
+    "biomechanics": null,
+    "muscle_group": "Quadríceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "e5b8b745-2fe7-44f3-85c3-fc109fd3a086",
+    "name": "Apoio declinado",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": "Abdômen",
+    "equipment": "Roda"
+  },
+  {
+    "id": "5ef7ff26-97ea-469b-941d-7a25489df311",
+    "name": "Apoio declinado (Fechado)",
+    "biomechanics": null,
+    "muscle_group": "Braço",
+    "subgroup": "Abdutores/Glúteos",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "5fc52e22-bad9-4742-bb41-925db73f18ca",
+    "name": "Apoio inclinado ",
+    "biomechanics": null,
+    "muscle_group": "Peitoral inferior",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "9164f005-d63b-40c4-9025-43f6bfe754c1",
+    "name": "Apoio reto",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "7a496714-b081-4c0f-874a-aea5b126c7fe",
+    "name": "apoio reto (fechado)",
+    "biomechanics": null,
+    "muscle_group": "Tríceps",
+    "subgroup": "Adutores/Glúteos",
+    "equipment": "Barra"
+  },
+  {
+    "id": "27a458a8-ae8c-4e6f-87cf-a46614cc7925",
+    "name": "Apoio reto (fechado)",
+    "biomechanics": null,
+    "muscle_group": "Braço",
+    "subgroup": "Abdutores/Glúteos",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "c634d336-c886-49a2-a1c7-62998986451f",
+    "name": "Arnold press",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": "Deltóides",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "a452efa6-7bab-4e8c-9ab2-3461e316f587",
+    "name": "Banco inclinado",
+    "biomechanics": null,
+    "muscle_group": "Bíceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "b47dd10b-ea60-461f-aba1-eb9ab65d22d2",
+    "name": "Barra fixa",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Dorsais",
+    "equipment": "Barra"
+  },
+  {
+    "id": "c9786d0c-f3bc-4404-9c03-56ac2fb4791f",
+    "name": "Barra fixa no gravitron",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Dorsais",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "f22bbe15-8821-4309-af8e-96d0a6ba6c88",
+    "name": "Cadeira abdutora",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Abdutores/Glúteos",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "857f39b2-9401-4b05-90c9-20d721445e05",
+    "name": "Cadeira Adutora",
+    "biomechanics": null,
+    "muscle_group": "Adutores",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "c6ca893d-7d0f-4aca-9a09-e733839dc717",
+    "name": "Cadeira Extensora",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "1f250d2f-dde2-4a9b-a215-b9388999e21b",
+    "name": "Cadeira Flexora",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "06396d90-e0a4-4a61-b8fb-902813250d6e",
+    "name": "Coice de Glúteo no Cabo",
+    "biomechanics": null,
+    "muscle_group": "Glúteos",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "996f4ef0-a36e-44d5-8c37-e12606f61c2f",
+    "name": "Coice de glúteo no Crossover",
+    "biomechanics": null,
+    "muscle_group": "Glúteos",
+    "subgroup": "Glúteos",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "0dfb45a6-7c73-4345-86f4-656b9087c0f0",
+    "name": "Cross over alto",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": "Peitoral superior",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "d9740bb8-f519-48b7-a014-3d7692a07bbc",
+    "name": "Cross over baixo",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": "Peitoral inferior",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "d4ff7500-7f80-47e6-b70c-dc3765baa2e7",
+    "name": "Crossover Polia Alta",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "b65aa86b-221d-4991-9b16-905a6d6612e4",
+    "name": "Crucifixo em pé (polia)",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "24bcc926-c307-431a-a91f-055797852e4a",
+    "name": "Crucifixo Inverso com Halteres",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "48c4f499-8c90-4244-a0c5-6bc810fa7489",
+    "name": "Crucifixo invertido máquina",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": "Deltóide posterior",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "023d35e6-3266-4576-a398-881fe7ad3a17",
+    "name": "Crucifixo Máquina (Peck Deck) - Voador",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "c9a22db2-8565-41f6-bdc6-0cb703014e98",
+    "name": "Crucifixo reto",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": "Peitoral",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "50c80ad1-9a82-4646-9e7b-93ed247a4ed2",
+    "name": "Crucifixo Reto com Halteres",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "23c77695-255b-4a3f-a7f2-0afac818cbca",
+    "name": "Deadlift romeno",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Eretores/Posterior",
+    "equipment": "Barra"
+  },
+  {
+    "id": "a3ce80ca-ec2c-4110-80cf-bf1fdf886987",
+    "name": "Deadlift tradicional",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Eretores/Posterior",
+    "equipment": "Barra"
+  },
+  {
+    "id": "3c691cac-b945-4d79-af37-327aa94fcfb1",
+    "name": "Desenvolvimento com barra",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": "Deltóides",
+    "equipment": "Barra"
+  },
+  {
+    "id": "ebc9f06f-b506-44d6-9a75-751a72f9b9a7",
+    "name": "Desenvolvimento com halteres",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": "Deltóides",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "69c00e63-5bf3-4c7f-96a0-68997f94e3c4",
+    "name": "Desenvolvimento Halteres",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "8acb4480-1b6c-47e2-91da-700ded7c7718",
+    "name": "Desenvolvimento na máquina",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": "Deltóides",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "a715e9c9-e49e-4d4e-842b-b2b7b032b60b",
+    "name": "Elevação de joelhos",
+    "biomechanics": null,
+    "muscle_group": "Core",
+    "subgroup": "Abdômen",
+    "equipment": "Barra"
+  },
+  {
+    "id": "2253b823-c2ce-459c-8a70-df56a2fb0258",
+    "name": "Elevação de pernas deitado",
+    "biomechanics": null,
+    "muscle_group": "Core",
+    "subgroup": "Abdômen",
+    "equipment": "Solo"
+  },
+  {
+    "id": "eb204b04-7f70-4ca5-816f-a6180df8f271",
+    "name": "Elevação de pernas na barra",
+    "biomechanics": null,
+    "muscle_group": "Core",
+    "subgroup": "Abdômen",
+    "equipment": "Barra"
+  },
+  {
+    "id": "6437113d-d751-4244-8bd0-f2f71f06e577",
+    "name": "Elevação frontal",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": "Deltóide anterior",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "b53d4652-2eef-4d03-a588-db8c6a069ca1",
+    "name": "Elevação Frontal com Corda",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "ba6090bf-0142-483b-8c42-88642a85c27b",
+    "name": "Elevação lateral com halteres",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "d42b7c6f-7817-4b27-876c-454bb42ca208",
+    "name": "Elevação lateral inclinada",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": "Deltóide lateral",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "1c4d0d3f-de4f-482a-ada8-b6e4c7c89600",
+    "name": "Elevação Lateral na Polia",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "d707178e-2fd3-4830-a8ac-0fd4a9270d61",
+    "name": "Elevação lateral sentado",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "738651ee-088c-49df-8f9f-8d80339a0fc4",
+    "name": "Elevação pélvica",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Glúteos",
+    "equipment": "Banco"
+  },
+  {
+    "id": "6fa70f6f-5228-4d93-8c83-de76cdc0f7e1",
+    "name": "Elevação Pélvica com Barra",
+    "biomechanics": null,
+    "muscle_group": "Glúteos",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "c1c8b6c2-ac45-4ff6-bedf-3a55fcfb58d8",
+    "name": "Elevação posterior no cabo",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": "Deltóide posterior",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "1edc32f5-eeeb-40b2-a5bd-dbd0de9c0924",
+    "name": "Encolhimento com barra",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Trapézio",
+    "equipment": "Barra"
+  },
+  {
+    "id": "7b1bbe23-0b38-440a-bc22-573ea9984577",
+    "name": "Encolhimento com Halteres",
+    "biomechanics": null,
+    "muscle_group": "Trapézio",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "f1a15992-6d0c-4bcb-a41a-156d16831892",
+    "name": "Encolhimento no Smith",
+    "biomechanics": null,
+    "muscle_group": "Trapézio",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "285586c4-537a-4551-a929-4e767a002019",
+    "name": "Extensão de quadril no cabo",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Glúteos",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "58079297-3024-4e84-b344-1531826cf251",
+    "name": "Face pull",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Deltóide posterior/Trapézio",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "2751f094-fad0-4eba-8263-df9b5f9201fb",
+    "name": "Face Pull",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "eedce141-1744-4b60-8c7c-c2634e5df3dd",
+    "name": "Flexora unilateral",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Posterior de coxa",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "926357fb-1e13-4eef-8a27-8d4b34f426fc",
+    "name": "Gêmeos em Pé",
+    "biomechanics": null,
+    "muscle_group": "Panturrilhas",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "e39c8b41-8aa3-4395-a5fd-b68726349bb4",
+    "name": "Gêmeos em Pé no Smith",
+    "biomechanics": null,
+    "muscle_group": "Panturrilhas",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "3ada3223-ed6a-4c51-8314-0414a26cc426",
+    "name": "Gêmeos Sentado na Máquina",
+    "biomechanics": null,
+    "muscle_group": "Panturrilhas",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "74fb0103-7cb8-42b4-af36-20a982ca9626",
+    "name": "Grávitron",
+    "biomechanics": null,
+    "muscle_group": "Dorsais",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "61a4e898-62e7-4814-8dd7-1979ae310da3",
+    "name": "Leg Press 45",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "c780e2c9-cb14-4f5a-a189-15b54e999f8d",
+    "name": "Leg press 45°",
+    "biomechanics": null,
+    "muscle_group": "Quadríceps",
+    "subgroup": "Quadríceps/Glúteos",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "4aae4574-fbfb-41b7-813f-57a0f8455cee",
+    "name": "Levantamento Terra Convencional",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "7698a9ef-8375-4cd0-9463-5bb82921569c",
+    "name": "Mergulho em paralelas",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Tríceps",
+    "equipment": "Paralelas"
+  },
+  {
+    "id": "a20cab22-bdd3-46db-89f0-dbee15dcd1be",
+    "name": "Mergulho no Gravitron",
+    "biomechanics": null,
+    "muscle_group": "Tríceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "d61ec6c5-f1da-4bdd-b209-d466e73e2c89",
+    "name": "Mesa flexora",
+    "biomechanics": null,
+    "muscle_group": "Posterior",
+    "subgroup": "Abdômen",
+    "equipment": "Solo"
+  },
+  {
+    "id": "499c1d9b-8ada-4655-8a43-94dd69345317",
+    "name": "Panturrilha em pé",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Panturrilhas",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "86585806-666f-4406-81bf-e322ef7b7238",
+    "name": "Passada caminhando",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Quadríceps/Glúteos",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "544248a4-9e2b-484a-81a3-95b20ffd7238",
+    "name": "Prancha",
+    "biomechanics": null,
+    "muscle_group": "Core",
+    "subgroup": "Abdômen",
+    "equipment": "Solo"
+  },
+  {
+    "id": "b11039ad-791c-47fe-a236-1c9a30c1e04d",
+    "name": "Prancha com elevação de perna",
+    "biomechanics": null,
+    "muscle_group": "Core",
+    "subgroup": "Abdômen",
+    "equipment": "Solo"
+  },
+  {
+    "id": "66e37fc9-3b43-48f0-bcc0-e689e02b2aaa",
+    "name": "Prancha Copenhagen",
+    "biomechanics": null,
+    "muscle_group": "Adutores",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "2c395f6c-f716-48ee-be6b-9bbf206e55b3",
+    "name": "Prancha lateral",
+    "biomechanics": null,
+    "muscle_group": "Core",
+    "subgroup": "Abdômen",
+    "equipment": "Solo"
+  },
+  {
+    "id": "ec6cea67-c9c2-431d-883d-423ee7c54e56",
+    "name": "Prancha Lateral Dinâmica",
+    "biomechanics": null,
+    "muscle_group": "Oblíquos",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "b9666933-2ca6-4662-938d-9c0c3c5e07ad",
+    "name": "Pulldown (Puxada alta)",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Dorsais",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "2e61e945-1243-4a83-85fb-a2d07ddda9af",
+    "name": "Pulldown com Corda",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "5ffc1e83-1388-4256-906d-3dab25dca684",
+    "name": "Pullover no cabo",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Dorsais",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "0be65941-ce48-4650-8b79-01c56ce97348",
+    "name": "Puxada com triângulo",
+    "biomechanics": null,
+    "muscle_group": "Dorsais",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "855ce97f-f4d2-40d9-a65a-62b1dc74ee65",
+    "name": "Puxada Frente",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "20dedb8e-81f9-49be-a171-c20ee3dcb69c",
+    "name": "Puxada frontal aberta",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Dorsais",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "9227a25e-043d-4454-b110-09cb1c597305",
+    "name": "Puxada frontal fechada",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Dorsais",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "73c192b9-bf49-4fa3-ae7a-11c431b71943",
+    "name": "Remada alta",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Trapézio/Deltóide posterior",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "8551ee8b-13b6-4e05-99ab-3d1bc67bed0e",
+    "name": "Remada Alta (Barra EZ)",
+    "biomechanics": null,
+    "muscle_group": "Trapézio",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "382554b7-21a4-400f-b739-ab8008a7eb7d",
+    "name": "Remada alta com barra",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": "Trapézio/Deltóide lateral",
+    "equipment": "Barra"
+  },
+  {
+    "id": "dafdf337-da1b-489a-b6c8-2bd5d82b501b",
+    "name": "Remada alta no cabo",
+    "biomechanics": null,
+    "muscle_group": "Ombros",
+    "subgroup": "Trapézio/Deltóide lateral",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "d5b30d65-aaca-4ea7-9554-98d09c882251",
+    "name": "Remada baixa",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Dorsais",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "d8d0ac97-1365-41f2-9b0c-a9175cc19691",
+    "name": "Remada baixa (peito)",
+    "biomechanics": null,
+    "muscle_group": "Dorsais",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "d207d225-d53b-4c14-a424-9aeeaa452436",
+    "name": "Remada Cavalinho",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "73a7c8d6-7ffb-45e4-b955-021a4e40f7de",
+    "name": "Remada Curvada",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "8d332cd5-1d53-44c0-8955-d3abc6df3573",
+    "name": "Remada na máquina",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": "Dorsais",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "250762bc-eb3c-41e8-91b6-cd57028bd6e3",
+    "name": "Remada Sentada (Máquina)",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "81351c44-6495-4e73-a2ae-a0925882c181",
+    "name": "Remada Unilateral (Serrote)",
+    "biomechanics": null,
+    "muscle_group": "Costas",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "7a08e937-fb56-4076-9423-4855aacda85a",
+    "name": "Remanda na máquina",
+    "biomechanics": null,
+    "muscle_group": "Dorsais",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "45c779f2-c5e5-45c0-8c1f-a307dc139367",
+    "name": "Rosca 21 (Barra EZ)",
+    "biomechanics": null,
+    "muscle_group": "Bíceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "11c975fd-133a-4aa2-86e0-7a61c7d278a2",
+    "name": "Rosca alternada",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Bíceps",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "f24e1133-87f7-43bb-955a-65ab7d398085",
+    "name": "Rosca concentrada",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Bíceps",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "66e0ea56-0b91-4e89-9903-506210acc568",
+    "name": "Rosca Concentrada",
+    "biomechanics": null,
+    "muscle_group": "Bíceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "dd9b93e9-a866-4c4f-8ad0-ed43b578f8f4",
+    "name": "Rosca de Punho com Barra",
+    "biomechanics": null,
+    "muscle_group": "Antebraço",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "f37f232d-55b5-4ec3-bea8-f05bfddb9aee",
+    "name": "Rosca de Punho Inversa",
+    "biomechanics": null,
+    "muscle_group": "Antebraço",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "5ca05f61-9c00-4944-9fbd-7b7db6471bf5",
+    "name": "Rosca Direta",
+    "biomechanics": null,
+    "muscle_group": "Bíceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "b8549a51-b191-4e11-b49a-ca7d133ed50c",
+    "name": "Rosca Direta (Barra EZ)",
+    "biomechanics": null,
+    "muscle_group": "Bíceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "4c270bed-9cdb-4bbc-af40-404bdf9469ba",
+    "name": "Rosca Direta (Barra W)",
+    "biomechanics": null,
+    "muscle_group": "Bíceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "75dfd737-8273-4197-9f20-5f302e8ec459",
+    "name": "Rosca direta com barra",
+    "biomechanics": null,
+    "muscle_group": "Bíceps",
+    "subgroup": "Bíceps",
+    "equipment": "Barra"
+  },
+  {
+    "id": "5cc14ea4-ff62-4a31-a621-6df727c6987f",
+    "name": "Rosca direta com halteres",
+    "biomechanics": null,
+    "muscle_group": "Bíceps",
+    "subgroup": "Bíceps",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "c5dee4b3-b382-4f2c-b5cb-5c4b7fc2dc6a",
+    "name": "Rosca inversa",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Antebraço/Bíceps",
+    "equipment": "Barra"
+  },
+  {
+    "id": "423dd5b1-7056-4cb4-b010-bb02b2a9534d",
+    "name": "Rosca Inversa com Barra",
+    "biomechanics": null,
+    "muscle_group": "Antebraço",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "07538c9e-3f99-45c0-979f-b7e90b311d24",
+    "name": "Rosca martelo",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Bíceps/Braquial",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "93c6839c-79c1-4a80-8729-ff56730b163f",
+    "name": "Rosca Martelo com Halteres",
+    "biomechanics": null,
+    "muscle_group": "Bíceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "250abcf4-b8f5-4dcb-8308-993993bdd9b5",
+    "name": "Rosca no cabo",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Bíceps",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "fc319314-3794-49a7-b4e7-c2f983059a69",
+    "name": "Rosca Scott",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Bíceps",
+    "equipment": "Banco"
+  },
+  {
+    "id": "892b14a0-00e3-418d-b6a7-2e83b4aa8ff8",
+    "name": "Rosca Scott máquina",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Bíceps",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "a2473b19-f22f-4090-8bbe-f89416557eaf",
+    "name": "Rosca Scott na Máquina",
+    "biomechanics": null,
+    "muscle_group": "Bíceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "29051486-a738-453b-8591-e3be6a958597",
+    "name": "Russian Twist",
+    "biomechanics": null,
+    "muscle_group": "Oblíquos",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "519f8414-c511-4fc0-ab6e-6baa60a3e002",
+    "name": "Stiff com barra",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Posterior/Glúteos",
+    "equipment": "Barra"
+  },
+  {
+    "id": "823393f4-e7de-4a1f-bf77-b5e4ef120083",
+    "name": "Stiff com Barra",
+    "biomechanics": null,
+    "muscle_group": "Posteriores",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "9580f19c-1d91-4fa7-b4b2-c2a73fb3b675",
+    "name": "Stiff com halteres",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Posterior/Glúteos",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "2fa49f78-9484-4834-9cc4-5a31568a6539",
+    "name": "Supino inclinado (Barra)",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "92bea305-3b2d-4e81-9b13-a4d1e26c9a10",
+    "name": "Supino Inclinado (Máquina)",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "325fdd72-a76f-44e7-a82a-961582ea263f",
+    "name": "Supino inclinado com barra",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": "Peitoral superior",
+    "equipment": "Barra"
+  },
+  {
+    "id": "60988dbc-c573-4417-b664-23959abd3aa9",
+    "name": "Supino Inclinado com Halteres",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "dde9223e-9739-441f-ba7f-c355e3a61a65",
+    "name": "Supino na máquina",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": "Peitoral",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "ef2e75bf-5e36-46bb-bba9-a758cb16cc68",
+    "name": "Supino reto com barra",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": "Peitoral",
+    "equipment": "Barra"
+  },
+  {
+    "id": "a8c9e27e-44b0-4d3c-af8e-f4e3d4d46e0c",
+    "name": "Supino reto com halteres",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": "Peitoral",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "735e355b-4f74-4b1e-bf88-2f3996b2fc17",
+    "name": "Supino Reto com Halteres",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "73b689ba-1136-4509-8210-67331373f0e7",
+    "name": "Terra romeno",
+    "biomechanics": null,
+    "muscle_group": "Perna",
+    "subgroup": "Posterior/Glúteos",
+    "equipment": "Barra"
+  },
+  {
+    "id": "a1e30233-e3cf-4228-9aac-14706e6aed4f",
+    "name": "Tríceps banco",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Tríceps",
+    "equipment": "Banco"
+  },
+  {
+    "id": "d6129686-8875-47ae-aab1-955801fa8d71",
+    "name": "Tríceps corda",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Tríceps",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "118061da-b9d6-4c04-bd6e-5b917ee9d44f",
+    "name": "Tríceps Corda (Extensão)",
+    "biomechanics": null,
+    "muscle_group": "Tríceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "56702c06-3ec2-4758-91ad-5481822e91c0",
+    "name": "Tríceps corda (Francês)",
+    "biomechanics": null,
+    "muscle_group": "Tríceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "ace44ddb-b9f1-4fee-944b-233573d55d7a",
+    "name": "Tríceps corda (Polia alta)",
+    "biomechanics": null,
+    "muscle_group": "Tríceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "5059293b-7aa9-4ac4-a823-1024d725a917",
+    "name": "Tríceps francês",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Tríceps",
+    "equipment": "Halteres"
+  },
+  {
+    "id": "5225d5aa-c50f-4103-9a22-bd32d7a85865",
+    "name": "Tríceps francês no cabo",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Tríceps",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "1ab60434-c92b-4136-89c3-1642ad2d6845",
+    "name": "Tríceps na máquina",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Tríceps",
+    "equipment": "Máquina"
+  },
+  {
+    "id": "5e93235a-080f-457d-a97d-dd44bc04d480",
+    "name": "Tríceps pulley",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Tríceps",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "3c34bbd6-4e54-4023-8c50-18c8bf7d0efb",
+    "name": "Tríceps Pulley",
+    "biomechanics": null,
+    "muscle_group": "Tríceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "46838ad4-c6fa-4c28-b137-bd1a1dac567c",
+    "name": "Tríceps testa",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Tríceps",
+    "equipment": "Barra"
+  },
+  {
+    "id": "2f15f565-87cf-4521-bc08-2e79c6d49173",
+    "name": "Tríceps Testa (Barra W)",
+    "biomechanics": null,
+    "muscle_group": "Tríceps",
+    "subgroup": null,
+    "equipment": null
+  },
+  {
+    "id": "8ba57796-d5d5-4382-994e-c8eed2fb0e9e",
+    "name": "Tríceps testa no cabo",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Tríceps",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "0aaab0b1-0ac3-4f4a-ace6-8ce2cd6ec6a4",
+    "name": "Tríceps unilateral no cabo",
+    "biomechanics": null,
+    "muscle_group": "Braços",
+    "subgroup": "Tríceps",
+    "equipment": "Cabo"
+  },
+  {
+    "id": "a872d83b-e465-4841-9f8c-2280401449de",
+    "name": "Voador (Máquina)",
+    "biomechanics": null,
+    "muscle_group": "Peito",
+    "subgroup": null,
+    "equipment": null
+  }
+]
