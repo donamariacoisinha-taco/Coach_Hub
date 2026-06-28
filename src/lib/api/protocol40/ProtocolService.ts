@@ -322,5 +322,90 @@ export const ProtocolService = {
     return () => {
       supabase.removeChannel(channel);
     };
+  },
+
+  async duplicateProtocol(originalId: string, currentUserId: string): Promise<PremiumProtocol> {
+    const original = await this.getById(originalId);
+
+    const daysRes = await supabase.from('premium_protocol_days').select('*').eq('protocol_id', originalId);
+    if (daysRes.error) throw daysRes.error;
+    const days = daysRes.data as PremiumProtocolDay[];
+
+    const exercisesByDay: Record<string, PremiumProtocolExercise[]> = {};
+    for (const day of days) {
+      const exRes = await supabase.from('premium_protocol_exercises').select('*').eq('day_id', day.id);
+      if (exRes.error) throw exRes.error;
+      exercisesByDay[day.id] = exRes.data as PremiumProtocolExercise[];
+    }
+
+    const duplicatedProtocolPayload: Omit<PremiumProtocol, 'id' | 'created_at' | 'updated_at' | 'version'> = {
+      name: `${original.name} — Cópia`,
+      description: original.description || '',
+      image_url: original.image_url || '',
+      goal: original.goal || '',
+      difficulty: original.difficulty || '',
+      category: original.category || 'premium',
+      environment: original.environment || '',
+      training_days: original.training_days || 3,
+      duration_weeks: original.duration_weeks || 4,
+      estimated_duration: original.estimated_duration || 60,
+      status: 'draft',
+      is_active: original.is_active ?? true,
+      is_deleted: false,
+      created_by: currentUserId,
+      updated_by: currentUserId,
+    };
+
+    const newProtocol = await this.create(duplicatedProtocolPayload);
+
+    const sortedDays = [...days].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+    for (const originalDay of sortedDays) {
+      const dayPayload = {
+        protocol_id: newProtocol.id,
+        day_number: originalDay.day_number,
+        title: originalDay.title || '',
+        description: originalDay.description || '',
+        sort_order: originalDay.sort_order
+      };
+
+      const { data: newDay, error: newDayErr } = await supabase
+        .from('premium_protocol_days')
+        .insert(dayPayload)
+        .select()
+        .single();
+
+      if (newDayErr) throw newDayErr;
+
+      const originalExercises = exercisesByDay[originalDay.id] || [];
+      const sortedExercises = [...originalExercises].sort((a, b) => (a.exercise_order || 0) - (b.exercise_order || 0));
+
+      for (const ex of sortedExercises) {
+        const exPayload = {
+          day_id: newDay.id,
+          exercise_id: ex.exercise_id,
+          exercise_order: ex.exercise_order,
+          sets: ex.sets,
+          reps: ex.reps,
+          rest_seconds: ex.rest_seconds !== undefined && ex.rest_seconds !== null ? ex.rest_seconds : 80,
+          load_type: ex.load_type || '',
+          rpe: ex.rpe || '',
+          tempo: ex.tempo || '',
+          cadence: ex.cadence || '',
+          notes: ex.notes || '',
+          drop_set: !!ex.drop_set,
+          rest_pause: !!ex.rest_pause,
+          superset: !!ex.superset
+        };
+
+        const { error: newExErr } = await supabase
+          .from('premium_protocol_exercises')
+          .insert(exPayload);
+
+        if (newExErr) throw newExErr;
+      }
+    }
+
+    return newProtocol;
   }
 };

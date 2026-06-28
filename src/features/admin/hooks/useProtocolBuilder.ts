@@ -277,9 +277,26 @@ export const useProtocolBuilder = () => {
   // 4. Update General Protocol Fields
   const updateProtocolField = useCallback((field: keyof PremiumProtocol, value: any) => {
     if (!selectedProtocol) return;
+
+    let sanitizedValue = value;
+    if (field === 'image_url' && typeof value === 'string') {
+      const lower = value.trim().toLowerCase();
+      if (
+        lower === 'undefined' ||
+        lower === 'null' ||
+        lower === '' ||
+        lower.startsWith('blob:') ||
+        lower.startsWith('data:')
+      ) {
+        sanitizedValue = '';
+      } else {
+        sanitizedValue = value.trim();
+      }
+    }
+
     const nextProtocol = {
       ...selectedProtocol,
-      [field]: value
+      [field]: sanitizedValue
     };
     commitState(days, exercises, deletedDayIds, deletedExerciseIds, nextProtocol);
   }, [selectedProtocol, days, exercises, deletedDayIds, deletedExerciseIds, commitState]);
@@ -717,10 +734,10 @@ export const useProtocolBuilder = () => {
 
   // 8. Core Transaction Saving Engine
   const saveProtocol = useCallback(async () => {
-    if (!selectedProtocol) return;
+    if (!selectedProtocol) return false;
     if (!selectedProtocol.name?.trim()) {
       showToast('error', 'O nome do protocolo é obrigatório.');
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -761,7 +778,7 @@ export const useProtocolBuilder = () => {
 
       const freshList = await ProtocolService.list();
       setProtocols(freshList);
-
+      return true;
     } catch (err: any) {
       console.error('[useProtocolBuilder] Error saving complete protocol:', err);
       setAutosaveStatus('error');
@@ -771,6 +788,7 @@ export const useProtocolBuilder = () => {
       } else {
         showToast('error', err.message || 'Erro ao processar salvamento transacional.');
       }
+      return false;
     } finally {
       setSaving(false);
     }
@@ -816,6 +834,24 @@ export const useProtocolBuilder = () => {
       setSaving(false);
     }
   }, [selectedProtocol, currentUserId, showToast]);
+
+  // Duplicate Protocol Action
+  const duplicateProtocolById = useCallback(async (protocolId: string) => {
+    if (!protocolId) return;
+    setLoading(true);
+    try {
+      const newProtocol = await ProtocolService.duplicateProtocol(protocolId, currentUserId);
+      showToast('success', `Protocolo duplicado com sucesso! Cópia criada: "${newProtocol.name}"`);
+      const freshList = await ProtocolService.list();
+      setProtocols(freshList);
+      await loadProtocolDetails(newProtocol);
+    } catch (err: any) {
+      console.error('[useProtocolBuilder] Error duplicating protocol:', err);
+      showToast('error', err.message || 'Erro ao duplicar protocolo.');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUserId, loadProtocolDetails, showToast]);
 
   const pasteExercises = useCallback((dayId: string, exercisesToPaste: any[]) => {
     if (!dayId || !exercisesToPaste || exercisesToPaste.length === 0) return;
@@ -969,6 +1005,7 @@ export const useProtocolBuilder = () => {
     saveProtocol,
     forceReloadProtocol,
     softDeleteProtocol,
+    duplicateProtocolById,
 
     // Undo/Redo
     undo,

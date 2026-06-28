@@ -76,6 +76,7 @@ export const ProtocolBuilder40: React.FC = () => {
     saveProtocol,
     forceReloadProtocol,
     softDeleteProtocol,
+    duplicateProtocolById,
 
     // Advanced features
     undo,
@@ -531,10 +532,23 @@ export const ProtocolBuilder40: React.FC = () => {
                       {/* Content Section */}
                       <div className="p-5 flex-1 flex flex-col justify-between gap-4">
                         <div>
-                          <h4 className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">
-                            {p.name}
-                          </h4>
-                          <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1 flex-1">
+                              {p.name}
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                duplicateProtocolById(p.id);
+                              }}
+                              className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all border-none bg-transparent cursor-pointer shrink-0"
+                              title="Duplicar Protocolo"
+                            >
+                              <Copy size={13} />
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
                             {p.description || "Sem descrição disponível."}
                           </p>
                         </div>
@@ -641,26 +655,40 @@ export const ProtocolBuilder40: React.FC = () => {
                           {/* Preset Images Buttons */}
                           <div>
                             <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">Escolher presets de capa</span>
-                            <div className="grid grid-cols-4 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                               {[
-                                { name: 'Força', url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=400' },
-                                { name: 'Corrida', url: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=400' },
-                                { name: 'Funcional', url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=400' },
-                                { name: 'Mind', url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400' },
-                              ].map((preset, idx) => (
-                                <button
-                                  key={idx}
-                                  type="button"
-                                  onClick={() => updateProtocolField('image_url', preset.url)}
-                                  className={`text-[9px] font-bold py-1 px-1.5 rounded-lg border text-center transition-all cursor-pointer truncate ${
-                                    selectedProtocol?.image_url === preset.url
-                                      ? 'bg-blue-50 border-blue-500 text-blue-700 font-black'
-                                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                                  }`}
-                                >
-                                  {preset.name}
-                                </button>
-                              ))}
+                                { name: 'Força / Musculação', url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400' },
+                                { name: 'Corrida / Outdoor', url: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=400' },
+                                { name: 'Funcional / CrossFit', url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=400' },
+                                { name: 'Mind / Yoga', url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400' },
+                                { name: 'Ciclismo / Endurance', url: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?q=80&w=400' },
+                                { name: 'Boxe / Combate', url: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?q=80&w=400' },
+                              ].map((preset, idx) => {
+                                const isSelected = selectedProtocol?.image_url === preset.url;
+                                return (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => updateProtocolField('image_url', preset.url)}
+                                    className={`relative h-14 rounded-lg overflow-hidden border-2 text-center transition-all cursor-pointer group flex flex-col justify-end p-1 ${
+                                      isSelected
+                                        ? 'border-blue-500 ring-2 ring-blue-150 scale-[0.98]'
+                                        : 'border-slate-200 hover:border-slate-350'
+                                    }`}
+                                  >
+                                    <img
+                                      src={preset.url}
+                                      alt={preset.name}
+                                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                    <div className="absolute inset-0 bg-slate-950/45" />
+                                    <span className="relative z-10 text-[7.5px] font-black text-white uppercase tracking-tight leading-none text-left truncate w-full">
+                                      {preset.name.split(' / ')[0]}
+                                    </span>
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
 
@@ -937,6 +965,24 @@ export const ProtocolBuilder40: React.FC = () => {
                 {/* Vertical Divider */}
                 <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block" />
 
+                {/* Duplicar Protocolo */}
+                {selectedProtocol?.id && !isCreating && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={async () => {
+                      if (confirm('Deseja criar uma cópia duplicada deste protocolo?')) {
+                        await duplicateProtocolById(selectedProtocol.id);
+                      }
+                    }}
+                    className="h-9 px-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                    title="Duplicar este protocolo"
+                  >
+                    <Copy size={11} />
+                    Duplicar
+                  </button>
+                )}
+
                 {/* Salvar Rascunho (Draft) */}
                 <button
                   type="button"
@@ -950,6 +996,22 @@ export const ProtocolBuilder40: React.FC = () => {
                 >
                   {saving ? <RefreshCw size={11} className="animate-spin text-slate-400" /> : <Save size={11} />}
                   Salvar
+                </button>
+
+                {/* Fechar e salvar */}
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={async () => {
+                    const success = await saveProtocol();
+                    if (success) {
+                      cancelEditing();
+                    }
+                  }}
+                  className="h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-500/10 animate-pulse"
+                >
+                  {saving ? <RefreshCw size={11} className="animate-spin text-white" /> : <Check size={11} />}
+                  Fechar e salvar
                 </button>
 
                 {/* Publicar */}

@@ -1021,29 +1021,14 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
           </div>
         </div>
 
-        {/* Backdrop for click outside close */}
-        {showDropdown && (
-          <div 
-            className="fixed inset-0 z-40 bg-transparent" 
-            onClick={() => {
-              if (selectedLibraryIds.length === 0) {
-                setShowDropdown(false);
-              } else {
-                setShowCloseWarning(true);
-                setTimeout(() => setShowCloseWarning(false), 3000);
-              }
-            }}
-          />
-        )}
-
-        {/* Search Results Dropdown Overlay */}
+        {/* Search Results Inline Section */}
         <AnimatePresence>
           {showDropdown && (searchQuery.trim().length > 0 || activeTag !== 'Todos') && (
             <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 5 }}
-              className="absolute bg-white border border-slate-200 shadow-2xl rounded-2xl z-50 p-3 flex flex-col max-h-[420px] overflow-hidden mt-11 left-0 right-0 w-full"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="relative bg-white border border-slate-200/80 shadow-sm rounded-2xl p-3 flex flex-col max-h-[350px] overflow-hidden mt-3 w-full"
             >
               {/* Warning Banner */}
               {showCloseWarning && (
@@ -1068,7 +1053,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
                   }}
                   className="text-[10px] font-bold text-slate-500 hover:text-slate-800 border-none bg-transparent cursor-pointer hover:underline transition-all"
                 >
-                  Fechar
+                  Fechar resultados
                 </button>
               </div>
 
@@ -1184,14 +1169,14 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
                       className="h-7 px-3 bg-blue-600 text-white hover:bg-blue-500 rounded-xl font-bold text-[9px] uppercase tracking-wider flex items-center gap-1 border-none cursor-pointer transition-all shadow-md active:scale-95"
                     >
                       <Check size={11} />
-                      Adicionar
+                      Adicionar selecionados
                     </button>
                     <button
                       type="button"
                       onClick={() => setSelectedLibraryIds([])}
                       className="h-7 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-[9px] uppercase tracking-wider border-none cursor-pointer transition-all active:scale-95"
                     >
-                      Limpar
+                      Limpar seleção
                     </button>
                     <button
                       type="button"
@@ -1201,7 +1186,7 @@ export const ProtocolExerciseList: React.FC<ProtocolExerciseListProps> = ({
                       }}
                       className="h-7 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl font-bold text-[9px] uppercase tracking-wider border-none cursor-pointer transition-all active:scale-95"
                     >
-                      Fechar
+                      Fechar resultados
                     </button>
                   </div>
                 </div>

@@ -36,9 +36,9 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
   };
 
   return (
-    <div className="w-full bg-slate-50/40 p-2 rounded-2xl border border-slate-150 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
+    <div className="w-full bg-slate-50/40 p-2 rounded-2xl border border-slate-150 flex flex-row items-center justify-between gap-3 flex-nowrap md:flex-wrap overflow-x-auto md:overflow-visible no-scrollbar">
       {/* Horizontal Tabs container */}
-      <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto no-scrollbar">
+      <div className="flex flex-row items-center gap-1.5 flex-1 min-w-0 flex-nowrap md:flex-wrap overflow-x-auto md:overflow-visible no-scrollbar">
         <AnimatePresence initial={false}>
           {days.map((day, index) => {
             const isSelected = selectedDayId === day.id;
