@@ -11,7 +11,7 @@ import AdminPanelV2 from './features/admin/AdminPanelV2';
 import HistoryView from './components/HistoryView';
 import ProfileViewV2 from './features/user/ProfileViewV2';
 import ExerciseLibrary from './components/ExerciseLibrary';
-import LandingPage from './components/LandingPage';
+import { LandingPage } from './components/LandingPage';
 import { useSync } from './hooks/useSync';
 import { useUserStore } from './store/userStore';
 import { useAuthStore } from './store/authStore';

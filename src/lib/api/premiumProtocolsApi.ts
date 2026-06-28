@@ -1574,7 +1574,7 @@ class PremiumProtocolsApi {
                   sets: e.sets,
                   reps: e.reps,
                   weight: 0,
-                  rest_time: e.rest_seconds || 60,
+                  rest_time: e.rest_seconds || 80,
                   sort_order: e.exercise_order || 1,
                   sets_json: []
                 }))

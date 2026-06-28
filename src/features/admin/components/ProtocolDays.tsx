@@ -53,10 +53,17 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 onClick={() => onSelectDay(day.id)}
-                className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all cursor-pointer select-none h-10 shrink-0 ${
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectDay(day.id);
+                  }
+                }}
+                className={`group relative flex items-center gap-2.5 px-4.5 py-2.5 rounded-xl border transition-all cursor-pointer select-none h-12 shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 hover:scale-[1.015] active:scale-[0.985] ${
                   isSelected
                     ? 'bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-950/10'
-                    : 'bg-white border-slate-200/60 text-slate-600 hover:bg-slate-50'
+                    : 'bg-white border-slate-200/80 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
                 }`}
               >
                 {/* Completed Toggle Checkbox */}
@@ -68,7 +75,7 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
                       onUpdateDayField(day.id, 'description', isCompleted ? '' : 'completed');
                     }
                   }}
-                  className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all shrink-0 cursor-pointer ${
+                  className={`w-4.5 h-4.5 rounded-md flex items-center justify-center border transition-all shrink-0 cursor-pointer ${
                     isCompleted
                       ? 'bg-emerald-500 border-emerald-500 text-white'
                       : isSelected
@@ -90,8 +97,15 @@ export const ProtocolDays: React.FC<ProtocolDaysProps> = ({
                     }
                   }}
                   placeholder={`Treino ${letter}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className={`bg-transparent border-none p-0 text-xs font-black placeholder:text-slate-400 focus:outline-none focus:ring-0 w-24 sm:w-28 truncate ${
+                  onClick={(e) => {
+                    if (!isSelected) {
+                      onSelectDay(day.id);
+                      e.preventDefault();
+                    } else {
+                      e.stopPropagation();
+                    }
+                  }}
+                  className={`bg-transparent border-none p-0 text-xs font-black placeholder:text-slate-400 focus:outline-none focus:ring-0 w-24 sm:w-28 truncate cursor-pointer ${
                     isSelected ? 'text-white' : 'text-slate-800'
                   }`}
                 />

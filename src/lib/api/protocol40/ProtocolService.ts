@@ -230,7 +230,7 @@ export const ProtocolService = {
             exercise_order: ex.exercise_order,
             sets: ex.sets,
             reps: ex.reps,
-            rest_seconds: ex.rest_seconds || 60,
+            rest_seconds: ex.rest_seconds !== undefined && ex.rest_seconds !== null ? ex.rest_seconds : 80,
             load_type: ex.load_type || '',
             rpe: ex.rpe || '',
             tempo: ex.tempo || '',

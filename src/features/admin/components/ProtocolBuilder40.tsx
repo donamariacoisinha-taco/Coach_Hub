@@ -31,7 +31,8 @@ import {
   CloudLightning,
   Send,
   ArrowLeft,
-  Cloud
+  Cloud,
+  Edit2
 } from 'lucide-react';
 import { useProtocolBuilder } from '../hooks/useProtocolBuilder';
 import { ProtocolHeader } from './ProtocolHeader';
@@ -690,6 +691,7 @@ export const ProtocolBuilder40: React.FC = () => {
                           <div className="flex flex-col gap-1.5">
                             <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Nome do Protocolo</label>
                             <input
+                              id="protocol-name-input"
                               type="text"
                               required
                               placeholder="Ex: Protocolo de Hipertrofia Avançada"
@@ -826,13 +828,32 @@ export const ProtocolBuilder40: React.FC = () => {
                 >
                   <ArrowLeft size={16} />
                 </button>
-                <div className="min-w-0">
-                  <h1 className="text-sm font-black text-slate-900 truncate leading-none">
-                    {selectedProtocol?.name || 'Novo Protocolo'}
-                  </h1>
-                  <span className="inline-block text-[8px] font-black uppercase tracking-widest text-slate-400 mt-1">
-                    Kyron Protocol Builder 6.0
-                  </span>
+                <div className="min-w-0 flex items-center gap-2">
+                  <div className="min-w-0">
+                    <h1 className="text-sm font-black text-slate-900 truncate leading-none">
+                      {selectedProtocol?.name || 'Novo Protocolo'}
+                    </h1>
+                    <span className="inline-block text-[8px] font-black uppercase tracking-widest text-slate-400 mt-1">
+                      Kyron Protocol Builder 6.0
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDrawerOpen(true);
+                      setTimeout(() => {
+                        const input = document.getElementById('protocol-name-input');
+                        if (input) {
+                          (input as HTMLInputElement).focus();
+                          (input as HTMLInputElement).select();
+                        }
+                      }, 150);
+                    }}
+                    className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-blue-600 rounded-lg transition-all cursor-pointer flex items-center justify-center shrink-0"
+                    title="Editar nome do protocolo"
+                  >
+                    <Edit2 size={12} />
+                  </button>
                 </div>
               </div>
 
