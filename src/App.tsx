@@ -17,6 +17,7 @@ import { useUserStore } from './store/userStore';
 import { useAuthStore } from './store/authStore';
 import { ErrorProvider } from './hooks/useErrorHandler';
 import { authApi } from './lib/api/authApi';
+import { supabase } from './lib/api/supabase';
 import { workoutApi } from './lib/api/workoutApi';
 import { profileApi } from './lib/api/profileApi';
 import { exerciseApi } from './lib/api/exerciseApi';
@@ -486,7 +487,7 @@ const App: React.FC = () => {
                     {navState.view === 'landing' && <LandingPage onStart={() => navigate('auth')} onLogin={() => navigate('auth')} />}
                     {navState.view === 'auth' && <Auth onBack={() => navigate('landing')} />}
                     {navState.view === 'onboarding' && <SmartOnboarding />}
-                    {navState.view === 'dashboard' && <Dashboard />}
+                    {navState.view === 'dashboard' && <Dashboard initialFolderId={navState.params?.folderId} />}
                     {navState.view === 'workout' && <WorkoutPlayer workoutId={navState.params.id} />}
                     {navState.view === 'preparation' && <WorkoutPreparation workoutId={navState.params.id} />}
                     {navState.view === 'editor' && <WorkoutEditor workoutId={navState.params.id} />}
@@ -495,7 +496,7 @@ const App: React.FC = () => {
                     {navState.view === 'dieta' && <MinhaDieta />}
                     {navState.view === 'profile' && <ProfileViewV2 />}
                     {navState.view === 'admin' && (
-                      isAdmin(profile) ? <AdminPanelV2 onBack={goBack} /> : <Dashboard />
+                      isAdmin(profile) ? <AdminPanelV2 onBack={goBack} /> : <Dashboard initialFolderId={navState.params?.folderId} />
                     )}
                   </>
                 )}

@@ -320,8 +320,14 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const filteredWorkouts = useMemo(() => {
     if (activeFolderId === 'public_admin') return mappedPublicWorkouts;
     if (activeFolderId === null) return workouts;
-    return workouts.filter(w => w.folder_id === activeFolderId || (!w.folder_id && activeFolderId === 'uncategorized'));
-  }, [workouts, activeFolderId, mappedPublicWorkouts]);
+    const folderIds = folders.map(f => f.id);
+    return workouts.filter(w => {
+      if (activeFolderId === 'uncategorized') {
+        return !w.folder_id || !folderIds.includes(w.folder_id);
+      }
+      return w.folder_id === activeFolderId;
+    });
+  }, [workouts, folders, activeFolderId, mappedPublicWorkouts]);
 
   // DIAGNOSTIC LOGS: Detect active protocol and active workouts on dashboard load
   useEffect(() => {
@@ -864,7 +870,12 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         {nextAction.type === 'resume' ? 'Retomar Treino' : 'Hoje Recomendado'}
                       </span>
                       <span className="text-[7.5px] font-[1000] text-slate-400 uppercase tracking-wider truncate">
-                        {folders.length > 0 ? (activeFolderId ? `Protocolo: ${folders.find(f => f.id === activeFolderId)?.name}` : 'Protocolo Geral') : 'Rubi Active'}
+                        {folders.length > 0 ? (
+                          activeFolderId === 'uncategorized' ? 'Sem pasta' :
+                          activeFolderId === 'public_admin' ? 'Públicos do Admin' :
+                          activeFolderId ? `Protocolo: ${folders.find(f => f.id === activeFolderId)?.name || 'Outro'}` :
+                          'Protocolo Geral'
+                        ) : 'Rubi Active'}
                       </span>
                     </div>
                     
@@ -1076,6 +1087,17 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                   }`}
                 >
                   Todos
+                </button>
+
+                <button
+                  onClick={() => setActiveFolderId('uncategorized')}
+                  className={`text-[9.5px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+                    activeFolderId === 'uncategorized' 
+                      ? "bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white shadow-md shadow-[#7BA7FF]/15 border-transparent font-extrabold" 
+                      : "bg-white/70 backdrop-blur-xl border border-slate-200/40 text-slate-400 hover:text-[#7BA7FF] hover:bg-white"
+                  }`}
+                >
+                  Sem pasta
                 </button>
                 
                 {folders.map((folder) => (
