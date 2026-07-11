@@ -645,6 +645,55 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [memoryLoadSuggestion, setMemoryLoadSuggestion] = useState<any>(null);
 
+  // Linear sets navigation helpers
+  const getSetsCountForExercise = (idx: number) => {
+    if (!exercises || !exercises[idx]) return 3;
+    if (workoutPerformance[idx] && workoutPerformance[idx].length > 0) {
+      return workoutPerformance[idx].length;
+    }
+    return exercises[idx].sets_json?.length || exercises[idx].sets || 3;
+  };
+
+  const canGoToNextSet = () => {
+    if (!exercises || exercises.length === 0) return false;
+    const maxSets = activeSetsData.length || getSetsCountForExercise(currentIndex);
+    if (currentSet < maxSets) return true;
+    if (currentIndex < exercises.length - 1) return true;
+    return false;
+  };
+
+  const canGoToPreviousSet = () => {
+    if (!exercises || exercises.length === 0) return false;
+    if (currentSet > 1) return true;
+    if (currentIndex > 0) return true;
+    return false;
+  };
+
+  const goToNextSet = () => {
+    if (!canGoToNextSet()) return;
+    const maxSets = activeSetsData.length || getSetsCountForExercise(currentIndex);
+    if (currentSet < maxSets) {
+      setCurrentSet(currentSet + 1);
+    } else if (currentIndex < exercises.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setCurrentSet(1);
+    }
+    if ('vibrate' in navigator) navigator.vibrate(12);
+  };
+
+  const goToPreviousSet = () => {
+    if (!canGoToPreviousSet()) return;
+    if (currentSet > 1) {
+      setCurrentSet(currentSet - 1);
+    } else if (currentIndex > 0) {
+      const prevIdx = currentIndex - 1;
+      const prevMaxSets = getSetsCountForExercise(prevIdx);
+      setCurrentIndex(prevIdx);
+      setCurrentSet(prevMaxSets);
+    }
+    if ('vibrate' in navigator) navigator.vibrate(12);
+  };
+
   useEffect(() => {
     async function fetchSuggestion() {
       try {
@@ -3199,13 +3248,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                     <div className="flex items-center gap-2 flex-1">
                       <button
-                        disabled={currentIndex === 0}
-                        onClick={() => {
-                          if (currentIndex > 0) {
-                            setCurrentIndex(currentIndex - 1);
-                            if ('vibrate' in navigator) navigator.vibrate(12);
-                          }
-                        }}
+                        disabled={!canGoToPreviousSet()}
+                        onClick={goToPreviousSet}
                         className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all duration-100 active:scale-[0.93]"
                       >
                         <ChevronLeft size={16} strokeWidth={4} />
@@ -3232,13 +3276,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       </button>
 
                       <button
-                        disabled={currentIndex === exercises.length - 1}
-                        onClick={() => {
-                          if (currentIndex < exercises.length - 1) {
-                            setCurrentIndex(currentIndex + 1);
-                            if ('vibrate' in navigator) navigator.vibrate(12);
-                          }
-                        }}
+                        disabled={!canGoToNextSet()}
+                        onClick={goToNextSet}
                         className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all duration-100 active:scale-[0.93]"
                       >
                         <ChevronRight size={16} strokeWidth={4} />
@@ -3397,13 +3436,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   {/* 3. Navigation & Complete button row */}
                   <div className="flex items-center gap-2 w-full">
                     <button
-                      disabled={currentIndex === 0}
-                      onClick={() => {
-                        if (currentIndex > 0) {
-                          setCurrentIndex(currentIndex - 1);
-                          if ('vibrate' in navigator) navigator.vibrate(12);
-                        }
-                      }}
+                      disabled={!canGoToPreviousSet()}
+                      onClick={goToPreviousSet}
                       className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all active:scale-90"
                     >
                       <ChevronLeft size={16} strokeWidth={4} />
@@ -3430,13 +3464,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     </button>
 
                     <button
-                      disabled={currentIndex === exercises.length - 1}
-                      onClick={() => {
-                        if (currentIndex < exercises.length - 1) {
-                          setCurrentIndex(currentIndex + 1);
-                          if ('vibrate' in navigator) navigator.vibrate(12);
-                        }
-                      }}
+                      disabled={!canGoToNextSet()}
+                      onClick={goToNextSet}
                       className="w-11 h-11 bg-slate-50 border border-slate-100/70 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-all active:scale-90"
                     >
                       <ChevronRight size={16} strokeWidth={4} />
