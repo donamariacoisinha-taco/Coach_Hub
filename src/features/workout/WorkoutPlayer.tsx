@@ -976,6 +976,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     useWorkoutStore.setState({ exercises: updatedExercises } as any);
 
     if (index === currentIndex) {
+      let nextActive: any[] = [];
       setActiveSetsData(prev => {
         let next = [...prev];
         if (newSetsCount > prev.length) {
@@ -986,8 +987,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         } else {
           next = next.slice(0, newSetsCount);
         }
+        nextActive = next;
         return next;
       });
+
+      setWorkoutPerformance(prev => ({
+        ...prev,
+        [currentIndex]: nextActive
+      }));
 
       if (currentSet > newSetsCount) {
         setCurrentSet(newSetsCount);
@@ -1040,7 +1047,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     });
     setCompletedSetIndices(updatedCompleted);
 
-    // 4. Start 6-second timer to commit in DB
+    // 4. Update the Zustand exercises store IMMEDIATELY!
+    if (currentEx) {
+      const updatedExercises = [...exercises];
+      const target = updatedExercises[currentIndex];
+      if (target) {
+        const currentSetsJson = target.sets_json || [];
+        const updatedSetsJson = currentSetsJson.filter((_, idx) => idx !== sIdx);
+        updatedExercises[currentIndex] = {
+          ...target,
+          sets: updatedSetsJson.length,
+          sets_json: updatedSetsJson
+        };
+        useWorkoutStore.setState({ exercises: updatedExercises } as any);
+      }
+    }
+
+    // 5. Start 6-second timer to commit in DB
     deleteTimeoutRef.current = setTimeout(() => {
       commitPendingDeletion(updatedSetsData, sIdx, updatedCompleted);
     }, 6000);
@@ -1063,8 +1086,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const updatedExercises = [...exercises];
     const target = updatedExercises[currentIndex];
     if (target) {
-      const currentSetsJson = target.sets_json || [];
-      const updatedSetsJson = currentSetsJson.filter((_, idx) => idx !== deletedIdx);
+      const origSets = target.sets_json || [];
+      const updatedSetsJson = setsToCommit.map((s, sIdx) => ({
+        reps: String(s.reps),
+        weight: Number(s.weight),
+        rest_time: Number(s.rest_time || target.rest_time || 60),
+        rpe: Number(s.rpe || 8),
+        type: s.type || origSets[sIdx]?.type || SetType.NORMAL
+      }));
       updatedExercises[currentIndex] = {
         ...target,
         sets: updatedSetsJson.length,
@@ -1100,7 +1129,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 weight_achieved: s.weight,
                 reps_achieved: s.reps,
                 rpe: s.rpe,
-                set_type: SetType.NORMAL,
+                set_type: s.type || SetType.NORMAL,
                 created_at: new Date().toISOString()
               })
             );
@@ -1191,6 +1220,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [pendingSetToComplete, setPendingSetToComplete] = useState<number | null>(null);
   const [completedSetIndices, setCompletedSetIndices] = useState<Set<number>>(new Set());
   const [isHydrating, setIsHydrating] = useState(false);
+  const [isSessionReady, setIsSessionReady] = useState(false);
+  const completingSetRef = useRef(false);
   const [completedSetsByExercise, setCompletedSetsByExercise] = useState<Record<number, Set<number>>>({});
   const [lastDeletedBackup, setLastDeletedBackup] = useState<any | null>(null);
   const deleteTimeoutRef = useRef<any>(null);
@@ -1309,47 +1340,122 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [recoverySession, setRecoverySession] = useState<any>(null);
 
   useEffect(() => {
-    if (!historyId || exercises.length === 0) return;
-    
-    async function hydrate() {
-      log("[RECOVERY] Hydrating session from logs", { historyId });
+    if (!historyId || exercises.length === 0 || isSessionReady) return;
+
+    async function coordinatedHydration() {
+      log("[HYDRATION] Starting coordinated hydration", { historyId });
       setIsHydrating(true);
-      try {
-        const logs = await workoutApi.getWorkoutLogsSimple(historyId);
-        if (logs && logs.length > 0) {
-           const newPerf: Record<number, {weight: number, reps: number, rpe: number}[]> = {};
-           const newCompletedByEx: Record<number, Set<number>> = {};
-           logs.forEach(l => {
-              const exIdx = exercises.findIndex(ex => ex.exercise_id === l.exercise_id);
-              if (exIdx === -1) return;
-              if (!newPerf[exIdx]) newPerf[exIdx] = [];
-              newPerf[exIdx][l.set_number - 1] = {
-                weight: l.weight_achieved,
-                reps: l.reps_achieved,
-                rpe: l.rpe || 8
-              };
-              if (!newCompletedByEx[exIdx]) newCompletedByEx[exIdx] = new Set();
-              newCompletedByEx[exIdx].add(l.set_number - 1);
-           });
-           setWorkoutPerformance(newPerf);
-           setCompletedSetsByExercise(newCompletedByEx);
-           
-           // Populate completed sets for current exercise
-           const currentCompleted = newCompletedByEx[currentIndex] || new Set<number>();
-           setCompletedSetIndices(currentCompleted);
+
+      let localState: any = null;
+      let remoteLogs: any[] = [];
+
+      // 1. Try reading Local continuity state
+      const localSaved = localStorage.getItem(`workout_continuity_state_${historyId}`);
+      if (localSaved) {
+        try {
+          localState = JSON.parse(localSaved);
+          log("[HYDRATION] Found local continuity state:", localState);
+        } catch (e) {
+          console.error("[HYDRATION] Failed to parse local continuity state", e);
         }
-      } catch (err) {
-        console.error("Failed to hydrate session", err);
-      } finally {
-        setIsHydrating(false);
       }
+
+      // 2. Try fetching Remote logs
+      try {
+        remoteLogs = await workoutApi.getWorkoutLogsSimple(historyId) || [];
+        log("[HYDRATION] Fetched remote logs:", remoteLogs.length);
+      } catch (err) {
+        console.error("[HYDRATION] Failed to fetch remote logs", err);
+      }
+
+      // 3. Reconcile states
+      const reconciledPerf: Record<number, {weight: number, reps: number, rpe: number, type?: SetType, rest_time?: number}[]> = {};
+      const reconciledCompletedByEx: Record<number, Set<number>> = {};
+
+      // Initialize from localState if available
+      if (localState && localState.workoutPerformance) {
+        Object.entries(localState.workoutPerformance).forEach(([exIdxStr, sets]: [string, any]) => {
+          const exIdx = parseInt(exIdxStr);
+          reconciledPerf[exIdx] = sets.map((s: any) => ({
+            weight: Number(s.weight),
+            reps: Number(s.reps),
+            rpe: Number(s.rpe || 8),
+            type: s.type || SetType.NORMAL,
+            rest_time: s.rest_time
+          }));
+        });
+      }
+
+      if (localState && localState.completedSetsByExercise) {
+        Object.entries(localState.completedSetsByExercise).forEach(([exIdxStr, list]: [string, any]) => {
+          reconciledCompletedByEx[parseInt(exIdxStr)] = new Set(list);
+        });
+      }
+
+      // Merge remote logs with high precedence for COMPLETED sets
+      if (remoteLogs.length > 0) {
+        remoteLogs.forEach(l => {
+          const exIdx = exercises.findIndex(ex => ex.exercise_id === l.exercise_id);
+          if (exIdx === -1) return;
+
+          if (!reconciledPerf[exIdx]) {
+            reconciledPerf[exIdx] = [];
+          }
+
+          const sIdx = l.set_number - 1;
+          const hasLocalSet = reconciledPerf[exIdx][sIdx] !== undefined;
+
+          if (!hasLocalSet) {
+            reconciledPerf[exIdx][sIdx] = {
+              weight: l.weight_achieved,
+              reps: l.reps_achieved,
+              rpe: l.rpe || 8,
+              type: l.set_type || SetType.NORMAL
+            };
+          } else {
+            reconciledPerf[exIdx][sIdx] = {
+              ...reconciledPerf[exIdx][sIdx],
+              weight: l.weight_achieved,
+              reps: l.reps_achieved,
+              rpe: l.rpe || 8,
+              type: l.set_type || reconciledPerf[exIdx][sIdx].type || SetType.NORMAL
+            };
+          }
+
+          if (!reconciledCompletedByEx[exIdx]) {
+            reconciledCompletedByEx[exIdx] = new Set();
+          }
+          reconciledCompletedByEx[exIdx].add(sIdx);
+        });
+      }
+
+      // 4. Update React States
+      if (localState) {
+        if (localState.currentIndex !== undefined) setCurrentIndex(localState.currentIndex);
+        if (localState.currentSet !== undefined) setCurrentSet(localState.currentSet);
+        if (localState.activeSetsData) {
+          setActiveSetsData(localState.activeSetsData);
+        }
+      }
+
+      setWorkoutPerformance(reconciledPerf);
+      setCompletedSetsByExercise(reconciledCompletedByEx);
+
+      const curIdx = localState?.currentIndex !== undefined ? localState.currentIndex : currentIndex;
+      const currentCompleted = reconciledCompletedByEx[curIdx] || new Set<number>();
+      setCompletedSetIndices(currentCompleted);
+
+      setIsSessionReady(true);
+      setIsHydrating(false);
+      log("[HYDRATION] Coordinated hydration completed successfully.");
     }
-    hydrate();
+
+    coordinatedHydration();
   }, [historyId, exercises.length]);
 
   // Continuity Storage Engine
   useEffect(() => {
-    if (!historyId || isHydrating) return;
+    if (!historyId || isHydrating || !isSessionReady) return;
     try {
       const stateToSave = {
         currentIndex,
@@ -1365,41 +1471,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     } catch (e) {
       console.warn("Continuity save failed", e);
     }
-  }, [currentIndex, currentSet, activeSetsData, workoutPerformance, completedSetIndices, completedSetsByExercise, historyId, isHydrating]);
-
-  useEffect(() => {
-    if (!historyId) return;
-    const localSaved = localStorage.getItem(`workout_continuity_state_${historyId}`);
-    if (localSaved) {
-      try {
-        const parsed = JSON.parse(localSaved);
-        log("[CONTINUITY] Restoring exact point of exit from localStorage:", parsed);
-        setIsHydrating(true);
-        if (parsed.currentIndex !== undefined) setCurrentIndex(parsed.currentIndex);
-        if (parsed.currentSet !== undefined) setCurrentSet(parsed.currentSet);
-        if (parsed.activeSetsData) {
-          setActiveSetsData(parsed.activeSetsData);
-        }
-        if (parsed.workoutPerformance) {
-          setWorkoutPerformance(parsed.workoutPerformance);
-        }
-        if (parsed.completedSetIndices) {
-          setCompletedSetIndices(new Set(parsed.completedSetIndices));
-        }
-        if (parsed.completedSetsByExercise) {
-          const restoredCompleted: Record<number, Set<number>> = {};
-          Object.entries(parsed.completedSetsByExercise).forEach(([exId, list]) => {
-            restoredCompleted[parseInt(exId)] = new Set(list as number[]);
-          });
-          setCompletedSetsByExercise(restoredCompleted);
-        }
-      } catch (err) {
-        console.error("Failed to restore from continuity storage", err);
-      } finally {
-        setIsHydrating(false);
-      }
-    }
-  }, [historyId]);
+  }, [currentIndex, currentSet, activeSetsData, workoutPerformance, completedSetIndices, completedSetsByExercise, historyId, isHydrating, isSessionReady]);
 
   useEffect(() => {
     async function checkRecovery() {
@@ -1688,13 +1760,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   // Sync Store with Query Data
   useEffect(() => {
     if (playerQuery.data && playerQuery.data.historyId) {
+      const currentStore = useWorkoutStore.getState();
+      const hasActiveSession = currentStore.historyId === playerQuery.data.historyId && currentStore.exercises.length > 0;
+
       setWorkout({
         id: workoutId,
-        exercises: playerQuery.data.exercises,
+        exercises: hasActiveSession ? currentStore.exercises : playerQuery.data.exercises,
         historyId: playerQuery.data.historyId,
         startTime: playerQuery.data.startTime,
-        currentIndex: playerQuery.data.currentIndex,
-        currentSet: playerQuery.data.currentSet
+        currentIndex: hasActiveSession ? currentStore.currentIndex : playerQuery.data.currentIndex,
+        currentSet: hasActiveSession ? currentStore.currentSet : playerQuery.data.currentSet
       });
       if (playerQuery.data.originalExercises) {
         setOriginalExercises(playerQuery.data.originalExercises);
@@ -1986,7 +2061,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     hasTriggeredRef.current = false; // Prepare for next rest
 
     // 4. Determine next step
-    const setsTarget = currentEx.sets_json?.length || 0;
+    const setsTarget = activeSetsData.length;
     const isLastSet = currentSet >= setsTarget;
 
     if (isLastSet) {
@@ -2126,7 +2201,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const lastInitializedIdx = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!currentEx || isHydrating) return;
+    if (!currentEx || isHydrating || !isSessionReady) return;
 
     // PROTECTION: Prevent infinite re-initialization loops
     // Only initialize if we changed index (exercise) or if we have no data at all
@@ -2140,16 +2215,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       return;
     }
 
-    let nextSets: { id?: string, weight: number, reps: number, rpe: number }[] = [];
+    let nextSets: { id?: string, weight: number, reps: number, rpe: number, type?: SetType, rest_time?: number }[] = [];
 
     // Prioritize existing performance data (from current session or hydration)
     if (workoutPerformance[currentIndex] && workoutPerformance[currentIndex].length > 0) {
-      nextSets = workoutPerformance[currentIndex].map((s, idx) => ({
-        id: s.id || `${currentIndex}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
-        weight: s.weight,
-        reps: s.reps,
-        rpe: s.rpe
-      }));
+      nextSets = workoutPerformance[currentIndex].map((s, idx) => {
+        const origSet = currentEx.sets_json?.[idx];
+        return {
+          id: s.id || `${currentIndex}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
+          weight: s.weight,
+          reps: s.reps,
+          rpe: s.rpe,
+          type: (s as any).type || origSet?.type || SetType.NORMAL,
+          rest_time: (s as any).rest_time || origSet?.rest_time || currentEx.rest_time || 60
+        };
+      });
     } else if (currentEx.sets_json && currentEx.sets_json.length > 0) {
       nextSets = currentEx.sets_json.map((s, idx) => {
         const fallbackRpe = s.rpe || currentEx.default_rpe || 8;
@@ -2159,21 +2239,32 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             id: `${currentIndex}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
             weight: lastSet.weight,
             reps: lastSet.reps,
-            rpe: lastSet.rpe || 8
+            rpe: lastSet.rpe || 8,
+            type: s.type || SetType.NORMAL,
+            rest_time: s.rest_time || currentEx.rest_time || 60
           };
         }
         return {
           id: `${currentIndex}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
           weight: typeof s.weight === 'number' ? s.weight : 0,
           reps: parseInt(s.reps as string) || 10,
-          rpe: fallbackRpe
+          rpe: fallbackRpe,
+          type: s.type || SetType.NORMAL,
+          rest_time: s.rest_time || currentEx.rest_time || 60
         };
       });
     } else {
       // Empty state safety: ensure at least one set exists
       const initialWeight = lastSet?.weight || 0;
       const initialReps = lastSet?.reps || 10;
-      nextSets = [{ id: `${currentIndex}_0_${Math.random().toString(36).substring(2, 7)}`, weight: initialWeight, reps: initialReps, rpe: 8 }];
+      nextSets = [{ 
+        id: `${currentIndex}_0_${Math.random().toString(36).substring(2, 7)}`, 
+        weight: initialWeight, 
+        reps: initialReps, 
+        rpe: 8,
+        type: SetType.NORMAL,
+        rest_time: currentEx.rest_time || 60
+      }];
     }
 
     // PROTECTIVE CHECK: Only update state if data has actually changed OR we are changing exercises
@@ -2187,7 +2278,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       lastInitializedIdx.current = currentIndex;
       return nextSets;
     });
-  }, [currentIndex, currentEx?.exercise_id, lastSet, isHydrating]);
+  }, [currentIndex, currentEx?.exercise_id, lastSet, isHydrating, isSessionReady]);
 
   // Sync activeSetsData to workoutPerformance
   useEffect(() => {
@@ -2207,43 +2298,140 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   }, [activeSetsData, currentIndex, currentEx?.exercise_id, isHydrating, isTransitioning]);
 
   // Update a single set's data
-  const updateSetData = (idx: number, field: 'weight' | 'reps' | 'rpe', value: number | string) => {
-    setActiveSetsData(prev => {
-      // Use map to ensure we create a new array and new objects, preventing any reference sharing issues
-      return prev.map((item, i) => {
-        if (i !== idx) return item;
-        
-        let numericValue = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
-        
-        // Safety limits
-        if (field === 'weight' && numericValue > 1000) numericValue = 1000;
-        if (field === 'reps' && numericValue > 500) numericValue = 500;
-        if (field === 'rpe' && (numericValue < 1 || numericValue > 10)) numericValue = 8;
-        
-        const updatedValue = isNaN(numericValue) ? 0 : numericValue;
-        
-        // Anomaly detection: check for huge jumps from historical data
-        if (field === 'weight' && i === idx && historicalSets.length > 0) {
-          const histSet = historicalSets.find(s => s.set_number === idx + 1) || historicalSets[0];
-          if (updatedValue > histSet.weight_achieved * 1.5 && updatedValue > histSet.weight_achieved + 20) {
-            log("[ANOMALY] Huge weight increase detected", { from: histSet.weight_achieved, to: updatedValue });
-            setAnomalyDetected(true);
-          } else {
-            setAnomalyDetected(false);
-          }
-        }
+  const updateSetData = (idx: number, field: 'weight' | 'reps' | 'rpe' | 'rest_time' | 'type', value: any) => {
+    let finalValue = value;
+    if (field === 'weight') {
+      let numericValue = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
+      if (numericValue > 1000) numericValue = 1000;
+      finalValue = isNaN(numericValue) ? 0 : numericValue;
+    } else if (field === 'reps') {
+      let numericValue = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
+      if (numericValue > 500) numericValue = 500;
+      finalValue = isNaN(numericValue) ? 0 : numericValue;
+    } else if (field === 'rpe') {
+      let numericValue = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
+      if (numericValue < 1 || numericValue > 10) numericValue = 8;
+      finalValue = isNaN(numericValue) ? 8 : numericValue;
+    } else if (field === 'rest_time') {
+      let numericValue = typeof value === 'string' ? parseInt(value) : value;
+      finalValue = isNaN(numericValue) ? 60 : numericValue;
+    }
 
-        return { ...item, [field]: updatedValue };
+    // 1. Update activeSetsData
+    let updatedActiveSets: any[] = [];
+    setActiveSetsData(prev => {
+      updatedActiveSets = prev.map((item, i) => {
+        if (i !== idx) return item;
+        return { ...item, [field]: finalValue };
       });
+      return updatedActiveSets;
     });
+
+    // 2. Sync to workoutPerformance immediately
+    setWorkoutPerformance(prev => {
+      const existing = prev[currentIndex] || [];
+      const updatedPerf = existing.map((s, i) => {
+        if (i !== idx) return s;
+        return { ...s, [field]: finalValue };
+      });
+      if (updatedPerf.length === 0 && updatedActiveSets.length > 0) {
+        return { ...prev, [currentIndex]: updatedActiveSets };
+      }
+      return { ...prev, [currentIndex]: updatedPerf };
+    });
+
+    // 3. Update the Zustand exercises store
+    if (currentEx) {
+      const updatedExercises = [...exercises];
+      const target = updatedExercises[currentIndex];
+      if (target) {
+        const origSets = target.sets_json || [];
+        const updatedSetsJson = (updatedActiveSets.length > 0 ? updatedActiveSets : (activeSetsData.map((item, i) => i === idx ? { ...item, [field]: finalValue } : item))).map((s, sIdx) => ({
+          reps: String(s.reps),
+          weight: Number(s.weight),
+          rest_time: Number(s.rest_time || origSets[sIdx]?.rest_time || target.rest_time || 60),
+          rpe: Number(s.rpe || origSets[sIdx]?.rpe || 8),
+          type: s.type || origSets[sIdx]?.type || SetType.NORMAL
+        }));
+
+        updatedExercises[currentIndex] = {
+          ...target,
+          sets: updatedSetsJson.length,
+          sets_json: updatedSetsJson
+        };
+        useWorkoutStore.setState({ exercises: updatedExercises } as any);
+      }
+    }
+
+    // Anomaly detection
+    if (field === 'weight' && idx === idx && historicalSets.length > 0) {
+      const histSet = historicalSets.find(s => s.set_number === idx + 1) || historicalSets[0];
+      const numericVal = Number(finalValue);
+      if (numericVal > histSet.weight_achieved * 1.5 && numericVal > histSet.weight_achieved + 20) {
+        log("[ANOMALY] Huge weight increase detected", { from: histSet.weight_achieved, to: numericVal });
+        setAnomalyDetected(true);
+      } else {
+        setAnomalyDetected(false);
+      }
+    }
+  };
+
+  const handleAddSet = () => {
+    const lastData = activeSetsData[activeSetsData.length - 1] || { weight: currentEx?.weight || 0, reps: parseInt(currentEx?.reps) || 10, rpe: 8, rest_time: currentEx?.rest_time || 60, type: SetType.NORMAL };
+    
+    const newSetId = `${currentIndex}_${activeSetsData.length}_${Math.random().toString(36).substring(2, 7)}`;
+    const newSet = {
+      id: newSetId,
+      weight: lastData.weight,
+      reps: lastData.reps,
+      rpe: lastData.rpe || 8,
+      rest_time: lastData.rest_time || currentEx?.rest_time || 60,
+      type: lastData.type || SetType.NORMAL
+    };
+
+    const updatedActiveSets = [...activeSetsData, newSet];
+    setActiveSetsData(updatedActiveSets);
+
+    setWorkoutPerformance(prev => ({
+      ...prev,
+      [currentIndex]: updatedActiveSets
+    }));
+
+    if (currentEx) {
+      const updatedExercises = [...exercises];
+      const target = updatedExercises[currentIndex];
+      if (target) {
+        const origSets = target.sets_json || [];
+        const updatedSetsJson = updatedActiveSets.map((s, sIdx) => ({
+          reps: String(s.reps),
+          weight: Number(s.weight),
+          rest_time: Number(s.rest_time || target.rest_time || 60),
+          rpe: Number(s.rpe || 8),
+          type: s.type || origSets[sIdx]?.type || SetType.NORMAL
+        }));
+
+        updatedExercises[currentIndex] = {
+          ...target,
+          sets: updatedSetsJson.length,
+          sets_json: updatedSetsJson
+        };
+        useWorkoutStore.setState({ exercises: updatedExercises } as any);
+      }
+    }
+
+    if ('vibrate' in navigator) navigator.vibrate([10, 30, 10]);
   };
 
   const handleCompleteSet = async () => {
-    if (saving || !currentEx || !historyId || isResting) return;
+    if (saving || !currentEx || !historyId || isResting || completingSetRef.current) return;
+    completingSetRef.current = true;
     
     const setIdx = currentSet - 1;
     const currentSetData = activeSetsData[setIdx];
-    if (!currentSetData) return;
+    if (!currentSetData) {
+      completingSetRef.current = false;
+      return;
+    }
 
     const { weight, reps, rpe } = currentSetData;
     const repsTarget = parseInt(currentEx.sets_json?.[setIdx]?.reps as string) || 10;
@@ -2330,6 +2518,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       showError(err);
     } finally {
       setSaving(false);
+      completingSetRef.current = false;
     }
   };
 
@@ -2551,6 +2740,34 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         const targetWeight = typeof ex.weight === 'string' ? parseFloat(ex.weight) : (ex.weight || 0);
         const targetRest = ex.rest_time || 60;
 
+        // Resolve individual, non-uniform sets_json
+        let finalSetsJson = ex.sets_json;
+        const perfSets = workoutPerformance[index];
+        if (!finalSetsJson || finalSetsJson.length !== numSets) {
+          if (perfSets && perfSets.length === numSets) {
+            finalSetsJson = perfSets.map((s, sIdx) => ({
+              reps: String(s.reps),
+              weight: Number(s.weight),
+              rest_time: Number(s.rest_time || ex.rest_time || 60),
+              rpe: Number(s.rpe || 8),
+              type: s.type || SetType.NORMAL
+            }));
+          } else {
+            finalSetsJson = Array.from({ length: numSets }).map((_, sIdx) => {
+              const existingSet = ex.sets_json?.[sIdx] || perfSets?.[sIdx];
+              return {
+                reps: existingSet?.reps ? String(existingSet.reps) : targetReps,
+                weight: existingSet?.weight !== undefined ? Number(existingSet.weight) : targetWeight,
+                rest_time: Number(existingSet?.rest_time || targetRest),
+                type: existingSet?.type || SetType.NORMAL
+              };
+            });
+          }
+        }
+
+        const firstSetReps = finalSetsJson[0]?.reps || targetReps;
+        const firstSetWeight = finalSetsJson[0]?.weight !== undefined ? Number(finalSetsJson[0].weight) : targetWeight;
+
         if (ex.id) {
           // Existed in original template -> Update granularly
           const orig = originalExercises.find(o => o.id === ex.id);
@@ -2566,25 +2783,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             if (orig.sets !== numSets) {
               patch.sets = numSets;
             }
-            if (orig.reps !== targetReps) {
-              patch.reps = targetReps;
+            if (orig.reps !== firstSetReps) {
+              patch.reps = firstSetReps;
             }
-            if (orig.weight !== targetWeight) {
-              patch.weight = targetWeight;
+            if (orig.weight !== firstSetWeight) {
+              patch.weight = firstSetWeight;
             }
             if (orig.rest_time !== targetRest) {
               patch.rest_time = targetRest;
             }
 
-            const baseSetsJson = Array.from({ length: numSets }).map(() => ({
-              reps: targetReps,
-              weight: targetWeight,
-              rest_time: targetRest,
-              type: SetType.NORMAL
-            }));
-
-            if (JSON.stringify(orig.sets_json) !== JSON.stringify(baseSetsJson)) {
-              patch.sets_json = baseSetsJson;
+            if (JSON.stringify(orig.sets_json) !== JSON.stringify(finalSetsJson)) {
+              patch.sets_json = finalSetsJson;
             }
 
             if (Object.keys(patch).length > 0) {
@@ -2599,15 +2809,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             exercise_id: ex.exercise_id,
             sort_order: index,
             sets: numSets,
-            reps: targetReps,
-            weight: targetWeight,
+            reps: firstSetReps,
+            weight: firstSetWeight,
             rest_time: targetRest,
-            sets_json: Array.from({ length: numSets }).map(() => ({
-              reps: targetReps,
-              weight: targetWeight,
-              rest_time: targetRest,
-              type: SetType.NORMAL
-            })),
+            sets_json: finalSetsJson,
             exercise_name_snapshot: ex.exercise_name || 'Exercício'
           };
           const { error } = await supabase.from('workout_exercises').insert([newRow]);
@@ -3023,11 +3228,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                 {/* BOTÃO ADICIONAR SÉRIE (ERGO) */}
                 <button 
-                  onClick={() => {
-                    const lastData = activeSetsData[activeSetsData.length - 1] || { weight: 0, reps: 10, rpe: 8 };
-                    setActiveSetsData(prev => [...prev, { ...lastData, id: `${currentIndex}_${prev.length}_${Math.random().toString(36).substring(2, 7)}` }]);
-                    // O auto-scroll lidará com o foco se for a próxima série
-                  }}
+                  onClick={handleAddSet}
                   className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-[#7BA7FF]/30 hover:text-[#7BA7FF] transition-all flex items-center justify-center gap-2 mt-4 hover:bg-[#7BA7FF]/5 h-[56px]"
                 >
                   <Plus size={14} /> Adicionar Série
