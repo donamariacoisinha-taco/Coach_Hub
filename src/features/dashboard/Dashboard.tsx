@@ -30,7 +30,6 @@ import { premiumProtocolRealtimeService } from '../../lib/api/PremiumProtocolRea
 import { Crown, Sliders } from 'lucide-react';
 import { isAdmin } from '../../lib/utils/auth';
 import { playHapticFeedback } from '../../services/athleteMemoryEngine';
-import { runProtocolFailsafeAndAudit } from '../../lib/utils/failsafe';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
@@ -78,7 +77,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const handleSyncPlan = async () => {
     try {
       setIsSyncing(true);
-      console.log('[KYRON_OS_DIAGNOSTIC] User requested plan synchronization...');
       const session = await authApi.getSession();
       if (!session?.user) {
         showError('Sessão expirada. Por favor, faça login novamente.');
@@ -108,69 +106,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         }
       }
 
-      // Se não houver absolutamente nenhuma pasta, vamos criar uma pasta e treinos failsafe automáticos
-      if (!userFolders || userFolders.length === 0 || !targetFolderId) {
-        console.warn('[KYRON_OS_DIAGNOSTIC] Sync detected zero folders. Provisioning emergency protocols...');
-        const newFolder = await workoutApi.createFolder(userId, 'Kyron OS: Plano Failsafe');
-        targetFolderId = newFolder.id;
-        localStorage.setItem('favorite_workout_folder_id', targetFolderId);
-
-        const cat = await workoutApi.createCategory({
-          user_id: userId,
-          folder_id: targetFolderId,
-          name: 'Treino A — Ativação Geral',
-          description: 'Treino adaptativo de ativação emergencial.'
-        });
-        
-        await workoutApi.insertWorkoutExercises([{
-          category_id: cat.id,
-          exercise_id: '5ce43864-44ac-4822-ba91-30efc477431e',
-          exercise_name_snapshot: 'Leg Press 45',
-          sets: 3,
-          reps: '12',
-          weight: 40,
-          rest_time: 60,
-          sort_order: 1,
-          sets_json: [
-            { reps: '12', weight: 40, rest_time: 60 },
-            { reps: '12', weight: 40, rest_time: 60 },
-            { reps: '12', weight: 40, rest_time: 60 }
-          ]
-        }]);
-      } else {
-        // Verificar se essa pasta favorita tem treinos. Se não tiver, adicionar Treino A failsafe para o usuário
-        const { data: categories } = await supabase
-          .from('workout_categories')
-          .select('id')
-          .eq('folder_id', targetFolderId);
-
-        if (!categories || categories.length === 0) {
-          console.warn('[KYRON_OS_DIAGNOSTIC] Target folder has no workouts. Generating active workout plan categories...');
-          const cat = await workoutApi.createCategory({
-            user_id: userId,
-            folder_id: targetFolderId,
-            name: 'Treino A — Ativação Geral',
-            description: 'Treino adaptativo de ativação emergencial.'
-          });
-          
-          await workoutApi.insertWorkoutExercises([{
-            category_id: cat.id,
-            exercise_id: '5ce43864-44ac-4822-ba91-30efc477431e',
-            exercise_name_snapshot: 'Leg Press 45',
-            sets: 3,
-            reps: '12',
-            weight: 40,
-            rest_time: 60,
-            sort_order: 1,
-            sets_json: [
-              { reps: '12', weight: 40, rest_time: 60 },
-              { reps: '12', weight: 40, rest_time: 60 },
-              { reps: '12', weight: 40, rest_time: 60 }
-            ]
-          }]);
-        }
-      }
-
       // Re-set active folder id to force visual alignment
       if (targetFolderId) {
         setActiveFolderId(targetFolderId);
@@ -181,15 +116,14 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       await refresh();
       showSuccess('Sincronização Concluída!', 'Seu plano de treino ativo foi sincronizado e carregado com sucesso.');
     } catch (err: any) {
-      console.error('[KYRON_OS_DIAGNOSTIC] Error syncing plan:', err);
-      showError('Ocorreu um erro ao sincronizar seu plano. Tentando recriar estrutura local...');
+      console.error('Error syncing plan:', err);
+      showError('Ocorreu um erro ao sincronizar seu plano.');
     } finally {
       setIsSyncing(false);
     }
   };
 
   const handleRegenerate = () => {
-    console.log('[KYRON_OS_DIAGNOSTIC] User requested regeneration of protocol...');
     navigate('onboarding');
   };
   const [createFolderLoading, setCreateFolderLoading] = useState(false);
@@ -329,42 +263,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     });
   }, [workouts, folders, activeFolderId, mappedPublicWorkouts]);
 
-  // DIAGNOSTIC LOGS: Detect active protocol and active workouts on dashboard load
-  useEffect(() => {
-    if (activeFolderId && folders.length > 0) {
-      const activeFolder = folders.find(f => f.id === activeFolderId);
-      if (activeFolder) {
-        console.log('[KYRON_OS_DIAGNOSTIC] DASHBOARD_PROTOCOL_FOUND', {
-          folderId: activeFolder.id,
-          folderName: activeFolder.name
-        });
-      }
-    }
-    if (filteredWorkouts && filteredWorkouts.length > 0) {
-      console.log('[KYRON_OS_DIAGNOSTIC] DASHBOARD_WORKOUT_FOUND', {
-        workoutsCount: filteredWorkouts.length,
-        firstWorkoutName: filteredWorkouts[0]?.name || 'N/A'
-      });
-    }
-  }, [activeFolderId, folders, filteredWorkouts]);
-
-  // CRITICAL AUDIT & FAILSAFE FOR ONBOARDING EXERCISES (KYRON OS)
-  useEffect(() => {
-    async function executeAudit() {
-      if (profile?.id) {
-        const email = profile.email || 'atleta@kyron.os';
-        const targetFolder = activeFolderId || profile.active_plan_id;
-        const result = await runProtocolFailsafeAndAudit(profile.id, email, targetFolder);
-        if (result.autocorrected) {
-          console.log('[KYRON_OS_DIAGNOSTIC] Failsafe correction completed on dashboard load. Refreshing view...');
-          refresh();
-        }
-      }
-    }
-    if (profile?.id) {
-      executeAudit();
-    }
-  }, [profile?.id, activeFolderId, profile?.active_plan_id]);
 
   const handlePrefetchWorkout = async (id: string) => {
     const currentStoreId = useWorkoutStore.getState().currentWorkoutId;

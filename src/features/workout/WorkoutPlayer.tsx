@@ -548,6 +548,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   useEffect(() => {
     authApi.getUser().then(setUser).catch(console.error);
+    console.info(
+      '[WORKOUT_PLAYER_BUILD]',
+      'set-navigation-hotfix-v2'
+    );
   }, []);
   
   // Global State
@@ -1027,6 +1031,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     // 1. Immediately remove from React state (pure local and performance)
     const updatedSetsData = activeSetsData.filter((_, idx) => idx !== sIdx);
     setActiveSetsData(updatedSetsData);
+    activeSetsDataRef.current = updatedSetsData;
     setWorkoutPerformance(prev => ({
       ...prev,
       [currentIndex]: updatedSetsData
@@ -1226,6 +1231,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [lastDeletedBackup, setLastDeletedBackup] = useState<any | null>(null);
   const deleteTimeoutRef = useRef<any>(null);
   const restEndTimestampRef = useRef<number | null>(null);
+
+  const activeSetsDataRef = useRef(activeSetsData);
+  activeSetsDataRef.current = activeSetsData;
+
+  const currentSetRef = useRef(currentSet);
+  currentSetRef.current = currentSet;
+
+  const currentIndexRef = useRef(currentIndex);
+  currentIndexRef.current = currentIndex;
+
+  const exercisesRef = useRef(exercises);
+  exercisesRef.current = exercises;
 
   // Sync completedSetIndices with completedSetsByExercise
   useEffect(() => {
@@ -2060,19 +2077,43 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     setRestOvertime(0);
     hasTriggeredRef.current = false; // Prepare for next rest
 
-    // 4. Determine next step
-    const setsTarget = activeSetsData.length;
-    const isLastSet = currentSet >= setsTarget;
+    // 4. Determine next step using latest non-stale state refs
+    const latestActiveSetsData = activeSetsDataRef.current;
+    const latestCurrentSet = currentSetRef.current;
+    const latestExercises = exercisesRef.current;
+    const latestCurrentIndex = currentIndexRef.current;
+
+    const setsTarget = latestActiveSetsData.length;
+    const isLastSet = latestCurrentSet >= setsTarget;
+
+    console.info('[SET_COMPLETION_DECISION]', {
+      exerciseIndex: latestCurrentIndex,
+      exerciseId: currentEx.exercise_id,
+      currentSetIndex: latestCurrentSet - 1,
+      currentSetNumber: latestCurrentSet,
+      activeSetsLength: latestActiveSetsData.length,
+      runtimeSetsLength: latestActiveSetsData.length,
+      originalSetsLength: currentEx.sets_json?.length ?? 0,
+      isLastRuntimeSet: isLastSet,
+      decision: isLastSet
+        ? 'ADVANCE_EXERCISE'
+        : 'ADVANCE_SET'
+    });
+
+    let nextIndex = latestCurrentIndex;
+    let nextSet = latestCurrentSet;
 
     if (isLastSet) {
       // Ask user if they wish to keep current exercise settings for next sessions
-      await promptAndSaveExerciseData(currentEx, activeSetsData);
+      await promptAndSaveExerciseData(currentEx, latestActiveSetsData);
 
-      if (currentIndex < exercises.length - 1) {
+      if (latestCurrentIndex < latestExercises.length - 1) {
         log("[ADVANCE_WORKOUT] Next Exercise");
         showSuccess(`Excelente! ${currentEx.exercise_name} concluído.`);
-        setCurrentIndex(currentIndex + 1);
-        setCurrentSet(1);
+        nextIndex = latestCurrentIndex + 1;
+        nextSet = 1;
+        setCurrentIndex(nextIndex);
+        setCurrentSet(nextSet);
         setCompletedSetIndices(new Set()); 
       } else {
         log("[ADVANCE_WORKOUT] Workout Finished");
@@ -2080,11 +2121,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     } else {
       log("[ADVANCE_WORKOUT] Next Set");
-      setCurrentSet(currentSet + 1);
+      nextSet = latestCurrentSet + 1;
+      setCurrentSet(nextSet);
     }
 
-    // 5. Update Remote Session
-    workoutApi.updatePartialSession(historyId, currentIndex, currentSet).catch(console.error);
+    // 5. Update Remote Session with correct non-stale next values
+    workoutApi.updatePartialSession(historyId, nextIndex, nextSet).catch(console.error);
     setPendingSetToComplete(null);
 
     // 6. Natural Delay for UI stability & Focus
@@ -2390,7 +2432,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     };
 
     const updatedActiveSets = [...activeSetsData, newSet];
-    setActiveSetsData(updatedActiveSets);
+    setActiveSetsData(previous => {
+      const updated = [...previous, newSet];
+      activeSetsDataRef.current = updated;
+      return updated;
+    });
 
     setWorkoutPerformance(prev => ({
       ...prev,
@@ -2855,7 +2901,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
-  const isFinalSetOfExercise = currentEx && currentSet >= (currentEx.sets_json?.length || 0);
+  const isFinalSetOfExercise = currentEx && currentSet >= (activeSetsData.length || currentEx.sets_json?.length || 0);
   const isFinalExercise = exercises && currentIndex >= exercises.length - 1;
   const isWorkoutTerminal = isFinalSetOfExercise && isFinalExercise;
 

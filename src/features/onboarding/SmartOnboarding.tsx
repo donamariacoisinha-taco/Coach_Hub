@@ -287,7 +287,7 @@ export default function SmartOnboarding() {
     const fallbackLegPressId = legPressEx?.id || 'f1b01c1c-99e6-4251-ba84-475253896001';
 
     try {
-      console.log('[KYRON_OS_DIAGNOSTIC] ONBOARDING_COMPLETED', { userId, isRedoing });
+      console.log('[Onboarding] ONBOARDING_COMPLETED', { userId, isRedoing });
 
       // ETAPA 1: VALIDAR CRIAÇÃO DO PROTOCOLO (Se for compatível e tiver matchItem, ou se tiver draft)
       const finalProtocolId = matchItem?.id || providedFallbackDraft?.id || customGeneratedDraft?.id || 'failsafe-id';
@@ -295,16 +295,16 @@ export default function SmartOnboarding() {
       const finalProtocolStatus = matchItem?.status || 'Active';
       const finalProtocolCreatedAt = matchItem?.created_at || new Date().toISOString();
 
-      console.log('[KYRON_OS_DIAGNOSTIC] PROTOCOL_CREATED', {
+      console.log('[Onboarding] PROTOCOL_CREATED', {
         id: finalProtocolId,
         nome: finalProtocolName,
         status: finalProtocolStatus,
         data_criacao: finalProtocolCreatedAt
       });
 
-      // Se não existir protocolo válido e não for fallback, interromper para lançar o regenerador / failsafe
+      // Se não existir protocolo válido e não for fallback, interromper para lançar o regenerador
       if (!isFallback && !matchItem && !providedFallbackDraft && !customGeneratedDraft) {
-        console.warn('[KYRON_OS_DIAGNOSTIC] Protocol validation failed. No protocol found. Triggering regeneration fallback...');
+        console.warn('[Onboarding] Protocol validation failed. No protocol found. Triggering regeneration fallback...');
         throw new Error('Nenhum protocolo válido encontrado para ativação.');
       }
 
@@ -386,11 +386,11 @@ export default function SmartOnboarding() {
 
       // ETAPA 2 & 3: VALIDAR VÍNCULO COM O USUÁRIO E CRIAR SE NÃO EXISTIR (Vínculo é o folder com o user_id e a chave favorita)
       if (!clonedFolder) {
-        console.warn('[KYRON_OS_DIAGNOSTIC] Cloned folder missing. Establishing failsafe folder link...');
+        console.warn('[Onboarding] Cloned folder missing. Establishing folder link...');
         clonedFolder = await workoutApi.createFolder(userId, finalProtocolName || 'Meu Protocolo Kyron OS');
       }
 
-      console.log('[KYRON_OS_DIAGNOSTIC] PROTOCOL_ASSIGNED', {
+      console.log('[Onboarding] PROTOCOL_ASSIGNED', {
         folderId: clonedFolder.id,
         folderName: clonedFolder.name,
         userId: userId,
@@ -408,9 +408,9 @@ export default function SmartOnboarding() {
         .eq('folder_id', clonedFolder.id)
         .order('created_at', { ascending: true });
 
-      // Se não houver treinos gerados para a pasta, cria um treino inicial/failsafe automático
+      // Se não houver treinos gerados para a pasta, cria um treino inicial automático
       if (!categories || categories.length === 0) {
-        console.warn('[KYRON_OS_DIAGNOSTIC] Workout plan empty. Generating active workout plan categories...');
+        console.warn('[Onboarding] Workout plan empty. Generating active workout plan categories...');
         const cat = await workoutApi.createCategory({
           user_id: userId,
           folder_id: clonedFolder.id,
@@ -456,13 +456,13 @@ export default function SmartOnboarding() {
         await workoutApi.insertWorkoutExercises(finalPayload);
 
         setFirstWorkoutId(cat.id);
-        console.log('[KYRON_OS_DIAGNOSTIC] WORKOUT_PLAN_CREATED', {
+        console.log('[Onboarding] WORKOUT_PLAN_CREATED', {
           categoriesCount: 1,
           firstWorkoutId: cat.id
         });
       } else {
         setFirstWorkoutId(categories[0].id);
-        console.log('[KYRON_OS_DIAGNOSTIC] WORKOUT_PLAN_CREATED', {
+        console.log('[Onboarding] WORKOUT_PLAN_CREATED', {
           categoriesCount: categories.length,
           firstWorkoutId: categories[0].id
         });
@@ -497,7 +497,7 @@ export default function SmartOnboarding() {
       if (fullProfile) setProfile(fullProfile);
 
       // ETAPA 6: REFRESH IMEDIATO DO CACHE DO DASHBOARD
-      console.log('[KYRON_OS_DIAGNOSTIC] Invalidating and clearing query caches for immediate refresh...');
+      console.log('[Onboarding] Invalidating and clearing query caches for immediate refresh...');
       cacheStore.clear(); // Clear memory query caches
       localStorage.removeItem(`rubi_dashboard_cache_${userId}`); // Clear local storage dashboard backup cache
 
@@ -1048,7 +1048,7 @@ export default function SmartOnboarding() {
     }
 
     try {
-      console.log('[KYRON_OS_DIAGNOSTIC] Navigating to Dashboard - Executing ETAPA 7 Secure Redirect Validation...');
+      console.log('[Onboarding] Navigating to Dashboard - Executing ETAPA 7 Secure Redirect Validation...');
       
       // Clear memory cache so dashboard query is forced to fetch fresh data
       cacheStore.clear();
@@ -1059,7 +1059,7 @@ export default function SmartOnboarding() {
       
       // FAILSAFE 1: Se não houver vínculo no localStorage, tentar encontrar uma pasta existente do usuário no banco
       if (!activePlanId) {
-        console.warn('[KYRON_OS_DIAGNOSTIC] Failsafe 1 activated - favorite_workout_folder_id missing in localStorage. Querying database...');
+        console.warn('[Onboarding] Failsafe 1 activated - favorite_workout_folder_id missing in localStorage. Querying database...');
         const { data: userFolders } = await supabase
           .from('workout_folders')
           .select('id, name')
@@ -1070,7 +1070,7 @@ export default function SmartOnboarding() {
         if (userFolders && userFolders.length > 0) {
           activePlanId = userFolders[0].id;
           localStorage.setItem('favorite_workout_folder_id', activePlanId);
-          console.log('[KYRON_OS_DIAGNOSTIC] Failsafe 1 resolved - Linked existing folder:', userFolders[0].name);
+          console.log('[Onboarding] Failsafe 1 resolved - Linked existing folder:', userFolders[0].name);
         }
       }
 
@@ -1093,7 +1093,7 @@ export default function SmartOnboarding() {
 
           if (categories && categories.length > 0) {
             hasWorkouts = true;
-            console.log('[KYRON_OS_DIAGNOSTIC] DASHBOARD_PROTOCOL_FOUND and DASHBOARD_WORKOUT_FOUND verified.', {
+            console.log('[Onboarding] DASHBOARD_PROTOCOL_FOUND and DASHBOARD_WORKOUT_FOUND verified.', {
               activePlanId,
               workoutsCount: categories.length
             });
@@ -1103,7 +1103,7 @@ export default function SmartOnboarding() {
 
       // FAILSAFE 2: Se a pasta favorita não tiver treinos ou não existir, criar pasta e treinos emergenciais
       if (!activePlanId || !hasWorkouts) {
-        console.warn('[KYRON_OS_DIAGNOSTIC] Failsafe 2 activated - Missing active plan or workouts. Building emergency training sheet...');
+        console.warn('[Onboarding] Failsafe 2 activated - Missing active plan or workouts. Building emergency training sheet...');
         
         let targetFolderId = activePlanId;
         if (!targetFolderId) {
@@ -1156,17 +1156,17 @@ export default function SmartOnboarding() {
         
         await workoutApi.insertWorkoutExercises(finalPayload);
 
-        console.log('[KYRON_OS_DIAGNOSTIC] Failsafe 2 resolved - Emergency plan generated with Treino A.');
+        console.log('[Onboarding] Failsafe 2 resolved - Emergency plan generated with Treino A.');
       }
 
       // Final cache clearing right before routing to guarantee instant refresh
       cacheStore.clear();
       localStorage.removeItem(`rubi_dashboard_cache_${userId}`);
 
-      console.log('[KYRON_OS_DIAGNOSTIC] Validation success. Redirecting safely to dashboard...');
+      console.log('[Onboarding] Validation success. Redirecting safely to dashboard...');
       navigate('dashboard');
     } catch (e) {
-      console.error('[KYRON_OS_DIAGNOSTIC] Error in redirection validation:', e);
+      console.error('[Onboarding] Error in redirection validation:', e);
       // FAILSAFE 4: Se qualquer etapa falhar, limpa cache e navega para que o novo Empty State do Dashboard assuma o controle
       cacheStore.clear();
       navigate('dashboard');
