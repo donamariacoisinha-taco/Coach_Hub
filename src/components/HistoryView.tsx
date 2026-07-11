@@ -6,6 +6,7 @@ import { workoutApi } from '../lib/api/workoutApi';
 import { profileApi } from '../lib/api/profileApi';
 import { systemTemplatesApi } from '../lib/api/systemTemplatesApi';
 import { supabase } from '../lib/api/supabase';
+import { exerciseApi } from '../lib/api/exerciseApi';
 import ProgressPhotos from './ProgressPhotos';
 import BioReport from './BioReport';
 import ShareCard from './ShareCard';
@@ -138,13 +139,40 @@ const HistoryView: React.FC = () => {
         setProtocolUpdates(detected);
 
         // 3. Load all workout sets logs to extract PRs, Top 5 Lifts, and Exercise Evolutions
-        const { data: rawLogs, error: logsError } = await supabase
+        let rawLogs: any[] = [];
+        const logsResWithJoin = await supabase
           .from('workout_sets_log')
           .select('*, exercises(id, name, muscle_group)')
           .eq('user_id', user.id)
           .order('created_at', { ascending: true }); // chronological order
 
-        if (logsError) throw logsError;
+        if (logsResWithJoin.error) {
+          console.warn('[HistoryView] Logs join failed, falling back to select("*")', logsResWithJoin.error);
+          const logsResSimple = await supabase
+            .from('workout_sets_log')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true });
+          
+          if (logsResSimple.error) throw logsResSimple.error;
+          rawLogs = logsResSimple.data || [];
+        } else {
+          rawLogs = logsResWithJoin.data || [];
+        }
+
+        // Map exercises client-side if join is missing
+        if (rawLogs.length > 0 && !rawLogs[0].exercises) {
+          try {
+            const exercisesList = await exerciseApi.getExercises();
+            const exercisesMap = new Map(exercisesList.map(e => [e.id, e]));
+            rawLogs = rawLogs.map(log => ({
+              ...log,
+              exercises: exercisesMap.get(log.exercise_id) || { id: log.exercise_id, name: log.exercise_name_snapshot || 'Exercício', muscle_group: 'Outros' }
+            }));
+          } catch (e) {
+            console.warn('[HistoryView] Client-side fallback join failed:', e);
+          }
+        }
 
         if (rawLogs && rawLogs.length > 0) {
           const prsMap = new Map<string, any>(); // exercise_id -> Best overall log

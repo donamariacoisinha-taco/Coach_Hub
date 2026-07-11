@@ -35,6 +35,7 @@ import { mediaApi } from '../../lib/api/mediaApi';
 import { useNavigation } from '../../App';
 import { supabase } from '../../lib/api/supabase';
 import { BodyProjectionModule } from './BodyProjectionModule';
+import { exerciseApi } from '../../lib/api/exerciseApi';
 
 interface ProgressIntelligenceProps {
   history: WorkoutHistory[];
@@ -77,7 +78,8 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
           }
 
           // Fetch all granular set logs completed by this user (including coordinates and weights)
-          const { data: logs, error } = await supabase
+          let logsData: any[] = [];
+          const logsResWithJoin = await supabase
             .from('workout_sets_log')
             .select(`
               *,
@@ -86,9 +88,36 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
             .eq('user_id', u.id)
             .order('created_at', { ascending: true });
           
-          if (!error && logs) {
-            setAllLogs(logs);
+          if (logsResWithJoin.error) {
+            console.warn('[ProgressIntelligence] logs join failed, falling back to select("*")', logsResWithJoin.error);
+            const logsResSimple = await supabase
+              .from('workout_sets_log')
+              .select('*')
+              .eq('user_id', u.id)
+              .order('created_at', { ascending: true });
+            
+            if (!logsResSimple.error && logsResSimple.data) {
+              logsData = logsResSimple.data;
+            }
+          } else if (logsResWithJoin.data) {
+            logsData = logsResWithJoin.data;
           }
+
+          // Map exercises client-side if join is missing
+          if (logsData.length > 0 && !logsData[0].exercises) {
+            try {
+              const exercisesList = await exerciseApi.getExercises();
+              const exercisesMap = new Map(exercisesList.map(e => [e.id, e]));
+              logsData = logsData.map(log => ({
+                ...log,
+                exercises: exercisesMap.get(log.exercise_id) || { id: log.exercise_id, name: log.exercise_name_snapshot || 'Exercício', muscle_group: 'Outros' }
+              }));
+            } catch (e) {
+              console.warn('[ProgressIntelligence] Client-side fallback join failed:', e);
+            }
+          }
+
+          setAllLogs(logsData);
         }
       } catch (e) {
         console.error("Erro ao carregar telemetria:", e);

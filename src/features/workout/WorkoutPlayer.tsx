@@ -387,11 +387,16 @@ const SwipeableSetCard: React.FC<SwipeableSetCardProps> = ({
   children,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isSwiping, setIsSwiping] = useState(false);
 
   return (
     <div ref={containerRef} className="relative overflow-hidden rounded-2xl select-none">
       {/* Red Delete Background */}
-      <div className="absolute inset-0 bg-rose-50 flex items-center justify-end px-6 text-rose-500 rounded-2xl border border-rose-100/50 z-0">
+      <div 
+        className={`absolute inset-0 bg-rose-50 flex items-center justify-end px-6 text-rose-500 rounded-2xl border border-rose-100/50 z-0 transition-opacity duration-200 ${
+          isSwiping ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      >
         <div className="flex items-center gap-1.5 font-extrabold text-[10px] uppercase tracking-wider">
           <span>Excluir Série {idx + 1}</span>
           <Trash2 size={14} strokeWidth={2.5} />
@@ -405,7 +410,9 @@ const SwipeableSetCard: React.FC<SwipeableSetCardProps> = ({
         dragConstraints={{ left: -300, right: 0 }}
         dragElastic={{ left: 0.12, right: 0 }}
         dragMomentum={false}
+        onDragStart={() => setIsSwiping(true)}
         onDragEnd={(event, info) => {
+          setIsSwiping(false);
           const width = containerRef.current?.getBoundingClientRect().width || 320;
           const threshold = width * 0.45;
           if (info.offset.x < -threshold) {
@@ -436,10 +443,15 @@ const SwipeableSetRow: React.FC<SwipeableSetRowProps> = ({
   onDeleteRequest,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isSwiping, setIsSwiping] = useState(false);
   return (
     <div ref={containerRef} className="relative overflow-hidden rounded-xl h-11 select-none">
       {/* Red Delete Background */}
-      <div className="absolute inset-0 bg-rose-50 flex items-center justify-end px-4 text-rose-500 rounded-xl border border-rose-100 z-0">
+      <div 
+        className={`absolute inset-0 bg-rose-50 flex items-center justify-end px-4 text-rose-500 rounded-xl border border-rose-100 z-0 transition-opacity duration-200 ${
+          isSwiping ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      >
         <div className="flex items-center gap-1.5 font-extrabold text-[9px] uppercase tracking-wider">
           <span>Excluir</span>
           <Trash2 size={13} strokeWidth={2.5} />
@@ -453,7 +465,9 @@ const SwipeableSetRow: React.FC<SwipeableSetRowProps> = ({
         dragConstraints={{ left: -300, right: 0 }}
         dragElastic={{ left: 0.15, right: 0 }}
         dragMomentum={false}
+        onDragStart={() => setIsSwiping(true)}
         onDragEnd={(event, info) => {
+          setIsSwiping(false);
           const width = containerRef.current?.getBoundingClientRect().width || 320;
           const threshold = width * 0.6;
           if (info.offset.x < -threshold) {

@@ -192,24 +192,51 @@ export const workoutApi = {
   async getWorkoutInitData(workoutId: string, userId: string) {
     return fetchWithRetry(async () => {
       try {
-        const [catRes, exRes, partialRes] = await Promise.all([
+        const [catRes, partialRes] = await Promise.all([
           supabase.from('workout_categories').select('*').eq('id', workoutId).single(),
-          supabase.from('workout_exercises')
-            .select(`*, exercises (id, name, muscle_group, image_url, is_active)`)
-            .eq('category_id', workoutId)
-            .order('sort_order'),
           supabase.from('partial_workout_sessions').select('*').eq('user_id', userId).eq('workout_id', workoutId).maybeSingle()
         ]);
 
         if (catRes.error) throw catRes.error;
-        if (exRes.error) throw exRes.error;
 
-        const loadedExercises = (exRes.data || []).map((item: any) => ({
-          ...item,
-          exercise_name: item.exercises?.name || item.exercise_name_snapshot || item.exercise_name || 'Exercício Indisponível',
-          muscle_group: normalizeMuscleGroup(item.exercises?.muscle_group || item.muscle_group || 'Outros'),
-          exercise_image: item.exercises?.image_url || item.exercise_image
-        }));
+        // Fetch exercises with fallback join
+        let exercisesData: any[] = [];
+        const exResWithJoin = await supabase.from('workout_exercises')
+          .select(`*, exercises (id, name, muscle_group, image_url, is_active)`)
+          .eq('category_id', workoutId)
+          .order('sort_order');
+
+        if (exResWithJoin.error) {
+          console.warn('[workoutApi] Join query in getWorkoutInitData failed, falling back to select("*") from workout_exercises', exResWithJoin.error);
+          const exResSimple = await supabase.from('workout_exercises')
+            .select('*')
+            .eq('category_id', workoutId)
+            .order('sort_order');
+          
+          if (exResSimple.error) throw exResSimple.error;
+          exercisesData = exResSimple.data || [];
+        } else {
+          exercisesData = exResWithJoin.data || [];
+        }
+
+        // Fetch exercise library to do client-side mapping if join didn't work or returned null exercises
+        let exercisesList: Exercise[] = [];
+        try {
+          exercisesList = await exerciseApi.getExercises();
+        } catch (e) {
+          console.warn('[workoutApi] Failed to load exercises list for client-side join:', e);
+        }
+        const exercisesMap = new Map(exercisesList.map(e => [e.id, e]));
+
+        const loadedExercises = exercisesData.map((item: any) => {
+          const resolvedExercise = item.exercises || exercisesMap.get(item.exercise_id);
+          return {
+            ...item,
+            exercise_name: resolvedExercise?.name || item.exercise_name_snapshot || item.exercise_name || item.custom_name || 'Exercício Indisponível',
+            muscle_group: normalizeMuscleGroup(resolvedExercise?.muscle_group || item.muscle_group || 'Outros'),
+            exercise_image: resolvedExercise?.image_url || item.exercise_image
+          };
+        });
 
         const result = {
           category: catRes.data as WorkoutCategory,
@@ -500,19 +527,47 @@ export const workoutApi = {
   },
 
   async getExerciseList() {
-    const { data, error } = await supabase
+    let response: any = await supabase
       .from('exercise_progress')
       .select('exercise_id, exercises(name)')
       .order('date', { ascending: false });
     
-    if (error) throw error;
-    return data || [];
+    if (response.error) {
+      console.warn('[workoutApi] getExerciseList join failed, falling back to select("exercise_id")', response.error);
+      response = await supabase
+        .from('exercise_progress')
+        .select('exercise_id')
+        .order('date', { ascending: false });
+      
+      if (response.error) throw response.error;
+    }
+    return response.data || [];
   },
 
   async getWorkoutDetails(historyId: string) {
-    const { data, error } = await supabase.from('workout_sets_log').select(`*, exercises (name, muscle_group)`).eq('history_id', historyId).order('created_at', { ascending: true });
-    if (error) throw error;
-    return data || [];
+    let response: any = await supabase.from('workout_sets_log').select(`*, exercises (name, muscle_group)`).eq('history_id', historyId).order('created_at', { ascending: true });
+    
+    if (response.error) {
+      console.warn('[workoutApi] getWorkoutDetails join failed, falling back to select("*")', response.error);
+      response = await supabase.from('workout_sets_log').select(`*`).eq('history_id', historyId).order('created_at', { ascending: true });
+      if (response.error) throw response.error;
+    }
+    
+    // Client-side join fallback if exercises is not populated
+    const data = response.data || [];
+    if (data.length > 0 && !data[0].exercises) {
+      try {
+        const exercisesList = await exerciseApi.getExercises();
+        const exercisesMap = new Map(exercisesList.map(e => [e.id, e]));
+        return data.map((item: any) => ({
+          ...item,
+          exercises: exercisesMap.get(item.exercise_id) || { name: item.exercise_name_snapshot || 'Exercício', muscle_group: 'Outros' }
+        }));
+      } catch (e) {
+        console.warn('Failed client-side join in getWorkoutDetails fallback:', e);
+      }
+    }
+    return data;
   },
 
   async getAchievements(userId: string) {
@@ -537,7 +592,6 @@ export const workoutApi = {
 
     if (workoutId) {
       queries.push(supabase.from('workout_categories').select('*').eq('id', workoutId).single());
-      queries.push(supabase.from('workout_exercises').select('*, exercises(*)').eq('category_id', workoutId).order('sort_order'));
     }
 
     const results = await Promise.all(queries);
@@ -559,13 +613,47 @@ export const workoutApi = {
       }
     }
 
+    let workoutExercises: any[] = [];
+    if (workoutId) {
+      // Try fetching with join first
+      const exWithJoin = await supabase.from('workout_exercises')
+        .select('*, exercises(*)')
+        .eq('category_id', workoutId)
+        .order('sort_order');
+      
+      if (exWithJoin.error) {
+        console.warn('[workoutApi] Editor join query failed, trying fallback select("*") on workout_exercises...', exWithJoin.error);
+        const exSimple = await supabase.from('workout_exercises')
+          .select('*')
+          .eq('category_id', workoutId)
+          .order('sort_order');
+        
+        if (exSimple.error) throw exSimple.error;
+        workoutExercises = exSimple.data || [];
+      } else {
+        workoutExercises = exWithJoin.data || [];
+      }
+    }
+
+    const exercisesMap = new Map(exercisesList.map(e => [e.id, e]));
+    const enrichedWorkoutExercises = workoutExercises.map((item: any) => {
+      const resolvedExercise = item.exercises || exercisesMap.get(item.exercise_id);
+      return {
+        ...item,
+        exercises: resolvedExercise || null,
+        exercise_name: resolvedExercise?.name || item.exercise_name_snapshot || item.exercise_name || item.custom_name || 'Exercício Indisponível',
+        muscle_group: normalizeMuscleGroup(resolvedExercise?.muscle_group || item.muscle_group || 'Outros'),
+        exercise_image: resolvedExercise?.image_url || item.exercise_image
+      };
+    });
+
     return {
       folders: (results[0].data || []) as WorkoutFolder[],
       muscleGroups: (results[1].data || []) as MuscleGroup[],
       exercises: exercisesList,
       favorites: (results[2].data || []).map((f: any) => f.exercise_id),
       category: workoutId ? results[3].data as WorkoutCategory : null,
-      workoutExercises: workoutId ? (results[4].data || []) as WorkoutExercise[] : []
+      workoutExercises: enrichedWorkoutExercises as WorkoutExercise[]
     };
   },
 
