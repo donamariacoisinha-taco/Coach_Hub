@@ -35,7 +35,9 @@ interface AthleteProfile {
   created_at: string;
   last_access?: string;
   is_premium?: boolean;
-  _is_mock?: boolean;
+  plan?: 'free' | 'premium';
+  account_status?: 'active' | 'suspended';
+  suspension_reason?: string | null;
 }
 
 type FilterType = 'all' | 'active' | 'suspended' | 'premium' | 'free' | 'admin';
@@ -45,9 +47,7 @@ export const UserManagement: React.FC = () => {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [loading, setLoading] = useState(true);
-  const [suspendedUserIds, setSuspendedUserIds] = useState<string[]>([]);
-  const [deletedUserIds, setDeletedUserIds] = useState<string[]>([]);
-  const [currentUserEmail, setCurrentUserEmail] = useState<string>('admin@kyron.os');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activeMenuUserId, setActiveMenuUserId] = useState<string | null>(null);
   const [viewingWorkoutsUserId, setViewingWorkoutsUserId] = useState<string | null>(null);
   const [userWorkouts, setUserWorkouts] = useState<any[]>([]);
@@ -62,16 +62,11 @@ export const UserManagement: React.FC = () => {
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    // Standard localStorage hydration
-    const suspended = JSON.parse(localStorage.getItem('kyron_suspended_user_ids') || '[]');
-    const deleted = JSON.parse(localStorage.getItem('kyron_deleted_user_ids') || '[]');
-    setSuspendedUserIds(suspended);
-    setDeletedUserIds(deleted);
-
-    // Resolve current logged in admin
+    // Resolve the authenticated administrator. Authorization itself is enforced
+    // by Supabase and never inferred from this client-side value.
     authApi.getUser().then(u => {
-      if (u?.email) {
-        setCurrentUserEmail(u.email);
+      if (u?.id) {
+        setCurrentUserId(u.id);
       }
     });
 
@@ -94,11 +89,42 @@ export const UserManagement: React.FC = () => {
     setLoading(true);
     try {
       const data = await profileApi.getAllProfiles();
-      const deleted = JSON.parse(localStorage.getItem('kyron_deleted_user_ids') || '[]');
-      const filtered = (data as AthleteProfile[]).filter(p => !deleted.includes(p.id));
-      setProfiles(filtered);
+      const serverProfiles = data as AthleteProfile[];
+
+      // One-time transition only: migrate legacy flags that were previously
+      // written by this admin browser, then delete them. They never grant access
+      // directly and every imported change is validated/audited by the RPC.
+      const migratedProfiles = await Promise.all(serverProfiles.map(async profile => {
+        const legacyKey = `kyron_is_premium_${profile.id}`;
+        const legacyValue = localStorage.getItem(legacyKey);
+        if (legacyValue === null) return profile;
+
+        const shouldBePremium = legacyValue === 'true';
+        try {
+          if (profile.is_premium !== shouldBePremium) {
+            await profileApi.updateUserAccess(profile.id, {
+              plan: shouldBePremium ? 'premium' : 'free',
+              reason: 'Migração única do status Premium legado'
+            });
+          }
+          localStorage.removeItem(legacyKey);
+          return {
+            ...profile,
+            plan: shouldBePremium ? 'premium' as const : 'free' as const,
+            is_premium: shouldBePremium
+          };
+        } catch (migrationError) {
+          console.error(`Failed to migrate legacy premium flag for ${profile.id}`, migrationError);
+          return profile;
+        }
+      }));
+
+      localStorage.removeItem('kyron_premium_subscription_active');
+      setProfiles(migratedProfiles);
     } catch (e) {
       console.error('Error fetching admin profiles list:', e);
+      setProfiles([]);
+      setErrorNotice('Não foi possível carregar os atletas. Nenhum dado de demonstração foi usado.');
     } finally {
       setLoading(false);
     }
@@ -112,60 +138,45 @@ export const UserManagement: React.FC = () => {
   // Check if a user account is protected
   const isProtectedUser = (p: AthleteProfile) => {
     if (!p) return false;
-    const protectedEmails = [
-      'marivaldotorres@gmail.com',
-      'donamariacoisinha@gmail.com',
-      currentUserEmail
-    ].map(e => e.toLowerCase());
-
-    if (p.email && protectedEmails.includes(p.email.toLowerCase())) return true;
+    if (p.id === currentUserId) return true;
     if (p.role === 'admin' || p.is_admin) return true;
     return false;
   };
 
-  // Admin logger
-  const addAdminLog = (action: 'Suspensão' | 'Reativação' | 'Exclusão', adminEmail: string, athleteName: string, athleteEmail: string) => {
-    try {
-      const logs = JSON.parse(localStorage.getItem('kyron_admin_operations_log_v2') || '[]');
-      const now = new Date();
-      const newLog = {
-        action,
-        admin: adminEmail,
-        athlete: `${athleteName || 'Atleta Convidado'} (${athleteEmail})`,
-        date: now.toLocaleDateString('pt-BR'),
-        time: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-      };
-      logs.unshift(newLog);
-      localStorage.setItem('kyron_admin_operations_log_v2', JSON.stringify(logs.slice(0, 50)));
-    } catch (e) {
-      console.error('Error logging core administrative event:', e);
-    }
-  };
-
   // Actions functions
-  const handleSuspendUser = (user: AthleteProfile) => {
+  const handleSuspendUser = async (user: AthleteProfile) => {
     if (isProtectedUser(user)) {
       setErrorNotice('Segurança do Núcelo: Não é possível suspender uma conta administrativa ou configurada sob proteção ativa.');
       return;
     }
-    const suspended = [...suspendedUserIds];
-    if (!suspended.includes(user.id)) {
-      suspended.push(user.id);
-      localStorage.setItem('kyron_suspended_user_ids', JSON.stringify(suspended));
-      setSuspendedUserIds(suspended);
+    try {
+      await profileApi.updateUserAccess(user.id, {
+        status: 'suspended',
+        reason: 'Suspensão administrativa pelo painel Kyron OS'
+      });
+      setProfiles(prev => prev.map(p => p.id === user.id
+        ? { ...p, account_status: 'suspended', suspension_reason: 'Suspensão administrativa pelo painel Kyron OS' }
+        : p));
+      showSuccess(`Conta de ${user.name || user.email} suspensa com sucesso.`);
+      setActiveMenuUserId(null);
+    } catch (error) {
+      console.error(error);
+      setErrorNotice('Não foi possível suspender a conta no Supabase. Nenhuma alteração local foi simulada.');
     }
-    addAdminLog('Suspensão', currentUserEmail, user.name, user.email);
-    showSuccess(`Conta de ${user.name || user.email} suspensa com sucesso.`);
-    setActiveMenuUserId(null);
   };
 
-  const handleReactivateUser = (user: AthleteProfile) => {
-    const suspended = suspendedUserIds.filter(id => id !== user.id);
-    localStorage.setItem('kyron_suspended_user_ids', JSON.stringify(suspended));
-    setSuspendedUserIds(suspended);
-    addAdminLog('Reativação', currentUserEmail, user.name, user.email);
-    showSuccess(`Conta de ${user.name || user.email} reativada com integridade total.`);
-    setActiveMenuUserId(null);
+  const handleReactivateUser = async (user: AthleteProfile) => {
+    try {
+      await profileApi.updateUserAccess(user.id, { status: 'active', reason: 'Reativação administrativa' });
+      setProfiles(prev => prev.map(p => p.id === user.id
+        ? { ...p, account_status: 'active', suspension_reason: null }
+        : p));
+      showSuccess(`Conta de ${user.name || user.email} reativada com integridade total.`);
+      setActiveMenuUserId(null);
+    } catch (error) {
+      console.error(error);
+      setErrorNotice('Não foi possível reativar a conta no Supabase.');
+    }
   };
 
   const handleSaveEdit = async (updated: AthleteProfile) => {
@@ -173,19 +184,24 @@ export const UserManagement: React.FC = () => {
       // Direct updates mapped locally
       setProfiles(prev => prev.map(u => u.id === updated.id ? updated : u));
       
-      const payload: any = {
+      const profilePayload: any = {
         name: updated.name,
-        role: updated.role,
-        is_admin: updated.role === 'admin',
-        is_premium: updated.is_premium
+        email: updated.email
       };
-      
-      // Email change is only permitted for non-protected athletes
-      if (!isProtectedUser(updated)) {
-        payload.email = updated.email;
-      }
 
-      await profileApi.updateProfile(updated.id, payload);
+      const previous = profiles.find(profile => profile.id === updated.id);
+      await profileApi.updateProfile(updated.id, profilePayload);
+      if (
+        !previous
+        || previous.role !== updated.role
+        || previous.is_premium !== updated.is_premium
+      ) {
+        await profileApi.updateUserAccess(updated.id, {
+          role: updated.role === 'admin' ? 'admin' : 'user',
+          plan: updated.is_premium ? 'premium' : 'free',
+          reason: 'Permissões atualizadas pelo painel Kyron OS'
+        });
+      }
       setEditingProfile(null);
       showSuccess(`Cadastro de ${updated.name || updated.email} atualizado.`);
       loadProfiles();
@@ -242,18 +258,6 @@ export const UserManagement: React.FC = () => {
         throw new Error(profileError.message);
       }
 
-      // 3. Sync local storage caches for tracking deleted/suspended state
-      const deleted = JSON.parse(localStorage.getItem('kyron_deleted_user_ids') || '[]');
-      if (!deleted.includes(user.id)) {
-        deleted.push(user.id);
-        localStorage.setItem('kyron_deleted_user_ids', JSON.stringify(deleted));
-      }
-
-      const suspended = suspendedUserIds.filter(id => id !== user.id);
-      localStorage.setItem('kyron_suspended_user_ids', JSON.stringify(suspended));
-      setSuspendedUserIds(suspended);
-      
-      addAdminLog('Exclusão', currentUserEmail, user.name, user.email);
       setProfiles(prev => prev.filter(p => p.id !== user.id));
       showSuccess(`Operação Completa. Todos os dados de treino, histórico, biometria e registros de ${user.name || user.email} foram expurgados permanentemente do banco de dados. Caso ele tente se cadastrar ou logar novamente, o sistema o tratará como um novo usuário cadastrado e ele iniciará o onboarding do zero!`);
     } catch (err: any) {
@@ -282,7 +286,7 @@ export const UserManagement: React.FC = () => {
     
     if (!matchesSearch) return false;
 
-    const isSusp = suspendedUserIds.includes(p.id);
+    const isSusp = p.account_status === 'suspended';
 
     if (filterType === 'active') return !isSusp;
     if (filterType === 'suspended') return isSusp;
@@ -294,13 +298,13 @@ export const UserManagement: React.FC = () => {
 
   // KPI calculations
   const totalCount = profiles.length;
-  const activeCount = profiles.filter(p => !suspendedUserIds.includes(p.id)).length;
-  const suspendedCount = profiles.filter(p => suspendedUserIds.includes(p.id)).length;
+  const activeCount = profiles.filter(p => p.account_status !== 'suspended').length;
+  const suspendedCount = profiles.filter(p => p.account_status === 'suspended').length;
   const premiumCount = profiles.filter(p => p.is_premium).length;
   const freeCount = profiles.filter(p => !p.is_premium && p.role !== 'admin' && !p.is_admin).length;
   const adminCount = profiles.filter(p => p.role === 'admin' || p.is_admin).length;
   
-  const isFallbackMode = profiles.length === 0 || profiles.some(p => p._is_mock);
+  const isFallbackMode = false;
 
   return (
     <div className="space-y-8 pb-32">
@@ -474,7 +478,7 @@ export const UserManagement: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100/60 font-medium text-xs text-slate-700">
                   {filtered.map(p => {
-                    const isSusp = suspendedUserIds.includes(p.id);
+                    const isSusp = p.account_status === 'suspended';
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
                         <td className="p-6">
@@ -666,7 +670,7 @@ export const UserManagement: React.FC = () => {
               <div className="grid grid-cols-2 gap-y-6 gap-x-4 text-xs font-bold text-slate-800">
                 <div>
                   <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Status da Conta</p>
-                  <p>{suspendedUserIds.includes(selectedProfile.id) ? '🔴 Suspenso (Acesso Bloqueado)' : '🟢 Ativo (Acesso Total)'}</p>
+                  <p>{selectedProfile.account_status === 'suspended' ? '🔴 Suspenso (Acesso Bloqueado)' : '🟢 Ativo (Acesso Total)'}</p>
                 </div>
                 <div>
                   <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Assinatura</p>
