@@ -1799,16 +1799,6 @@ class PremiumProtocolsApi {
     return [];
   }
 
-  // Check Subscription State
-  isPremiumAthlete(): boolean {
-    const premiumStatus = localStorage.getItem('kyron_premium_subscription_active');
-    return premiumStatus === 'true';
-  }
-
-  setPremiumAthleteStatus(active: boolean) {
-    localStorage.setItem('kyron_premium_subscription_active', active ? 'true' : 'false');
-  }
-
   // Clone Premium Protocol into Athlete Private Folder ("Meus Protocolos")
   async cloneToUser(userId: string, protocolId: string): Promise<WorkoutFolder> {
     const protocol = await this.getProtocolById(protocolId);

@@ -97,6 +97,14 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    setIsPremium(
+      isAdmin(profile)
+      || profile?.plan === 'premium'
+      || profile?.is_premium === true
+    );
+  }, [profile?.plan, profile?.role, profile?.is_admin, profile?.is_premium]);
+
   // Reset showWorkouts on protocol change
   useEffect(() => {
     setShowWorkouts(false);
@@ -114,25 +122,16 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
       return status !== 'archived' && status !== 'draft';
     });
     setProtocols(filteredList);
-    setIsPremium(premiumProtocolsApi.isPremiumAthlete());
-  };
-
-  const togglePremiumSimulation = () => {
-    const nextState = !isPremium;
-    setIsPremium(nextState);
-    premiumProtocolsApi.setPremiumAthleteStatus(nextState);
-    setToastMessage(
-      nextState 
-        ? "Assinatura PREMIUM Simulada! Todos os protocolos de elite estão desbloqueados."
-        : "Conta alterada para FREE. Alguns programas agora exigem assinatura."
+    setIsPremium(
+      isAdmin(profile)
+      || profile?.plan === 'premium'
+      || profile?.is_premium === true
     );
   };
 
   const handleSubscribeNow = () => {
-    premiumProtocolsApi.setPremiumAthleteStatus(true);
-    setIsPremium(true);
     setShowCheckoutModal(false);
-    setToastMessage("Parabéns! Sua assinatura do Kyron Pass foi ativada. Desbloqueio total concedido!");
+    setToastMessage('A ativação Premium deve ser concluída por um administrador autorizado.');
   };
 
   const handleCloneProtocol = async (p: PremiumProtocol) => {
@@ -592,7 +591,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
           </h1>
         </div>
 
-        {/* Elegant Minimalist Sandbox Toggle */}
+        {/* Access status comes from the server-side authorization record. */}
         <div className="flex items-center gap-3 bg-white/60 p-1.5 px-3 rounded-2xl border border-white/80 shadow-xs w-full md:w-auto self-stretch md:self-auto justify-between">
           <div className="flex items-center gap-2">
             <div className={`w-1.5 h-1.5 rounded-full ${isPremium ? 'bg-[#7BA7FF] animate-pulse' : 'bg-slate-400'}`} />
@@ -600,14 +599,14 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
           </div>
           <button 
             type="button"
-            onClick={togglePremiumSimulation}
+            disabled
             className={`px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all duration-300 border cursor-pointer ${
               isPremium 
-                ? 'bg-[#7BA7FF]/10 border-[#7BA7FF]/20 text-[#7BA7FF] hover:bg-[#7BA7FF]/15' 
-                : 'bg-slate-200/50 border-slate-300/40 text-slate-600 hover:bg-slate-200'
+                ? 'bg-[#7BA7FF]/10 border-[#7BA7FF]/20 text-[#7BA7FF]'
+                : 'bg-slate-200/50 border-slate-300/40 text-slate-600'
             }`}
           >
-            {isPremium ? "Premium Ativo" : "Simular Premium"}
+            {isPremium ? "Premium Ativo" : "Plano Gratuito"}
           </button>
         </div>
       </div>
@@ -1046,7 +1045,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                   <span className="text-[9px] font-black text-[#7BA7FF] uppercase tracking-[0.25em]">Acesso Exclusivo</span>
                   <h3 className="text-2xl font-light text-slate-900 tracking-tight uppercase">Kyron Premium Club</h3>
                   <p className="text-xs text-slate-500 leading-relaxed max-w-sm font-normal">
-                    Assine agora de forma livre simulada para desbloquear todo o repositório de elite monitorado pelo motor adaptativo do KYRON OS.
+                    O acesso aos protocolos de elite é liberado somente após a ativação segura da assinatura no KYRON OS.
                   </p>
                 </div>
               </div>
@@ -1072,7 +1071,7 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
                   onClick={handleSubscribeNow}
                   className="btn-primary w-full py-4 text-xs font-black uppercase tracking-[0.25em] text-center font-bold"
                 >
-                  Confirmar Assinatura (Simulado)
+                  Solicitar Ativação Premium
                 </button>
                 <button
                   type="button"

@@ -57,7 +57,12 @@ export interface UserProfile {
   frequency?: string;
   onboarding_completed: boolean;
   role?: 'admin' | 'user';
-  is_admin?: boolean; // Keep for backward compatibility if needed, but role is preferred
+  plan?: 'free' | 'premium';
+  account_status?: 'active' | 'suspended';
+  suspension_reason?: string | null;
+  suspended_at?: string | null;
+  suspended_by?: string | null;
+  is_admin?: boolean; // Derived from user_access for backwards-compatible UI code.
   last_deload_at?: string;
   
   // Onboarding 2.1 specific fields for persistence and recommendation
@@ -81,7 +86,7 @@ export interface UserProfile {
   total_minutes?: number;
   preferred_training_days?: string[];
   training_adherence_score?: number;
-  is_premium?: boolean;
+  is_premium?: boolean; // Derived from user_access.plan.
 }
 
 export interface PersonalBest {
@@ -717,4 +722,3 @@ export function sortExercisesAnatomically<T>(exercises: T[]): T[] {
     return getExerciseAnatomicalPriority(aMuscle, aName) - getExerciseAnatomicalPriority(bMuscle, bName);
   });
 }
-
