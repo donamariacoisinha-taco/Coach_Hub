@@ -1,17 +1,119 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+type AuthenticatedRequest = Request & {
+  user?: { id: string; email?: string | null };
+};
+
+type RateLimitEntry = {
+  count: number;
+  resetAt: number;
+};
+
+const MAX_BODY_BYTES = 20_000;
+const AI_RATE_LIMIT_WINDOW_MS = 60_000;
+const AI_RATE_LIMIT_MAX_REQUESTS = 30;
+const allowedModels = new Set(["gemini-3.5-flash"]);
+const rateLimitStore = new Map<string, RateLimitEntry>();
+
+const readEnv = (...keys: string[]) => {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value && value.trim()) return value.trim();
+  }
+  return "";
+};
+
+const isDev = process.env.NODE_ENV !== "production";
+
+function getBearerToken(req: Request): string | null {
+  const authHeader = req.headers.authorization || "";
+  const [scheme, token] = authHeader.split(" ");
+  if (scheme?.toLowerCase() !== "bearer" || !token) return null;
+  return token;
+}
+
+function sanitizePromptValue(value: unknown, fieldName: string, maxLength = MAX_BODY_BYTES): string {
+  if (typeof value !== "string") return "";
+  if (value.length > maxLength) {
+    throw new Error(`${fieldName} is too large. Maximum allowed length is ${maxLength} characters.`);
+  }
+  return value;
+}
+
+function createRateLimiter() {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const now = Date.now();
+    const key = req.user?.id || req.ip || "anonymous";
+    const existing = rateLimitStore.get(key);
+
+    if (!existing || existing.resetAt <= now) {
+      rateLimitStore.set(key, { count: 1, resetAt: now + AI_RATE_LIMIT_WINDOW_MS });
+      next();
+      return;
+    }
+
+    if (existing.count >= AI_RATE_LIMIT_MAX_REQUESTS) {
+      res.status(429).json({ error: "AI request limit reached. Try again shortly." });
+      return;
+    }
+
+    existing.count += 1;
+    next();
+  };
+}
+
+function createAuthMiddleware() {
+  const supabaseUrl = readEnv("SUPABASE_URL", "VITE_SUPABASE_URL");
+  const supabaseAnonKey = readEnv("SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY");
+
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const token = getBearerToken(req);
+
+    if (!token) {
+      if (isDev) {
+        req.user = { id: "dev-user" };
+        next();
+        return;
+      }
+      res.status(401).json({ error: "Missing Authorization bearer token." });
+      return;
+    }
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      res.status(500).json({ error: "Supabase server auth configuration is missing." });
+      return;
+    }
+
+    try {
+      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      });
+      const { data, error } = await authClient.auth.getUser(token);
+      if (error || !data.user) {
+        res.status(401).json({ error: "Invalid or expired session." });
+        return;
+      }
+      req.user = { id: data.user.id, email: data.user.email };
+      next();
+    } catch (err) {
+      res.status(401).json({ error: "Unable to validate session." });
+    }
+  };
+}
+
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
 
-  app.use(express.json());
+  app.use(express.json({ limit: "32kb" }));
 
   // Gemini Client Initialization
   const apiKey = process.env.GEMINI_API_KEY;
@@ -33,15 +135,15 @@ async function startServer() {
       if (retries <= 0) throw error;
       const errorMsg = error.message || (typeof error === 'string' ? error : JSON.stringify(error));
       const status = error.status || error.code || 500;
-      const isTransient = status === 503 || status === 429 || 
-                          errorMsg.includes("503") || 
-                          errorMsg.includes("UNAVAILABLE") || 
-                          errorMsg.includes("high demand") || 
-                          errorMsg.includes("ResourceAssembling") || 
-                          errorMsg.includes("Too Many Requests") || 
+      const isTransient = status === 503 || status === 429 ||
+                          errorMsg.includes("503") ||
+                          errorMsg.includes("UNAVAILABLE") ||
+                          errorMsg.includes("high demand") ||
+                          errorMsg.includes("ResourceAssembling") ||
+                          errorMsg.includes("Too Many Requests") ||
                           errorMsg.includes("rate limit");
       if (isTransient) {
-        console.warn(`[GEMINI] Transient error encountered: ${errorMsg}. Retrying in ${delay}ms... (Remaining retries: ${retries})`);
+        if (isDev) console.warn(`[GEMINI] Transient error encountered. Retrying in ${delay}ms... (Remaining retries: ${retries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return retryWithBackoff(fn, retries - 1, delay * 2);
       }
@@ -49,13 +151,12 @@ async function startServer() {
     }
   }
 
-  const handleAIError = (error: any, res: any, prefix: string) => {
-    console.error(`[${prefix}] Error:`, error);
-    
-    // Explicit check for invalid API key from Gemini API
+  const handleAIError = (error: any, res: Response, prefix: string) => {
+    console.error(`[${prefix}] Error:`, error?.message || error);
+
     if (error.message?.includes("API key not valid") || error.message?.includes("API_KEY_INVALID")) {
-      return res.status(401).json({ 
-        error: "The provided GEMINI_API_KEY is invalid. Please check and update your API key in the Settings > Secrets panel." 
+      return res.status(401).json({
+        error: "The configured GEMINI_API_KEY is invalid."
       });
     }
 
@@ -63,30 +164,39 @@ async function startServer() {
       return res.status(401).json({ error: error.message });
     }
 
-    res.status(500).json({ 
-      error: error.message || "An unexpected error occurred in the AI service.",
-      details: error.toString()
+    if (error.message?.includes("too large") || error.message?.includes("not allowed")) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.status(500).json({
+      error: error.message || "An unexpected error occurred in the AI service."
     });
   };
 
+  const requireAuth = createAuthMiddleware();
+  const rateLimitAI = createRateLimiter();
+  app.use("/api/intelligence", requireAuth, rateLimitAI);
+
   // AI Intelligence Routes
-  app.post("/api/intelligence/optimize", async (req, res) => {
+  app.post("/api/intelligence/optimize", async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { prompt, systemInstruction } = req.body;
+      const safePrompt = sanitizePromptValue(prompt, "prompt");
+      const safeSystemInstruction = sanitizePromptValue(systemInstruction, "systemInstruction", 10_000);
       const genAI = getGenAI();
-      
+
       const response = await retryWithBackoff(() => genAI.models.generateContent({
         model: "gemini-3.5-flash",
-        contents: prompt,
+        contents: safePrompt,
         config: {
-          systemInstruction,
+          systemInstruction: safeSystemInstruction,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
               name: { type: Type.STRING },
               description: { type: Type.STRING },
-              instructions: { 
+              instructions: {
                 type: Type.ARRAY,
                 items: { type: Type.STRING }
               },
@@ -95,7 +205,7 @@ async function startServer() {
                 items: { type: Type.STRING }
               },
               equipment: { type: Type.STRING },
-              difficulty_level: { 
+              difficulty_level: {
                 type: Type.STRING,
                 enum: ['Iniciante', 'Intermediário', 'Avançado', 'Elite']
               },
@@ -116,17 +226,19 @@ async function startServer() {
     }
   });
 
-  app.post("/api/intelligence/find-media", async (req, res) => {
+  app.post("/api/intelligence/find-media", async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { prompt, systemInstruction } = req.body;
+      const safePrompt = sanitizePromptValue(prompt, "prompt");
+      const safeSystemInstruction = sanitizePromptValue(systemInstruction, "systemInstruction", 10_000);
       const genAI = getGenAI();
 
       const response = await retryWithBackoff(() => genAI.models.generateContent({
         model: "gemini-3.5-flash",
-        contents: prompt,
+        contents: safePrompt,
         tools: [{ googleSearch: {} }] as any,
         config: {
-          systemInstruction,
+          systemInstruction: safeSystemInstruction,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -177,11 +289,18 @@ async function startServer() {
     }
   });
 
-  app.post("/api/intelligence/proxy", async (req, res) => {
+  app.post("/api/intelligence/proxy", async (req: AuthenticatedRequest, res: Response) => {
     try {
       const genAI = getGenAI();
-      const { prompt, systemInstruction, responseSchema, model: modelName = "gemini-3.5-flash" } = req.body;
-      
+      const { prompt, systemInstruction, responseSchema, model: requestedModel = "gemini-3.5-flash" } = req.body;
+      const safePrompt = sanitizePromptValue(prompt, "prompt");
+      const safeSystemInstruction = sanitizePromptValue(systemInstruction, "systemInstruction", 10_000);
+      const resolvedModelName = requestedModel === "gemini-3-flash-preview" ? "gemini-3.5-flash" : requestedModel;
+
+      if (!allowedModels.has(resolvedModelName)) {
+        throw new Error(`Model ${resolvedModelName} is not allowed for this endpoint.`);
+      }
+
       const config: any = {
         responseMimeType: responseSchema ? "application/json" : "text/plain",
       };
@@ -190,15 +309,12 @@ async function startServer() {
         config.responseSchema = responseSchema;
       }
 
-      // If user is requesting gemini-3-flash-preview, divert transparently to gemini-3.5-flash
-      const resolvedModelName = modelName === "gemini-3-flash-preview" ? "gemini-3.5-flash" : modelName;
-
       const response = await retryWithBackoff(() => genAI.models.generateContent({
         model: resolvedModelName,
-        contents: prompt,
+        contents: safePrompt,
         config: {
           ...config,
-          systemInstruction,
+          systemInstruction: safeSystemInstruction,
         }
       }));
 
