@@ -1,5 +1,7 @@
 import { supabase } from './supabase';
 
+const isDev = typeof import.meta !== 'undefined' ? import.meta.env.DEV : process.env.NODE_ENV === 'development';
+
 export interface RealtimeProtocolPayload {
   eventType: string;
   new: any;
@@ -11,6 +13,8 @@ export type RealtimeProtocolListener = (payload: RealtimeProtocolPayload) => voi
 class PremiumProtocolRealtimeService {
   private channel: any = null;
   private listeners: Set<RealtimeProtocolListener> = new Set();
+  private cleanupTimer: ReturnType<typeof setTimeout> | null = null;
+  private isSubscribing = false;
 
   /**
    * Subscribes a callback to receive real-time updates for premium_protocols.
@@ -18,9 +22,14 @@ class PremiumProtocolRealtimeService {
    * Returns an unsubscribe function.
    */
   subscribe(listener: RealtimeProtocolListener): () => void {
+    if (this.cleanupTimer) {
+      clearTimeout(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+
     this.listeners.add(listener);
 
-    if (!this.channel) {
+    if (!this.channel && !this.isSubscribing) {
       this.initChannel();
     }
 
@@ -32,14 +41,21 @@ class PremiumProtocolRealtimeService {
   private unsubscribe(listener: RealtimeProtocolListener) {
     this.listeners.delete(listener);
 
-    // If no listeners remain, clean up the Supabase Realtime channel to prevent memory leaks and unnecessary connections
-    if (this.listeners.size === 0 && this.channel) {
-      this.cleanupChannel();
+    // Debounce cleanup to tolerate React Strict Mode, rapid route changes, and listener remounts.
+    if (this.listeners.size === 0 && this.channel && !this.cleanupTimer) {
+      this.cleanupTimer = setTimeout(() => {
+        this.cleanupTimer = null;
+        if (this.listeners.size === 0) {
+          this.cleanupChannel();
+        }
+      }, 5000);
     }
   }
 
   private initChannel() {
-    console.log('[PremiumProtocolRealtimeService] Initializing Supabase Realtime Channel for premium_protocols...');
+    this.isSubscribing = true;
+    if (isDev) console.log('[PremiumProtocolRealtimeService] Initializing Supabase Realtime Channel for premium_protocols...');
+
     this.channel = supabase
       .channel('premium_protocols_realtime_changes')
       .on(
@@ -50,8 +66,8 @@ class PremiumProtocolRealtimeService {
           table: 'premium_protocols',
         },
         (payload) => {
-          console.log('[PremiumProtocolRealtimeService] Real-time event received:', payload.eventType, payload);
-          
+          if (isDev) console.log('[PremiumProtocolRealtimeService] Real-time event received:', payload.eventType, payload);
+
           const eventPayload: RealtimeProtocolPayload = {
             eventType: payload.eventType,
             new: payload.new,
@@ -69,19 +85,23 @@ class PremiumProtocolRealtimeService {
         }
       )
       .subscribe((status) => {
-        console.log(`[PremiumProtocolRealtimeService] Subscription status: ${status}`);
+        if (isDev) console.log(`[PremiumProtocolRealtimeService] Subscription status: ${status}`);
+        if (status === 'SUBSCRIBED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          this.isSubscribing = false;
+        }
       });
   }
 
   private cleanupChannel() {
     if (this.channel) {
-      console.log('[PremiumProtocolRealtimeService] Cleaning up channel subscription as no listeners are active...');
+      if (isDev) console.log('[PremiumProtocolRealtimeService] Cleaning up channel subscription as no listeners are active...');
       try {
         supabase.removeChannel(this.channel);
       } catch (e) {
         console.error('[PremiumProtocolRealtimeService] Error removing channel:', e);
       }
       this.channel = null;
+      this.isSubscribing = false;
     }
   }
 }
