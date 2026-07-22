@@ -1,8 +1,9 @@
-
 interface CacheItem<T> {
   data: T;
   timestamp: number;
 }
+
+const isDev = typeof import.meta !== 'undefined' ? import.meta.env.DEV : process.env.NODE_ENV === 'development';
 
 class CacheStore {
   private cache: Map<string, CacheItem<any>> = new Map();
@@ -19,17 +20,17 @@ class CacheStore {
       data,
       timestamp: Date.now(),
     });
-    
-    console.log(`[CacheStore] SET: ${key}`);
+
+    if (isDev) console.log(`[CacheStore] SET: ${key}`);
   }
 
   get<T>(key: string): T | null {
     const item = this.cache.get(key);
     if (!item) {
-      console.log(`[CacheStore] MISS: ${key}`);
+      if (isDev) console.log(`[CacheStore] MISS: ${key}`);
       return null;
     }
-    console.log(`[CacheStore] HIT: ${key}`);
+    if (isDev) console.log(`[CacheStore] HIT: ${key}`);
     return item.data;
   }
 
@@ -42,17 +43,17 @@ class CacheStore {
     const item = this.cache.get(key);
     if (!item) return true;
     const isStale = Date.now() - item.timestamp > ttlMs;
-    if (isStale) console.log(`[CacheStore] STALE: ${key}`);
+    if (isStale && isDev) console.log(`[CacheStore] STALE: ${key}`);
     return isStale;
   }
 
   clear(key?: string): void {
     if (key) {
       this.cache.delete(key);
-      console.log(`[CacheStore] CLEAR: ${key}`);
+      if (isDev) console.log(`[CacheStore] CLEAR: ${key}`);
     } else {
       this.cache.clear();
-      console.log(`[CacheStore] CLEAR ALL`);
+      if (isDev) console.log(`[CacheStore] CLEAR ALL`);
     }
   }
 
@@ -60,7 +61,7 @@ class CacheStore {
     for (const key of Array.from(this.cache.keys())) {
       if (key.startsWith(prefix)) {
         this.cache.delete(key);
-        console.log(`[CacheStore] CLEAR PREFIX (${prefix}): ${key}`);
+        if (isDev) console.log(`[CacheStore] CLEAR PREFIX (${prefix}): ${key}`);
       }
     }
   }
