@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { Exercise } from '../../types';
 import { fetchWithRetry } from '../utils';
@@ -21,7 +20,7 @@ export const ekeApi = {
 
       if (fetchError) throw fetchError;
 
-      let scoreChange = 1; // Base point for using it
+      let scoreChange = 1;
       if (stats.completedAllSets) scoreChange += 2;
       if (stats.progressionAchieved) scoreChange += 5;
       if (stats.volumeTrend === 'up') scoreChange += 2;
@@ -40,7 +39,6 @@ export const ekeApi = {
         .eq('id', exerciseId);
 
       if (updateError) throw updateError;
-      
       return { exerciseId, newScore, newUsageCount };
     });
   },
@@ -61,7 +59,6 @@ export const ekeApi = {
       } catch (err: any) {
         if (err.message?.includes('column') && err.message?.includes('schema cache')) {
           console.warn('[EKE] Fallback ativado em getExercisesForEke:', err.message);
-          // Fallback: exclude the new EKE columns if they are missing
           const { data, error } = await supabase
             .from('exercises')
             .select('id, name, muscle_group, is_active');
@@ -76,13 +73,22 @@ export const ekeApi = {
 
   async logDecision(payload: any) {
     const { error } = await supabase.from('eke_decision_logs').insert([payload]);
-    if (error) console.error('[EKE] Log error:', error);
+    if (error && import.meta.env.DEV) console.warn('[EKE] Decision log unavailable:', error.message);
   },
 
   async getConfig() {
-    const { data, error } = await supabase.from('eke_config').select('*').single();
-    if (error) return null;
-    return data;
+    const { data, error } = await supabase
+      .from('eke_config')
+      .select('*')
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[EKE] Config unavailable; using safe defaults.', error.message);
+      return null;
+    }
+
+    return data || null;
   },
 
   async getUserPreferences(userId: string) {
@@ -90,16 +96,14 @@ export const ekeApi = {
       .from('user_preferences')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     if (error) return null;
     return data;
   },
 
   async getPerformanceStats() {
-    // Aggregated stats for the admin dashboard
     const { data, error } = await supabase.rpc('get_eke_performance_metrics');
     if (error) {
-      // Fallback if RPC doesn't exist yet
       return {
         completionRate: 0.85,
         mostRecommended: [],
