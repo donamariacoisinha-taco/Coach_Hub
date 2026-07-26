@@ -1,7 +1,5 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
 import './index.css';
 
 // Intercept and gracefully suppress benign/transient Supabase refresh token errors
@@ -18,16 +16,15 @@ try {
       }
     }).join(' ');
 
-    const isBenignAuthError = 
-      msg.includes('Invalid Refresh Token') || 
-      msg.includes('Refresh Token Not Found') || 
+    const isBenignAuthError =
+      msg.includes('Invalid Refresh Token') ||
+      msg.includes('Refresh Token Not Found') ||
       msg.includes('refresh_token') ||
       msg.includes('grant_type') ||
       msg.includes('refresh token');
 
     if (isBenignAuthError) {
       console.warn('[Benign Auth Suppressed]', msg);
-      // Auto-clear invalid local storage items to prevent infinite loops
       try {
         const keysToRemove: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
@@ -43,19 +40,17 @@ try {
     originalConsoleError.apply(console, args);
   };
 
-  // Intercept unhandled promise rejections for refresh tokens
   window.addEventListener('unhandledrejection', (event) => {
     const msg = String(event.reason?.message || event.reason || '');
     if (
-      msg.includes('Invalid Refresh Token') || 
-      msg.includes('Refresh Token Not Found') || 
+      msg.includes('Invalid Refresh Token') ||
+      msg.includes('Refresh Token Not Found') ||
       msg.includes('refresh_token') ||
       msg.includes('refresh token')
     ) {
       console.warn('[Unhandled Rejection Suppressed]', msg);
-      event.preventDefault(); // Prevent standard error propagation
+      event.preventDefault();
       try {
-        // Clear corrupt storage keys
         const keysToRemove: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
@@ -73,13 +68,34 @@ try {
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
+  throw new Error('Could not find root element to mount to');
 }
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+const renderStartupError = (error: unknown) => {
+  console.error('[KYRON OS Startup Error]', error);
+  rootElement.innerHTML = `
+    <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f7f8fa;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111827;">
+      <section style="width:100%;max-width:420px;background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:28px;box-shadow:0 12px 36px rgba(15,23,42,.08);text-align:center;">
+        <h1 style="margin:0 0 12px;font-size:22px;">Não foi possível iniciar o KYRON OS</h1>
+        <p style="margin:0 0 20px;color:#4b5563;line-height:1.5;">Atualize a página. Caso o problema continue, feche esta janela e abra o aplicativo novamente.</p>
+        <button type="button" onclick="window.location.reload()" style="border:0;border-radius:12px;padding:12px 18px;background:#111827;color:#fff;font-weight:700;font-size:15px;">Atualizar página</button>
+      </section>
+    </main>
+  `;
+};
 
+const bootstrap = async () => {
+  try {
+    const { default: App } = await import('./App');
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+  } catch (error) {
+    renderStartupError(error);
+  }
+};
+
+void bootstrap();
