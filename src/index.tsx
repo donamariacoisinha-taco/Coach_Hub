@@ -1,6 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
+import {
+  getRouteGroup,
+  recordOperationalEvent,
+} from './lib/telemetry/operationalTelemetry';
 
 // Intercept and gracefully suppress benign/transient Supabase refresh token errors
 try {
@@ -66,12 +70,31 @@ try {
   console.error('[Error Setup Interceptors]', e);
 }
 
+window.addEventListener('online', () => {
+  recordOperationalEvent('connectivity_online', { source: 'browser' });
+});
+window.addEventListener('offline', () => {
+  recordOperationalEvent('connectivity_offline', { source: 'browser' });
+});
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('Could not find root element to mount to');
 }
 
+const getErrorKind = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.name.replace(/[^a-zA-Z0-9:_-]/g, '').slice(0, 64) || 'Error';
+  }
+  return 'StartupError';
+};
+
 const renderStartupError = (error: unknown) => {
+  recordOperationalEvent('app_runtime_error', {
+    source: 'startup',
+    routeGroup: getRouteGroup(window.location.pathname),
+    errorKind: getErrorKind(error),
+  });
   console.error('[KYRON OS Startup Error]', error);
   rootElement.innerHTML = `
     <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f7f8fa;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111827;">
