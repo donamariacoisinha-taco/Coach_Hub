@@ -86,11 +86,16 @@ const renderStartupError = (error: unknown) => {
 
 const bootstrap = async () => {
   try {
-    const { default: App } = await import('./App');
+    const [{ default: App }, { default: AppErrorBoundary }] = await Promise.all([
+      import('./App'),
+      import('./components/AppErrorBoundary'),
+    ]);
     const root = ReactDOM.createRoot(rootElement);
     root.render(
       <React.StrictMode>
-        <App />
+        <AppErrorBoundary>
+          <App />
+        </AppErrorBoundary>
       </React.StrictMode>
     );
   } catch (error) {
