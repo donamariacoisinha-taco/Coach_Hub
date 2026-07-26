@@ -4,16 +4,20 @@ import { useAppStore } from '../../app/store/appStore';
 
 const isDev = typeof import.meta !== 'undefined' ? import.meta.env.DEV : process.env.NODE_ENV === 'development';
 
+export type SyncProcessOptions = {
+  force?: boolean;
+};
+
 class SyncEngine {
   private isProcessing = false;
   private lastProcessTime = 0;
-  private readonly MIN_INTERVAL = 2000; // 2 seconds between syncs
+  private readonly MIN_INTERVAL = 2000; // 2 seconds between automatic syncs
   private readonly MAX_RETRIES = 3;
 
-  async processQueue() {
-    // Protection against rapid re-triggers and infinite loops
+  async processQueue(options: SyncProcessOptions = {}) {
     const now = Date.now();
-    if (this.isProcessing || !navigator.onLine || (now - this.lastProcessTime < this.MIN_INTERVAL)) {
+    const throttled = !options.force && (now - this.lastProcessTime < this.MIN_INTERVAL);
+    if (this.isProcessing || !navigator.onLine || throttled) {
       return;
     }
 
@@ -84,11 +88,11 @@ class SyncEngine {
     try {
       if (item.type === 'SAVE_SET') {
         const { error } = await workoutApi.saveSetLog(item.payload);
-        // If error is uniqueness constraint (idempotency), it's a success
+        // If error is uniqueness constraint (idempotency), it's a success.
         if (error && (error as any).code === '23505') return { success: true };
 
         // Foreign-key violations indicate corrupted ordering or missing parent data.
-        // Do not silently discard. Preserve in dead-letter queue for reconciliation.
+        // Preserve them for explicit reconciliation instead of discarding data.
         if (error && (error as any).code === '23503') {
           return { success: false, error, terminal: true };
         }
