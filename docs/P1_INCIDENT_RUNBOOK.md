@@ -86,7 +86,7 @@ Não registrar e-mail, senha, token, payload de treino, histórico completo ou c
 2. Usar **Tentar novamente** uma vez.
 3. Se persistir, usar **Recarregar aplicativo**.
 4. Confirmar se o problema ocorre na mesma categoria de rota.
-5. Verificar os eventos agregados `app_runtime_error`, `app_recovery_retry` e `app_recovery_reload`.
+5. Verificar localmente os eventos agregados `app_runtime_error`, `app_recovery_retry` e `app_recovery_reload` quando houver acesso técnico autorizado ao dispositivo.
 6. Não copiar mensagem completa do erro para sistemas externos sem revisão, pois o console pode conter contexto sensível.
 
 ## Fluxo 3 — Sincronização pendente
@@ -96,7 +96,7 @@ Não registrar e-mail, senha, token, payload de treino, histórico completo ou c
 3. Usar **Sincronizar agora**.
 4. Aguardar a atualização do painel.
 5. Se os itens continuarem pendentes, não limpar o navegador.
-6. Verificar se o evento `sync_cycle_failed` ocorreu e se o resultado foi parcial ou total.
+6. Verificar localmente se o evento `sync_cycle_failed` ocorreu e se o resultado foi parcial ou total.
 
 ## Fluxo 4 — Revisão necessária / dead-letter queue
 
@@ -180,7 +180,8 @@ A telemetria operacional local:
 - armazena classe do erro, não mensagem integral;
 - usa faixas de contagem em vez de valores de alta cardinalidade;
 - não envia dados automaticamente para servidor externo;
-- não inclui usuário, e-mail, token, credencial, nome de exercício ou conteúdo de treino.
+- não inclui usuário, e-mail, token, credencial, nome de exercício ou conteúdo de treino;
+- só deve ser consultada no dispositivo com autorização e durante investigação técnica.
 
 ## Encerramento do incidente
 
