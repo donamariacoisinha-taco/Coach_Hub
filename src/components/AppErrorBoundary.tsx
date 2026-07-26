@@ -1,5 +1,10 @@
 import * as React from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import {
+  getOperationalBuildLabel,
+  getRouteGroup,
+  recordOperationalEvent,
+} from '../lib/telemetry/operationalTelemetry';
 
 type AppErrorBoundaryProps = {
   children: ReactNode;
@@ -13,32 +18,25 @@ type AppErrorBoundaryState = {
 type RuntimeDiagnostic = {
   incidentId: string;
   occurredAt: string;
-  errorName: string;
-  errorMessage: string;
-  route: string;
+  errorKind: string;
+  routeGroup: string;
   build: string;
-  componentStack?: string;
 };
 
 const DIAGNOSTICS_STORAGE_KEY = 'kyron_runtime_diagnostics';
 const MAX_DIAGNOSTICS = 5;
-const MAX_TEXT_LENGTH = 1200;
-
-const truncate = (value: string | null | undefined, maxLength = MAX_TEXT_LENGTH) => {
-  if (!value) return undefined;
-  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
-};
-
-const getBuildLabel = () => {
-  const configuredBuild = import.meta.env.VITE_GIT_COMMIT_SHA;
-  if (configuredBuild) return configuredBuild.slice(0, 12);
-  return import.meta.env.MODE || 'unknown';
-};
 
 const createIncidentId = () => {
   const timestamp = Date.now().toString(36).toUpperCase();
   const random = Math.random().toString(36).slice(2, 7).toUpperCase();
   return `KY-${timestamp}-${random}`;
+};
+
+const sanitizeErrorKind = (value: string | null | undefined): string => {
+  const normalized = String(value || 'Error')
+    .replace(/[^a-zA-Z0-9:_-]/g, '')
+    .slice(0, 64);
+  return normalized || 'Error';
 };
 
 const persistDiagnostic = (diagnostic: RuntimeDiagnostic) => {
@@ -76,18 +74,24 @@ export default class AppErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     const incidentId = this.state.incidentId || createIncidentId();
+    const routeGroup = getRouteGroup(window.location.pathname);
+    const errorKind = sanitizeErrorKind(error.name);
     const diagnostic: RuntimeDiagnostic = {
       incidentId,
       occurredAt: new Date().toISOString(),
-      errorName: truncate(error.name, 120) || 'Error',
-      errorMessage: truncate(error.message) || 'Unknown runtime error',
-      route: `${window.location.pathname}${window.location.search}${window.location.hash}`,
-      build: getBuildLabel(),
-      componentStack: truncate(info.componentStack),
+      errorKind,
+      routeGroup,
+      build: getOperationalBuildLabel(),
     };
 
-    console.error('[KYRON OS Runtime Error]', diagnostic, error);
+    // The full error remains only in the current browser console and is not persisted.
+    console.error('[KYRON OS Runtime Error]', { ...diagnostic, componentStackPresent: Boolean(info.componentStack) }, error);
     persistDiagnostic(diagnostic);
+    recordOperationalEvent('app_runtime_error', {
+      source: 'runtime',
+      routeGroup,
+      errorKind,
+    });
 
     if (this.state.incidentId !== incidentId) {
       this.setState({ incidentId });
@@ -95,10 +99,18 @@ export default class AppErrorBoundary extends React.Component<
   }
 
   private retryRender = () => {
+    recordOperationalEvent('app_recovery_retry', {
+      source: 'runtime',
+      routeGroup: getRouteGroup(window.location.pathname),
+    });
     this.setState({ error: null, incidentId: null });
   };
 
   private reloadApplication = () => {
+    recordOperationalEvent('app_recovery_reload', {
+      source: 'runtime',
+      routeGroup: getRouteGroup(window.location.pathname),
+    });
     window.location.reload();
   };
 
@@ -121,7 +133,7 @@ export default class AppErrorBoundary extends React.Component<
             <p className="mt-1 break-all font-mono text-sm font-semibold text-gray-800">
               {this.state.incidentId || 'KY-UNKNOWN'}
             </p>
-            <p className="mt-2 text-xs text-gray-500">Build: {getBuildLabel()}</p>
+            <p className="mt-2 text-xs text-gray-500">Build: {getOperationalBuildLabel()}</p>
           </div>
 
           <div className="mt-6 grid gap-3">
