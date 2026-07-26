@@ -1,4 +1,4 @@
-import React from 'react';
+import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 
 type AppErrorBoundaryProps = {
@@ -55,7 +55,7 @@ const persistDiagnostic = (diagnostic: RuntimeDiagnostic) => {
   }
 };
 
-export default class AppErrorBoundary extends React.Component<
+export default class AppErrorBoundary extends Component<
   AppErrorBoundaryProps,
   AppErrorBoundaryState
 > {
