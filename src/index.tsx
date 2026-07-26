@@ -86,15 +86,23 @@ const renderStartupError = (error: unknown) => {
 
 const bootstrap = async () => {
   try {
-    const [{ default: App }, { default: AppErrorBoundary }] = await Promise.all([
+    const [
+      { default: App },
+      { default: AppErrorBoundary },
+      { default: OfflineSyncHealthPanel },
+    ] = await Promise.all([
       import('./App'),
       import('./components/AppErrorBoundary'),
+      import('./components/OfflineSyncHealthPanel'),
     ]);
     const root = ReactDOM.createRoot(rootElement);
     root.render(
       <React.StrictMode>
         <AppErrorBoundary>
-          <App />
+          <>
+            <App />
+            <OfflineSyncHealthPanel />
+          </>
         </AppErrorBoundary>
       </React.StrictMode>
     );
