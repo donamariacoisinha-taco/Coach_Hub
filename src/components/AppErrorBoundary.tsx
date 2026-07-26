@@ -1,4 +1,5 @@
-import React, { ErrorInfo, ReactNode } from 'react';
+import React from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 
 type AppErrorBoundaryProps = {
   children: ReactNode;
@@ -23,7 +24,7 @@ const DIAGNOSTICS_STORAGE_KEY = 'kyron_runtime_diagnostics';
 const MAX_DIAGNOSTICS = 5;
 const MAX_TEXT_LENGTH = 1200;
 
-const truncate = (value: string | undefined, maxLength = MAX_TEXT_LENGTH) => {
+const truncate = (value: string | null | undefined, maxLength = MAX_TEXT_LENGTH) => {
   if (!value) return undefined;
   return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
 };
