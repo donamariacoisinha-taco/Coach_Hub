@@ -1,0 +1,405 @@
+name: P0 Integrated Homologation
+
+on:
+  push:
+    branches:
+      - p0-security-integrity-foundation
+    paths:
+      - .github/p0-homologation-trigger.txt
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p0-integrated-homologation
+  cancel-in-progress: false
+
+jobs:
+  homologate:
+    name: Disposable account homologation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      SUPABASE_URL: https://eqnkuqkadtywgfsoilpe.supabase.co
+      SUPABASE_ANON_KEY: sb_publishable_ufX-voHVkHsMwKxN7mlWMA_vfh1rSIB
+      PORT: 3011
+      NODE_ENV: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Generate disposable account identifiers
+        id: accounts
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_KEY="${GITHUB_RUN_ID}"
+          PASSWORD_HASH="$(printf 'kyron-p0-hml-%s-fixed-salt' "$RUN_KEY" | sha256sum | cut -c1-24)"
+          PASSWORD="Ky!${PASSWORD_HASH}9aA"
+          ADMIN_EMAIL="marivaldotorres+kyron-p0-admin-${RUN_KEY}@gmail.com"
+          ATHLETE_EMAIL="marivaldotorres+kyron-p0-athlete-${RUN_KEY}@gmail.com"
+
+          echo "::add-mask::$PASSWORD"
+          echo "admin_email=$ADMIN_EMAIL" >> "$GITHUB_OUTPUT"
+          echo "athlete_email=$ATHLETE_EMAIL" >> "$GITHUB_OUTPUT"
+          echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+
+          cat > homologation-accounts.json <<JSON
+          {
+            "run_id": "${RUN_KEY}",
+            "admin_email": "${ADMIN_EMAIL}",
+            "athlete_email": "${ATHLETE_EMAIL}",
+            "password_derivation": "deterministic-per-run-masked",
+            "purpose": "KYRON OS P0 integrated homologation only"
+          }
+          JSON
+
+      - name: Create or detect disposable accounts
+        id: signup
+        shell: bash
+        env:
+          ADMIN_EMAIL: ${{ steps.accounts.outputs.admin_email }}
+          ATHLETE_EMAIL: ${{ steps.accounts.outputs.athlete_email }}
+          PASSWORD: ${{ steps.accounts.outputs.password }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const url = process.env.SUPABASE_URL;
+          const key = process.env.SUPABASE_ANON_KEY;
+          const password = process.env.PASSWORD;
+
+          async function signup(email) {
+            const response = await fetch(`${url}/auth/v1/signup`, {
+              method: 'POST',
+              headers: {
+                apikey: key,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                email,
+                password,
+                data: { purpose: 'kyron_p0_homologation' }
+              })
+            });
+            const text = await response.text();
+            let body;
+            try { body = JSON.parse(text); } catch { body = { raw: text }; }
+            return {
+              email,
+              status: response.status,
+              ok: response.ok,
+              user_id: body?.user?.id || body?.id || null,
+              has_session: Boolean(body?.session || body?.access_token),
+              error: body?.msg || body?.message || body?.error_description || body?.error || null
+            };
+          }
+
+          const results = {
+            admin: await signup(process.env.ADMIN_EMAIL),
+            athlete: await signup(process.env.ATHLETE_EMAIL)
+          };
+          fs.writeFileSync('signup-results.json', JSON.stringify(results, null, 2));
+          console.log(JSON.stringify(results, null, 2));
+          NODE
+
+      - name: Login disposable accounts
+        id: login
+        continue-on-error: true
+        shell: bash
+        env:
+          ADMIN_EMAIL: ${{ steps.accounts.outputs.admin_email }}
+          ATHLETE_EMAIL: ${{ steps.accounts.outputs.athlete_email }}
+          PASSWORD: ${{ steps.accounts.outputs.password }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const url = process.env.SUPABASE_URL;
+          const key = process.env.SUPABASE_ANON_KEY;
+          const password = process.env.PASSWORD;
+
+          async function login(email) {
+            const response = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+              method: 'POST',
+              headers: { apikey: key, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password })
+            });
+            const text = await response.text();
+            let body;
+            try { body = JSON.parse(text); } catch { body = { raw: text }; }
+            return {
+              email,
+              status: response.status,
+              ok: response.ok,
+              user_id: body?.user?.id || null,
+              access_token: body?.access_token || null,
+              error: body?.msg || body?.message || body?.error_description || body?.error || null
+            };
+          }
+
+          const admin = await login(process.env.ADMIN_EMAIL);
+          const athlete = await login(process.env.ATHLETE_EMAIL);
+          const report = {
+            admin: { ...admin, access_token: admin.access_token ? '[MASKED]' : null },
+            athlete: { ...athlete, access_token: athlete.access_token ? '[MASKED]' : null }
+          };
+          fs.writeFileSync('login-results.json', JSON.stringify(report, null, 2));
+
+          if (admin.access_token) fs.writeFileSync('/tmp/admin-token', admin.access_token);
+          if (athlete.access_token) fs.writeFileSync('/tmp/athlete-token', athlete.access_token);
+
+          console.log(JSON.stringify(report, null, 2));
+          if (!admin.access_token || !athlete.access_token) process.exit(20);
+          NODE
+
+      - name: Ensure disposable profiles through authenticated API
+        if: steps.login.outcome == 'success'
+        shell: bash
+        env:
+          ADMIN_EMAIL: ${{ steps.accounts.outputs.admin_email }}
+          ATHLETE_EMAIL: ${{ steps.accounts.outputs.athlete_email }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const url = process.env.SUPABASE_URL;
+          const key = process.env.SUPABASE_ANON_KEY;
+
+          async function authUser(token) {
+            const r = await fetch(`${url}/auth/v1/user`, {
+              headers: { apikey: key, Authorization: `Bearer ${token}` }
+            });
+            if (!r.ok) throw new Error(`auth user failed: ${r.status} ${await r.text()}`);
+            return r.json();
+          }
+
+          async function ensureProfile(token, email) {
+            const user = await authUser(token);
+            const query = await fetch(`${url}/rest/v1/profiles?id=eq.${user.id}&select=id`, {
+              headers: { apikey: key, Authorization: `Bearer ${token}` }
+            });
+            const rows = query.ok ? await query.json() : [];
+            if (!rows.length) {
+              const insert = await fetch(`${url}/rest/v1/profiles`, {
+                method: 'POST',
+                headers: {
+                  apikey: key,
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                  Prefer: 'return=representation'
+                },
+                body: JSON.stringify({
+                  id: user.id,
+                  email,
+                  name: 'KYRON P0 Homologação',
+                  onboarding_completed: true
+                })
+              });
+              if (!insert.ok) throw new Error(`profile insert failed: ${insert.status} ${await insert.text()}`);
+            }
+            return user.id;
+          }
+
+          const adminToken = fs.readFileSync('/tmp/admin-token', 'utf8');
+          const athleteToken = fs.readFileSync('/tmp/athlete-token', 'utf8');
+          const adminId = await ensureProfile(adminToken, process.env.ADMIN_EMAIL);
+          const athleteId = await ensureProfile(athleteToken, process.env.ATHLETE_EMAIL);
+          fs.writeFileSync('profile-results.json', JSON.stringify({ admin_id: adminId, athlete_id: athleteId }, null, 2));
+          NODE
+
+      - name: Start branch server
+        if: steps.login.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node dist/server.cjs > server-output.log 2>&1 &
+          echo $! > /tmp/server-pid
+          for i in {1..30}; do
+            if curl --silent --output /dev/null "http://127.0.0.1:${PORT}/"; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat server-output.log
+          exit 1
+
+      - name: Test AI endpoint authentication path
+        if: steps.login.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const base = `http://127.0.0.1:${process.env.PORT}`;
+          const athleteToken = fs.readFileSync('/tmp/athlete-token', 'utf8');
+          const payload = { prompt: 'health check', systemInstruction: 'Return JSON.' };
+
+          async function call(token) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (token !== undefined) headers.Authorization = `Bearer ${token}`;
+            const r = await fetch(`${base}/api/intelligence/proxy`, {
+              method: 'POST', headers, body: JSON.stringify(payload)
+            });
+            return { status: r.status, body: await r.text() };
+          }
+
+          const missing = await call(undefined);
+          const invalid = await call('invalid-token');
+          const valid = await call(athleteToken);
+
+          if (missing.status !== 401 || !missing.body.includes('Missing Authorization')) {
+            throw new Error(`missing-token test failed: ${JSON.stringify(missing)}`);
+          }
+          if (invalid.status !== 401 || !invalid.body.includes('Invalid or expired')) {
+            throw new Error(`invalid-token test failed: ${JSON.stringify(invalid)}`);
+          }
+          if (valid.body.includes('Invalid or expired') || valid.body.includes('Missing Authorization')) {
+            throw new Error(`valid-token rejected by auth middleware: ${JSON.stringify(valid)}`);
+          }
+
+          fs.writeFileSync('ai-auth-results.json', JSON.stringify({ missing, invalid, valid }, null, 2));
+          NODE
+
+      - name: Test admin RPC and account lifecycle
+        id: admin_lifecycle
+        if: steps.login.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const url = process.env.SUPABASE_URL;
+          const key = process.env.SUPABASE_ANON_KEY;
+          const adminToken = fs.readFileSync('/tmp/admin-token', 'utf8');
+          const athleteToken = fs.readFileSync('/tmp/athlete-token', 'utf8');
+          const ids = JSON.parse(fs.readFileSync('profile-results.json', 'utf8'));
+
+          async function rpc(token, changes) {
+            const r = await fetch(`${url}/rest/v1/rpc/admin_update_user_access`, {
+              method: 'POST',
+              headers: {
+                apikey: key,
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                p_user_id: ids.athlete_id,
+                p_role: changes.role ?? null,
+                p_plan: changes.plan ?? null,
+                p_status: changes.status ?? null,
+                p_reason: changes.reason ?? null
+              })
+            });
+            const text = await r.text();
+            return { status: r.status, ok: r.ok, body: text };
+          }
+
+          const results = {};
+          results.non_admin_attempt = await rpc(athleteToken, { plan: 'premium', reason: 'negative authorization test' });
+          if (results.non_admin_attempt.ok) throw new Error('non-admin was able to change user access');
+
+          results.premium = await rpc(adminToken, { plan: 'premium', reason: 'P0 integrated homologation' });
+          if (!results.premium.ok) {
+            fs.writeFileSync('admin-lifecycle-results.json', JSON.stringify(results, null, 2));
+            console.error('Disposable admin account has not been promoted yet. This is expected on the first run.');
+            process.exit(30);
+          }
+
+          results.suspended = await rpc(adminToken, { status: 'suspended', reason: 'P0 integrated homologation' });
+          if (!results.suspended.ok) throw new Error(`suspend failed: ${results.suspended.body}`);
+
+          const protectedRead = await fetch(`${url}/rest/v1/workout_categories?select=id&limit=1`, {
+            headers: { apikey: key, Authorization: `Bearer ${athleteToken}` }
+          });
+          results.suspended_protected_read = { status: protectedRead.status, body: await protectedRead.text() };
+
+          results.reactivated = await rpc(adminToken, { status: 'active', plan: 'free', reason: 'P0 integrated homologation cleanup' });
+          if (!results.reactivated.ok) throw new Error(`reactivate failed: ${results.reactivated.body}`);
+
+          const audit = await fetch(`${url}/rest/v1/user_access_audit?target_user_id=eq.${ids.athlete_id}&select=id,reason&order=created_at.desc`, {
+            headers: { apikey: key, Authorization: `Bearer ${adminToken}` }
+          });
+          results.audit = { status: audit.status, body: await audit.text() };
+          if (!audit.ok) throw new Error(`audit read failed: ${results.audit.body}`);
+
+          fs.writeFileSync('admin-lifecycle-results.json', JSON.stringify(results, null, 2));
+          NODE
+
+      - name: Stop branch server
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/server-pid ]; then kill "$(cat /tmp/server-pid)" || true; fi
+
+      - name: Build homologation summary
+        if: always()
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const files = [
+            'homologation-accounts.json',
+            'signup-results.json',
+            'login-results.json',
+            'profile-results.json',
+            'ai-auth-results.json',
+            'admin-lifecycle-results.json'
+          ];
+          const summary = {};
+          for (const file of files) {
+            if (fs.existsSync(file)) {
+              try { summary[file] = JSON.parse(fs.readFileSync(file, 'utf8')); }
+              catch { summary[file] = fs.readFileSync(file, 'utf8'); }
+            }
+          }
+          summary.login_outcome = process.env.LOGIN_OUTCOME || null;
+          summary.instructions = 'If login requires email confirmation, confirm the two run-specific accounts, promote only the disposable admin account, then rerun this same job.';
+          fs.writeFileSync('p0-integrated-homologation-report.json', JSON.stringify(summary, null, 2));
+          NODE
+        env:
+          LOGIN_OUTCOME: ${{ steps.login.outcome }}
+
+      - name: Upload homologation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-integrated-homologation-${{ github.run_id }}
+          path: |
+            p0-integrated-homologation-report.json
+            signup-results.json
+            login-results.json
+            profile-results.json
+            ai-auth-results.json
+            admin-lifecycle-results.json
+            server-output.log
+          if-no-files-found: ignore
+          retention-days: 2
+
+      - name: Enforce integrated result
+        if: always()
+        shell: bash
+        run: |
+          if [ "${{ steps.login.outcome }}" != "success" ]; then
+            echo "Disposable accounts require confirmation before integrated tests can continue."
+            exit 20
+          fi
+          if [ "${{ steps.admin_lifecycle.outcome }}" != "success" ]; then
+            echo "Disposable admin account requires promotion before lifecycle tests can continue."
+            exit 30
+          fi
