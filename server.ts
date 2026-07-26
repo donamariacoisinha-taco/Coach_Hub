@@ -4,6 +4,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
+import {
+  MAX_SYSTEM_INSTRUCTION_CHARACTERS,
+  getBearerTokenFromHeader,
+  resolveAllowedModel,
+  sanitizePromptValue,
+  shouldAllowDevAuthBypass,
+} from "./src/lib/server/aiSecurity";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,10 +24,8 @@ type RateLimitEntry = {
   resetAt: number;
 };
 
-const MAX_BODY_BYTES = 20_000;
 const AI_RATE_LIMIT_WINDOW_MS = 60_000;
 const AI_RATE_LIMIT_MAX_REQUESTS = 30;
-const allowedModels = new Set(["gemini-3.5-flash"]);
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
 const readEnv = (...keys: string[]) => {
@@ -32,21 +37,6 @@ const readEnv = (...keys: string[]) => {
 };
 
 const isDev = process.env.NODE_ENV !== "production";
-
-function getBearerToken(req: Request): string | null {
-  const authHeader = req.headers.authorization || "";
-  const [scheme, token] = authHeader.split(" ");
-  if (scheme?.toLowerCase() !== "bearer" || !token) return null;
-  return token;
-}
-
-function sanitizePromptValue(value: unknown, fieldName: string, maxLength = MAX_BODY_BYTES): string {
-  if (typeof value !== "string") return "";
-  if (value.length > maxLength) {
-    throw new Error(`${fieldName} is too large. Maximum allowed length is ${maxLength} characters.`);
-  }
-  return value;
-}
 
 function createRateLimiter() {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -75,10 +65,10 @@ function createAuthMiddleware() {
   const supabaseAnonKey = readEnv("SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY");
 
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    const token = getBearerToken(req);
+    const token = getBearerTokenFromHeader(req.headers.authorization);
 
     if (!token) {
-      if (isDev) {
+      if (shouldAllowDevAuthBypass(process.env.NODE_ENV, process.env.ALLOW_DEV_AI_AUTH_BYPASS)) {
         req.user = { id: "dev-user" };
         next();
         return;
@@ -182,7 +172,11 @@ async function startServer() {
     try {
       const { prompt, systemInstruction } = req.body;
       const safePrompt = sanitizePromptValue(prompt, "prompt");
-      const safeSystemInstruction = sanitizePromptValue(systemInstruction, "systemInstruction", 10_000);
+      const safeSystemInstruction = sanitizePromptValue(
+        systemInstruction,
+        "systemInstruction",
+        MAX_SYSTEM_INSTRUCTION_CHARACTERS,
+      );
       const genAI = getGenAI();
 
       const response = await retryWithBackoff(() => genAI.models.generateContent({
@@ -230,7 +224,11 @@ async function startServer() {
     try {
       const { prompt, systemInstruction } = req.body;
       const safePrompt = sanitizePromptValue(prompt, "prompt");
-      const safeSystemInstruction = sanitizePromptValue(systemInstruction, "systemInstruction", 10_000);
+      const safeSystemInstruction = sanitizePromptValue(
+        systemInstruction,
+        "systemInstruction",
+        MAX_SYSTEM_INSTRUCTION_CHARACTERS,
+      );
       const genAI = getGenAI();
 
       const response = await retryWithBackoff(() => genAI.models.generateContent({
@@ -292,14 +290,14 @@ async function startServer() {
   app.post("/api/intelligence/proxy", async (req: AuthenticatedRequest, res: Response) => {
     try {
       const genAI = getGenAI();
-      const { prompt, systemInstruction, responseSchema, model: requestedModel = "gemini-3.5-flash" } = req.body;
+      const { prompt, systemInstruction, responseSchema, model: requestedModel } = req.body;
       const safePrompt = sanitizePromptValue(prompt, "prompt");
-      const safeSystemInstruction = sanitizePromptValue(systemInstruction, "systemInstruction", 10_000);
-      const resolvedModelName = requestedModel === "gemini-3-flash-preview" ? "gemini-3.5-flash" : requestedModel;
-
-      if (!allowedModels.has(resolvedModelName)) {
-        throw new Error(`Model ${resolvedModelName} is not allowed for this endpoint.`);
-      }
+      const safeSystemInstruction = sanitizePromptValue(
+        systemInstruction,
+        "systemInstruction",
+        MAX_SYSTEM_INSTRUCTION_CHARACTERS,
+      );
+      const resolvedModelName = resolveAllowedModel(requestedModel);
 
       const config: any = {
         responseMimeType: responseSchema ? "application/json" : "text/plain",
