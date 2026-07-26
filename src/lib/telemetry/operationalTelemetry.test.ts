@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  acknowledgeOperationalTelemetryBatch,
   bucketOperationalCount,
   createSafeOperationalReport,
   getRouteGroup,
   readOperationalTelemetry,
+  readOperationalTelemetryOutbox,
   recordOperationalEvent,
   sanitizeOperationalDimensions,
+  toRemoteRouteGroup,
 } from './operationalTelemetry';
 
 const createMemoryStorage = (): Storage => {
@@ -66,6 +69,8 @@ describe('operational telemetry', () => {
     expect(getRouteGroup('/workout/12345?athlete=user@example.com')).toBe('/workout');
     expect(getRouteGroup('/admin/users/8f5b-1234')).toBe('/admin');
     expect(getRouteGroup('/')).toBe('/');
+    expect(toRemoteRouteGroup('/workout')).toBe('workout');
+    expect(toRemoteRouteGroup('/unknown-route')).toBe('unknown');
   });
 
   it('uses stable count buckets instead of exact high-cardinality values', () => {
@@ -74,6 +79,46 @@ describe('operational telemetry', () => {
     expect(bucketOperationalCount(4)).toBe('2-5');
     expect(bucketOperationalCount(12)).toBe('6-20');
     expect(bucketOperationalCount(100)).toBe('21+');
+  });
+
+  it('aggregates repeated events in a privacy-safe remote outbox', () => {
+    const storage = createMemoryStorage();
+    const now = Date.UTC(2026, 6, 26, 12, 0, 0);
+
+    recordOperationalEvent('sync_dead_lettered', {
+      source: 'offline-queue',
+      routeGroup: '/workout',
+      errorKind: 'foreign_key',
+    }, { storage, now });
+    recordOperationalEvent('sync_dead_lettered', {
+      source: 'offline-queue',
+      routeGroup: '/workout',
+      errorKind: 'foreign_key',
+    }, { storage, now: now + 1000 });
+
+    const values = Object.values(readOperationalTelemetryOutbox(storage));
+    expect(values).toHaveLength(1);
+    expect(values[0]).toMatchObject({
+      event_name: 'sync_dead_lettered',
+      route_group: 'workout',
+      count: 2,
+    });
+    expect(JSON.stringify(values)).not.toContain('foreign_key');
+    expect(JSON.stringify(values)).not.toContain('offline-queue');
+  });
+
+  it('acknowledges only the counters successfully sent', () => {
+    const storage = createMemoryStorage();
+    const now = Date.UTC(2026, 6, 26, 12, 0, 0);
+    recordOperationalEvent('connectivity_offline', { routeGroup: '/dashboard' }, { storage, now });
+    recordOperationalEvent('connectivity_offline', { routeGroup: '/dashboard' }, { storage, now: now + 1 });
+
+    const item = Object.values(readOperationalTelemetryOutbox(storage))[0];
+    acknowledgeOperationalTelemetryBatch([{ ...item, count: 1 }], storage);
+
+    const remaining = Object.values(readOperationalTelemetryOutbox(storage));
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].count).toBe(1);
   });
 
   it('expires telemetry after the retention window', () => {
