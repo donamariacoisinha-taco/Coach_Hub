@@ -19,9 +19,9 @@ concurrency:
 
 jobs:
   validate:
-    name: Test, lint and build
+    name: Test, lint, build and homologation
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
@@ -30,7 +30,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -61,6 +61,28 @@ jobs:
         continue-on-error: true
         run: npm run build
 
+      - name: Integrated disposable account homologation
+        id: integrated
+        if: github.event_name == 'pull_request' && github.head_ref == 'p0-security-integrity-foundation'
+        continue-on-error: true
+        env:
+          SUPABASE_URL: https://eqnkuqkadtywgfsoilpe.supabase.co
+          SUPABASE_ANON_KEY: sb_publishable_ufX-voHVkHsMwKxN7mlWMA_vfh1rSIB
+          PORT: 3011
+          NODE_ENV: production
+        run: node scripts/p0IntegratedHomologation.mjs
+
+      - name: Upload integrated homologation evidence
+        if: always() && github.event_name == 'pull_request' && github.head_ref == 'p0-security-integrity-foundation'
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-integrated-homologation-${{ github.run_id }}
+          path: |
+            p0-integrated-homologation-report.json
+            server-output.log
+          if-no-files-found: ignore
+          retention-days: 2
+
       - name: Enforce validation result
         if: always()
         shell: bash
@@ -68,3 +90,6 @@ jobs:
           test "${{ steps.tests.outcome }}" = "success"
           test "${{ steps.lint.outcome }}" = "success"
           test "${{ steps.build.outcome }}" = "success"
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.head_ref }}" = "p0-security-integrity-foundation" ]; then
+            test "${{ steps.integrated.outcome }}" = "success"
+          fi
