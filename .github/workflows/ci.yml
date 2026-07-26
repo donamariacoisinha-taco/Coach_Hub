@@ -59,7 +59,17 @@ jobs:
       - name: Build
         id: build
         continue-on-error: true
+        env:
+          VITE_GIT_COMMIT_SHA: ${{ github.sha }}
         run: npm run build
+
+      - name: Production smoke test
+        id: smoke
+        continue-on-error: true
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          SMOKE_PORT: 3199
+        run: npm run smoke
 
       - name: Integrated disposable account homologation
         id: integrated
@@ -90,6 +100,7 @@ jobs:
           test "${{ steps.tests.outcome }}" = "success"
           test "${{ steps.lint.outcome }}" = "success"
           test "${{ steps.build.outcome }}" = "success"
+          test "${{ steps.smoke.outcome }}" = "success"
           if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.head_ref }}" = "p0-security-integrity-foundation" ]; then
             test "${{ steps.integrated.outcome }}" = "success"
           fi
