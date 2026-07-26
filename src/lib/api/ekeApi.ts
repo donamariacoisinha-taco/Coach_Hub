@@ -1,14 +1,15 @@
-
 import { supabase } from './supabase';
 import { Exercise } from '../../types';
 import { fetchWithRetry } from '../utils';
+
+const isDev = typeof import.meta !== 'undefined' ? import.meta.env.DEV : process.env.NODE_ENV === 'development';
 
 export const ekeApi = {
   /**
    * Updates exercise performance stats based on training session data.
    */
-  async updateExercisePerformance(exerciseId: string, stats: { 
-    completedAllSets: boolean, 
+  async updateExercisePerformance(exerciseId: string, stats: {
+    completedAllSets: boolean,
     progressionAchieved: boolean,
     volumeTrend: 'up' | 'down' | 'stable'
   }) {
@@ -32,7 +33,7 @@ export const ekeApi = {
 
       const { error: updateError } = await supabase
         .from('exercises')
-        .update({ 
+        .update({
           performance_score: newScore,
           usage_count: newUsageCount,
           last_used_at: new Date().toISOString()
@@ -40,7 +41,7 @@ export const ekeApi = {
         .eq('id', exerciseId);
 
       if (updateError) throw updateError;
-      
+
       return { exerciseId, newScore, newUsageCount };
     });
   },
@@ -54,7 +55,7 @@ export const ekeApi = {
         const { data, error } = await supabase
           .from('exercises')
           .select('*');
-        
+
         if (error) throw error;
         const activeData = (data || []).filter(ex => ex.is_active !== false);
         return activeData as Exercise[];
@@ -80,9 +81,26 @@ export const ekeApi = {
   },
 
   async getConfig() {
-    const { data, error } = await supabase.from('eke_config').select('*').single();
-    if (error) return null;
-    return data;
+    const { data, error } = await supabase
+      .from('eke_config')
+      .select('*')
+      .limit(1);
+
+    if (error) {
+      console.warn('[EKE] Config query failed, using safe defaults:', error.message);
+      return null;
+    }
+
+    if (!data || data.length === 0) {
+      if (isDev) console.info('[EKE] No config row found. Safe defaults will be used.');
+      return null;
+    }
+
+    if (data.length > 1) {
+      console.warn('[EKE] Multiple config rows returned after limit(1). Review table constraints.');
+    }
+
+    return data[0];
   },
 
   async getUserPreferences(userId: string) {
@@ -90,7 +108,7 @@ export const ekeApi = {
       .from('user_preferences')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     if (error) return null;
     return data;
   },

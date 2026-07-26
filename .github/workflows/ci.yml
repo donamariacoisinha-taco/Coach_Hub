@@ -1,0 +1,95 @@
+name: KYRON OS CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - p0-security-integrity-foundation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kyron-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Test, lint, build and homologation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security and regression tests
+        id: tests
+        continue-on-error: true
+        shell: bash
+        run: npm test -- --reporter=verbose > test-output.txt 2>&1
+
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-1-test-output
+          path: test-output.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Typecheck / lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Build
+        id: build
+        continue-on-error: true
+        run: npm run build
+
+      - name: Integrated disposable account homologation
+        id: integrated
+        if: github.event_name == 'pull_request' && github.head_ref == 'p0-security-integrity-foundation'
+        continue-on-error: true
+        env:
+          SUPABASE_URL: https://eqnkuqkadtywgfsoilpe.supabase.co
+          SUPABASE_ANON_KEY: sb_publishable_ufX-voHVkHsMwKxN7mlWMA_vfh1rSIB
+          PORT: 3011
+          NODE_ENV: production
+        run: node scripts/p0IntegratedHomologation.mjs
+
+      - name: Upload integrated homologation evidence
+        if: always() && github.event_name == 'pull_request' && github.head_ref == 'p0-security-integrity-foundation'
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-integrated-homologation-${{ github.run_id }}
+          path: |
+            p0-integrated-homologation-report.json
+            server-output.log
+          if-no-files-found: ignore
+          retention-days: 2
+
+      - name: Enforce validation result
+        if: always()
+        shell: bash
+        run: |
+          test "${{ steps.tests.outcome }}" = "success"
+          test "${{ steps.lint.outcome }}" = "success"
+          test "${{ steps.build.outcome }}" = "success"
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.head_ref }}" = "p0-security-integrity-foundation" ]; then
+            test "${{ steps.integrated.outcome }}" = "success"
+          fi
