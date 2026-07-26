@@ -1,287 +1,189 @@
 -- =========================================================================
--- KYRON OS P0 — Segurança e Integridade
--- Execute manualmente no SQL Editor do Supabase após revisar em staging.
--- Objetivos:
--- 1. Tornar status de conta, premium e admin fonte oficial no banco.
--- 2. Criar trilha de auditoria administrativa.
--- 3. Endurecer RLS de exercícios.
--- 4. Criar função transacional para soft delete/desativação de usuários.
+-- KYRON OS P0 — Validação e hardening da arquitetura user_access
+-- =========================================================================
+-- IMPORTANTE
+--
+-- A produção já possui a fundação P0 oficial:
+--   public.user_access
+--   public.user_access_audit
+--   public.admin_update_user_access(uuid, text, text, text, text)
+--   private.current_user_is_admin()
+--   private.current_user_is_active()
+--
+-- Este arquivo NÃO cria account_status/subscription_status em profiles,
+-- NÃO cria uma segunda auditoria, NÃO cria soft delete e NÃO apaga sessões.
+-- Ele falha de forma segura se a fundação oficial não estiver presente.
+--
+-- Não executar automaticamente. Revisar antes no SQL Editor.
 -- =========================================================================
 
 BEGIN;
 
 -- -------------------------------------------------------------------------
--- 1. Profiles: campos oficiais de segurança e assinatura
+-- 1. Preflight fail-closed: confirmar a arquitetura oficial já existente
 -- -------------------------------------------------------------------------
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'active',
-  ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT 'free',
-  ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS suspended_by UUID REFERENCES auth.users(id),
-  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES auth.users(id),
-  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
-
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'profiles_account_status_check'
-  ) THEN
-    ALTER TABLE public.profiles
-      ADD CONSTRAINT profiles_account_status_check
-      CHECK (account_status IN ('active', 'suspended', 'deleted'));
+  IF to_regclass('public.user_access') IS NULL THEN
+    RAISE EXCEPTION 'P0 preflight failed: public.user_access is missing';
+  END IF;
+
+  IF to_regclass('public.user_access_audit') IS NULL THEN
+    RAISE EXCEPTION 'P0 preflight failed: public.user_access_audit is missing';
+  END IF;
+
+  IF to_regprocedure('public.admin_update_user_access(uuid,text,text,text,text)') IS NULL THEN
+    RAISE EXCEPTION 'P0 preflight failed: public.admin_update_user_access(uuid,text,text,text,text) is missing';
+  END IF;
+
+  IF to_regprocedure('public.is_admin()') IS NULL THEN
+    RAISE EXCEPTION 'P0 preflight failed: public.is_admin() is missing';
+  END IF;
+
+  IF to_regprocedure('private.current_user_is_admin()') IS NULL THEN
+    RAISE EXCEPTION 'P0 preflight failed: private.current_user_is_admin() is missing';
+  END IF;
+
+  IF to_regprocedure('private.current_user_is_active()') IS NULL THEN
+    RAISE EXCEPTION 'P0 preflight failed: private.current_user_is_active() is missing';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'profiles_subscription_status_check'
+    SELECT 1
+    FROM information_schema.triggers
+    WHERE event_object_schema = 'public'
+      AND event_object_table = 'profiles'
+      AND trigger_name = 'ensure_user_access_after_profile_insert'
   ) THEN
-    ALTER TABLE public.profiles
-      ADD CONSTRAINT profiles_subscription_status_check
-      CHECK (subscription_status IN ('free', 'premium', 'trial', 'past_due', 'cancelled'));
+    RAISE EXCEPTION 'P0 preflight failed: ensure_user_access_after_profile_insert trigger is missing';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.triggers
+    WHERE event_object_schema = 'public'
+      AND event_object_table = 'profiles'
+      AND trigger_name = 'guard_profile_authorization_columns_before_update'
+  ) THEN
+    RAISE EXCEPTION 'P0 preflight failed: guard_profile_authorization_columns_before_update trigger is missing';
   END IF;
 END $$;
 
--- Backfill a partir de campos legados sem removê-los ainda.
-UPDATE public.profiles
-SET subscription_status = CASE
-  WHEN COALESCE(is_premium, false) = true THEN 'premium'
-  ELSE COALESCE(subscription_status, 'free')
-END;
-
 -- -------------------------------------------------------------------------
--- 2. Função admin segura
+-- 2. user_access: leitura autenticada; mutação somente pela RPC auditada
 -- -------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN AS $$
-DECLARE
-  admin_flag BOOLEAN;
-BEGIN
-  SELECT COALESCE(is_admin, false) OR role = 'admin'
-  INTO admin_flag
-  FROM public.profiles
-  WHERE id = auth.uid()
-    AND account_status = 'active';
+ALTER TABLE public.user_access ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_access_audit ENABLE ROW LEVEL SECURITY;
 
-  RETURN COALESCE(admin_flag, false);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.user_access FROM anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.user_access_audit FROM anon, authenticated;
+
+GRANT SELECT ON TABLE public.user_access TO authenticated;
+GRANT SELECT ON TABLE public.user_access_audit TO authenticated;
+
+REVOKE ALL ON FUNCTION public.admin_update_user_access(uuid, text, text, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_update_user_access(uuid, text, text, text, text) FROM anon;
+GRANT EXECUTE ON FUNCTION public.admin_update_user_access(uuid, text, text, text, text) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
 
 -- -------------------------------------------------------------------------
--- 3. Auditoria administrativa imutável
+-- 3. Exercises: consolidar apenas as policies de mutação
 -- -------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.admin_audit_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  actor_user_id UUID REFERENCES auth.users(id),
-  target_user_id UUID REFERENCES auth.users(id),
-  action TEXT NOT NULL,
-  reason TEXT,
-  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
-);
+-- Policies SELECT existentes são preservadas. As policies permissivas abaixo
+-- também concediam INSERT/UPDATE/DELETE e poderiam contornar a propriedade.
 
-ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS admin_audit_logs_select_policy ON public.admin_audit_logs;
-CREATE POLICY admin_audit_logs_select_policy ON public.admin_audit_logs
-FOR SELECT TO authenticated
-USING (public.is_admin());
-
-DROP POLICY IF EXISTS admin_audit_logs_insert_policy ON public.admin_audit_logs;
-CREATE POLICY admin_audit_logs_insert_policy ON public.admin_audit_logs
-FOR INSERT TO authenticated
-WITH CHECK (public.is_admin() AND actor_user_id = auth.uid());
-
-DROP POLICY IF EXISTS admin_audit_logs_no_update ON public.admin_audit_logs;
-CREATE POLICY admin_audit_logs_no_update ON public.admin_audit_logs
-FOR UPDATE TO authenticated
-USING (false)
-WITH CHECK (false);
-
-DROP POLICY IF EXISTS admin_audit_logs_no_delete ON public.admin_audit_logs;
-CREATE POLICY admin_audit_logs_no_delete ON public.admin_audit_logs
-FOR DELETE TO authenticated
-USING (false);
-
--- -------------------------------------------------------------------------
--- 4. RLS de profiles
--- -------------------------------------------------------------------------
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS profiles_select_policy ON public.profiles;
-CREATE POLICY profiles_select_policy ON public.profiles
-FOR SELECT TO authenticated
-USING (
-  auth.uid() = id OR public.is_admin()
-);
-
-DROP POLICY IF EXISTS profiles_update_policy ON public.profiles;
-CREATE POLICY profiles_update_policy ON public.profiles
-FOR UPDATE TO authenticated
-USING (
-  auth.uid() = id OR public.is_admin()
-)
-WITH CHECK (
-  auth.uid() = id OR public.is_admin()
-);
-
-DROP POLICY IF EXISTS profiles_insert_policy ON public.profiles;
-CREATE POLICY profiles_insert_policy ON public.profiles
-FOR INSERT TO authenticated
-WITH CHECK (
-  auth.uid() = id OR public.is_admin()
-);
-
-DROP POLICY IF EXISTS profiles_delete_policy ON public.profiles;
-CREATE POLICY profiles_delete_policy ON public.profiles
-FOR DELETE TO authenticated
-USING (public.is_admin());
-
--- -------------------------------------------------------------------------
--- 5. Endurecimento de RLS em exercises
--- -------------------------------------------------------------------------
 ALTER TABLE public.exercises ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admin full access to exercises" ON public.exercises;
+DROP POLICY IF EXISTS exercises_admin_manage ON public.exercises;
 DROP POLICY IF EXISTS exercises_insert_policy ON public.exercises;
-CREATE POLICY exercises_insert_policy ON public.exercises
-FOR INSERT TO authenticated
-WITH CHECK (
-  auth.uid() = user_id OR public.is_admin()
-);
-
 DROP POLICY IF EXISTS exercises_update_policy ON public.exercises;
-CREATE POLICY exercises_update_policy ON public.exercises
-FOR UPDATE TO authenticated
+DROP POLICY IF EXISTS exercises_delete_policy ON public.exercises;
+DROP POLICY IF EXISTS exercises_master_update_policy ON public.exercises;
+DROP POLICY IF EXISTS exercises_master_delete_policy ON public.exercises;
+DROP POLICY IF EXISTS master_admin_policy ON public.exercises;
+
+DROP POLICY IF EXISTS exercises_insert_owner_or_admin ON public.exercises;
+CREATE POLICY exercises_insert_owner_or_admin
+ON public.exercises
+AS PERMISSIVE
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  user_id = auth.uid()
+  OR public.is_admin()
+);
+
+DROP POLICY IF EXISTS exercises_update_owner_or_admin ON public.exercises;
+CREATE POLICY exercises_update_owner_or_admin
+ON public.exercises
+AS PERMISSIVE
+FOR UPDATE
+TO authenticated
 USING (
-  auth.uid() = user_id OR public.is_admin()
+  user_id = auth.uid()
+  OR public.is_admin()
 )
 WITH CHECK (
-  auth.uid() = user_id OR public.is_admin()
+  user_id = auth.uid()
+  OR public.is_admin()
 );
 
-DROP POLICY IF EXISTS exercises_delete_policy ON public.exercises;
-CREATE POLICY exercises_delete_policy ON public.exercises
-FOR DELETE TO authenticated
+DROP POLICY IF EXISTS exercises_delete_owner_or_admin ON public.exercises;
+CREATE POLICY exercises_delete_owner_or_admin
+ON public.exercises
+AS PERMISSIVE
+FOR DELETE
+TO authenticated
 USING (
-  auth.uid() = user_id OR public.is_admin()
+  user_id = auth.uid()
+  OR public.is_admin()
 );
 
 -- -------------------------------------------------------------------------
--- 6. Funções administrativas transacionais
+-- 4. Integridade mínima antes do COMMIT
 -- -------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.admin_set_account_status(
-  target_user_id UUID,
-  next_status TEXT,
-  reason TEXT DEFAULT NULL
-)
-RETURNS public.profiles AS $$
+DO $$
 DECLARE
-  result public.profiles;
+  profiles_without_access BIGINT;
+  active_admins BIGINT;
 BEGIN
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'permission denied';
+  SELECT count(*)
+  INTO profiles_without_access
+  FROM public.profiles p
+  LEFT JOIN public.user_access ua ON ua.user_id = p.id
+  WHERE ua.user_id IS NULL;
+
+  IF profiles_without_access > 0 THEN
+    RAISE EXCEPTION 'P0 integrity failed: % profiles do not have user_access', profiles_without_access;
   END IF;
 
-  IF next_status NOT IN ('active', 'suspended', 'deleted') THEN
-    RAISE EXCEPTION 'invalid account status: %', next_status;
+  SELECT count(*)
+  INTO active_admins
+  FROM public.user_access
+  WHERE role = 'admin' AND status = 'active';
+
+  IF active_admins < 1 THEN
+    RAISE EXCEPTION 'P0 integrity failed: no active administrator exists';
   END IF;
-
-  UPDATE public.profiles
-  SET account_status = next_status,
-      suspended_at = CASE WHEN next_status = 'suspended' THEN now() ELSE suspended_at END,
-      suspended_by = CASE WHEN next_status = 'suspended' THEN auth.uid() ELSE suspended_by END,
-      deleted_at = CASE WHEN next_status = 'deleted' THEN now() ELSE deleted_at END,
-      deleted_by = CASE WHEN next_status = 'deleted' THEN auth.uid() ELSE deleted_by END,
-      updated_at = now()
-  WHERE id = target_user_id
-  RETURNING * INTO result;
-
-  IF result.id IS NULL THEN
-    RAISE EXCEPTION 'target profile not found';
-  END IF;
-
-  INSERT INTO public.admin_audit_logs(actor_user_id, target_user_id, action, reason, metadata)
-  VALUES (auth.uid(), target_user_id, 'account_status_changed', reason, jsonb_build_object('status', next_status));
-
-  RETURN result;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
-REVOKE ALL ON FUNCTION public.admin_set_account_status(UUID, TEXT, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.admin_set_account_status(UUID, TEXT, TEXT) TO authenticated;
-
-CREATE OR REPLACE FUNCTION public.admin_set_subscription_status(
-  target_user_id UUID,
-  next_status TEXT,
-  reason TEXT DEFAULT NULL
-)
-RETURNS public.profiles AS $$
-DECLARE
-  result public.profiles;
-BEGIN
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'permission denied';
-  END IF;
-
-  IF next_status NOT IN ('free', 'premium', 'trial', 'past_due', 'cancelled') THEN
-    RAISE EXCEPTION 'invalid subscription status: %', next_status;
-  END IF;
-
-  UPDATE public.profiles
-  SET subscription_status = next_status,
-      is_premium = next_status IN ('premium', 'trial'),
-      updated_at = now()
-  WHERE id = target_user_id
-  RETURNING * INTO result;
-
-  IF result.id IS NULL THEN
-    RAISE EXCEPTION 'target profile not found';
-  END IF;
-
-  INSERT INTO public.admin_audit_logs(actor_user_id, target_user_id, action, reason, metadata)
-  VALUES (auth.uid(), target_user_id, 'subscription_status_changed', reason, jsonb_build_object('status', next_status));
-
-  RETURN result;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
-REVOKE ALL ON FUNCTION public.admin_set_subscription_status(UUID, TEXT, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.admin_set_subscription_status(UUID, TEXT, TEXT) TO authenticated;
-
--- Soft delete: não apaga dados físicos. A recuperação permanece possível.
-CREATE OR REPLACE FUNCTION public.admin_soft_delete_user(
-  target_user_id UUID,
-  reason TEXT DEFAULT NULL
-)
-RETURNS public.profiles AS $$
-DECLARE
-  result public.profiles;
-BEGIN
-  result := public.admin_set_account_status(target_user_id, 'deleted', reason);
-
-  DELETE FROM public.partial_workout_sessions
-  WHERE user_id = target_user_id;
-
-  INSERT INTO public.admin_audit_logs(actor_user_id, target_user_id, action, reason, metadata)
-  VALUES (auth.uid(), target_user_id, 'user_soft_deleted', reason, '{}'::jsonb);
-
-  RETURN result;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
-REVOKE ALL ON FUNCTION public.admin_soft_delete_user(UUID, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.admin_soft_delete_user(UUID, TEXT) TO authenticated;
-
--- -------------------------------------------------------------------------
--- 7. Índices de suporte
--- -------------------------------------------------------------------------
-CREATE INDEX IF NOT EXISTS idx_profiles_account_status ON public.profiles(account_status);
-CREATE INDEX IF NOT EXISTS idx_profiles_subscription_status ON public.profiles(subscription_status);
-CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_target_created ON public.admin_audit_logs(target_user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_actor_created ON public.admin_audit_logs(actor_user_id, created_at DESC);
+END $$;
 
 COMMIT;
 
-SELECT 'KYRON OS P0 security integrity migration ready' AS status;
+-- -------------------------------------------------------------------------
+-- 5. Relatório pós-migration (somente leitura)
+-- -------------------------------------------------------------------------
+SELECT
+  (SELECT count(*) FROM public.profiles) AS profiles_count,
+  (SELECT count(*) FROM public.user_access) AS user_access_count,
+  (SELECT count(*) FROM public.user_access WHERE role = 'admin' AND status = 'active') AS active_admins,
+  (SELECT count(*) FROM public.user_access WHERE plan = 'premium') AS premium_users,
+  (SELECT count(*) FROM public.user_access WHERE status = 'suspended') AS suspended_users;
+
+SELECT policyname, permissive, roles, cmd
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename IN ('user_access', 'user_access_audit', 'exercises')
+ORDER BY tablename, policyname;
