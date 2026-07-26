@@ -85,6 +85,15 @@ Reduzir falhas silenciosas em produção e tornar incidentes de inicialização,
 - falha ao gravar telemetria nunca interrompe o Workout Player ou a sincronização;
 - o runbook proíbe limpeza de IndexedDB antes da verificação da fila offline.
 
+## Validação consolidada
+
+- 6 arquivos de teste aprovados;
+- 33 testes aprovados;
+- TypeScript/lint aprovado;
+- build aprovado;
+- smoke do bundle e servidor aprovado;
+- nenhuma alteração no Supabase, RLS ou dados de usuários.
+
 ## Próximas entregas da P1
 
 1. verificação periódica do endereço oficial após deploy;
