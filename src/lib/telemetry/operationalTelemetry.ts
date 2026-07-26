@@ -49,6 +49,13 @@ export type OperationalTelemetrySnapshot = {
   recent: OperationalTelemetryEntry[];
 };
 
+export type OperationalTelemetryOutboxItem = {
+  event_name: OperationalEventName;
+  route_group: string;
+  build: string;
+  count: number;
+};
+
 export type SafeOperationalReport = {
   generatedAt: string;
   build: string;
@@ -65,43 +72,31 @@ export type SafeOperationalReport = {
 };
 
 const STORAGE_KEY = 'kyron_operational_telemetry_v1';
+const OUTBOX_STORAGE_KEY = 'kyron_operational_telemetry_outbox_v1';
+export const OPERATIONAL_TELEMETRY_EVENT = 'kyron:operational-telemetry';
 const RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_RECENT_EVENTS = 20;
 const MAX_DIMENSION_LENGTH = 64;
 
 const ALLOWED_EVENTS = new Set<OperationalEventName>([
-  'app_runtime_error',
-  'app_recovery_retry',
-  'app_recovery_reload',
-  'connectivity_online',
-  'connectivity_offline',
-  'sync_storage_unavailable',
-  'sync_storage_restored',
-  'sync_queue_added',
-  'sync_dead_lettered',
-  'sync_dead_letter_restored',
-  'sync_cycle_started',
-  'sync_cycle_succeeded',
-  'sync_cycle_failed',
-  'sync_manual_started',
-  'sync_manual_succeeded',
-  'sync_manual_failed',
-  'sync_retry_one_started',
-  'sync_retry_one_succeeded',
-  'sync_retry_one_failed',
-  'sync_retry_all_started',
-  'sync_retry_all_succeeded',
-  'sync_retry_all_failed',
+  'app_runtime_error', 'app_recovery_retry', 'app_recovery_reload',
+  'connectivity_online', 'connectivity_offline',
+  'sync_storage_unavailable', 'sync_storage_restored',
+  'sync_queue_added', 'sync_dead_lettered', 'sync_dead_letter_restored',
+  'sync_cycle_started', 'sync_cycle_succeeded', 'sync_cycle_failed',
+  'sync_manual_started', 'sync_manual_succeeded', 'sync_manual_failed',
+  'sync_retry_one_started', 'sync_retry_one_succeeded', 'sync_retry_one_failed',
+  'sync_retry_all_started', 'sync_retry_all_succeeded', 'sync_retry_all_failed',
   'diagnostic_copied',
 ]);
 
 const ALLOWED_DIMENSIONS = new Set<OperationalDimensionKey>([
-  'source',
-  'result',
-  'routeGroup',
-  'errorKind',
-  'countBucket',
-  'healthLevel',
+  'source', 'result', 'routeGroup', 'errorKind', 'countBucket', 'healthLevel',
+]);
+
+const ALLOWED_ROUTE_GROUPS = new Set([
+  'landing', 'auth', 'onboarding', 'dashboard', 'workout', 'preparation',
+  'editor', 'history', 'admin', 'profile', 'library', 'dieta', 'unknown',
 ]);
 
 const SENSITIVE_VALUE_PATTERN = /@|bearer\s|password|passwd|secret|token|eyJ[a-zA-Z0-9_-]{10,}/i;
@@ -125,21 +120,24 @@ export const getOperationalBuildLabel = (): string => {
 };
 
 export const getRouteGroup = (pathname: string): string => {
-  const firstSegment = pathname
-    .split('?')[0]
-    .split('#')[0]
-    .split('/')
-    .filter(Boolean)[0];
-
+  const firstSegment = pathname.split('?')[0].split('#')[0].split('/').filter(Boolean)[0];
   if (!firstSegment) return '/';
-
   const sanitized = firstSegment
     .replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ':id')
     .replace(/\d+/g, ':id')
     .replace(/[^a-zA-Z0-9:_-]/g, '')
     .slice(0, 40);
-
   return sanitized ? `/${sanitized}` : '/other';
+};
+
+export const toRemoteRouteGroup = (routeGroup: string): string => {
+  const normalized = routeGroup.replace(/^\//, '') || 'landing';
+  return ALLOWED_ROUTE_GROUPS.has(normalized) ? normalized : 'unknown';
+};
+
+const normalizeBuild = (value: string): string => {
+  const normalized = String(value || 'unknown').trim().replace(/[^a-zA-Z0-9._-]/g, '-');
+  return (normalized || 'unknown').slice(0, 40);
 };
 
 export const bucketOperationalCount = (count: number): string => {
@@ -164,10 +162,7 @@ const createEmptySnapshot = (now: number): OperationalTelemetrySnapshot => {
 };
 
 const sanitizeDimensionValue = (value: unknown): string | undefined => {
-  if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
-    return undefined;
-  }
-
+  if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') return undefined;
   const normalized = String(value).trim().slice(0, MAX_DIMENSION_LENGTH);
   if (!normalized || SENSITIVE_VALUE_PATTERN.test(normalized)) return undefined;
   return normalized;
@@ -177,13 +172,11 @@ export const sanitizeOperationalDimensions = (
   dimensions: Record<string, unknown> = {},
 ): Partial<Record<OperationalDimensionKey, string>> => {
   const safe: Partial<Record<OperationalDimensionKey, string>> = {};
-
   for (const [key, value] of Object.entries(dimensions)) {
     if (!ALLOWED_DIMENSIONS.has(key as OperationalDimensionKey)) continue;
     const sanitized = sanitizeDimensionValue(value);
     if (sanitized !== undefined) safe[key as OperationalDimensionKey] = sanitized;
   }
-
   return safe;
 };
 
@@ -204,24 +197,85 @@ export const readOperationalTelemetry = (
   now = Date.now(),
 ): OperationalTelemetrySnapshot => {
   if (!storage) return createEmptySnapshot(now);
-
   try {
     const raw = storage.getItem(STORAGE_KEY);
     if (!raw) return createEmptySnapshot(now);
-
     const parsed = JSON.parse(raw);
     if (!isValidSnapshot(parsed)) return createEmptySnapshot(now);
-
     const expiresAt = Date.parse(parsed.expiresAt);
     if (!Number.isFinite(expiresAt) || expiresAt <= now) {
       storage.removeItem(STORAGE_KEY);
       return createEmptySnapshot(now);
     }
-
     return parsed;
   } catch {
     return createEmptySnapshot(now);
   }
+};
+
+export const readOperationalTelemetryOutbox = (
+  storage: Storage | null = getDefaultStorage(),
+): Record<string, OperationalTelemetryOutboxItem> => {
+  if (!storage) return {};
+  try {
+    const raw = storage.getItem(OUTBOX_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeOperationalTelemetryOutbox = (
+  outbox: Record<string, OperationalTelemetryOutboxItem>,
+  storage: Storage | null = getDefaultStorage(),
+): void => {
+  if (!storage) return;
+  try {
+    if (Object.keys(outbox).length === 0) storage.removeItem(OUTBOX_STORAGE_KEY);
+    else storage.setItem(OUTBOX_STORAGE_KEY, JSON.stringify(outbox));
+  } catch {
+    // Telemetry must never interrupt the application.
+  }
+};
+
+const enqueueOperationalTelemetry = (
+  event: OperationalEventName,
+  routeGroup: string,
+  build: string,
+  storage: Storage | null,
+): void => {
+  if (!storage) return;
+  const safeRoute = toRemoteRouteGroup(routeGroup);
+  const safeBuild = normalizeBuild(build);
+  const key = `${event}|${safeRoute}|${safeBuild}`;
+  const outbox = readOperationalTelemetryOutbox(storage);
+  const previous = outbox[key];
+  outbox[key] = {
+    event_name: event,
+    route_group: safeRoute,
+    build: safeBuild,
+    count: Math.min((previous?.count || 0) + 1, 1000),
+  };
+  writeOperationalTelemetryOutbox(outbox, storage);
+};
+
+export const acknowledgeOperationalTelemetryBatch = (
+  sent: OperationalTelemetryOutboxItem[],
+  storage: Storage | null = getDefaultStorage(),
+): void => {
+  if (!storage) return;
+  const outbox = readOperationalTelemetryOutbox(storage);
+  for (const item of sent) {
+    const key = `${item.event_name}|${item.route_group}|${normalizeBuild(item.build)}`;
+    const current = outbox[key];
+    if (!current) continue;
+    const remaining = current.count - item.count;
+    if (remaining > 0) outbox[key] = { ...current, count: remaining };
+    else delete outbox[key];
+  }
+  writeOperationalTelemetryOutbox(outbox, storage);
 };
 
 export const recordOperationalEvent = (
@@ -232,45 +286,35 @@ export const recordOperationalEvent = (
   const storage = options.storage === undefined ? getDefaultStorage() : options.storage;
   const now = options.now ?? Date.now();
   const snapshot = readOperationalTelemetry(storage, now);
-
   if (!ALLOWED_EVENTS.has(event)) return snapshot;
 
+  const safeDimensions = sanitizeOperationalDimensions(dimensions);
+  const routeGroup = safeDimensions.routeGroup
+    || (typeof window !== 'undefined' ? getRouteGroup(window.location.pathname) : '/');
   const updated: OperationalTelemetrySnapshot = {
     ...snapshot,
     updatedAt: new Date(now).toISOString(),
     build: getOperationalBuildLabel(),
-    counters: {
-      ...snapshot.counters,
-      [event]: (snapshot.counters[event] || 0) + 1,
-    },
-    recent: [
-      {
-        event,
-        occurredAt: new Date(now).toISOString(),
-        dimensions: sanitizeOperationalDimensions(dimensions),
-      },
-      ...snapshot.recent,
-    ].slice(0, MAX_RECENT_EVENTS),
+    counters: { ...snapshot.counters, [event]: (snapshot.counters[event] || 0) + 1 },
+    recent: [{ event, occurredAt: new Date(now).toISOString(), dimensions: safeDimensions }, ...snapshot.recent]
+      .slice(0, MAX_RECENT_EVENTS),
   };
 
   if (storage) {
     try {
       storage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      enqueueOperationalTelemetry(event, routeGroup, updated.build, storage);
     } catch {
       // Telemetry must never interrupt the application.
     }
   }
 
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(OPERATIONAL_TELEMETRY_EVENT));
   return updated;
 };
 
 export const createSafeOperationalReport = ({
-  online,
-  pendingCount,
-  deadLetterCount,
-  incidentId,
-  storage,
-  now = Date.now(),
+  online, pendingCount, deadLetterCount, incidentId, storage, now = Date.now(),
 }: {
   online: boolean;
   pendingCount: number;
