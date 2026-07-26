@@ -51,7 +51,19 @@ jobs:
           retention-days: 7
 
       - name: Typecheck / lint
-        run: npm run lint
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee lint-output.txt
+
+      - name: Upload lint diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-output-${{ github.run_id }}
+          path: lint-output.txt
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Build
         env:
@@ -73,5 +85,5 @@ jobs:
         with:
           name: smoke-output-${{ github.run_id }}
           path: smoke-output.txt
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 7
