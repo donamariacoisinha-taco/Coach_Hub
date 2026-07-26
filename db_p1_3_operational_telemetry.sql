@@ -26,16 +26,23 @@ CREATE TABLE IF NOT EXISTS public.operational_telemetry_daily (
   PRIMARY KEY (day, event_name, route_group, build),
   CONSTRAINT operational_telemetry_event_allowlist CHECK (
     event_name IN (
-      'startup_error',
-      'render_error',
-      'slow_initialization',
-      'profile_load_error',
-      'app_initialization_error',
-      'offline_storage_unavailable',
-      'manual_sync_failure',
-      'dead_letter_created',
-      'dead_letter_retry_failure',
-      'dead_letter_recovered'
+      'app_runtime_error',
+      'app_recovery_retry',
+      'app_recovery_reload',
+      'connectivity_online',
+      'connectivity_offline',
+      'sync_storage_unavailable',
+      'sync_storage_restored',
+      'sync_manual_started',
+      'sync_manual_succeeded',
+      'sync_manual_failed',
+      'sync_retry_one_started',
+      'sync_retry_one_succeeded',
+      'sync_retry_one_failed',
+      'sync_retry_all_started',
+      'sync_retry_all_succeeded',
+      'sync_retry_all_failed',
+      'diagnostic_copied'
     )
   ),
   CONSTRAINT operational_telemetry_route_allowlist CHECK (
@@ -115,16 +122,23 @@ BEGIN
     v_count := greatest(1, least(coalesce((item->>'count')::integer, 1), 100));
 
     IF v_event_name NOT IN (
-      'startup_error',
-      'render_error',
-      'slow_initialization',
-      'profile_load_error',
-      'app_initialization_error',
-      'offline_storage_unavailable',
-      'manual_sync_failure',
-      'dead_letter_created',
-      'dead_letter_retry_failure',
-      'dead_letter_recovered'
+      'app_runtime_error',
+      'app_recovery_retry',
+      'app_recovery_reload',
+      'connectivity_online',
+      'connectivity_offline',
+      'sync_storage_unavailable',
+      'sync_storage_restored',
+      'sync_manual_started',
+      'sync_manual_succeeded',
+      'sync_manual_failed',
+      'sync_retry_one_started',
+      'sync_retry_one_succeeded',
+      'sync_retry_one_failed',
+      'sync_retry_all_started',
+      'sync_retry_all_succeeded',
+      'sync_retry_all_failed',
+      'diagnostic_copied'
     ) THEN
       CONTINUE;
     END IF;
