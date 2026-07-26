@@ -56,9 +56,38 @@ Reduzir falhas silenciosas em produção e tornar incidentes de inicialização,
 - a indisponibilidade do IndexedDB gera estado visível em vez de erro silencioso;
 - banco de dados, RLS e lógica de avanço do Workout Player permanecem inalterados.
 
+## Entrega 3 — Telemetria segura e resposta a incidentes
+
+### Implementado
+
+- agregador local de eventos operacionais sem transmissão automática;
+- retenção máxima de 14 dias;
+- no máximo 20 eventos recentes, além de contadores agregados;
+- categoria da rota em vez de URL completa;
+- classe técnica do erro em vez de mensagem integral;
+- faixas de quantidade em vez de valores exatos de alta cardinalidade;
+- cobertura de falhas de inicialização e renderização;
+- cobertura de mudanças online/offline;
+- cobertura da criação da fila, dead-letter e reprocessamento;
+- cobertura de ciclos automáticos e manuais de sincronização;
+- relatório operacional seguro sem usuário, credencial ou conteúdo do treino;
+- diagnóstico de sessão restrito a incidente, build, categoria da rota e classe do erro;
+- runbook versionado em `docs/P1_INCIDENT_RUNBOOK.md`;
+- testes de sanitização, expiração, agregação e relatório seguro.
+
+### Critérios de aceite
+
+- nenhum evento aceita chaves de dimensão fora da allowlist;
+- valores semelhantes a e-mail, senha, token ou Bearer são descartados;
+- query string, hash e identificadores de rota não são persistidos;
+- o erro completo permanece apenas no console da sessão atual;
+- telemetria corrompida ou expirada não impede o aplicativo de abrir;
+- falha ao gravar telemetria nunca interrompe o Workout Player ou a sincronização;
+- o runbook proíbe limpeza de IndexedDB antes da verificação da fila offline.
+
 ## Próximas entregas da P1
 
-1. telemetria agregada de erros sem conteúdo pessoal;
-2. verificação periódica do endereço oficial após deploy;
-3. runbook de incidente, rollback e recuperação de cache/PWA;
-4. revisão de retenção e exportação segura da dead-letter queue para suporte técnico.
+1. verificação periódica do endereço oficial após deploy;
+2. revisão de retenção e exportação segura da dead-letter queue para suporte técnico;
+3. validação visual do painel de sincronização em preview;
+4. merge e smoke pós-publicação quando a Vercel liberar novos deployments gratuitos.
