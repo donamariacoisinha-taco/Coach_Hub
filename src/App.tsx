@@ -292,14 +292,11 @@ const App: React.FC = () => {
     </div>
   );
 
-  const isSuspended = session?.user?.id && !isAdmin(profile) && (() => {
-    try {
-      const suspendedIds = JSON.parse(localStorage.getItem('kyron_suspended_user_ids') || '[]');
-      return suspendedIds.includes(session.user.id);
-    } catch (e) {
-      return false;
-    }
-  })();
+  const isSuspended = Boolean(
+    session?.user?.id
+    && profile?.account_status === 'suspended'
+    && !isAdmin(profile)
+  );
 
   if (isSuspended) {
     return (
