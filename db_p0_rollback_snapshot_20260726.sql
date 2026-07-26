@@ -6,7 +6,8 @@
 --   - restaura policies anteriores de exercises e admin_preferences;
 --   - restaura execução pública das funções que estavam expostas;
 --   - remove security_invoker da view exercise_progress;
---   - restaura search_path mutável das três funções apontadas pelo Advisor.
+--   - restaura a função original check_admin_privileges;
+--   - restaura search_path mutável das funções apontadas pelo Advisor.
 --
 -- Não altera dados de usuários, auth.users, treinos ou histórico.
 -- Executar somente em caso de regressão confirmada.
@@ -17,12 +18,30 @@ BEGIN;
 -- 1. View
 ALTER VIEW public.exercise_progress RESET (security_invoker);
 
--- 2. Search path anterior
+-- 2. Função original do trigger de exercises
+CREATE OR REPLACE FUNCTION public.check_admin_privileges()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF NOT (SELECT is_admin FROM public.profiles WHERE id = auth.uid()) THEN
+    RAISE EXCEPTION 'Acesso negado: Apenas administradores podem modificar a biblioteca global.';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+-- 3. Search path anterior
 ALTER FUNCTION public.fn_process_achievements() RESET search_path;
 ALTER FUNCTION public.check_admin_privileges() RESET search_path;
 ALTER FUNCTION public.log_protocol_changes() RESET search_path;
 
--- 3. Permissões anteriores das funções
+-- 4. Permissões anteriores das funções
 GRANT EXECUTE ON FUNCTION public.check_workout_achievements() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.cleanup_stale_sessions() TO PUBLIC;
 GRANT EXECUTE ON FUNCTION public.fn_process_achievements() TO PUBLIC;
@@ -42,7 +61,7 @@ GRANT EXECUTE ON FUNCTION public.admin_update_user_access(uuid, text, text, text
 REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
 
--- 4. admin_preferences
+-- 5. admin_preferences
 DROP POLICY IF EXISTS admin_preferences_owner_manage ON public.admin_preferences;
 DROP POLICY IF EXISTS "Allow all operations for users on their own preferences" ON public.admin_preferences;
 CREATE POLICY "Allow all operations for users on their own preferences"
@@ -55,7 +74,7 @@ WITH CHECK (true);
 
 -- A policy RESTRICTIVE account_must_be_active é preservada.
 
--- 5. exercises: remover policies P0 e restaurar snapshot anterior
+-- 6. exercises: remover policies P0 e restaurar snapshot anterior
 DROP POLICY IF EXISTS exercises_insert_owner_or_admin ON public.exercises;
 DROP POLICY IF EXISTS exercises_update_owner_or_admin ON public.exercises;
 DROP POLICY IF EXISTS exercises_delete_owner_or_admin ON public.exercises;
