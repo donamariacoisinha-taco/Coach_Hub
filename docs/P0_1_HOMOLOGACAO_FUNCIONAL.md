@@ -1,16 +1,39 @@
 # KYRON OS — Fase P0.1: Homologação funcional e regressão
 
+## Resultado atual
+
+### Evidência automática
+
+- 4 arquivos de teste aprovados.
+- 21 testes aprovados.
+- Typecheck/lint aprovado.
+- Build aprovado.
+- Saída completa dos testes preservada como artefato do GitHub Actions por 7 dias.
+
+### Evidência estrutural do Supabase — somente leitura
+
+- Perfis: 8.
+- Registros em `user_access`: 8.
+- Perfis órfãos: 0.
+- Administradores ativos: 1.
+- Usuários ativos: 8.
+- Usuários suspensos: 0.
+- Usuários Premium: 0.
+- Usuários Free: 8.
+
+Nenhum dado foi alterado para produzir esses números.
+
 ## Regras de segurança
 
 - Não executar `db_p0_security_integrity.sql` durante esta fase.
 - Não usar contas reais para testes destrutivos.
 - Não excluir perfis, treinos, históricos ou sessões.
 - Não mesclar a PR enquanto algum cenário crítico estiver pendente ou falhando.
-- Usar uma conta administrativa de homologação e uma conta atleta de homologação.
+- Usar uma conta administrativa de homologação e uma conta atleta de homologação para os testes manuais de mutação.
 
 ## Evidência automática obrigatória
 
-A GitHub Action deve executar, nesta ordem:
+A GitHub Action executa, nesta ordem:
 
 1. `npm ci`
 2. `npm test`
@@ -21,42 +44,46 @@ A fase automática só é aprovada quando todas as etapas terminarem com `succes
 
 ## H1 — Autorização dos endpoints de IA
 
-### Sem token
+### Cobertura automática aprovada
+
+- Extração de Bearer token válida e case-insensitive.
+- Rejeição de headers ausentes ou malformados.
+- Limites de prompt e system instruction.
+- Allowlist do modelo Gemini.
+- Bypass de desenvolvimento desativado por padrão.
+- Bypass impossível em `production`, mesmo com flag incorreta.
+
+### Teste de integração pendente
+
+#### Sem token
 
 - Fazer uma chamada a `/api/intelligence/proxy` sem `Authorization`.
 - Resultado esperado em preview/staging/produção: HTTP `401`.
 - Não deve chamar Gemini.
 
-### Token inválido
+#### Token inválido
 
 - Enviar `Authorization: Bearer token-invalido`.
 - Resultado esperado: HTTP `401`.
 
-### Token válido
+#### Token válido
 
 - Enviar o access token de uma conta de homologação.
 - Resultado esperado: autenticação aceita e requisição processada conforme a disponibilidade da API Gemini.
 
-### Bypass local
-
-- Sem `ALLOW_DEV_AI_AUTH_BYPASS=true`: chamada local sem token deve retornar `401`.
-- Com `NODE_ENV` diferente de `production` e `ALLOW_DEV_AI_AUTH_BYPASS=true`: bypass permitido apenas para desenvolvimento local.
-- Em `production`, o bypass deve permanecer desativado mesmo com a flag configurada incorretamente como `true`.
-
 ## H2 — Integridade de `user_access`
 
-### Carregamento de usuário ativo
+### Aprovado
 
-- `profiles` e `user_access` devem ser carregados juntos.
-- `role`, `plan` e `account_status` exibidos na interface devem vir de `user_access`.
-- Campos legados em `profiles` não podem sobrescrever o registro oficial.
-
-### Perfil órfão
-
-- Um perfil sem linha correspondente em `user_access` deve causar erro de integridade.
-- O sistema não deve assumir automaticamente `free`, `user` ou `active` no navegador.
+- `profiles` e `user_access` são combinados sem confiar em campos legados.
+- `role`, `plan` e `account_status` vêm de `user_access`.
+- Perfil sem `user_access` falha de forma fechada.
+- Consulta estrutural confirmou zero perfis órfãos.
+- Existe exatamente um administrador ativo.
 
 ## H3 — Painel administrativo
+
+Os testes abaixo permanecem pendentes porque o banco atual não possui conta suspensa nem Premium e esta fase não deve alterar contas reais apenas para criar evidência.
 
 ### Suspender atleta
 
@@ -119,10 +146,12 @@ A fase automática só é aprovada quando todas as etapas terminarem com `succes
 
 ## H5 — Critério de conclusão
 
-A Fase P0.1 será considerada aprovada somente quando:
+A Fase P0.1 será considerada totalmente aprovada somente quando:
 
-- testes automatizados estiverem verdes;
-- lint e build estiverem verdes;
-- H1, H2, H3 e H4 tiverem evidência real;
-- não houver alteração destrutiva no banco;
-- PR continuar sem regressão crítica aberta.
+- testes automatizados estiverem verdes — aprovado;
+- lint e build estiverem verdes — aprovado;
+- integridade estrutural de `user_access` estiver comprovada — aprovado;
+- H1 de integração estiver aprovado — pendente;
+- H3 estiver aprovado com contas de homologação — pendente;
+- H4 tiver evidência real no Player — pendente;
+- não houver alteração destrutiva no banco — aprovado até o momento.
