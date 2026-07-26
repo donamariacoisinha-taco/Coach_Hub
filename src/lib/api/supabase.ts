@@ -2,6 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 
 const isDev = typeof import.meta !== 'undefined' ? import.meta.env.DEV : process.env.NODE_ENV === 'development';
 
+const DEFAULT_SUPABASE_URL = 'https://eqnkuqkadtywgfsoilpe.supabase.co';
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ufX-voHVkHsMwKxN7mlWMA_vfh1rSIB';
+
 const getEnvVar = (name: string): string => {
   try {
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[name]) {
@@ -16,12 +19,11 @@ const getEnvVar = (name: string): string => {
   return '';
 };
 
-const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
-const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be configured.');
-}
+// Supabase publishable keys are designed for browser clients. Environment
+// variables remain preferred, while these project-specific public defaults
+// keep Vercel deployments usable when a project is missing its VITE settings.
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL') || DEFAULT_SUPABASE_URL;
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || DEFAULT_SUPABASE_PUBLISHABLE_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
