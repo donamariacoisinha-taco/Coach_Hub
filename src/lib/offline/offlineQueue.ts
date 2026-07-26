@@ -1,5 +1,9 @@
 import { openDB, IDBPDatabase } from 'idb';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  bucketOperationalCount,
+  recordOperationalEvent,
+} from '../telemetry/operationalTelemetry';
 
 export interface QueueItem {
   id: string; // queue item id
@@ -26,6 +30,14 @@ const DEAD_LETTER_STORE_NAME = 'sync_dead_letter_queue';
 const DB_VERSION = 2;
 
 type QueueListener = () => void;
+
+const classifySyncFailure = (reason: string): string => {
+  const normalized = reason.toLowerCase();
+  if (normalized.includes('23503') || normalized.includes('foreign key')) return 'foreign_key';
+  if (normalized.includes('retry limit')) return 'retry_limit';
+  if (normalized.includes('critical')) return 'critical';
+  return 'sync_failure';
+};
 
 class OfflineQueue {
   private db: Promise<IDBPDatabase>;
@@ -70,6 +82,7 @@ class OfflineQueue {
     };
     const db = await this.db;
     await db.put(STORE_NAME, item);
+    recordOperationalEvent('sync_queue_added', { source: 'offline-queue' });
     this.emitChange();
     return id;
   }
@@ -130,6 +143,10 @@ class OfflineQueue {
     await tx.objectStore(DEAD_LETTER_STORE_NAME).put(deadLetter);
     await tx.objectStore(STORE_NAME).delete(item.id);
     await tx.done;
+    recordOperationalEvent('sync_dead_lettered', {
+      source: 'offline-queue',
+      errorKind: classifySyncFailure(reason),
+    });
     this.emitChange();
   }
 
@@ -158,6 +175,10 @@ class OfflineQueue {
     await tx.objectStore(STORE_NAME).put(retryItem);
     await deadLetterStore.delete(id);
     await tx.done;
+    recordOperationalEvent('sync_dead_letter_restored', {
+      source: 'offline-queue',
+      countBucket: '1',
+    });
     this.emitChange();
     return true;
   }
@@ -182,7 +203,13 @@ class OfflineQueue {
     }
 
     await tx.done;
-    if (items.length > 0) this.emitChange();
+    if (items.length > 0) {
+      recordOperationalEvent('sync_dead_letter_restored', {
+        source: 'offline-queue',
+        countBucket: bucketOperationalCount(items.length),
+      });
+      this.emitChange();
+    }
     return items.length;
   }
 }
