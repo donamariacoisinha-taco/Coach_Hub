@@ -14,6 +14,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+void __dirname;
 
 type AuthenticatedRequest = Request & {
   user?: { id: string; email?: string | null };
@@ -102,8 +103,22 @@ function createAuthMiddleware() {
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
+  const buildVersion = readEnv("VERCEL_GIT_COMMIT_SHA", "GITHUB_SHA", "KYRON_BUILD_ID") || "unknown";
 
+  app.disable("x-powered-by");
   app.use(express.json({ limit: "32kb" }));
+
+  app.get("/api/health", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.status(200).json({
+      status: "ok",
+      service: "kyron-os",
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || "development",
+      version: buildVersion.slice(0, 12),
+      uptimeSeconds: Math.round(process.uptime()),
+    });
+  });
 
   // Gemini Client Initialization
   const apiKey = process.env.GEMINI_API_KEY;
