@@ -113,10 +113,12 @@ const bootstrap = async () => {
       { default: App },
       { default: AppErrorBoundary },
       { default: OfflineSyncHealthPanel },
+      { initializeOperationalTelemetryTransport },
     ] = await Promise.all([
       import('./App'),
       import('./components/AppErrorBoundary'),
       import('./components/OfflineSyncHealthPanel'),
+      import('./lib/telemetry/operationalTelemetryTransport'),
     ]);
     const root = ReactDOM.createRoot(rootElement);
     root.render(
@@ -129,6 +131,7 @@ const bootstrap = async () => {
         </AppErrorBoundary>
       </React.StrictMode>
     );
+    initializeOperationalTelemetryTransport();
   } catch (error) {
     renderStartupError(error);
   }
