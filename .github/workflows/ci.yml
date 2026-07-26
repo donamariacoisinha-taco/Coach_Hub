@@ -66,10 +66,22 @@ jobs:
       - name: Production smoke test
         id: smoke
         continue-on-error: true
+        shell: bash
         env:
           GITHUB_SHA: ${{ github.sha }}
           SMOKE_PORT: 3199
-        run: npm run smoke
+        run: |
+          set -o pipefail
+          npm run smoke 2>&1 | tee smoke-output.txt
+
+      - name: Upload smoke diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1-smoke-output-${{ github.run_id }}
+          path: smoke-output.txt
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Integrated disposable account homologation
         id: integrated
@@ -97,6 +109,10 @@ jobs:
         if: always()
         shell: bash
         run: |
+          echo "tests=${{ steps.tests.outcome }}"
+          echo "lint=${{ steps.lint.outcome }}"
+          echo "build=${{ steps.build.outcome }}"
+          echo "smoke=${{ steps.smoke.outcome }}"
           test "${{ steps.tests.outcome }}" = "success"
           test "${{ steps.lint.outcome }}" = "success"
           test "${{ steps.build.outcome }}" = "success"
