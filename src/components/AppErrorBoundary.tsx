@@ -59,6 +59,9 @@ export default class AppErrorBoundary extends React.Component<
   AppErrorBoundaryProps,
   AppErrorBoundaryState
 > {
+  declare readonly props: Readonly<AppErrorBoundaryProps>;
+  declare setState: (state: Partial<AppErrorBoundaryState>) => void;
+
   state: AppErrorBoundaryState = {
     error: null,
     incidentId: null,
