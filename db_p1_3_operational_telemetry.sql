@@ -98,6 +98,7 @@ DECLARE
   v_route_group text;
   v_build text;
   v_count integer;
+  v_count_text text;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
@@ -122,10 +123,20 @@ BEGIN
 
   FOR item IN SELECT value FROM jsonb_array_elements(events)
   LOOP
+    IF jsonb_typeof(item) <> 'object' THEN
+      CONTINUE;
+    END IF;
+
     v_event_name := item->>'event_name';
     v_route_group := item->>'route_group';
     v_build := left(coalesce(nullif(item->>'build', ''), 'unknown'), 40);
-    v_count := greatest(1, least(coalesce((item->>'count')::integer, 1), 100));
+    v_count_text := coalesce(item->>'count', '');
+
+    IF v_count_text ~ '^[0-9]{1,3}$' THEN
+      v_count := greatest(1, least(v_count_text::integer, 100));
+    ELSE
+      v_count := 1;
+    END IF;
 
     IF v_event_name NOT IN (
       'app_runtime_error',
