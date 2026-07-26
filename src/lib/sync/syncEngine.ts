@@ -1,6 +1,10 @@
 import { offlineQueue, QueueItem } from '../offline/offlineQueue';
 import { workoutApi } from '../api/workoutApi';
 import { useAppStore } from '../../app/store/appStore';
+import {
+  bucketOperationalCount,
+  recordOperationalEvent,
+} from '../telemetry/operationalTelemetry';
 
 const isDev = typeof import.meta !== 'undefined' ? import.meta.env.DEV : process.env.NODE_ENV === 'development';
 
@@ -27,6 +31,12 @@ class SyncEngine {
       useAppStore.getState().setPendingCount(deadLetters.length);
       return;
     }
+
+    const source = options.force ? 'manual' : 'automatic';
+    recordOperationalEvent('sync_cycle_started', {
+      source,
+      countBucket: bucketOperationalCount(queue.length),
+    });
 
     this.isProcessing = true;
     this.lastProcessTime = now;
@@ -80,6 +90,23 @@ class SyncEngine {
       useAppStore.getState().setPendingCount(remaining.length + deadLetters.length);
       useAppStore.getState().setSyncing(false);
       this.isProcessing = false;
+
+      if (failCount > 0) {
+        recordOperationalEvent('sync_cycle_failed', {
+          source,
+          result: successCount > 0 ? 'partial' : 'failure',
+          countBucket: bucketOperationalCount(failCount),
+          healthLevel: deadLetters.length > 0 ? 'attention' : 'pending',
+        });
+      } else {
+        recordOperationalEvent('sync_cycle_succeeded', {
+          source,
+          result: 'success',
+          countBucket: bucketOperationalCount(successCount),
+          healthLevel: remaining.length + deadLetters.length === 0 ? 'healthy' : 'pending',
+        });
+      }
+
       if (isDev) console.log(`[SyncEngine] END: ${successCount} succeeded, ${failCount} failed. ${remaining.length} queued, ${deadLetters.length} dead-lettered.`);
     }
   }
