@@ -39,75 +39,62 @@ Reduzir falhas silenciosas em produção e tornar incidentes de inicialização,
 - atualização por evento da fila, mudança de conectividade e verificação periódica;
 - listagem limitada a metadados operacionais, sem conteúdo da série ou payload do usuário;
 - tentativa manual de sincronização;
-- reprocessamento individual e em bloco;
+- reprocessamento individual de item em dead-letter;
+- reprocessamento em bloco de todas as falhas;
 - movimentação transacional entre dead-letter e fila principal;
 - nenhuma ação de descarte no painel;
-- feedback explícito confirmando que os registros permanecem preservados;
-- testes unitários dos estados de saúde e apresentação operacional.
+- feedback explícito confirmando que os registros permanecem preservados quando uma tentativa falha;
+- testes unitários dos estados de saúde e da apresentação de tempo/operação.
 
 ### Critérios de aceite
 
-- uma operação pendente aparece sem recarregar a aplicação;
+- uma operação pendente aparece no painel sem recarregar a aplicação;
 - uma falha definitiva fica visível e não é apagada automaticamente;
-- reprocessamento só é habilitado com conexão;
+- o usuário consegue reprocessar uma falha individual ou todas as falhas;
+- reprocessamento só é habilitado quando existe conexão;
 - o painel nunca exibe payloads, tokens, e-mails ou conteúdo detalhado do treino;
-- indisponibilidade do IndexedDB gera estado visível;
-- lógica de avanço do Workout Player permanece inalterada.
+- a indisponibilidade do IndexedDB gera estado visível em vez de erro silencioso;
+- banco de dados, RLS e lógica de avanço do Workout Player permanecem inalterados.
 
-## Entrega 3 — Telemetria agregada e resposta a incidentes
+## Entrega 3 — Telemetria segura e resposta a incidentes
 
-### Implementado no código
+### Implementado
 
-- agregador local com retenção máxima de 14 dias;
-- até 20 eventos recentes e contadores locais;
-- outbox separada com agregação por evento, categoria de rota e build;
-- transporte em lote de até 25 combinações por chamada;
-- envio somente para sessão ativa e conexão disponível;
-- desativação silenciosa do transporte enquanto a migration não existir;
-- reconhecimento parcial dos contadores enviados, preservando eventos novos durante o transporte;
-- categoria da rota em vez de URL completa;
-- classe técnica do erro em vez de mensagem integral;
-- faixas de quantidade em vez de valores de alta cardinalidade;
-- cobertura de inicialização, renderização, conectividade, fila, dead-letter e ciclos de sincronização;
-- migration `db_p1_3_operational_telemetry.sql` com allowlist server-side;
-- tabela agregada sem identificador de usuário;
-- RPC autenticada, limitada e `SECURITY DEFINER` com `search_path` fixo;
-- RLS permitindo leitura persistente apenas a administradores;
-- painel administrativo com resumo dos últimos sete dias;
-- estado visual explícito quando a migration ainda aguarda ativação;
-- runbook versionado em `docs/P1_INCIDENT_RUNBOOK.md`.
+- agregador local de eventos operacionais com retenção de 14 dias;
+- outbox agregada por evento, categoria de rota e build;
+- transporte em lotes de até 25 combinações;
+- envio somente com sessão ativa e conexão disponível;
+- falha silenciosa e segura enquanto a migration não estiver aplicada;
+- migration `db_p1_3_operational_telemetry.sql` com allowlists no banco;
+- tabela diária sem identificador de usuário;
+- RPC autenticada, limitada e com `search_path` fixo;
+- leitura persistente restrita a administradores por RLS;
+- painel administrativo dos últimos sete dias;
+- diagnóstico de sessão restrito a incidente, build, categoria da rota e classe do erro;
+- runbook versionado em `docs/P1_INCIDENT_RUNBOOK.md`;
+- testes de sanitização, expiração, agregação, outbox e relatório seguro.
 
-### Dados persistidos após futura ativação
+### Endurecimento pré-aplicação
 
-Somente:
-
-- `day`;
-- `event_name`;
-- `route_group`;
-- `build`;
-- `event_count`;
-- horários do primeiro e último evento agregado.
-
-Não são persistidos:
-
-- ID de usuário;
-- e-mail;
-- token ou credencial;
-- mensagem ou stack trace;
-- URL completa;
-- exercício, carga, repetição ou conteúdo de treino;
-- payload da fila offline;
-- impressão digital do dispositivo.
+- lote máximo de 25 combinações;
+- itens JSON que não sejam objetos são ignorados;
+- contagem inválida é normalizada para 1;
+- incremento por item limitado a 100;
+- contador agregado limitado a 10.000 por combinação/dia;
+- no máximo 500 novas combinações por dia;
+- build sanitizado e limitado a 40 caracteres;
+- rollback versionado em `db_p1_3_operational_telemetry_rollback.sql`;
+- snapshot pré-aplicação em `docs/P1_3_PREAPPLICATION_SNAPSHOT_2026-07-27.md`.
 
 ### Critérios de aceite
 
-- eventos e rotas possuem allowlist no cliente e no banco;
+- nenhum evento aceita chaves de dimensão fora da allowlist;
 - valores semelhantes a e-mail, senha, token ou Bearer são descartados;
 - query string, hash e identificadores de rota não são persistidos;
-- falha local ou remota da telemetria nunca interrompe o aplicativo;
-- usuário comum não consegue consultar o resumo persistente;
-- migration permanece não aplicada até autorização explícita;
-- painel administrativo explica corretamente o estado pendente da migration.
+- o erro completo permanece apenas no console da sessão atual;
+- telemetria corrompida ou expirada não impede o aplicativo de abrir;
+- falha ao gravar telemetria nunca interrompe o Workout Player ou a sincronização;
+- o runbook proíbe limpeza de IndexedDB antes da verificação da fila offline.
 
 ## Validação consolidada
 
@@ -116,14 +103,20 @@ Não são persistidos:
 - TypeScript/lint aprovado;
 - build aprovado;
 - smoke do bundle e servidor aprovado;
-- migration criada e revisada no repositório, sem execução no Supabase;
-- nenhuma alteração em RLS ou dados de produção nesta entrega.
+- pré-check do Supabase aprovado;
+- nenhuma alteração no Supabase, RLS ou dados de usuários durante a preparação.
 
-## Próximos passos
+## Estado atual
 
-1. revisar a migration P1.3 contra o schema atual do Supabase;
-2. autorizar e aplicar a migration em produção com snapshot e rollback;
-3. homologar envio com contas descartáveis;
-4. validar o painel administrativo e o indicador offline em preview;
-5. marcar a PR como pronta, fazer merge e executar smoke pós-publicação;
-6. configurar verificação periódica do endereço oficial após deploy.
+- PR #5 permanece draft;
+- migration P1.3 revisada e pronta para aplicação;
+- snapshot e rollback disponíveis;
+- aplicação no Supabase ainda não autorizada nem executada;
+- produção permanece inalterada.
+
+## Próximas entregas da P1
+
+1. aplicar e homologar a migration P1.3 após autorização explícita;
+2. validar visualmente o painel de sincronização em preview;
+3. verificar o endereço oficial após deploy;
+4. revisar exportação segura da dead-letter queue para suporte técnico.
