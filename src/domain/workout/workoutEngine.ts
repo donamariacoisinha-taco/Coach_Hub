@@ -1,5 +1,4 @@
-
-import { WorkoutExercise, WorkoutHistory } from '../../types';
+import { WorkoutHistory } from '../../types';
 
 export interface SessionInitResult {
   historyId: string;
@@ -8,32 +7,44 @@ export interface SessionInitResult {
   currentSet: number;
 }
 
-const safeParseDate = (dateVal: any): number => {
-  if (!dateVal) return Date.now();
-  const parsed = new Date(dateVal).getTime();
-  return isNaN(parsed) ? Date.now() : parsed;
+const safeParseDate = (dateValue: unknown): number => {
+  if (!dateValue) return Date.now();
+  const parsed = new Date(dateValue as string | number | Date).getTime();
+  return Number.isFinite(parsed) ? parsed : Date.now();
+};
+
+const safeInteger = (value: unknown, fallback: number, minimum: number): number => {
+  const parsed = Math.trunc(Number(value));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(minimum, parsed);
+};
+
+const requireHistoryId = (value: unknown): string => {
+  const normalized = String(value || '').trim();
+  if (!normalized) throw new Error('Sessão não pôde ser iniciada (ID do Histórico Ausente)');
+  return normalized;
 };
 
 export const workoutEngine = {
   initializeSession(
     partialSession: any | null,
-    newHistory: WorkoutHistory | null
+    newHistory: WorkoutHistory | null,
   ): SessionInitResult {
-    if (partialSession && partialSession.history_id) {
+    if (partialSession?.history_id) {
       return {
-        historyId: partialSession.history_id,
+        historyId: requireHistoryId(partialSession.history_id),
         startTime: safeParseDate(partialSession.start_time),
-        currentIndex: partialSession.current_index || 0,
-        currentSet: partialSession.current_set || 1,
+        currentIndex: safeInteger(partialSession.current_index, 0, 0),
+        currentSet: safeInteger(partialSession.current_set, 1, 1),
       };
     }
 
     if (!newHistory) {
-      throw new Error("Sessão não pôde ser iniciada (Histórico Ausente)");
+      throw new Error('Sessão não pôde ser iniciada (Histórico Ausente)');
     }
 
     return {
-      historyId: newHistory.id,
+      historyId: requireHistoryId(newHistory.id),
       startTime: safeParseDate(newHistory.created_at),
       currentIndex: 0,
       currentSet: 1,
@@ -42,29 +53,28 @@ export const workoutEngine = {
 
   calculateQualityScore(exercises: any[], muscles: string[]): number | null {
     if (exercises.length === 0) return null;
-    
-    // Heurística simples de qualidade
-    const hasCompound = exercises.some(ex => ex.type?.toLowerCase().includes('composto'));
+
+    const hasCompound = exercises.some(exercise => exercise.type?.toLowerCase().includes('composto'));
     const muscleVariety = muscles.length;
     const volumePerMuscle = exercises.length / (muscleVariety || 1);
-    
-    let score = 70; // Base
+
+    let score = 70;
     if (hasCompound) score += 15;
     if (muscleVariety > 1) score += 10;
     if (volumePerMuscle > 2 && volumePerMuscle < 5) score += 5;
-    
+
     return Math.min(score, 100);
   },
 
   prepareSavePayload(exercises: any[], categoryId: string) {
-    return exercises.map((ex, i) => ({
+    return exercises.map((exercise, index) => ({
       category_id: categoryId,
-      exercise_id: ex.exercise_id,
-      exercise_name_snapshot: ex.exercise_name,
-      sets: ex.sets_json?.length || 3,
-      sets_json: ex.sets_json,
-      sort_order: i + 1,
-      superset_id: ex.superset_id
+      exercise_id: exercise.exercise_id,
+      exercise_name_snapshot: exercise.exercise_name,
+      sets: exercise.sets_json?.length || 3,
+      sets_json: exercise.sets_json,
+      sort_order: index + 1,
+      superset_id: exercise.superset_id,
     }));
-  }
+  },
 };
