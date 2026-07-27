@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - p0-security-integrity-foundation
   workflow_dispatch:
 
 permissions:
@@ -19,7 +18,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Test, lint, build and homologation
+    name: Test, lint, build and smoke
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -37,59 +36,54 @@ jobs:
         run: npm ci
 
       - name: Security and regression tests
-        id: tests
-        continue-on-error: true
         shell: bash
-        run: npm test -- --reporter=verbose > test-output.txt 2>&1
+        run: |
+          set -o pipefail
+          npm test -- --reporter=verbose 2>&1 | tee test-output.txt
 
       - name: Upload test diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: p0-1-test-output
+          name: test-output-${{ github.run_id }}
           path: test-output.txt
           if-no-files-found: error
           retention-days: 7
 
       - name: Typecheck / lint
-        id: lint
-        continue-on-error: true
-        run: npm run lint
-
-      - name: Build
-        id: build
-        continue-on-error: true
-        run: npm run build
-
-      - name: Integrated disposable account homologation
-        id: integrated
-        if: github.event_name == 'pull_request' && github.head_ref == 'p0-security-integrity-foundation'
-        continue-on-error: true
-        env:
-          SUPABASE_URL: https://eqnkuqkadtywgfsoilpe.supabase.co
-          SUPABASE_ANON_KEY: sb_publishable_ufX-voHVkHsMwKxN7mlWMA_vfh1rSIB
-          PORT: 3011
-          NODE_ENV: production
-        run: node scripts/p0IntegratedHomologation.mjs
-
-      - name: Upload integrated homologation evidence
-        if: always() && github.event_name == 'pull_request' && github.head_ref == 'p0-security-integrity-foundation'
-        uses: actions/upload-artifact@v4
-        with:
-          name: p0-integrated-homologation-${{ github.run_id }}
-          path: |
-            p0-integrated-homologation-report.json
-            server-output.log
-          if-no-files-found: ignore
-          retention-days: 2
-
-      - name: Enforce validation result
-        if: always()
         shell: bash
         run: |
-          test "${{ steps.tests.outcome }}" = "success"
-          test "${{ steps.lint.outcome }}" = "success"
-          test "${{ steps.build.outcome }}" = "success"
-          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.head_ref }}" = "p0-security-integrity-foundation" ]; then
-            test "${{ steps.integrated.outcome }}" = "success"
-          fi
+          set -o pipefail
+          npm run lint 2>&1 | tee lint-output.txt
+
+      - name: Upload lint diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-output-${{ github.run_id }}
+          path: lint-output.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Build
+        env:
+          VITE_GIT_COMMIT_SHA: ${{ github.sha }}
+        run: npm run build
+
+      - name: Production smoke test
+        shell: bash
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          SMOKE_PORT: 3199
+        run: |
+          set -o pipefail
+          npm run smoke 2>&1 | tee smoke-output.txt
+
+      - name: Upload smoke diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-output-${{ github.run_id }}
+          path: smoke-output.txt
+          if-no-files-found: ignore
+          retention-days: 7

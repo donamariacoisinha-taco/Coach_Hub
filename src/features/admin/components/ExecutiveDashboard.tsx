@@ -7,7 +7,6 @@ import {
   Dumbbell, 
   PlusCircle, 
   CheckCircle2, 
-  Sparkles, 
   History,
   ArrowRight,
   Plus,
@@ -16,9 +15,10 @@ import {
 import { useAdminStore } from '../../../store/adminStore';
 import { premiumProtocolsApi, PremiumProtocol } from '../../../lib/api/premiumProtocolsApi';
 import { profileApi } from '../../../lib/api/profileApi';
+import OperationalTelemetryDashboard from './OperationalTelemetryDashboard';
 
 const ExecutiveDashboard: React.FC = () => {
-  const { exercises, stats, openEditor, setActiveTab } = useAdminStore();
+  const { exercises, openEditor, setActiveTab } = useAdminStore();
   const [protocols, setProtocols] = useState<PremiumProtocol[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,20 +40,18 @@ const ExecutiveDashboard: React.FC = () => {
     }
   };
 
-  // Compute stats
   const activeAthletesCount = profiles.length;
   const premiumProtocolsCount = protocols.filter(p => p.premium).length;
   const publicProtocolsCount = protocols.filter(p => !p.premium).length;
   const activeExercisesCount = exercises.filter(e => e.is_active).length;
   const newRegistrationsCount = profiles.filter(p => {
     const signupDate = p.created_at ? new Date(p.created_at) : new Date();
-    const range = 1000 * 60 * 60 * 24 * 30; // last 30 days
+    const range = 1000 * 60 * 60 * 24 * 30;
     return (new Date().getTime() - signupDate.getTime()) < range;
   }).length || 3;
 
   return (
     <div className="space-y-12 pb-24 text-left">
-      {/* Mini KPI Segment */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         <MiniKPICard 
           label="Atletas Ativos" 
@@ -92,9 +90,7 @@ const ExecutiveDashboard: React.FC = () => {
         />
       </section>
 
-      {/* Secondary layout containing simple insights & active athlete quick overview */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Atalhos de Fluxo de Trabalho (Operational Shortcuts) */}
         <div className="lg:col-span-6 bg-white rounded-3xl border border-slate-200 p-8 space-y-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center text-white">
@@ -157,7 +153,6 @@ const ExecutiveDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Recent signup quick list */}
         <div className="lg:col-span-6 bg-white rounded-3xl border border-slate-200 p-8 space-y-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-105 flex items-center justify-center text-indigo-600">
@@ -186,9 +181,14 @@ const ExecutiveDashboard: React.FC = () => {
                 </span>
               </div>
             ))}
+            {!loading && profiles.length === 0 && (
+              <p className="text-xs text-slate-400">Nenhum atleta encontrado.</p>
+            )}
           </div>
         </div>
       </div>
+
+      <OperationalTelemetryDashboard />
     </div>
   );
 };
