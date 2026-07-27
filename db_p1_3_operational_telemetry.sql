@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS public.operational_telemetry_daily (
   event_name text NOT NULL,
   route_group text NOT NULL,
   build text NOT NULL,
-  event_count bigint NOT NULL DEFAULT 0 CHECK (event_count >= 0),
+  event_count bigint NOT NULL DEFAULT 0 CHECK (event_count BETWEEN 0 AND 10000),
   first_seen_at timestamptz NOT NULL DEFAULT now(),
   last_seen_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (day, event_name, route_group, build),
@@ -68,7 +68,10 @@ CREATE TABLE IF NOT EXISTS public.operational_telemetry_daily (
       'unknown'
     )
   ),
-  CONSTRAINT operational_telemetry_build_length CHECK (char_length(build) BETWEEN 1 AND 40)
+  CONSTRAINT operational_telemetry_build_format CHECK (
+    char_length(build) BETWEEN 1 AND 40
+    AND build ~ '^[a-zA-Z0-9._-]+$'
+  )
 );
 
 ALTER TABLE public.operational_telemetry_daily ENABLE ROW LEVEL SECURITY;
@@ -99,6 +102,7 @@ DECLARE
   v_build text;
   v_count integer;
   v_count_text text;
+  v_combination_exists boolean;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
@@ -129,9 +133,20 @@ BEGIN
 
     v_event_name := item->>'event_name';
     v_route_group := item->>'route_group';
-    v_build := left(coalesce(nullif(item->>'build', ''), 'unknown'), 40);
-    v_count_text := coalesce(item->>'count', '');
+    v_build := left(
+      regexp_replace(
+        coalesce(nullif(item->>'build', ''), 'unknown'),
+        '[^a-zA-Z0-9._-]',
+        '-',
+        'g'
+      ),
+      40
+    );
+    IF v_build = '' THEN
+      v_build := 'unknown';
+    END IF;
 
+    v_count_text := coalesce(item->>'count', '');
     IF v_count_text ~ '^[0-9]{1,3}$' THEN
       v_count := greatest(1, least(v_count_text::integer, 100));
     ELSE
@@ -184,6 +199,20 @@ BEGIN
       v_route_group := 'unknown';
     END IF;
 
+    SELECT EXISTS (
+      SELECT 1
+      FROM public.operational_telemetry_daily
+      WHERE day = CURRENT_DATE
+        AND event_name = v_event_name
+        AND route_group = v_route_group
+        AND build = v_build
+    ) INTO v_combination_exists;
+
+    IF NOT v_combination_exists
+       AND (SELECT count(*) FROM public.operational_telemetry_daily WHERE day = CURRENT_DATE) >= 500 THEN
+      CONTINUE;
+    END IF;
+
     INSERT INTO public.operational_telemetry_daily (
       day,
       event_name,
@@ -203,7 +232,10 @@ BEGIN
     )
     ON CONFLICT (day, event_name, route_group, build)
     DO UPDATE SET
-      event_count = public.operational_telemetry_daily.event_count + EXCLUDED.event_count,
+      event_count = least(
+        public.operational_telemetry_daily.event_count + EXCLUDED.event_count,
+        10000
+      ),
       last_seen_at = now();
 
     accepted := accepted + 1;
