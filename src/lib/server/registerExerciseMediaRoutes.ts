@@ -4,7 +4,6 @@ import { createClient } from '@supabase/supabase-js';
 import {
   assertActiveAdmin,
   clampMediaBatchLimit,
-  retryFailedExerciseMediaJobs,
 } from './exerciseMediaProcessor';
 import {
   generateExerciseMediaCandidates,
@@ -13,6 +12,7 @@ import {
   reviewExerciseMediaCandidate,
   validateExerciseMediaUrls,
 } from './exerciseMediaApprovalProcessor';
+import { retryFailedExerciseMediaApprovalJobs } from './retryExerciseMediaApprovalJobs';
 
 interface AuthenticatedRequestLike {
   headers: { authorization?: string };
@@ -191,7 +191,7 @@ export function registerExerciseMediaRoutes(
     try {
       const typedReq = req as AuthenticatedRequestLike;
       const { client } = await getAdminContext(typedReq, supabaseUrl, supabaseAnonKey);
-      const requeued = await retryFailedExerciseMediaJobs(client);
+      const requeued = await retryFailedExerciseMediaApprovalJobs(client);
       res.json({ requeued });
     } catch (error) {
       sendRouteError(res, error);
