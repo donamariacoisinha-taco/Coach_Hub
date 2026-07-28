@@ -29,6 +29,8 @@ export type EnrichedUserProfile = UserProfile & {
   user_access: AccessRecord;
 };
 
+const PROFILE_WITH_ACCESS_SELECT = '*, user_access!user_access_user_id_fkey(*)';
+
 const getAccessRelation = (raw: ProfileWithAccess): AccessRecord | null => {
   if (Array.isArray(raw.user_access)) return raw.user_access[0] || null;
   return raw.user_access || null;
@@ -102,7 +104,7 @@ export const profileApi = {
     return fetchWithRetry(async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*, user_access(*)')
+        .select(PROFILE_WITH_ACCESS_SELECT)
         .eq('id', userId)
         .maybeSingle();
 
@@ -278,7 +280,7 @@ export const profileApi = {
   async getAllProfiles(): Promise<EnrichedUserProfile[]> {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*, user_access(*)')
+      .select(PROFILE_WITH_ACCESS_SELECT)
       .order('created_at', { ascending: false });
     if (error) throw error;
     return (data || []).map(raw => mergeAccess(raw as ProfileWithAccess)!);
