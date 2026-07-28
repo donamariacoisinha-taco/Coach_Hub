@@ -36,6 +36,7 @@ import RubiIntelligenceModal from './components/RubiIntelligenceModal';
 import { GlobalTemplatesManager } from './components/GlobalTemplatesManager';
 import { ProtocolBuilder40 } from './components/ProtocolBuilder40';
 import { UserManagement } from './components/UserManagement';
+import ExerciseMediaAutomation from './components/ExerciseMediaAutomation';
 
 interface AdminPanelV2Props {
   onBack: () => void;
@@ -220,7 +221,12 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
                 className="w-full"
               >
                   {activeTab === 'dashboard' && <ExecutiveDashboard />}
-                  {activeTab === 'library' && <LibraryOSV25 />}
+                  {activeTab === 'library' && (
+                    <div className="space-y-8">
+                      <ExerciseMediaAutomation />
+                      <LibraryOSV25 />
+                    </div>
+                  )}
                   {activeTab === 'protocols' && <ProtocolBuilder40 />}
                   {activeTab === 'users' && <UserManagement />}
                   {activeTab === 'settings' && <SettingsLogs />}
