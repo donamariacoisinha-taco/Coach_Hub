@@ -11,6 +11,7 @@ import {
   sanitizePromptValue,
   shouldAllowDevAuthBypass,
 } from "./src/lib/server/aiSecurity";
+import { registerExerciseMediaRoutes } from "./src/lib/server/registerExerciseMediaRoutes";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -181,6 +182,16 @@ async function startServer() {
   const requireAuth = createAuthMiddleware();
   const rateLimitAI = createRateLimiter();
   app.use("/api/intelligence", requireAuth, rateLimitAI);
+
+  registerExerciseMediaRoutes({
+    app,
+    requireAuth: requireAuth as any,
+    rateLimit: rateLimitAI as any,
+    getAI: getGenAI,
+    supabaseUrl: readEnv("SUPABASE_URL", "VITE_SUPABASE_URL"),
+    supabaseAnonKey: readEnv("SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY"),
+    imageModel: readEnv("GEMINI_IMAGE_MODEL") || undefined,
+  });
 
   // AI Intelligence Routes
   app.post("/api/intelligence/optimize", async (req: AuthenticatedRequest, res: Response) => {
