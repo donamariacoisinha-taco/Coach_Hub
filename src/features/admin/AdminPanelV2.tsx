@@ -37,6 +37,7 @@ import { GlobalTemplatesManager } from './components/GlobalTemplatesManager';
 import { ProtocolBuilder40 } from './components/ProtocolBuilder40';
 import { UserManagement } from './components/UserManagement';
 import ExerciseMediaAutomation from './components/ExerciseMediaAutomation';
+import ExerciseQualityDashboard from './components/ExerciseQualityDashboard';
 
 interface AdminPanelV2Props {
   onBack: () => void;
@@ -223,6 +224,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
                   {activeTab === 'dashboard' && <ExecutiveDashboard />}
                   {activeTab === 'library' && (
                     <div className="space-y-8">
+                      <ExerciseQualityDashboard />
                       <ExerciseMediaAutomation />
                       <LibraryOSV25 />
                     </div>
