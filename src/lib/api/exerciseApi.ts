@@ -37,6 +37,46 @@ function setLocalCache(exercises: Exercise[]): void {
   }
 }
 
+async function getTechnicalQualityMap(): Promise<Map<string, { score: number; status: string }>> {
+  try {
+    const { data, error } = await supabase
+      .from('exercise_quality_assessments')
+      .select('exercise_id,total_score,status');
+    if (error) return new Map();
+    return new Map(
+      (data || []).map((row: any) => [
+        row.exercise_id,
+        { score: Number(row.total_score) || 0, status: String(row.status || '') },
+      ]),
+    );
+  } catch {
+    return new Map();
+  }
+}
+
+function enrichAndRankExercises(data: any[], qualityMap: Map<string, { score: number; status: string }>): Exercise[] {
+  const normalizedExercises = data.map((ex) => {
+    const quality = qualityMap.get(ex.id);
+    return {
+      ...ex,
+      muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros'),
+      anatomical_cut: ex.anatomical_cut || getVirtualAnatomicalCut(ex.muscle_group || '', ex.name),
+      technical_quality_score: quality?.score,
+      technical_quality_status: quality?.status,
+    } as Exercise & { technical_quality_score?: number; technical_quality_status?: string };
+  });
+
+  if (qualityMap.size > 0) {
+    normalizedExercises.sort((a: any, b: any) => {
+      const scoreDifference = Number(b.technical_quality_score || 0) - Number(a.technical_quality_score || 0);
+      if (scoreDifference !== 0) return scoreDifference;
+      return String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR');
+    });
+  }
+
+  return normalizedExercises as Exercise[];
+}
+
 export const exerciseApi = {
   async getExercises() {
     try {
@@ -59,11 +99,8 @@ export const exerciseApi = {
           throw new Error('Consulta de exercicios vazia no banco');
         }
 
-        const normalizedExercises = data.map((ex) => ({
-          ...ex,
-          muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros'),
-          anatomical_cut: ex.anatomical_cut || getVirtualAnatomicalCut(ex.muscle_group || '', ex.name)
-        })) as Exercise[];
+        const qualityMap = await getTechnicalQualityMap();
+        const normalizedExercises = enrichAndRankExercises(data, qualityMap);
 
         setLocalCache(normalizedExercises);
 
@@ -113,13 +150,8 @@ export const exerciseApi = {
           throw new Error('Consulta de public_exercises vazia no banco');
         }
 
-        const normalizedExercises = activeData.map((ex) => ({
-          ...ex,
-          muscle_group: normalizeMuscleGroup(ex.muscle_group || 'Outros'),
-          anatomical_cut: ex.anatomical_cut || getVirtualAnatomicalCut(ex.muscle_group || '', ex.name)
-        })) as Exercise[];
-
-        return normalizedExercises;
+        const qualityMap = await getTechnicalQualityMap();
+        return enrichAndRankExercises(activeData, qualityMap);
       });
     } catch (err: any) {
       console.warn('[ExerciseApi] Erro ao carregar exercícios públicos após retentativas. Usando caches offline:', err?.message || err);
