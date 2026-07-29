@@ -5,22 +5,6 @@ import tailwindcss from '@tailwindcss/vite';
 
 const normalizeId = (id: string) => id.replaceAll('\\', '/');
 
-const featureChunk = (id: string) => {
-  const normalized = normalizeId(id);
-
-  if (normalized.includes('/src/features/workout/') || normalized.includes('/src/domain/workout/')) return 'feature-workout';
-  if (normalized.includes('/src/features/admin/')) return 'feature-admin';
-  if (normalized.includes('/src/features/dashboard/') || normalized.includes('/src/domain/eke/')) return 'feature-dashboard';
-  if (normalized.includes('/src/features/onboarding/')) return 'feature-onboarding';
-  if (normalized.includes('/src/features/user/')) return 'feature-user';
-  if (normalized.includes('/src/components/WorkoutEditor') || normalized.includes('/src/components/WorkoutPreparation')) return 'feature-workout-management';
-  if (normalized.includes('/src/components/ExerciseLibrary')) return 'feature-exercise-library';
-  if (normalized.includes('/src/lib/sync/') || normalized.includes('/src/lib/offline/') || normalized.includes('/src/lib/cache/')) return 'runtime-sync';
-  if (normalized.includes('/src/lib/api/')) return 'runtime-api';
-
-  return undefined;
-};
-
 const vendorChunk = (id: string) => {
   if (!id.includes('node_modules')) return undefined;
 
@@ -56,7 +40,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            return featureChunk(id) || vendorChunk(id);
+            return vendorChunk(id);
           },
         },
       },
