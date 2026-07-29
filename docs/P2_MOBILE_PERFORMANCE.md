@@ -61,6 +61,14 @@ A divisão inicial foi feita em `vite.config.ts` via `rollupOptions.output.manua
 - Login continua funcionando.
 - Workout Player abre, salva série e exibe sincronização em dia.
 
-## Próximo corte possível
+## P2.3 — Carregamento real sob demanda
 
-Depois desta entrega segura, o próximo corte de performance pode trocar imports estáticos do `App.tsx` por `React.lazy`/`Suspense`, carregando telas somente sob demanda por rota.
+O corte seguinte foi aplicado no `App.tsx`:
+
+- telas protegidas e pesadas usam `React.lazy`/`Suspense`;
+- landing page e autenticação permanecem no bundle inicial para preservar o primeiro acesso;
+- as fronteiras de cada tela passam a orientar os chunks de funcionalidades, evitando ciclos criados pelo agrupamento manual anterior;
+- o fallback de rota mantém feedback visual e acessível durante downloads;
+- desktop antecipa o chunk da próxima tela no hover junto com o prefetch de dados existente;
+- mobile baixa a tela no momento da navegação sem carregar antecipadamente módulos não visitados;
+- banco, RLS, autenticação, Workout Player, sincronização offline e regras de negócio não foram alterados.
