@@ -1,23 +1,13 @@
 
-import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
+import React, { Suspense, lazy, useState, useEffect, createContext, useContext, useRef } from 'react';
 import { UserProfile } from './types';
 import Auth from './components/Auth';
-import SmartOnboarding from './features/onboarding/SmartOnboarding';
-import Dashboard from './features/dashboard/Dashboard';
-import WorkoutPlayer from './features/workout/WorkoutPlayer';
-import WorkoutEditor from './components/WorkoutEditor';
-import { WorkoutPreparation } from './components/WorkoutPreparation';
-import AdminPanelV2 from './features/admin/AdminPanelV2';
-import HistoryView from './components/HistoryView';
-import ProfileViewV2 from './features/user/ProfileViewV2';
-import ExerciseLibrary from './components/ExerciseLibrary';
 import { LandingPage } from './components/LandingPage';
 import { useSync } from './hooks/useSync';
 import { useUserStore } from './store/userStore';
 import { useAuthStore } from './store/authStore';
 import { ErrorProvider } from './hooks/useErrorHandler';
 import { authApi } from './lib/api/authApi';
-import { supabase } from './lib/api/supabase';
 import { workoutApi } from './lib/api/workoutApi';
 import { profileApi } from './lib/api/profileApi';
 import { exerciseApi } from './lib/api/exerciseApi';
@@ -25,15 +15,36 @@ import { usePrefetch } from './hooks/usePrefetch';
 import { imagePrefetcher } from './lib/utils/imagePrefetcher';
 import { cacheStore } from './lib/cache/cacheStore';
 import { useWorkoutStore } from './app/store/workoutStore';
-import { Home, Dumbbell, History as HistoryIcon, User, Shield, Bolt, Flame, Apple, X } from 'lucide-react';
+import { Home, Dumbbell, History as HistoryIcon, User, Shield, Flame, Apple, Lock, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ExercisePreviewProvider, useExercisePreview } from './context/ExercisePreviewContext';
 import { NavItem } from './components/ui/NavItem';
 import { isAdmin } from './lib/utils/auth';
 import { ekeService } from './domain/eke/ekeService';
-import { MinhaDieta } from './features/dashboard/MinhaDieta';
 import kyronLogo from './assets/images/kyron_official_logo_1781087891387.png';
+
+const loadOnboarding = () => import('./features/onboarding/SmartOnboarding');
+const loadDashboard = () => import('./features/dashboard/Dashboard');
+const loadWorkoutPlayer = () => import('./features/workout/WorkoutPlayer');
+const loadWorkoutEditor = () => import('./components/WorkoutEditor');
+const loadWorkoutPreparation = () => import('./components/WorkoutPreparation');
+const loadAdmin = () => import('./features/admin/AdminPanelV2');
+const loadHistory = () => import('./components/HistoryView');
+const loadProfile = () => import('./features/user/ProfileViewV2');
+const loadExerciseLibrary = () => import('./components/ExerciseLibrary');
+const loadDiet = () => import('./features/dashboard/MinhaDieta');
+
+const SmartOnboarding = lazy(loadOnboarding);
+const Dashboard = lazy(loadDashboard);
+const WorkoutPlayer = lazy(loadWorkoutPlayer);
+const WorkoutEditor = lazy(loadWorkoutEditor);
+const WorkoutPreparation = lazy(() => loadWorkoutPreparation().then(module => ({ default: module.WorkoutPreparation })));
+const AdminPanelV2 = lazy(loadAdmin);
+const HistoryView = lazy(loadHistory);
+const ProfileViewV2 = lazy(loadProfile);
+const ExerciseLibrary = lazy(loadExerciseLibrary);
+const MinhaDieta = lazy(() => loadDiet().then(module => ({ default: module.MinhaDieta })));
 
 type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'preparation' | 'editor' | 'history' | 'admin' | 'profile' | 'library' | 'dieta';
 type Theme = 'classic' | 'light' | 'aggressive' | 'bloom' | 'neon-strike';
@@ -56,6 +67,20 @@ export const useNavigation = () => {
   if (!context) throw new Error("useNavigation must be used within Provider");
   return context;
 };
+
+const RouteLoadingFallback: React.FC = () => (
+  <div
+    className="flex min-h-[50vh] flex-col items-center justify-center p-8 text-center"
+    role="status"
+    aria-live="polite"
+    aria-label="Carregando tela"
+  >
+    <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-[#7BA7FF] border-t-transparent" />
+    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+      Preparando sua experiência...
+    </p>
+  </div>
+);
 
 const getPathFromState = (view: View, params: any) => {
   switch (view) {
@@ -389,6 +414,7 @@ const App: React.FC = () => {
                     isActive={navState.view === 'dashboard'}
                     onClick={() => navigate('dashboard')}
                     onMouseEnter={() => prefetch('dashboard_data', async () => {
+                      void loadDashboard();
                       const session = await authApi.getSession();
                       return session?.user ? workoutApi.getDashboardData(session.user.id) : null;
                     })}
@@ -402,6 +428,7 @@ const App: React.FC = () => {
                     isActive={navState.view === 'library'}
                     onClick={() => navigate('library')}
                     onMouseEnter={() => prefetch('exercise_library', async () => {
+                      void loadExerciseLibrary();
                       const user = await authApi.getUser();
                       if (!user) return null;
                       const [exercises, muscleGroups, favorites, isAdminUser] = await Promise.all([
@@ -421,6 +448,9 @@ const App: React.FC = () => {
                     showLabel={true}
                     isActive={navState.view === 'dieta'}
                     onClick={() => navigate('dieta')}
+                    onMouseEnter={() => {
+                      void loadDiet();
+                    }}
                   />
                   
                   <NavItem 
@@ -431,6 +461,7 @@ const App: React.FC = () => {
                     isActive={navState.view === 'history'}
                     onClick={() => navigate('history')}
                     onMouseEnter={() => prefetch('history_data', async () => {
+                      void loadHistory();
                       const user = await authApi.getUser();
                       return user ? workoutApi.getWorkoutHistory(user.id) : null;
                     })}
@@ -444,6 +475,9 @@ const App: React.FC = () => {
                       showLabel={true}
                       isActive={navState.view === 'admin'}
                       onClick={() => navigate('admin')}
+                      onMouseEnter={() => {
+                        void loadAdmin();
+                      }}
                       badge="Pro"
                     />
                   )}
@@ -456,6 +490,7 @@ const App: React.FC = () => {
                     isActive={navState.view === 'profile'}
                     onClick={() => navigate('profile')}
                     onMouseEnter={() => prefetch('profile_data', async () => {
+                      void loadProfile();
                       const user = await authApi.getUser();
                       return user ? profileApi.getProfile(user.id) : null;
                     })}
@@ -480,7 +515,7 @@ const App: React.FC = () => {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Sessão...</p>
                   </div>
                 ) : (
-                  <>
+                  <Suspense fallback={<RouteLoadingFallback />}>
                     {navState.view === 'landing' && <LandingPage onStart={() => navigate('auth')} onLogin={() => navigate('auth')} />}
                     {navState.view === 'auth' && <Auth onBack={() => navigate('landing')} />}
                     {navState.view === 'onboarding' && <SmartOnboarding />}
@@ -495,7 +530,7 @@ const App: React.FC = () => {
                     {navState.view === 'admin' && (
                       isAdmin(profile) ? <AdminPanelV2 onBack={goBack} /> : <Dashboard initialFolderId={navState.params?.folderId} />
                     )}
-                  </>
+                  </Suspense>
                 )}
               </motion.div>
             </AnimatePresence>
@@ -523,10 +558,12 @@ const App: React.FC = () => {
                     badge={item.badge}
                     onMouseEnter={() => {
                       if (item.id === 'dashboard') prefetch('dashboard_data', async () => {
+                        void loadDashboard();
                         const sess = await authApi.getSession();
                         return sess?.user ? workoutApi.getDashboardData(sess.user.id) : null;
                       });
                       if (item.id === 'library') prefetch('exercise_library', async () => {
+                        void loadExerciseLibrary();
                         const user = await authApi.getUser();
                         if (!user) return null;
                         const [exercises, muscleGroups, favorites, isAdminUser] = await Promise.all([
@@ -538,13 +575,17 @@ const App: React.FC = () => {
                         return { exercises, muscleGroups, favorites: new Set(favorites), isAdmin: isAdminUser };
                       });
                       if (item.id === 'history') prefetch('history_data', async () => {
+                        void loadHistory();
                         const user = await authApi.getUser();
                         return user ? workoutApi.getWorkoutHistory(user.id) : null;
                       });
                       if (item.id === 'profile') prefetch('profile_data', async () => {
+                        void loadProfile();
                         const user = await authApi.getUser();
                         return user ? profileApi.getProfile(user.id) : null;
                       });
+                      if (item.id === 'dieta') void loadDiet();
+                      if (item.id === 'admin') void loadAdmin();
                     }}
                   />
                 ))}
