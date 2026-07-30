@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import {
+  Activity,
   ArrowRight,
-  Brain,
+  BarChart3,
+  Check,
   CheckCircle2,
-  Clock3,
+  ChevronRight,
   Dumbbell,
+  Fingerprint,
   Flame,
-  LineChart,
-  Lock,
   Play,
+  RefreshCcw,
   ShieldCheck,
   Sparkles,
   Target,
-  UserCheck,
+  TrendingUp,
+  WifiOff,
   Zap,
 } from 'lucide-react';
 import kyronLogo from '../assets/images/kyron_official_logo_1781087891387.png';
@@ -29,70 +32,208 @@ const copy = {
   PT: {
     login: 'Entrar',
     start: 'Começar grátis',
+    navProduct: 'Produto',
     navMethod: 'Como funciona',
-    navBenefits: 'Benefícios',
-    navProof: 'Prova',
-    badge: 'Sistema adaptativo de treino, nutrição e evolução',
-    eyebrow: 'Menos tentativa. Mais direção.',
-    headline: 'Treine com um sistema que entende seu progresso real.',
+    navDifference: 'Por que Kyron',
+    eyebrow: 'Sistema adaptativo de treino',
+    headlineTop: 'Seu treino não deveria',
+    headlineAccent: 'começar do zero',
+    headlineBottom: 'todos os dias.',
     subheadline:
-      'O KYRON organiza treino, carga, descanso, nutrição e evolução em uma experiência simples, guiada e feita para uso no celular.',
-    primaryCta: 'Criar conta gratuita',
-    secondaryCta: 'Ver como funciona',
-    reassurance: 'Sem cartão. Sem planilha. Sem configurar tudo sozinho.',
-    socialProof: 'Construído para quem quer constância, progressão e clareza no treino.',
-    simulatorTitle: 'Sessão guiada em andamento',
-    simulatorSub: 'A próxima ação fica sempre clara.',
-    setLabel: 'Série atual',
-    loadLabel: 'Carga sugerida',
-    restLabel: 'Descanso',
-    confirmSet: 'Confirmar série',
-    nextAction: 'Próxima ação: manter técnica e registrar sensação da série.',
-    whyTitle: 'A landing foi pensada para reduzir esforço mental.',
-    whySub:
-      'O usuário precisa entender rápido o valor, confiar no fluxo e saber exatamente o que fazer em seguida.',
-    methodBadge: 'Fluxo de decisão',
-    methodTitle: 'Do primeiro acesso ao primeiro treino, sem confusão.',
-    benefitsTitle: 'O que o usuário sente na prática',
-    proofTitle: 'Por que isso aumenta conversão',
-    finalTitle: 'Comece simples. Evolua com dados.',
-    finalSub: 'Entre no KYRON, faça seu primeiro registro e deixe o sistema construir clareza sobre seu treino.',
-    finalCta: 'Acessar KYRON agora',
+      'O KYRON aprende com cada série, entende seu desempenho e mostra o próximo passo para você continuar evoluindo — sem planilhas e sem improviso.',
+    primaryCta: 'Montar meu treino grátis',
+    secondaryCta: 'Ver o treino em ação',
+    reassurance: 'Grátis para começar · Sem cartão · Configuração em poucos minutos',
+    heroNote: 'Cada treino prepara o próximo.',
+    liveLabel: 'Sessão ao vivo',
+    exercise: 'Supino inclinado',
+    setLabel: 'Série',
+    previousLabel: 'Anterior',
+    suggestedLabel: 'Sugestão Kyron',
+    repsLabel: 'Repetições',
+    rpeLabel: 'RPE percebido',
+    finishSet: 'Concluir série',
+    reason: 'Carga mantida porque a última série terminou em RPE 8.',
+    ticker: ['PLANO ADAPTATIVO', 'PROGRESSÃO POR RPE', 'RETOMADA OFFLINE', 'SUBSTITUIÇÃO INTELIGENTE', 'HISTÓRICO REAL'],
+    cycleEyebrow: 'Ciclo adaptativo',
+    cycleTitle: 'Cada treino deixa o próximo mais inteligente.',
+    cycleSub:
+      'O KYRON transforma registros isolados em uma sequência de decisões. Você executa; o sistema preserva contexto e ajusta a progressão.',
+    cycleSteps: [
+      {
+        title: 'O Kyron planeja',
+        text: 'Objetivo, nível, frequência, equipamentos e limitações entram no plano inicial.',
+      },
+      {
+        title: 'Você executa',
+        text: 'Séries, carga, descanso e esforço ficam no mesmo fluxo, pensado para uso com uma mão.',
+      },
+      {
+        title: 'O sistema interpreta',
+        text: 'Desempenho, RPE, consistência e histórico passam a formar memória de treino.',
+      },
+      {
+        title: 'O próximo treino evolui',
+        text: 'Carga, repetições e alternativas consideram o que realmente aconteceu na sessão.',
+      },
+    ],
+    productEyebrow: 'Durante o treino',
+    productTitle: 'Somente o que importa agora.',
+    productSub:
+      'A interface prioriza a próxima ação, mantém a sessão fluida e explica o motivo por trás de cada recomendação.',
+    productReasons: [
+      'Carga anterior e sugestão lado a lado',
+      'RPE integrado à decisão de progressão',
+      'Descanso acessível sem sair da série',
+      'Continuidade mesmo com conexão instável',
+    ],
+    recommendation: 'Recomendação explicada',
+    recommendationText: 'Mantenha 84 kg. Sua última série ficou dentro do esforço-alvo e a técnica permaneceu estável.',
+    nextExercise: 'Próximo exercício',
+    nextExerciseName: 'Crucifixo com halteres',
+    adaptiveRest: 'Descanso adaptativo',
+    differenceEyebrow: 'Mais que uma ficha digital',
+    differenceTitle: 'Não é uma rotina pronta disfarçada de inteligência.',
+    differenceSub:
+      'O KYRON foi construído para manter o contexto entre sessões — não apenas armazenar números.',
+    comparisonLeft: 'Aplicativo comum',
+    comparisonRight: 'KYRON',
+    comparisons: [
+      ['Entrega uma sequência fixa', 'Aprende com as sessões'],
+      ['Exibe apenas números', 'Explica a próxima decisão'],
+      ['Perde contexto ao trocar exercício', 'Busca substitutos compatíveis'],
+      ['Depende de conexão constante', 'Mantém continuidade offline'],
+      ['Mostra histórico', 'Usa histórico para progredir'],
+    ],
+    progressEyebrow: 'Evolução visível',
+    progressTitle: 'Menos memória solta. Mais trajetória.',
+    progressSub:
+      'Volume, carga, consistência e recuperação aparecem como sinais conectados — para você entender o que mudou e por quê.',
+    metrics: [
+      ['Volume semanal', '+8,4%'],
+      ['Carga de trabalho', '+5 kg'],
+      ['Consistência', '4 semanas'],
+      ['Recuperação média', '82%'],
+    ],
+    chartLabel: 'Volume de treino · últimas 8 semanas',
+    trustEyebrow: 'Privacidade e continuidade',
+    trustTitle: 'Seus dados são seus. Seu treino não para.',
+    trustItems: [
+      ['Sessão protegida', 'Acesso autenticado e dados isolados por usuário.'],
+      ['Continuidade offline', 'A sessão permanece utilizável durante falhas de conexão.'],
+      ['Decisões transparentes', 'Recomendações mostram o sinal utilizado pelo sistema.'],
+    ],
+    finalEyebrow: 'Seu próximo treino começa aqui',
+    finalTitleTop: 'Pare de repetir treinos.',
+    finalTitleAccent: 'Comece a construir evolução.',
+    finalSub: 'Crie seu perfil, faça o primeiro registro e deixe cada sessão melhorar a seguinte.',
+    finalCta: 'Criar meu plano grátis',
+    finalNote: 'Sem cartão · Leva poucos minutos · Funciona no celular',
   },
   EN: {
     login: 'Sign in',
     start: 'Start free',
+    navProduct: 'Product',
     navMethod: 'How it works',
-    navBenefits: 'Benefits',
-    navProof: 'Proof',
-    badge: 'Adaptive system for training, nutrition and progress',
-    eyebrow: 'Less guessing. More direction.',
-    headline: 'Train with a system that understands your real progress.',
+    navDifference: 'Why Kyron',
+    eyebrow: 'Adaptive training system',
+    headlineTop: 'Your training should not',
+    headlineAccent: 'start from zero',
+    headlineBottom: 'every single day.',
     subheadline:
-      'KYRON organizes training, load, rest, nutrition and progress in a simple mobile-first experience.',
-    primaryCta: 'Create free account',
-    secondaryCta: 'See how it works',
-    reassurance: 'No card. No spreadsheets. No setup chaos.',
-    socialProof: 'Built for consistency, progression and clarity in training.',
-    simulatorTitle: 'Guided session in progress',
-    simulatorSub: 'The next action is always clear.',
-    setLabel: 'Current set',
-    loadLabel: 'Suggested load',
-    restLabel: 'Rest',
-    confirmSet: 'Confirm set',
-    nextAction: 'Next action: keep technique and log how the set felt.',
-    whyTitle: 'This landing reduces mental effort.',
-    whySub:
-      'Users need to understand value fast, trust the flow and know exactly what to do next.',
-    methodBadge: 'Decision flow',
-    methodTitle: 'From first visit to first workout, without confusion.',
-    benefitsTitle: 'What the user feels in practice',
-    proofTitle: 'Why this improves conversion',
-    finalTitle: 'Start simple. Evolve with data.',
-    finalSub: 'Enter KYRON, log your first set and let the system build clarity around your training.',
-    finalCta: 'Access KYRON now',
+      'KYRON learns from every set, understands your performance and shows the next step so you can keep progressing — without spreadsheets or guesswork.',
+    primaryCta: 'Build my free workout',
+    secondaryCta: 'See the workout in action',
+    reassurance: 'Free to start · No card · Setup takes only a few minutes',
+    heroNote: 'Every workout prepares the next one.',
+    liveLabel: 'Live session',
+    exercise: 'Incline bench press',
+    setLabel: 'Set',
+    previousLabel: 'Previous',
+    suggestedLabel: 'Kyron suggestion',
+    repsLabel: 'Repetitions',
+    rpeLabel: 'Perceived RPE',
+    finishSet: 'Complete set',
+    reason: 'Load maintained because the previous set ended at RPE 8.',
+    ticker: ['ADAPTIVE PLAN', 'RPE PROGRESSION', 'OFFLINE RESUME', 'SMART SUBSTITUTIONS', 'REAL HISTORY'],
+    cycleEyebrow: 'Adaptive cycle',
+    cycleTitle: 'Every workout makes the next one smarter.',
+    cycleSub:
+      'KYRON turns isolated logs into a sequence of decisions. You perform; the system preserves context and adjusts progression.',
+    cycleSteps: [
+      {
+        title: 'Kyron plans',
+        text: 'Goal, level, frequency, equipment and limitations shape the initial plan.',
+      },
+      {
+        title: 'You perform',
+        text: 'Sets, load, rest and effort stay in one flow designed for one-handed use.',
+      },
+      {
+        title: 'The system interprets',
+        text: 'Performance, RPE, consistency and history become training memory.',
+      },
+      {
+        title: 'The next workout evolves',
+        text: 'Load, repetitions and alternatives reflect what actually happened in the session.',
+      },
+    ],
+    productEyebrow: 'During the workout',
+    productTitle: 'Only what matters right now.',
+    productSub:
+      'The interface prioritizes the next action, keeps the session moving and explains the reason behind every recommendation.',
+    productReasons: [
+      'Previous load and suggestion side by side',
+      'RPE connected to progression decisions',
+      'Rest control available without leaving the set',
+      'Continuity even with an unstable connection',
+    ],
+    recommendation: 'Explained recommendation',
+    recommendationText: 'Keep 84 kg. Your previous set stayed within the target effort and technique remained stable.',
+    nextExercise: 'Next exercise',
+    nextExerciseName: 'Dumbbell fly',
+    adaptiveRest: 'Adaptive rest',
+    differenceEyebrow: 'More than a digital routine',
+    differenceTitle: 'Not a fixed plan disguised as intelligence.',
+    differenceSub:
+      'KYRON is built to preserve context across sessions — not merely store numbers.',
+    comparisonLeft: 'Common app',
+    comparisonRight: 'KYRON',
+    comparisons: [
+      ['Delivers a fixed sequence', 'Learns from sessions'],
+      ['Displays numbers only', 'Explains the next decision'],
+      ['Loses context after substitutions', 'Finds compatible alternatives'],
+      ['Depends on constant connection', 'Keeps working offline'],
+      ['Shows history', 'Uses history to progress'],
+    ],
+    progressEyebrow: 'Visible progress',
+    progressTitle: 'Less scattered memory. More trajectory.',
+    progressSub:
+      'Volume, load, consistency and recovery appear as connected signals — so you understand what changed and why.',
+    metrics: [
+      ['Weekly volume', '+8.4%'],
+      ['Working load', '+5 kg'],
+      ['Consistency', '4 weeks'],
+      ['Average recovery', '82%'],
+    ],
+    chartLabel: 'Training volume · last 8 weeks',
+    trustEyebrow: 'Privacy and continuity',
+    trustTitle: 'Your data is yours. Your training keeps moving.',
+    trustItems: [
+      ['Protected session', 'Authenticated access and data isolated by user.'],
+      ['Offline continuity', 'The session remains usable through connection failures.'],
+      ['Transparent decisions', 'Recommendations show the signal used by the system.'],
+    ],
+    finalEyebrow: 'Your next workout starts here',
+    finalTitleTop: 'Stop repeating workouts.',
+    finalTitleAccent: 'Start building progress.',
+    finalSub: 'Create your profile, log the first set and let every session improve the next one.',
+    finalCta: 'Create my free plan',
+    finalNote: 'No card · Takes only a few minutes · Works on mobile',
   },
 };
+
+const chartHeights = [28, 36, 33, 48, 52, 63, 68, 82];
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) => {
   const [lang, setLang] = useState<Lang>(() => {
@@ -104,150 +245,58 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
 
   const setLanguage = (value: Lang) => {
     setLang(value);
-    window.localStorage.setItem('kyron_lang', value);
+    if (typeof window !== 'undefined') window.localStorage.setItem('kyron_lang', value);
   };
 
-  const psychologyCards = [
-    {
-      icon: Brain,
-      title: lang === 'PT' ? 'Clareza cognitiva' : 'Cognitive clarity',
-      text:
-        lang === 'PT'
-          ? 'A promessa aparece em linguagem direta antes de qualquer termo técnico.'
-          : 'The core promise appears in plain language before technical detail.',
-    },
-    {
-      icon: Target,
-      title: lang === 'PT' ? 'Ação única principal' : 'Single primary action',
-      text:
-        lang === 'PT'
-          ? 'O CTA principal é consistente: criar conta e iniciar o primeiro uso.'
-          : 'The main CTA is consistent: create an account and start using the product.',
-    },
-    {
-      icon: ShieldCheck,
-      title: lang === 'PT' ? 'Redução de ansiedade' : 'Anxiety reduction',
-      text:
-        lang === 'PT'
-          ? 'A página remove objeções iniciais: sem cartão, sem planilha e sem setup pesado.'
-          : 'The page removes early objections: no card, no spreadsheets and no heavy setup.',
-    },
-  ];
-
-  const methodSteps = [
-    {
-      step: '01',
-      title: lang === 'PT' ? 'Crie seu perfil' : 'Create your profile',
-      text:
-        lang === 'PT'
-          ? 'Comece com dados simples. O sistema não exige que você monte tudo sozinho.'
-          : 'Start with simple data. The system does not ask you to build everything alone.',
-    },
-    {
-      step: '02',
-      title: lang === 'PT' ? 'Abra um treino guiado' : 'Open a guided workout',
-      text:
-        lang === 'PT'
-          ? 'Cada tela mostra o que fazer agora, o que registrar e qual é a próxima ação.'
-          : 'Each screen shows what to do now, what to log and what comes next.',
-    },
-    {
-      step: '03',
-      title: lang === 'PT' ? 'Evolua com memória' : 'Evolve with memory',
-      text:
-        lang === 'PT'
-          ? 'O histórico deixa de ser anotação solta e vira base para progressão.'
-          : 'Your history stops being loose notes and becomes the base for progression.',
-    },
-  ];
-
-  const benefits = [
-    {
-      icon: Dumbbell,
-      title: lang === 'PT' ? 'Treino mais claro' : 'Clearer training',
-      text:
-        lang === 'PT'
-          ? 'Menos dúvida entre exercícios, séries e cargas.'
-          : 'Less doubt between exercises, sets and loads.',
-    },
-    {
-      icon: Clock3,
-      title: lang === 'PT' ? 'Menos fricção' : 'Less friction',
-      text:
-        lang === 'PT'
-          ? 'Fluxo mobile pensado para registrar rápido durante o treino.'
-          : 'A mobile-first flow designed for fast logging during workouts.',
-    },
-    {
-      icon: LineChart,
-      title: lang === 'PT' ? 'Progresso visível' : 'Visible progress',
-      text:
-        lang === 'PT'
-          ? 'A evolução fica mais fácil de entender e repetir.'
-          : 'Progress becomes easier to understand and repeat.',
-    },
-    {
-      icon: UserCheck,
-      title: lang === 'PT' ? 'Uso pessoal' : 'Personal use',
-      text:
-        lang === 'PT'
-          ? 'O sistema acompanha seu comportamento, não uma rotina genérica.'
-          : 'The system follows your behavior, not a generic routine.',
-    },
-  ];
-
-  const proofPoints = [
-    lang === 'PT' ? 'Reduz carga cognitiva logo no primeiro bloco.' : 'Reduces cognitive load in the first block.',
-    lang === 'PT' ? 'Usa prova funcional em vez de promessa abstrata.' : 'Uses functional proof instead of abstract claims.',
-    lang === 'PT' ? 'Transforma complexidade técnica em sequência visual.' : 'Turns technical complexity into a visual sequence.',
-    lang === 'PT' ? 'Mantém uma decisão principal por seção.' : 'Keeps one main decision per section.',
-  ];
-
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-950 overflow-x-hidden selection:bg-[#7BA7FF]/20 selection:text-slate-950">
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute -top-48 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-[#7BA7FF]/12 blur-[120px]" />
-        <div className="absolute top-[38rem] -right-40 h-[440px] w-[440px] rounded-full bg-violet-400/10 blur-[120px]" />
+    <div className="min-h-screen overflow-x-hidden bg-[#090B0A] text-[#F4F2E9] selection:bg-[#7BA7FF] selection:text-[#090B0A]">
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-40">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:56px_56px]" />
+        <div className="absolute -left-40 top-20 h-[520px] w-[520px] rounded-full bg-[#7BA7FF]/10 blur-[150px]" />
+        <div className="absolute -right-48 top-[46rem] h-[520px] w-[520px] rounded-full bg-[#7BA7FF]/[0.08] blur-[160px]" />
       </div>
 
-      <nav className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/78 px-4 py-3 backdrop-blur-xl">
+      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#090B0A]/[0.88] px-4 py-3 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <button onClick={onStart} className="flex items-center gap-3 text-left" aria-label="KYRON OS">
-            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-[#F4F2E9]">
               <img src={kyronLogo} alt="KYRON OS" className="h-11 w-11 scale-150 object-contain" />
             </span>
             <span>
-              <span className="block font-mono text-sm font-black tracking-tight">KYRON<span className="text-[#7BA7FF]">.</span></span>
-              <span className="block text-[9px] font-black uppercase tracking-[0.22em] text-slate-400">OS</span>
+              <span className="block font-mono text-sm font-black tracking-[-0.03em] text-white">
+                KYRON<span className="text-[#7BA7FF]">.</span>
+              </span>
+              <span className="block text-[8px] font-black uppercase tracking-[0.3em] text-white/40">OS</span>
             </span>
           </button>
 
-          <div className="hidden items-center gap-7 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 md:flex">
-            <a href="#method" className="transition hover:text-slate-900">{t.navMethod}</a>
-            <a href="#benefits" className="transition hover:text-slate-900">{t.navBenefits}</a>
-            <a href="#proof" className="transition hover:text-slate-900">{t.navProof}</a>
+          <div className="hidden items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-white/45 lg:flex">
+            <a href="#product" className="transition hover:text-white">{t.navProduct}</a>
+            <a href="#method" className="transition hover:text-white">{t.navMethod}</a>
+            <a href="#difference" className="transition hover:text-white">{t.navDifference}</a>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex rounded-xl border border-slate-200 bg-slate-100 p-1">
+            <div className="flex rounded-full border border-white/10 bg-white/5 p-1">
               {(['PT', 'EN'] as Lang[]).map((value) => (
                 <button
                   key={value}
                   onClick={() => setLanguage(value)}
-                  className={`rounded-lg px-2.5 py-1 text-[10px] font-black transition ${
-                    lang === value ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-400'
+                  className={`rounded-full px-2.5 py-1 text-[9px] font-black transition ${
+                    lang === value ? 'bg-[#F4F2E9] text-[#090B0A]' : 'text-white/40 hover:text-white'
                   }`}
+                  aria-pressed={lang === value}
                 >
                   {value}
                 </button>
               ))}
             </div>
-            <button onClick={onLogin} className="hidden text-[11px] font-black uppercase tracking-widest text-slate-500 sm:block">
+            <button onClick={onLogin} className="hidden text-[10px] font-black uppercase tracking-[0.2em] text-white/60 transition hover:text-white sm:block">
               {t.login}
             </button>
             <button
               onClick={onStart}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-[11px] font-black uppercase tracking-widest text-white shadow-xl shadow-slate-950/12 transition active:scale-95"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#7BA7FF] px-4 text-[10px] font-black uppercase tracking-[0.16em] text-[#07101F] transition hover:-translate-y-0.5 hover:bg-[#95B8FF] active:translate-y-0"
             >
               {t.start}
               <ArrowRight size={14} />
@@ -257,40 +306,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
       </nav>
 
       <main className="relative z-10">
-        <section className="mx-auto grid min-h-[calc(100vh-68px)] max-w-7xl grid-cols-1 items-center gap-12 px-5 py-12 lg:grid-cols-12 lg:px-8 lg:py-20">
-          <div className="lg:col-span-6">
+        <section className="mx-auto grid min-h-[calc(100vh-68px)] max-w-7xl grid-cols-1 items-center gap-14 px-5 pb-16 pt-12 lg:grid-cols-12 lg:px-8 lg:pb-24 lg:pt-20">
+          <div className="lg:col-span-7">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#7BA7FF]/30 bg-[#7BA7FF]/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#3566B8]"
+              className="mb-7 inline-flex items-center gap-2 border-l-2 border-[#7BA7FF] pl-3 text-[10px] font-black uppercase tracking-[0.26em] text-[#9FBDFF]"
             >
               <Sparkles size={13} />
-              {t.badge}
+              {t.eyebrow}
             </motion.div>
 
-            <motion.p
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              className="mb-4 text-sm font-black uppercase tracking-[0.24em] text-slate-400"
-            >
-              {t.eyebrow}
-            </motion.p>
-
             <motion.h1
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="max-w-4xl text-4xl font-black leading-[0.95] tracking-[-0.06em] text-slate-950 sm:text-6xl lg:text-7xl"
+              transition={{ delay: 0.06 }}
+              className="max-w-5xl text-[3.2rem] font-black leading-[0.9] tracking-[-0.065em] sm:text-7xl lg:text-[6.15rem]"
             >
-              {t.headline}
+              <span className="block">{t.headlineTop}</span>
+              <span className="block font-serif font-semibold italic tracking-[-0.04em] text-[#7BA7FF]">{t.headlineAccent}</span>
+              <span className="block">{t.headlineBottom}</span>
             </motion.h1>
 
             <motion.p
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="mt-6 max-w-2xl text-base font-semibold leading-8 text-slate-600 sm:text-lg"
+              transition={{ delay: 0.12 }}
+              className="mt-7 max-w-2xl text-base font-medium leading-8 text-white/[0.62] sm:text-lg"
             >
               {t.subheadline}
             </motion.p>
@@ -298,201 +340,403 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="mt-8 flex flex-col gap-3 sm:flex-row"
+              transition={{ delay: 0.18 }}
+              className="mt-9 flex flex-col gap-3 sm:flex-row"
             >
               <button
                 onClick={onStart}
-                className="inline-flex h-14 items-center justify-center gap-2 rounded-[1.35rem] bg-[#0F172A] px-7 text-xs font-black uppercase tracking-[0.18em] text-white shadow-2xl shadow-slate-950/15 transition active:scale-[0.98]"
+                className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-[#7BA7FF] px-7 text-[11px] font-black uppercase tracking-[0.17em] text-[#07101F] shadow-[0_18px_60px_rgba(123,167,255,0.2)] transition hover:-translate-y-1 hover:bg-[#A4C2FF] active:translate-y-0"
               >
                 {t.primaryCta}
                 <ArrowRight size={16} />
               </button>
               <a
-                href="#method"
-                className="inline-flex h-14 items-center justify-center gap-2 rounded-[1.35rem] border border-slate-200 bg-white px-7 text-xs font-black uppercase tracking-[0.18em] text-slate-700 shadow-sm transition hover:border-slate-300 active:scale-[0.98]"
+                href="#product"
+                className="inline-flex h-14 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-7 text-[11px] font-black uppercase tracking-[0.17em] text-white transition hover:border-white/30 hover:bg-white/10"
               >
                 <Play size={15} />
                 {t.secondaryCta}
               </a>
             </motion.div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-500">
-              <CheckCircle2 size={16} className="text-emerald-500" />
+            <div className="mt-5 flex items-start gap-2 text-xs font-semibold leading-6 text-white/45">
+              <CheckCircle2 size={15} className="mt-1 shrink-0 text-[#7BA7FF]" />
               <span>{t.reassurance}</span>
-            </div>
-
-            <div className="mt-8 rounded-3xl border border-slate-200 bg-white/70 p-5 shadow-sm backdrop-blur-xl">
-              <p className="text-sm font-bold leading-7 text-slate-600">{t.socialProof}</p>
             </div>
           </div>
 
-          <div className="lg:col-span-6">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ delay: 0.15, type: 'spring', damping: 22, stiffness: 140 }}
-              className="relative mx-auto max-w-[520px] rounded-[2.25rem] border border-slate-200 bg-white p-4 shadow-[0_30px_90px_rgba(15,23,42,0.10)]"
-            >
-              <div className="absolute -left-5 top-10 hidden rounded-2xl border border-emerald-200 bg-white px-4 py-3 shadow-xl md:block">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                  <Flame size={14} /> +7 dias
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 24 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ delay: 0.12, type: 'spring', damping: 24, stiffness: 120 }}
+            className="relative lg:col-span-5"
+          >
+            <div className="absolute -inset-8 rounded-[3rem] bg-[#7BA7FF]/10 blur-3xl" />
+            <div className="relative mx-auto max-w-[490px] border border-white/[0.12] bg-[#111412] p-3 shadow-[0_40px_110px_rgba(0,0,0,0.45)] sm:p-4">
+              <div className="flex items-center justify-between border-b border-white/10 px-3 pb-3 pt-1">
+                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.22em] text-[#9FBDFF]">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-[#7BA7FF]" />
+                  {t.liveLabel}
                 </div>
-                <p className="mt-1 text-xs font-bold text-slate-500">streak ativo</p>
+                <span className="font-mono text-[9px] font-bold text-white/30">KYRON / 04</span>
               </div>
 
-              <div className="rounded-[1.75rem] bg-slate-950 p-5 text-white">
-                <div className="mb-6 flex items-start justify-between gap-4">
+              <div className="p-3 sm:p-5">
+                <div className="flex items-start justify-between gap-5">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#7BA7FF]">KYRON WORKOUT</p>
-                    <h2 className="mt-2 text-2xl font-black tracking-tight">{t.simulatorTitle}</h2>
-                    <p className="mt-2 text-sm font-semibold text-slate-400">{t.simulatorSub}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">{t.setLabel} 3 / 4</p>
+                    <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white sm:text-3xl">{t.exercise}</h2>
                   </div>
-                  <div className="rounded-2xl bg-white/10 p-3">
-                    <Zap size={22} className="text-[#7BA7FF]" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-2xl bg-white/8 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t.setLabel}</p>
-                    <p className="mt-2 text-2xl font-black">3/4</p>
-                  </div>
-                  <div className="rounded-2xl bg-white/8 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t.loadLabel}</p>
-                    <p className="mt-2 text-2xl font-black">84kg</p>
-                  </div>
-                  <div className="rounded-2xl bg-white/8 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t.restLabel}</p>
-                    <p className="mt-2 text-2xl font-black">0:48</p>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#7BA7FF]/35 bg-[#7BA7FF]/10 text-[#9FBDFF]">
+                    <Dumbbell size={21} />
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-3xl border border-white/10 bg-white/6 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-white">Supino inclinado</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-400">RPE alvo 8 · descanso adaptativo</p>
-                    </div>
-                    <div className="rounded-full bg-emerald-400/15 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-300">
-                      Sync OK
-                    </div>
+                <div className="mt-7 grid grid-cols-2 gap-px overflow-hidden border border-white/10 bg-white/10">
+                  <div className="bg-[#111412] p-4">
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35">{t.previousLabel}</p>
+                    <p className="mt-2 font-mono text-2xl font-bold text-white/60">82 kg</p>
                   </div>
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full w-[68%] rounded-full bg-[#7BA7FF]" />
+                  <div className="bg-[#172035] p-4">
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#9FBDFF]">{t.suggestedLabel}</p>
+                    <p className="mt-2 font-mono text-2xl font-bold text-white">84 kg</p>
                   </div>
                 </div>
 
-                <button className="mt-5 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-white text-xs font-black uppercase tracking-[0.18em] text-slate-950">
-                  {t.confirmSet}
-                  <ArrowRight size={15} />
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="border border-white/10 bg-white/[0.035] p-4">
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35">{t.repsLabel}</p>
+                    <p className="mt-3 font-mono text-3xl font-bold">8</p>
+                  </div>
+                  <div className="border border-white/10 bg-white/[0.035] p-4">
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35">{t.rpeLabel}</p>
+                    <p className="mt-3 font-mono text-3xl font-bold">8</p>
+                  </div>
+                </div>
+
+                <button className="mt-4 flex h-14 w-full items-center justify-center gap-2 bg-[#F4F2E9] text-[11px] font-black uppercase tracking-[0.18em] text-[#090B0A] transition hover:bg-white">
+                  {t.finishSet}
+                  <ArrowRight size={16} />
                 </button>
-              </div>
 
-              <div className="mt-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-bold leading-6 text-slate-600">{t.nextAction}</p>
+                <div className="mt-4 flex items-start gap-3 border-l-2 border-[#7BA7FF] bg-[#7BA7FF]/[0.08] p-4">
+                  <Zap size={16} className="mt-0.5 shrink-0 text-[#9FBDFF]" />
+                  <p className="text-xs font-semibold leading-6 text-white/60">{t.reason}</p>
+                </div>
               </div>
-            </motion.div>
+            </div>
+
+            <div className="absolute -bottom-8 -left-6 hidden w-44 border border-white/[0.12] bg-[#F4F2E9] p-4 text-[#090B0A] shadow-2xl md:block">
+              <div className="flex items-center justify-between">
+                <Flame size={17} className="text-[#3566B8]" />
+                <span className="font-mono text-[9px] font-bold text-black/35">STREAK</span>
+              </div>
+              <p className="mt-5 text-3xl font-black tracking-[-0.05em]">7 dias</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black/45">{t.heroNote}</p>
+            </div>
+
+            <div className="absolute -right-5 top-14 hidden w-40 border border-[#7BA7FF]/25 bg-[#111827] p-4 shadow-2xl md:block">
+              <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.18em] text-[#9FBDFF]">
+                <TrendingUp size={14} />
+                +8,4%
+              </div>
+              <div className="mt-4 flex h-16 items-end gap-1">
+                {[18, 29, 24, 38, 42, 52, 58].map((height, index) => (
+                  <span key={index} className="flex-1 bg-[#7BA7FF]/70" style={{ height: `${height}px` }} />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </section>
+
+        <section className="border-y border-white/10 bg-white/[0.025] py-4" aria-label="KYRON capabilities">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-7 gap-y-3 px-5 lg:px-8">
+            {t.ticker.map((item, index) => (
+              <React.Fragment key={item}>
+                <span className="text-[9px] font-black uppercase tracking-[0.22em] text-white/55">{item}</span>
+                {index < t.ticker.length - 1 && <span className="hidden h-1 w-1 rounded-full bg-[#7BA7FF] sm:block" />}
+              </React.Fragment>
+            ))}
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-5 py-10 lg:px-8" id="proof">
-          <div className="grid gap-4 md:grid-cols-3">
-            {psychologyCards.map((card) => {
-              const Icon = card.icon;
+        <section id="method" className="mx-auto max-w-7xl px-5 py-24 lg:px-8 lg:py-32">
+          <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
+            <div className="lg:col-span-7">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#9FBDFF]">{t.cycleEyebrow}</p>
+              <h2 className="mt-5 max-w-4xl text-4xl font-black leading-[0.96] tracking-[-0.055em] sm:text-6xl">
+                {t.cycleTitle}
+              </h2>
+            </div>
+            <div className="lg:col-span-5">
+              <p className="max-w-xl text-base font-medium leading-8 text-white/55">{t.cycleSub}</p>
+            </div>
+          </div>
+
+          <div className="relative mt-16 grid gap-px overflow-hidden border border-white/10 bg-white/10 md:grid-cols-2 lg:grid-cols-4">
+            <div className="pointer-events-none absolute left-0 top-0 hidden h-1 w-full bg-gradient-to-r from-[#7BA7FF] via-[#7BA7FF]/45 to-transparent lg:block" />
+            {t.cycleSteps.map((step, index) => {
+              const icons = [Target, Dumbbell, Activity, RefreshCcw];
+              const Icon = icons[index];
               return (
-                <div key={card.title} className="rounded-[1.75rem] border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-xl">
-                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#7BA7FF]/12 text-[#3566B8]">
-                    <Icon size={22} />
+                <div key={step.title} className="group relative bg-[#0D100E] p-7 transition hover:bg-[#121713] lg:min-h-[310px] lg:p-8">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] font-bold text-white/25">0{index + 1}</span>
+                    <Icon size={19} className="text-[#7BA7FF]" />
                   </div>
-                  <h3 className="text-lg font-black tracking-tight text-slate-950">{card.title}</h3>
-                  <p className="mt-3 text-sm font-semibold leading-7 text-slate-600">{card.text}</p>
+                  <div className="mt-16 lg:mt-28">
+                    <h3 className="text-xl font-black tracking-[-0.035em] text-white">{step.title}</h3>
+                    <p className="mt-4 text-sm font-medium leading-7 text-white/[0.48]">{step.text}</p>
+                  </div>
+                  <ChevronRight className="absolute bottom-7 right-7 text-white/15 transition group-hover:translate-x-1 group-hover:text-[#7BA7FF]" size={18} />
                 </div>
               );
             })}
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-5 py-16 lg:px-8" id="method">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#3566B8]">{t.methodBadge}</p>
-            <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-slate-950 sm:text-5xl">{t.methodTitle}</h2>
-            <p className="mt-5 text-base font-semibold leading-8 text-slate-600">{t.whySub}</p>
+        <section id="product" className="bg-[#F1EEE3] text-[#0A0D0B]">
+          <div className="mx-auto grid max-w-7xl gap-14 px-5 py-24 lg:grid-cols-12 lg:items-center lg:px-8 lg:py-32">
+            <div className="lg:col-span-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#3566B8]">{t.productEyebrow}</p>
+              <h2 className="mt-5 text-4xl font-black leading-[0.96] tracking-[-0.055em] sm:text-6xl">{t.productTitle}</h2>
+              <p className="mt-6 max-w-xl text-base font-medium leading-8 text-black/[0.58]">{t.productSub}</p>
+
+              <div className="mt-9 space-y-4">
+                {t.productReasons.map((item) => (
+                  <div key={item} className="flex items-start gap-3 border-b border-black/10 pb-4">
+                    <Check size={17} className="mt-0.5 shrink-0 text-[#3566B8]" />
+                    <span className="text-sm font-bold leading-6 text-black/70">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="lg:col-span-7">
+              <div className="relative border border-black/10 bg-[#0B0E0C] p-3 shadow-[0_35px_90px_rgba(9,11,10,0.22)] sm:p-5">
+                <div className="flex items-center justify-between border-b border-white/10 px-2 pb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-[#7BA7FF]" />
+                    <span className="text-[9px] font-black uppercase tracking-[0.22em] text-white/45">KYRON WORKOUT PLAYER</span>
+                  </div>
+                  <span className="font-mono text-[9px] text-white/25">SYNC / READY</span>
+                </div>
+
+                <div className="grid gap-3 py-3 lg:grid-cols-12">
+                  <div className="border border-white/10 bg-[#111412] p-5 lg:col-span-8 sm:p-7">
+                    <div className="flex items-start justify-between gap-5">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#9FBDFF]">{t.setLabel} 3 / 4</p>
+                        <h3 className="mt-3 text-2xl font-black tracking-[-0.04em] text-white sm:text-4xl">{t.exercise}</h3>
+                      </div>
+                      <div className="font-mono text-4xl font-bold text-white/10 sm:text-6xl">03</div>
+                    </div>
+
+                    <div className="mt-8 grid gap-px overflow-hidden border border-white/10 bg-white/10 sm:grid-cols-2">
+                      <div className="bg-[#111412] p-5">
+                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35">{t.previousLabel}</p>
+                        <p className="mt-3 font-mono text-3xl font-bold text-white/55">82 kg</p>
+                      </div>
+                      <div className="bg-[#172035] p-5">
+                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#9FBDFF]">{t.suggestedLabel}</p>
+                        <p className="mt-3 font-mono text-3xl font-bold text-white">84 kg</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div className="border border-white/10 p-5">
+                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35">{t.repsLabel}</p>
+                        <p className="mt-3 font-mono text-3xl font-bold text-white">8</p>
+                      </div>
+                      <div className="border border-white/10 p-5">
+                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35">{t.rpeLabel}</p>
+                        <p className="mt-3 font-mono text-3xl font-bold text-white">8</p>
+                      </div>
+                    </div>
+
+                    <button className="mt-3 flex h-14 w-full items-center justify-center gap-2 bg-[#7BA7FF] text-[10px] font-black uppercase tracking-[0.18em] text-[#07101F] transition hover:bg-[#9FBDFF]">
+                      {t.finishSet}
+                      <ArrowRight size={15} />
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3 lg:col-span-4">
+                    <div className="border border-[#7BA7FF]/25 bg-[#111827] p-5 text-white">
+                      <div className="flex items-center justify-between">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#7BA7FF]/[0.12] text-[#9FBDFF]">
+                          <Zap size={17} />
+                        </div>
+                        <span className="font-mono text-[8px] text-white/30">WHY</span>
+                      </div>
+                      <p className="mt-6 text-[9px] font-black uppercase tracking-[0.2em] text-[#9FBDFF]">{t.recommendation}</p>
+                      <p className="mt-3 text-sm font-semibold leading-7 text-white/[0.66]">{t.recommendationText}</p>
+                    </div>
+
+                    <div className="border border-white/10 bg-[#151815] p-5 text-white">
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/35">{t.nextExercise}</p>
+                      <p className="mt-3 text-base font-black tracking-[-0.02em]">{t.nextExerciseName}</p>
+                      <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
+                        <span className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35">{t.adaptiveRest}</span>
+                        <span className="font-mono text-sm font-bold text-[#9FBDFF]">01:30</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 border border-white/10 bg-[#151815] p-4 text-white">
+                      <WifiOff size={17} className="shrink-0 text-[#9FBDFF]" />
+                      <p className="text-xs font-semibold leading-5 text-white/55">Offline queue ready</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="difference" className="mx-auto max-w-7xl px-5 py-24 lg:px-8 lg:py-32">
+          <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
+            <div className="lg:col-span-7">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#9FBDFF]">{t.differenceEyebrow}</p>
+              <h2 className="mt-5 max-w-4xl text-4xl font-black leading-[0.96] tracking-[-0.055em] sm:text-6xl">{t.differenceTitle}</h2>
+            </div>
+            <div className="lg:col-span-5">
+              <p className="text-base font-medium leading-8 text-white/55">{t.differenceSub}</p>
+            </div>
           </div>
 
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
-            {methodSteps.map((item) => (
-              <div key={item.step} className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm">
-                <span className="text-5xl font-black tracking-[-0.08em] text-slate-200">{item.step}</span>
-                <h3 className="mt-5 text-xl font-black tracking-tight text-slate-950">{item.title}</h3>
-                <p className="mt-3 text-sm font-semibold leading-7 text-slate-600">{item.text}</p>
+          <div className="mt-14 overflow-hidden border border-white/10">
+            <div className="grid grid-cols-2 bg-white/[0.04] text-[9px] font-black uppercase tracking-[0.22em] text-white/35">
+              <div className="border-r border-white/10 p-4 sm:p-5">{t.comparisonLeft}</div>
+              <div className="p-4 text-[#9FBDFF] sm:p-5">{t.comparisonRight}</div>
+            </div>
+            {t.comparisons.map(([common, kyron], index) => (
+              <div key={common} className={`grid grid-cols-2 ${index !== t.comparisons.length - 1 ? 'border-b border-white/10' : ''}`}>
+                <div className="border-r border-white/10 p-4 text-sm font-semibold leading-6 text-white/[0.38] sm:p-6">{common}</div>
+                <div className="flex items-start gap-3 bg-[#7BA7FF]/[0.035] p-4 text-sm font-bold leading-6 text-white sm:p-6">
+                  <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-[#7BA7FF]" />
+                  {kyron}
+                </div>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-5 py-16 lg:px-8" id="benefits">
-          <div className="grid gap-8 lg:grid-cols-12 lg:items-end">
+        <section className="border-y border-white/10 bg-[#0D100E]">
+          <div className="mx-auto grid max-w-7xl gap-14 px-5 py-24 lg:grid-cols-12 lg:items-center lg:px-8 lg:py-32">
             <div className="lg:col-span-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#3566B8]">UX + PERFORMANCE</p>
-              <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-slate-950 sm:text-5xl">{t.benefitsTitle}</h2>
-            </div>
-            <div className="lg:col-span-7">
-              <p className="text-base font-semibold leading-8 text-slate-600">{t.whyTitle}</p>
-            </div>
-          </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#9FBDFF]">{t.progressEyebrow}</p>
+              <h2 className="mt-5 text-4xl font-black leading-[0.96] tracking-[-0.055em] sm:text-6xl">{t.progressTitle}</h2>
+              <p className="mt-6 max-w-xl text-base font-medium leading-8 text-white/55">{t.progressSub}</p>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {benefits.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white">
-                    <Icon size={20} />
+              <div className="mt-10 grid grid-cols-2 gap-px overflow-hidden border border-white/10 bg-white/10">
+                {t.metrics.map(([label, value]) => (
+                  <div key={label} className="bg-[#0D100E] p-5">
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35">{label}</p>
+                    <p className="mt-3 font-mono text-2xl font-bold text-white">{value}</p>
                   </div>
-                  <h3 className="font-black tracking-tight text-slate-950">{item.title}</h3>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{item.text}</p>
+                ))}
+              </div>
+            </div>
+
+            <div className="lg:col-span-7">
+              <div className="border border-white/10 bg-[#090B0A] p-5 sm:p-8">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/35">{t.chartLabel}</p>
+                    <p className="mt-2 font-mono text-2xl font-bold text-white">32.480 kg</p>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#7BA7FF]/30 bg-[#7BA7FF]/10 text-[#9FBDFF]">
+                    <BarChart3 size={19} />
+                  </div>
                 </div>
-              );
-            })}
+
+                <div className="relative mt-10 h-64 border-b border-l border-white/10 px-3 pb-3">
+                  <div className="pointer-events-none absolute inset-0 flex flex-col justify-between pb-3">
+                    {[0, 1, 2, 3].map((line) => <span key={line} className="block border-t border-dashed border-white/[0.055]" />)}
+                  </div>
+                  <div className="relative z-10 flex h-full items-end gap-2 sm:gap-4">
+                    {chartHeights.map((height, index) => (
+                      <div key={index} className="group flex h-full flex-1 items-end">
+                        <motion.div
+                          initial={{ height: 0 }}
+                          whileInView={{ height: `${height}%` }}
+                          viewport={{ once: true, amount: 0.35 }}
+                          transition={{ duration: 0.65, delay: index * 0.06 }}
+                          className={`w-full ${index === chartHeights.length - 1 ? 'bg-[#7BA7FF]' : 'bg-white/[0.18]'} transition group-hover:bg-[#9FBDFF]`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between text-[8px] font-black uppercase tracking-[0.17em] text-white/25">
+                  <span>W01</span><span>W02</span><span>W03</span><span>W04</span><span>W05</span><span>W06</span><span>W07</span><span>W08</span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-5 py-16 lg:px-8">
-          <div className="rounded-[2.25rem] bg-slate-950 p-6 text-white shadow-2xl shadow-slate-950/12 sm:p-10 lg:p-14">
-            <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
-              <div className="lg:col-span-6">
-                <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#7BA7FF]">{t.proofTitle}</p>
-                <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] sm:text-5xl">{t.finalTitle}</h2>
-                <p className="mt-5 text-base font-semibold leading-8 text-slate-300">{t.finalSub}</p>
+        <section className="mx-auto max-w-7xl px-5 py-24 lg:px-8 lg:py-32">
+          <div className="grid gap-12 lg:grid-cols-12 lg:items-center">
+            <div className="lg:col-span-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#9FBDFF]">{t.trustEyebrow}</p>
+              <h2 className="mt-5 text-4xl font-black leading-[0.96] tracking-[-0.055em] sm:text-6xl">{t.trustTitle}</h2>
+            </div>
+            <div className="grid gap-px overflow-hidden border border-white/10 bg-white/10 lg:col-span-7">
+              {t.trustItems.map(([title, text], index) => {
+                const icons = [Fingerprint, WifiOff, ShieldCheck];
+                const Icon = icons[index];
+                return (
+                  <div key={title} className="flex items-start gap-4 bg-[#0D100E] p-6 sm:p-7">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#7BA7FF]/25 bg-[#7BA7FF]/[0.08] text-[#9FBDFF]">
+                      <Icon size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-black tracking-[-0.02em] text-white">{title}</h3>
+                      <p className="mt-2 text-sm font-medium leading-6 text-white/45">{text}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="mx-auto max-w-[1500px] bg-[#7BA7FF] px-5 py-20 text-[#07101F] sm:px-10 lg:px-16 lg:py-24">
+            <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-12 lg:items-end">
+              <div className="lg:col-span-8">
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#07101F]/55">{t.finalEyebrow}</p>
+                <h2 className="mt-5 text-4xl font-black leading-[0.92] tracking-[-0.06em] sm:text-6xl lg:text-7xl">
+                  <span className="block">{t.finalTitleTop}</span>
+                  <span className="block font-serif font-semibold italic">{t.finalTitleAccent}</span>
+                </h2>
+                <p className="mt-6 max-w-2xl text-base font-semibold leading-8 text-[#07101F]/65">{t.finalSub}</p>
+              </div>
+              <div className="lg:col-span-4 lg:text-right">
                 <button
                   onClick={onStart}
-                  className="mt-8 inline-flex h-14 items-center justify-center gap-2 rounded-[1.35rem] bg-white px-7 text-xs font-black uppercase tracking-[0.18em] text-slate-950 transition active:scale-[0.98]"
+                  className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#07101F] px-7 text-[11px] font-black uppercase tracking-[0.17em] text-white transition hover:-translate-y-1 hover:bg-black active:translate-y-0 sm:w-auto"
                 >
                   {t.finalCta}
                   <ArrowRight size={16} />
                 </button>
-              </div>
-
-              <div className="lg:col-span-6">
-                <div className="grid gap-3">
-                  {proofPoints.map((item) => (
-                    <div key={item} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/6 p-4">
-                      <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-300" />
-                      <p className="text-sm font-bold leading-6 text-slate-200">{item}</p>
-                    </div>
-                  ))}
-                </div>
+                <p className="mt-4 text-xs font-bold leading-6 text-[#07101F]/50">{t.finalNote}</p>
               </div>
             </div>
           </div>
         </section>
 
-        <footer className="mx-auto flex max-w-7xl flex-col gap-4 px-5 pb-10 pt-4 text-xs font-bold text-slate-400 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-          <span>KYRON OS · Human Performance System</span>
-          <div className="flex items-center gap-4">
-            <button onClick={onLogin} className="transition hover:text-slate-700">{t.login}</button>
-            <button onClick={onStart} className="transition hover:text-slate-700">{t.start}</button>
+        <footer className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-10 text-[10px] font-bold uppercase tracking-[0.18em] text-white/30 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#F4F2E9]">
+              <img src={kyronLogo} alt="KYRON OS" className="h-9 w-9 scale-150 object-contain" />
+            </span>
+            <span>KYRON OS · Human Performance System</span>
+          </div>
+          <div className="flex items-center gap-5">
+            <button onClick={onLogin} className="transition hover:text-white">{t.login}</button>
+            <button onClick={onStart} className="transition hover:text-white">{t.start}</button>
           </div>
         </footer>
       </main>
