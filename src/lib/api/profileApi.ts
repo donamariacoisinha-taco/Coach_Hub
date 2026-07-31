@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { UserProfile, BodyMeasurement } from '../../types';
 import { fetchWithRetry } from '../utils';
+import { GUEST_PROFILE_KEY, GUEST_SESSION_KEY, GUEST_USER_ID } from './authApi';
 
 type AccessRole = 'admin' | 'coach' | 'user';
 type AccessPlan = 'free' | 'premium';
@@ -30,6 +31,108 @@ export type EnrichedUserProfile = UserProfile & {
 };
 
 const PROFILE_WITH_ACCESS_SELECT = '*, user_access!user_access_user_id_fkey(*)';
+
+const hasGuestSession = () => {
+  if (typeof window === 'undefined') return false;
+  return Boolean(localStorage.getItem(GUEST_SESSION_KEY));
+};
+
+const isGuestUser = (userId?: string | null) => userId === GUEST_USER_ID && hasGuestSession();
+
+const createDefaultGuestProfile = (): EnrichedUserProfile => {
+  const now = new Date().toISOString();
+  return {
+    id: GUEST_USER_ID,
+    email: 'guest@kyron.os',
+    name: 'Atleta Convidado',
+    full_name: 'Atleta Convidado',
+    onboarding_completed: true,
+    onboarding_version: 'guest-demo-v1',
+    workout_streak: 0,
+    primary_goal: 'performance',
+    training_experience: 'beginner',
+    weekly_availability: 3,
+    training_environment: 'gym_full',
+    restrictions: ['Nenhuma'],
+    exercise_dislikes: [],
+    weight: 75,
+    height: 175,
+    age: 28,
+    role: 'user',
+    plan: 'free',
+    account_status: 'active',
+    is_admin: false,
+    is_premium: false,
+    user_access: {
+      user_id: GUEST_USER_ID,
+      role: 'user',
+      plan: 'free',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    },
+    created_at: now,
+    updated_at: now,
+  } as EnrichedUserProfile;
+};
+
+const readGuestProfile = (): EnrichedUserProfile => {
+  const fallback = createDefaultGuestProfile();
+  if (typeof window === 'undefined') return fallback;
+
+  const raw = localStorage.getItem(GUEST_PROFILE_KEY);
+  if (!raw) {
+    localStorage.setItem(GUEST_PROFILE_KEY, JSON.stringify(fallback));
+    return fallback;
+  }
+
+  try {
+    const stored = JSON.parse(raw);
+    const profile: EnrichedUserProfile = {
+      ...fallback,
+      ...stored,
+      id: GUEST_USER_ID,
+      role: 'user',
+      plan: 'free',
+      account_status: 'active',
+      is_admin: false,
+      is_premium: false,
+      user_access: fallback.user_access,
+    };
+    return profile;
+  } catch (error) {
+    console.warn('[profileApi] Invalid guest profile cache. Restoring demo profile.', error);
+    localStorage.setItem(GUEST_PROFILE_KEY, JSON.stringify(fallback));
+    return fallback;
+  }
+};
+
+const writeGuestProfile = (changes: Record<string, unknown>) => {
+  const current = readGuestProfile();
+  const authorizationKeys = new Set([
+    'id', 'role', 'is_admin', 'is_premium', 'plan', 'account_status', 'user_access',
+  ]);
+
+  const safeChanges = Object.fromEntries(
+    Object.entries(changes).filter(([key]) => !authorizationKeys.has(key))
+  );
+
+  const next: EnrichedUserProfile = {
+    ...current,
+    ...safeChanges,
+    id: GUEST_USER_ID,
+    role: 'user',
+    plan: 'free',
+    account_status: 'active',
+    is_admin: false,
+    is_premium: false,
+    user_access: current.user_access,
+    updated_at: new Date().toISOString(),
+  } as EnrichedUserProfile;
+
+  localStorage.setItem(GUEST_PROFILE_KEY, JSON.stringify(next));
+  return next;
+};
 
 const getAccessRelation = (raw: ProfileWithAccess): AccessRecord | null => {
   if (Array.isArray(raw.user_access)) return raw.user_access[0] || null;
@@ -101,6 +204,8 @@ const hydrateLocalPreferences = (profile: EnrichedUserProfile, userId: string) =
 
 export const profileApi = {
   async getProfile(userId: string): Promise<EnrichedUserProfile | null> {
+    if (isGuestUser(userId)) return hydrateLocalPreferences(readGuestProfile(), userId);
+
     return fetchWithRetry(async () => {
       const { data, error } = await supabase
         .from('profiles')
@@ -125,6 +230,11 @@ export const profileApi = {
   },
 
   async updateStreak(userId: string, streak: number) {
+    if (isGuestUser(userId)) {
+      writeGuestProfile({ workout_streak: streak });
+      return;
+    }
+
     return fetchWithRetry(async () => {
       const { error } = await supabase
         .from('profiles')
@@ -135,6 +245,11 @@ export const profileApi = {
   },
 
   async updateWeight(userId: string, weight: number) {
+    if (isGuestUser(userId)) {
+      writeGuestProfile({ weight });
+      return;
+    }
+
     return fetchWithRetry(async () => {
       const { error } = await supabase
         .from('profiles')
@@ -145,13 +260,24 @@ export const profileApi = {
   },
 
   async updateProfile(userId: string, payload: Partial<UserProfile> | Record<string, unknown>) {
-    return fetchWithRetry(async () => {
-      const unsafePayload = payload as Record<string, unknown>;
-      const authorizationKeys = ['role', 'is_admin', 'is_premium', 'plan', 'account_status', 'user_access'];
-      if (authorizationKeys.some(key => unsafePayload[key] !== undefined)) {
-        throw new Error('Campos de autorização devem ser alterados somente pela RPC admin_update_user_access.');
-      }
+    const unsafePayload = payload as Record<string, unknown>;
+    const authorizationKeys = ['role', 'is_admin', 'is_premium', 'plan', 'account_status', 'user_access'];
+    if (authorizationKeys.some(key => unsafePayload[key] !== undefined)) {
+      throw new Error('Campos de autorização devem ser alterados somente pela RPC admin_update_user_access.');
+    }
 
+    if (isGuestUser(userId)) {
+      if (unsafePayload.preferred_training_days) {
+        localStorage.setItem(
+          `rubi_preferred_training_days_${userId}`,
+          JSON.stringify(unsafePayload.preferred_training_days)
+        );
+      }
+      writeGuestProfile(unsafePayload);
+      return;
+    }
+
+    return fetchWithRetry(async () => {
       if (unsafePayload.preferred_training_days) {
         localStorage.setItem(
           `rubi_preferred_training_days_${userId}`,
@@ -213,6 +339,8 @@ export const profileApi = {
   },
 
   async ensureProfile(userId: string): Promise<EnrichedUserProfile | null> {
+    if (isGuestUser(userId)) return hydrateLocalPreferences(readGuestProfile(), userId);
+
     let profile = await this.getProfile(userId);
     if (profile) return profile;
 
@@ -225,8 +353,6 @@ export const profileApi = {
     });
     if (error) throw error;
 
-    // Production has ensure_user_access_after_profile_insert, which creates
-    // the authoritative free/user/active access row.
     profile = await this.getProfile(userId);
     if (!profile) throw new Error('Perfil criado sem registro user_access correspondente.');
     return profile;
@@ -241,6 +367,10 @@ export const profileApi = {
       reason?: string | null;
     }
   ): Promise<AccessRecord> {
+    if (isGuestUser(userId)) {
+      throw new Error('O modo convidado não permite alterações de acesso.');
+    }
+
     if (!changes.role && !changes.plan && !changes.status) {
       throw new Error('Nenhuma alteração de acesso foi informada.');
     }
@@ -259,6 +389,8 @@ export const profileApi = {
   },
 
   async getBodyMeasurements() {
+    if (hasGuestSession()) return [] as BodyMeasurement[];
+
     const { data, error } = await supabase
       .from('body_measurements')
       .select('*')
@@ -268,16 +400,20 @@ export const profileApi = {
   },
 
   async deleteBodyMeasurement(id: string) {
+    if (hasGuestSession()) return;
     const { error } = await supabase.from('body_measurements').delete().eq('id', id);
     if (error) throw error;
   },
 
   async upsertBodyMeasurement(payload: unknown) {
+    if (hasGuestSession()) return;
     const { error } = await supabase.from('body_measurements').upsert(payload as any);
     if (error) throw error;
   },
 
   async getAllProfiles(): Promise<EnrichedUserProfile[]> {
+    if (hasGuestSession()) return [readGuestProfile()];
+
     const { data, error } = await supabase
       .from('profiles')
       .select(PROFILE_WITH_ACCESS_SELECT)
