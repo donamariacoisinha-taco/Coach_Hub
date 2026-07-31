@@ -6,9 +6,11 @@ Reposicionar a landing page como uma demonstração do sistema adaptativo de tre
 
 ## Direção visual
 
-- estética editorial esportiva com linguagem de laboratório de performance;
-- fundo grafite, superfícies creme e azul oficial do KYRON como cor de progresso e ação;
-- tipografia de alto contraste com títulos editoriais e métricas monoespaçadas;
+- identidade visual clara e premium já usada no aplicativo;
+- fundo principal `#F8FAFC`, cartões brancos e superfícies creme suaves;
+- azul oficial `#7BA7FF` mantido como cor de progresso, destaque e ação;
+- tipografia atual preservada, com títulos editoriais e métricas monoespaçadas;
+- sombras leves, bordas discretas, transparência e profundidade sem grandes blocos escuros;
 - composição assimétrica e responsiva;
 - movimento concentrado na entrada do hero e no gráfico de evolução.
 
@@ -25,6 +27,7 @@ Reposicionar a landing page como uma demonstração do sistema adaptativo de tre
 
 ## Preservado
 
+- identidade visual clara do produto;
 - callbacks `onStart` e `onLogin`;
 - alternância PT/EN e preferência em `localStorage`;
 - logo oficial do KYRON;
