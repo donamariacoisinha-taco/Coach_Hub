@@ -1,5 +1,8 @@
 # Checklist de revisão visual
 
+- [ ] A landing preserva o fundo claro e a identidade premium do aplicativo.
+- [ ] O azul oficial `#7BA7FF` permanece como cor principal de ação e progresso.
+- [ ] Não existem grandes blocos de fundo preto ou grafite.
 - [ ] Hero comunica a proposta principal sem depender de termos técnicos.
 - [ ] CTA principal permanece visível e funcional no mobile.
 - [ ] Alternância PT/EN não provoca quebra de linha crítica.
