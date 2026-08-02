@@ -1,0 +1,1 @@
+Este marcador será removido junto com os arquivos Base64 após a migração direta.
