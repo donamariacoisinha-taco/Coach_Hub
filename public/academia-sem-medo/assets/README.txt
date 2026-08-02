@@ -1,0 +1,1 @@
+Assets públicos da página Academia sem Medo.
