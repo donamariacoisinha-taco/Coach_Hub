@@ -30,5 +30,8 @@ const decodeChunkedAsset = async (name, chunkCount) => {
 await Promise.all([
   decodeChunkedAsset('cover', 3),
   decodeChunkedAsset('atlas', 5),
-  decodeChunkedAsset('couple-atlas', 5),
+  decodeChunkedAsset('casal-fase-1', 1),
+  decodeChunkedAsset('casal-fase-2', 1),
+  decodeChunkedAsset('casal-fase-3', 1),
+  decodeChunkedAsset('casal-fase-4', 1),
 ]);
