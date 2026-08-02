@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/academia-sem-medo", "destination": "/academia-sem-medo/index.html" },
+    { "source": "/academia-sem-medo/", "destination": "/academia-sem-medo/index.html" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }
