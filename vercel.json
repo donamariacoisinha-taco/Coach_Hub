@@ -1,4 +1,13 @@
 {
+  "headers": [
+    {
+      "source": "/academia-sem-medo/assets/(.*).b64",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/academia-sem-medo", "destination": "/academia-sem-medo/index.html" },
     { "source": "/academia-sem-medo/", "destination": "/academia-sem-medo/index.html" },
