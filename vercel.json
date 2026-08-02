@@ -8,9 +8,9 @@
       ]
     }
   ],
-  "rewrites": [
-    { "source": "/academia-sem-medo", "destination": "/academia-sem-medo/index.html" },
-    { "source": "/academia-sem-medo/", "destination": "/academia-sem-medo/index.html" },
-    { "source": "/(.*)", "destination": "/" }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/academia-sem-medo/?", "dest": "/academia-sem-medo/index.html" },
+    { "src": "/.*", "dest": "/" }
   ]
 }
