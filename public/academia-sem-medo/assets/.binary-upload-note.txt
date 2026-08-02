@@ -1,0 +1,1 @@
+Preparando substituição dos blocos Base64 por arquivos WebP reais.
