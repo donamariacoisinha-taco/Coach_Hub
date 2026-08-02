@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,17 +27,8 @@ const decodeChunkedAsset = async (name, chunkCount) => {
   console.log(`[Academia sem Medo] ${name}.webp gerado (${buffer.length} bytes)`);
 };
 
-const decodeSingleAsset = async (sourceName, outputName) => {
-  const base64 = await readFile(join(assetsDir, sourceName), 'utf8');
-  const buffer = Buffer.from(base64.replace(/\s/g, ''), 'base64');
-  validateWebp(buffer, outputName);
-  await mkdir(assetsDir, { recursive: true });
-  await writeFile(join(assetsDir, `${outputName}.webp`), buffer);
-  console.log(`[Academia sem Medo] ${outputName}.webp gerado (${buffer.length} bytes)`);
-};
-
 await Promise.all([
   decodeChunkedAsset('cover', 3),
   decodeChunkedAsset('atlas', 5),
-  decodeSingleAsset('couple-atlas.b64', 'couple-atlas'),
+  decodeChunkedAsset('couple-atlas', 5),
 ]);
