@@ -5,16 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const assetsDir = join(root, 'public', 'academia-sem-medo', 'assets');
 
-const decodeAsset = async (name, chunkCount) => {
-  const chunks = await Promise.all(
-    Array.from({ length: chunkCount }, (_, index) =>
-      readFile(join(assetsDir, `${name}.${index}.b64`), 'utf8')
-    )
-  );
-
-  const base64 = chunks.join('').replace(/\s/g, '');
-  const buffer = Buffer.from(base64, 'base64');
-
+const validateWebp = (buffer, name) => {
   if (
     buffer.length < 16 ||
     buffer.toString('ascii', 0, 4) !== 'RIFF' ||
@@ -22,14 +13,31 @@ const decodeAsset = async (name, chunkCount) => {
   ) {
     throw new Error(`Arte ${name} não é um WebP válido.`);
   }
+};
 
-  const outputPath = join(assetsDir, `${name}.webp`);
-  await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, buffer);
+const decodeChunkedAsset = async (name, chunkCount) => {
+  const chunks = await Promise.all(
+    Array.from({ length: chunkCount }, (_, index) =>
+      readFile(join(assetsDir, `${name}.${index}.b64`), 'utf8')
+    )
+  );
+  const buffer = Buffer.from(chunks.join('').replace(/\s/g, ''), 'base64');
+  validateWebp(buffer, name);
+  await writeFile(join(assetsDir, `${name}.webp`), buffer);
   console.log(`[Academia sem Medo] ${name}.webp gerado (${buffer.length} bytes)`);
 };
 
+const decodeSingleAsset = async (sourceName, outputName) => {
+  const base64 = await readFile(join(assetsDir, sourceName), 'utf8');
+  const buffer = Buffer.from(base64.replace(/\s/g, ''), 'base64');
+  validateWebp(buffer, outputName);
+  await mkdir(assetsDir, { recursive: true });
+  await writeFile(join(assetsDir, `${outputName}.webp`), buffer);
+  console.log(`[Academia sem Medo] ${outputName}.webp gerado (${buffer.length} bytes)`);
+};
+
 await Promise.all([
-  decodeAsset('cover', 3),
-  decodeAsset('atlas', 5),
+  decodeChunkedAsset('cover', 3),
+  decodeChunkedAsset('atlas', 5),
+  decodeSingleAsset('couple-atlas.b64', 'couple-atlas'),
 ]);
