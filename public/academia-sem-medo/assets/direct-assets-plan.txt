@@ -1,0 +1,1 @@
+As imagens serão servidas diretamente como WebP, sem reconstrução Base64 no navegador.
