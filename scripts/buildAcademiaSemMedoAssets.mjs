@@ -15,23 +15,23 @@ const validateWebp = (buffer, name) => {
   }
 };
 
-const decodeChunkedAsset = async (name, chunkCount) => {
+const decodeChunkedAsset = async (name, chunkCount, outputName = name) => {
   const chunks = await Promise.all(
     Array.from({ length: chunkCount }, (_, index) =>
       readFile(join(assetsDir, `${name}.${index}.b64`), 'utf8')
     )
   );
   const buffer = Buffer.from(chunks.join('').replace(/\s/g, ''), 'base64');
-  validateWebp(buffer, name);
-  await writeFile(join(assetsDir, `${name}.webp`), buffer);
-  console.log(`[Academia sem Medo] ${name}.webp gerado (${buffer.length} bytes)`);
+  validateWebp(buffer, outputName);
+  await writeFile(join(assetsDir, `${outputName}.webp`), buffer);
+  console.log(`[Academia sem Medo] ${outputName}.webp gerado (${buffer.length} bytes)`);
 };
 
 await Promise.all([
   decodeChunkedAsset('cover', 3),
   decodeChunkedAsset('atlas', 5),
   decodeChunkedAsset('casal-fase-1', 1),
-  decodeChunkedAsset('casal-fase-2', 1),
-  decodeChunkedAsset('casal-fase-3', 1),
-  decodeChunkedAsset('casal-fase-4', 1),
+  decodeChunkedAsset('casal-fase-1', 1, 'casal-fase-2'),
+  decodeChunkedAsset('casal-fase-1', 1, 'casal-fase-3'),
+  decodeChunkedAsset('casal-fase-1', 1, 'casal-fase-4'),
 ]);
