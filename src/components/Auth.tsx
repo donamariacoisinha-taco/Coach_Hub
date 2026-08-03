@@ -1,5 +1,15 @@
-
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
 import { authApi } from '../lib/api/authApi';
 import { useNavigation } from '../App';
 import { useErrorHandler } from '../hooks/useErrorHandler';
@@ -9,88 +19,127 @@ interface AuthProps {
   onBack?: () => void;
 }
 
+type AuthMode = 'signup' | 'login';
+
+const getInitialMode = (): AuthMode => {
+  if (typeof window === 'undefined') return 'signup';
+  const requestedMode = window.history.state?.params?.mode;
+  return requestedMode === 'login' ? 'login' : 'signup';
+};
+
 const Auth: React.FC<AuthProps> = ({ onBack }) => {
   const { navigate } = useNavigation();
   const { showError, showSuccess } = useErrorHandler();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [mode, setMode] = useState<AuthMode>(getInitialMode);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log(`[AUTH][DEBUG] Iniciando tentativa de ${isSignUp ? 'cadastro' : 'login'} para: ${email}`);
-    
-    if (!email || !password) {
-      setError('Preencha todos os campos.');
+  const isSignUp = mode === 'signup';
+  const passwordIsValid = password.length >= 6;
+
+  const heading = useMemo(() => {
+    if (isForgotPassword) return 'Recuperar senha';
+    return isSignUp ? 'Crie sua conta grátis' : 'Continue sua evolução';
+  }, [isForgotPassword, isSignUp]);
+
+  const subheading = useMemo(() => {
+    if (isForgotPassword) return 'Enviaremos as instruções de recuperação para o seu e-mail.';
+    return isSignUp
+      ? 'Depois do cadastro, o Kyron monta seu primeiro plano adaptativo em poucos minutos.'
+      : 'Entre para acessar seu plano, histórico e próxima sessão.';
+  }, [isForgotPassword, isSignUp]);
+
+  const changeMode = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    setIsForgotPassword(false);
+    setError(null);
+  };
+
+  const handleAuth = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!email.trim() || !password) {
+      setError('Preencha o e-mail e a senha.');
       return;
     }
-    
+
+    if (isSignUp && !passwordIsValid) {
+      setError('Use uma senha com pelo menos 6 caracteres.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
       if (isSignUp) {
-        const signupData = await authApi.signUp(email, password);
-        console.log('[AUTH][DEBUG] Cadastro bem-sucedido:', signupData);
-        
-        // Tenta realizar o login imediato para contornar qualquer barreira de verificação
+        const signupData = await authApi.signUp(email.trim(), password);
+
         if (signupData?.session) {
-          showSuccess('Cadastro realizado', 'Perfil criado e autenticado com sucesso!');
-          navigate('dashboard');
-        } else {
-          try {
-            const loginData = await authApi.signIn(email, password);
-            console.log('[AUTH][DEBUG] Auto-login pós-cadastro bem-sucedido:', loginData.user?.email);
-            showSuccess('Cadastro realizado', 'Perfil criado com sucesso!');
-            navigate('dashboard');
-          } catch (loginErr) {
-            // Se o servidor do Supabase realmente forçar a verificação de e-mail (configuração no painel):
-            showSuccess('Cadastro realizado', 'Sua conta foi criada! Caso necessário, confirme o e-mail enviado.');
-            setIsSignUp(false);
-          }
+          showSuccess('Conta criada', 'Agora vamos personalizar seu primeiro treino.');
+          navigate('onboarding');
+          return;
+        }
+
+        try {
+          await authApi.signIn(email.trim(), password);
+          showSuccess('Conta criada', 'Agora vamos personalizar seu primeiro treino.');
+          navigate('onboarding');
+        } catch {
+          showSuccess(
+            'Conta criada',
+            'Confirme o e-mail enviado e depois entre para concluir seu perfil.'
+          );
+          changeMode('login');
         }
       } else {
-        const data = await authApi.signIn(email, password);
-        console.log('[AUTH][DEBUG] Login bem-sucedido para:', data.user?.email);
-        
-        // Redirecionamento explícito para garantir transição imediata da UI
+        await authApi.signIn(email.trim(), password);
         navigate('dashboard');
       }
     } catch (err: any) {
       const errMsg = err?.message || '';
+
       if (errMsg.includes('Invalid login credentials') || errMsg.includes('invalid_credentials')) {
-        setError('E-mail ou senha incorretos. Se ainda não possui uma conta, mude para "Criar Perfil" abaixo ou utilize o modo Convidado para testar instantaneamente!');
+        setError('E-mail ou senha incorretos. Confira os dados ou crie uma conta.');
       } else if (errMsg.includes('Email not confirmed')) {
-        setError('E-mail não confirmado. Por favor, confirme o e-mail enviado.');
-      } else if (errMsg.includes('User already registered') || errMsg.toLowerCase().includes('already registered')) {
-        setError('Este e-mail já possui um registro ativo no sistema de autenticação (mesmo se o perfil de treino foi excluído pelo administrador). Mudamos o formulário para a tela de Login acima: basta clicar em ENTRAR para reativar seu perfil e iniciar o onboarding do zero!');
-        setIsSignUp(false);
+        setError('Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.');
+      } else if (
+        errMsg.includes('User already registered') ||
+        errMsg.toLowerCase().includes('already registered')
+      ) {
+        setError('Este e-mail já possui conta. Selecione “Entrar” para continuar.');
+        setMode('login');
       } else {
-        setError(errMsg || 'Falha ao realizar autenticação.');
+        setError(errMsg || 'Não foi possível concluir a autenticação.');
       }
+
       showError(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) {
-      setError('Por favor, digite seu e-mail.');
+  const handleForgotPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!email.trim()) {
+      setError('Digite seu e-mail para continuar.');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
+
     try {
-      await authApi.resetPassword(email);
-      showSuccess('Recuperação enviada', 'Instruções para redefinir sua senha foram enviadas para o seu e-mail.');
+      await authApi.resetPassword(email.trim());
+      showSuccess('Recuperação enviada', 'Confira seu e-mail para redefinir a senha.');
       setIsForgotPassword(false);
     } catch (err: any) {
+      setError(err?.message || 'Não foi possível enviar a recuperação.');
       showError(err);
     } finally {
       setLoading(false);
@@ -99,150 +148,264 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
 
   const handleGuestLogin = async () => {
     setLoading(true);
+    setError(null);
+
     try {
       await authApi.signInAsGuest();
-      showSuccess('Modo Convidado Ativado', 'Carregando interface de alta performance offline...');
-      // Force instant navigation to ensure UI handles state refresh
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      showSuccess('Modo convidado ativado', 'Abrindo uma demonstração offline do Kyron.');
+      window.setTimeout(() => window.location.reload(), 500);
     } catch (err: any) {
-      setError('Erro ao iniciar modo convidado.');
+      setError('Não foi possível iniciar o modo convidado.');
+      showError(err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-6 flex flex-col justify-center max-w-md mx-auto relative select-none">
-      {onBack && (
-        <button onClick={onBack} className="absolute top-10 left-6 text-slate-400 hover:text-[#0F172A] transition-colors flex items-center gap-1 cursor-pointer">
-          <span className="text-[10px] font-bold uppercase tracking-widest">Voltar</span>
-        </button>
-      )}
-
-      <div className="text-center mb-10 flex flex-col items-center">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-tr from-[#7BA7FF]/15 via-white/85 to-[#818CF8]/15 backdrop-blur-md border border-white/40 rounded-xl flex items-center justify-center overflow-hidden shadow-xs p-0 shrink-0">
-            <img src={kyronLogo} alt="KYRON OS" className="w-[100%] h-[100%] object-contain scale-[1.75] transform" referrerPolicy="no-referrer" />
-          </div>
-          <span className="text-base font-black uppercase tracking-[0.25em] text-slate-900 pt-0.5">KYRON OS</span>
-        </div>
-        <h2 className="text-3xl font-[1000] tracking-tight text-slate-900 mb-2 uppercase">
-           {isForgotPassword ? 'Recuperar Senha' : isSignUp ? 'Criar Perfil' : 'Bem-vindo'}
-        </h2>
-        <p className="text-slate-500 text-sm font-medium">
-           {isForgotPassword 
-             ? 'Insira seu e-mail para receber as instruções de recuperação.' 
-             : isSignUp 
-               ? 'Inicie sua jornada de alta performance.' 
-               : 'Entre para continuar evoluindo.'}
-        </p>
+    <div className="relative min-h-screen overflow-hidden bg-[#F8FAFC] px-5 py-8 text-slate-900 sm:px-6">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 top-10 h-80 w-80 rounded-full bg-[#7BA7FF]/10 blur-3xl" />
+        <div className="absolute -right-28 bottom-0 h-96 w-96 rounded-full bg-[#818CF8]/10 blur-3xl" />
       </div>
 
-      {isForgotPassword ? (
-        <form onSubmit={handleForgotPassword} className="space-y-6">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-500 text-[10px] font-black uppercase text-center tracking-widest animate-in fade-in slide-in-from-top-2">
-              {error}
-            </div>
-          )}
-          
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu E-mail</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
-              placeholder="atleta@exemplo.com"
-              required
-            />
-          </div>
-
+      <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md flex-col justify-center">
+        {onBack && (
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer text-center"
+            onClick={onBack}
+            className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
           >
-            {loading ? 'Processando...' : 'ENVIAR INSTRUÇÕES'}
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={handleAuth} className="space-y-6">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-500 text-[10px] font-black uppercase text-center tracking-widest animate-in fade-in slide-in-from-top-2">
-              {error}
-            </div>
-          )}
-          
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu E-mail</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
-              placeholder="atleta@exemplo.com"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center ml-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Senha de Acesso</label>
-              <button
-                type="button"
-                onClick={() => { setIsForgotPassword(true); setError(null); }}
-                className="text-[#7BA7FF] hover:text-blue-600 text-[10px] font-extrabold uppercase tracking-widest cursor-pointer border-none bg-transparent outline-none"
-              >
-                Recuperar Senha
-              </button>
-            </div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer text-center"
-          >
-            {loading ? 'Processando...' : isSignUp ? 'FORJAR MEU ACESSO' : 'ENTRAR NO DASHBOARD'}
-          </button>
-        </form>
-      )}
-
-      <div className="mt-10 flex flex-col gap-4 text-center">
-        {isForgotPassword ? (
-          <button
-            onClick={() => { setIsForgotPassword(false); setError(null); }}
-            className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:text-[#0F172A] transition-colors cursor-pointer border-none bg-transparent outline-none"
-          >
-            Voltar para o Login
-          </button>
-        ) : (
-          <button
-            onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
-            className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:text-[#0F172A] transition-colors cursor-pointer"
-          >
-            {isSignUp ? 'Já possuo uma conta' : 'Não possuo cadastro'}
+            <ArrowLeft size={14} />
+            Voltar
           </button>
         )}
 
-        <button
-          onClick={handleGuestLogin}
-          type="button"
-          className="w-full py-4 bg-[#EAF2FF] hover:bg-[#D5E6FF] text-[#0F172A] font-bold text-[10px] uppercase tracking-[0.2em] rounded-2xl shadow-xs transition-all cursor-pointer border border-blue-100/30"
-        >
-          Entrar como Convidado (Modo Offline)
-        </button>
+        <div className="rounded-[2rem] border border-white bg-white/85 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-2xl sm:p-8">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-tr from-[#7BA7FF]/15 via-white to-[#818CF8]/15 shadow-sm">
+                <img
+                  src={kyronLogo}
+                  alt="KYRON OS"
+                  className="h-full w-full scale-[1.75] object-contain"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <span className="text-sm font-black uppercase tracking-[0.24em] text-slate-900">KYRON OS</span>
+            </div>
+
+            {!isForgotPassword && (
+              <div className="mb-6 grid w-full grid-cols-2 rounded-2xl border border-slate-200 bg-slate-100/70 p-1">
+                <button
+                  type="button"
+                  onClick={() => changeMode('signup')}
+                  className={`rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-[0.16em] transition ${
+                    isSignUp
+                      ? 'bg-white text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  Criar conta
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeMode('login')}
+                  className={`rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-[0.16em] transition ${
+                    !isSignUp
+                      ? 'bg-white text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  Entrar
+                </button>
+              </div>
+            )}
+
+            <h1 className="text-3xl font-black tracking-[-0.045em] text-slate-950">{heading}</h1>
+            <p className="mt-3 max-w-sm text-sm font-medium leading-6 text-slate-500">{subheading}</p>
+          </div>
+
+          {isSignUp && !isForgotPassword && (
+            <div className="mb-6 grid grid-cols-3 gap-2 rounded-2xl border border-blue-100 bg-[#F3F7FF] p-3">
+              {[
+                ['1', 'Criar conta'],
+                ['2', 'Personalizar'],
+                ['3', 'Treinar'],
+              ].map(([number, label]) => (
+                <div key={number} className="text-center">
+                  <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-full bg-white text-[10px] font-black text-blue-600 shadow-sm">
+                    {number}
+                  </span>
+                  <span className="mt-1.5 block text-[8px] font-black uppercase tracking-[0.12em] text-slate-500">
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {error && (
+            <div
+              className="mb-5 rounded-2xl border border-red-100 bg-red-50 p-4 text-center text-xs font-bold leading-5 text-red-600"
+              role="alert"
+            >
+              {error}
+            </div>
+          )}
+
+          {isForgotPassword ? (
+            <form onSubmit={handleForgotPassword} className="space-y-5">
+              <div className="space-y-2">
+                <label className="ml-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Seu e-mail
+                </label>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    autoComplete="email"
+                    className="w-full rounded-2xl border border-slate-200 bg-white py-4 pl-12 pr-4 text-sm font-bold text-slate-900 outline-none transition focus:border-[#7BA7FF] focus:ring-4 focus:ring-[#7BA7FF]/10"
+                    placeholder="atleta@exemplo.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-4 text-[11px] font-black uppercase tracking-[0.17em] text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? 'Enviando...' : 'Enviar instruções'}
+                {!loading && <ArrowRight size={15} />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(false);
+                  setError(null);
+                }}
+                className="w-full text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 transition hover:text-slate-800"
+              >
+                Voltar para entrar
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleAuth} className="space-y-5">
+              <div className="space-y-2">
+                <label className="ml-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Seu e-mail
+                </label>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    autoComplete="email"
+                    className="w-full rounded-2xl border border-slate-200 bg-white py-4 pl-12 pr-4 text-sm font-bold text-slate-900 outline-none transition focus:border-[#7BA7FF] focus:ring-4 focus:ring-[#7BA7FF]/10"
+                    placeholder="atleta@exemplo.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="ml-1 flex items-center justify-between gap-3">
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    Senha
+                  </label>
+                  {!isSignUp && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(true);
+                        setError(null);
+                      }}
+                      className="text-[9px] font-black uppercase tracking-[0.12em] text-blue-500 transition hover:text-blue-700"
+                    >
+                      Esqueci a senha
+                    </button>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                    minLength={isSignUp ? 6 : undefined}
+                    className="w-full rounded-2xl border border-slate-200 bg-white py-4 pl-12 pr-12 text-sm font-bold text-slate-900 outline-none transition focus:border-[#7BA7FF] focus:ring-4 focus:ring-[#7BA7FF]/10"
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((current) => !current)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 transition hover:text-slate-600"
+                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+
+                {isSignUp && (
+                  <p className={`ml-1 text-[10px] font-bold ${password && !passwordIsValid ? 'text-amber-600' : 'text-slate-400'}`}>
+                    Use pelo menos 6 caracteres.
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-4 text-[11px] font-black uppercase tracking-[0.17em] text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? 'Processando...' : isSignUp ? 'Criar conta grátis' : 'Entrar no Kyron'}
+                {!loading && <ArrowRight size={15} />}
+              </button>
+            </form>
+          )}
+
+          {!isForgotPassword && (
+            <div className="mt-6 space-y-4 border-t border-slate-100 pt-6">
+              {isSignUp ? (
+                <div className="flex items-start gap-3 rounded-2xl bg-emerald-50 p-4 text-left">
+                  <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={17} />
+                  <p className="text-xs font-semibold leading-5 text-emerald-800">
+                    Sem cartão. Seu primeiro plano é criado após o onboarding.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 rounded-2xl bg-blue-50 p-4 text-left">
+                  <ShieldCheck className="mt-0.5 shrink-0 text-blue-600" size={17} />
+                  <p className="text-xs font-semibold leading-5 text-blue-800">
+                    Sua sessão e seus dados permanecem vinculados ao seu perfil.
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={handleGuestLogin}
+                type="button"
+                disabled={loading}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-blue-100 bg-[#EAF2FF] py-3.5 text-[10px] font-black uppercase tracking-[0.16em] text-slate-800 transition hover:bg-[#DCEAFF] disabled:opacity-50"
+              >
+                <Sparkles size={14} />
+                Explorar como convidado
+              </button>
+            </div>
+          )}
+        </div>
+
+        <p className="mt-5 text-center text-[9px] font-black uppercase tracking-[0.16em] text-slate-300">
+          Performance segura · Kyron OS
+        </p>
       </div>
     </div>
   );
