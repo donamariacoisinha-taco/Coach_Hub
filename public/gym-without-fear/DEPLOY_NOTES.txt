@@ -1,0 +1,3 @@
+The English landing page reuses the approved Academia sem Medo CSS and image assets.
+It uses the English Kiwify checkout: https://pay.kiwify.com.br/KcY5Anm
+Canonical URL: https://kyron.uno/gym-without-fear/
