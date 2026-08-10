@@ -7,7 +7,9 @@
     "node": "24.x"
   },
   "scripts": {
+    "predev": "node scripts/fixWorkoutCompletionState.mjs",
     "dev": "tsx server.ts",
+    "prebuild": "node scripts/fixWorkoutCompletionState.mjs",
     "build": "node scripts/buildAcademiaSemMedoAssets.mjs && vite build && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.mjs && node -e \"require('fs').writeFileSync('dist/server.cjs', 'import(\\\"./server.mjs\\\");\\n')\"",
     "start": "node dist/server.cjs",
     "test": "vitest run",
