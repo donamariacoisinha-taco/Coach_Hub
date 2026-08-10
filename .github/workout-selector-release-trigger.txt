@@ -1,0 +1,1 @@
+Trigger guarded Workout Player selector release after workflow definition is present.
