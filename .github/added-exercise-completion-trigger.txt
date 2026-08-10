@@ -1,1 +1,0 @@
-Retry trigger for one-time fix of newly added exercise completion state.
