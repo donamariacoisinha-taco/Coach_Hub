@@ -1213,9 +1213,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     return allAvailableExercises.filter(ex => {
       const nameMatches = (ex.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (ex.description && ex.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          (ex.equipment && ex.equipment.toLowerCase().includes(searchQuery.toLowerCase()));
+                          (ex.equipment && ex.equipment.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                          ((ex.muscle_group || "").normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(searchQuery.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()));
       
-      const muscleMatches = !selectedMuscleGroup || selectedMuscleGroup === 'Tudo' || ex.muscle_group === selectedMuscleGroup || (selectedMuscleGroup === 'Cardio' && (ex.muscle_group || "").toLowerCase().includes('cardio'));
+      const normalizeMuscle = (value: unknown) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      const selectedMuscle = normalizeMuscle(selectedMuscleGroup);
+      const exerciseMuscle = normalizeMuscle(ex.muscle_group);
+      const muscleMatches = !selectedMuscle || selectedMuscle === 'tudo' || exerciseMuscle.includes(selectedMuscle) || selectedMuscle.includes(exerciseMuscle);
       
       return nameMatches && muscleMatches;
     });
@@ -4195,7 +4199,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </div>
 
                   {/* Horizontal Scroll Filter Pills */}
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3 mb-4 shrink-0">
+                  <div className="grid grid-cols-3 gap-2 pb-3 mb-4 shrink-0">
                     {/* Muscle Groups Pills */}
                     {['Tudo', 'Peito', 'Costas', 'Quadríceps', 'Glúteo', 'Ombro', 'Bíceps', 'Tríceps', 'Cardio'].map((cat) => {
                       const isActive = selectedMuscleGroup === cat;
