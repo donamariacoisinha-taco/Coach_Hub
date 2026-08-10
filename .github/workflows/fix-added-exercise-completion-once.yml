@@ -1,0 +1,100 @@
+name: Fix newly added exercise completion state once
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ contains(github.event.head_commit.message, '[trigger added exercise completion fix]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch WorkoutPlayer completion state
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/features/workout/WorkoutPlayer.tsx')
+          text = path.read_text()
+
+          old_add = '''    setWorkoutPerformance(prev => {
+      const nextIdx = updatedExercises.length - 1;
+      return {
+        ...prev,
+        [nextIdx]: Array.from({ length: 3 }).map(() => ({
+          weight: 0, reps: 10, rpe: 8
+        }))
+      };
+    });
+
+    showSuccess(`Adicionado: ${ex.name}`);'''
+
+          new_add = '''    const nextIdx = updatedExercises.length - 1;
+    setWorkoutPerformance(prev => ({
+      ...prev,
+      [nextIdx]: Array.from({ length: 3 }).map(() => ({
+        weight: 0, reps: 10, rpe: 8
+      }))
+    }));
+
+    // A newly added exercise starts with zero completed sets. Performance
+    // rows are only editable targets and must never imply completion.
+    setCompletedSetsByExercise(prev => ({
+      ...prev,
+      [nextIdx]: new Set<number>()
+    }));
+
+    showSuccess(`Adicionado: ${ex.name}`);'''
+
+          if old_add not in text:
+            raise SystemExit('Add-exercise performance block not found')
+          text = text.replace(old_add, new_add, 1)
+
+          old_fallback = '''      if (savedCompleted) {
+        setCompletedSetIndices(savedCompleted);
+      } else {
+        // Fallback: check if we have workoutPerformance logs already completed
+        if (workoutPerformance[currentIndex] && workoutPerformance[currentIndex].length > 0) {
+          const defaultCompleted = new Set<number>();
+          workoutPerformance[currentIndex].forEach((_, sIdx) => defaultCompleted.add(sIdx));
+          setCompletedSetIndices(defaultCompleted);
+        } else {
+          setCompletedSetIndices(new Set());
+        }
+      }'''
+
+          new_fallback = '''      if (savedCompleted) {
+        setCompletedSetIndices(savedCompleted);
+      } else {
+        // workoutPerformance can contain prefilled/editable set targets even
+        // when nothing was completed. Completion must come only from the
+        // explicit completed-sets state (or hydrated completion logs).
+        setCompletedSetIndices(new Set());
+      }'''
+
+          if old_fallback not in text:
+            raise SystemExit('Completion fallback block not found')
+          text = text.replace(old_fallback, new_fallback, 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          rm -f .github/workflows/fix-added-exercise-completion-once.yml .github/added-exercise-completion-trigger.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/features/workout/WorkoutPlayer.tsx .github/workflows/fix-added-exercise-completion-once.yml .github/added-exercise-completion-trigger.txt
+          git commit -m "Fix newly added exercise completion state"
+          git push origin main
