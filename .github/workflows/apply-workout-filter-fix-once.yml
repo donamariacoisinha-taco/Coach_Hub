@@ -1,0 +1,198 @@
+name: Apply workout selector fix once
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/workout-exercise-filters
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Apply selector patch
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path('src/features/workout/WorkoutPlayer.tsx')
+          text = path.read_text()
+
+          marker = "type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';"
+          helper = """type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+
+          const normalizeExerciseFilterValue = (value: unknown) =>
+            String(value ?? '')
+              .normalize('NFD')
+              .replace(/[\\u0300-\\u036f]/g, '')
+              .toLowerCase()
+              .trim();
+          """
+          if marker not in text:
+              raise SystemExit('UserLevel marker not found')
+          if 'normalizeExerciseFilterValue' not in text:
+              text = text.replace(marker, helper, 1)
+
+          old_filter = '''  const filteredSelectorExercises = useMemo(() => {
+            if (!allAvailableExercises) return [];
+            return allAvailableExercises.filter(ex => {
+              const nameMatches = (ex.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                  (ex.description && ex.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                                  (ex.equipment && ex.equipment.toLowerCase().includes(searchQuery.toLowerCase()));
+              
+              const muscleMatches = !selectedMuscleGroup || selectedMuscleGroup === 'Tudo' || ex.muscle_group === selectedMuscleGroup || (selectedMuscleGroup === 'Cardio' && (ex.muscle_group || "").toLowerCase().includes('cardio'));
+              
+              return nameMatches && muscleMatches;
+            });
+          }, [allAvailableExercises, searchQuery, selectedMuscleGroup]);
+          '''
+          new_filter = '''  const availableEquipment = useMemo(() => {
+            const labels = allAvailableExercises
+              .map(ex => String(ex.equipment || '').trim())
+              .filter(Boolean);
+            return Array.from(new Set(labels)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+          }, [allAvailableExercises]);
+
+          const filteredSelectorExercises = useMemo(() => {
+            if (!allAvailableExercises) return [];
+
+            const normalizedQuery = normalizeExerciseFilterValue(searchQuery);
+            const normalizedMuscle = normalizeExerciseFilterValue(selectedMuscleGroup);
+            const normalizedEquipment = normalizeExerciseFilterValue(selectedEquipment);
+
+            return allAvailableExercises.filter(ex => {
+              const searchableText = [ex.name, ex.description, ex.equipment, ex.muscle_group]
+                .map(normalizeExerciseFilterValue)
+                .join(' ');
+              const exerciseMuscle = normalizeExerciseFilterValue(ex.muscle_group);
+              const exerciseEquipment = normalizeExerciseFilterValue(ex.equipment);
+
+              const nameMatches = !normalizedQuery || searchableText.includes(normalizedQuery);
+              const muscleMatches = !normalizedMuscle || normalizedMuscle === 'tudo' || exerciseMuscle.includes(normalizedMuscle);
+              const equipmentMatches = !normalizedEquipment || normalizedEquipment === 'todos' || exerciseEquipment === normalizedEquipment;
+
+              return nameMatches && muscleMatches && equipmentMatches;
+            });
+          }, [allAvailableExercises, searchQuery, selectedMuscleGroup, selectedEquipment]);
+          '''
+          if old_filter not in text:
+              raise SystemExit('Selector filter block not found')
+          text = text.replace(old_filter, new_filter, 1)
+
+          old_pills = '''                  {/* Horizontal Scroll Filter Pills */}
+                          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3 mb-4 shrink-0">
+                            {/* Muscle Groups Pills */}
+                            {['Tudo', 'Peito', 'Costas', 'Quadríceps', 'Glúteo', 'Ombro', 'Bíceps', 'Tríceps', 'Cardio'].map((cat) => {
+                              const isActive = selectedMuscleGroup === cat;
+                              return (
+                                <button
+                                  key={cat}
+                                  onClick={() => {
+                                    setSelectedMuscleGroup(cat);
+                                    playHapticFeedback('light');
+                                  }}
+                                  className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap border ${
+                                    isActive 
+                                      ? "bg-slate-900 text-white border-slate-950" 
+                                      : "bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {cat}
+                                </button>
+                              );
+                            })}
+                          </div>
+          '''
+          new_pills = '''                  {/* Muscle filters — always visible on mobile */}
+                          <div className="grid grid-cols-3 gap-2 pb-3 shrink-0">
+                            {['Tudo', 'Peito', 'Costas', 'Quadríceps', 'Glúteo', 'Ombro', 'Bíceps', 'Tríceps', 'Cardio'].map((cat) => {
+                              const isActive = selectedMuscleGroup === cat;
+                              return (
+                                <button
+                                  key={cat}
+                                  onClick={() => {
+                                    setSelectedMuscleGroup(cat);
+                                    playHapticFeedback('light');
+                                  }}
+                                  className={`min-h-9 px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wide transition-all border ${
+                                    isActive
+                                      ? "bg-slate-900 text-white border-slate-950 shadow-sm"
+                                      : "bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {cat}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <div className="mb-4 shrink-0">
+                            <label className="block text-[8px] font-black uppercase tracking-[0.16em] text-slate-400 mb-1.5">
+                              Equipamento
+                            </label>
+                            <select
+                              value={selectedEquipment}
+                              onChange={(e) => setSelectedEquipment(e.target.value)}
+                              className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-wide text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#7BA7FF]/25"
+                            >
+                              <option value="Todos">Todos os equipamentos</option>
+                              {availableEquipment.map((equipment) => (
+                                <option key={equipment} value={equipment}>{equipment}</option>
+                              ))}
+                            </select>
+                          </div>
+          '''
+          if old_pills not in text:
+              raise SystemExit('Muscle pill block not found')
+          text = text.replace(old_pills, new_pills, 1)
+
+          text = text.replace(
+              "setExerciseSelectorMode('replace');",
+              "setSelectedMuscleGroup('Tudo');\n                                        setSelectedEquipment('Todos');\n                                        setSearchQuery('');\n                                        setExerciseSelectorMode('replace');"
+          )
+          text = text.replace(
+              "setExerciseSelectorMode('add');",
+              "setSelectedMuscleGroup('Tudo');\n                        setSelectedEquipment('Todos');\n                        setSearchQuery('');\n                        setExerciseSelectorMode('add');"
+          )
+
+          path.write_text(text)
+          PY
+
+      - name: Install and validate
+        run: |
+          npm ci
+          npm run lint
+          npm test
+
+      - name: Commit target branch patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/features/workout/WorkoutPlayer.tsx
+          git commit -m "Fix workout exercise selector filters [workout-filter-fix-applied]"
+          git push origin HEAD:fix/workout-exercise-filters
+
+      - name: Remove temporary workflow from main
+        if: always()
+        shell: bash
+        run: |
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+          git rm .github/workflows/apply-workout-filter-fix-once.yml
+          git commit -m "Remove temporary workout selector maintenance workflow"
+          git push origin main
