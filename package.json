@@ -7,9 +7,9 @@
     "node": "24.x"
   },
   "scripts": {
-    "predev": "node scripts/fixWorkoutCompletionState.mjs",
+    "predev": "node scripts/fixWorkoutCompletionState.mjs && node scripts/fixWorkoutPersistenceIntegrity.mjs",
     "dev": "tsx server.ts",
-    "prebuild": "node scripts/fixWorkoutCompletionState.mjs",
+    "prebuild": "node scripts/fixWorkoutCompletionState.mjs && node scripts/fixWorkoutPersistenceIntegrity.mjs",
     "build": "node scripts/buildAcademiaSemMedoAssets.mjs && vite build && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.mjs && node -e \"require('fs').writeFileSync('dist/server.cjs', 'import(\\\"./server.mjs\\\");\\n')\"",
     "start": "node dist/server.cjs",
     "test": "vitest run",
@@ -19,7 +19,7 @@
   "dependencies": {
     "@capacitor/core": "^8.4.0",
     "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/sortable": "^10.3.1",
     "@dnd-kit/utilities": "^3.2.2",
     "@google/genai": "^1.37.0",
     "@google/generative-ai": "^0.24.1",
