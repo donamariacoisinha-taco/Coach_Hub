@@ -7,9 +7,9 @@
     "node": "24.x"
   },
   "scripts": {
-    "predev": "node scripts/fixWorkoutCompletionState.mjs && node scripts/fixWorkoutPersistenceIntegrity.mjs && node scripts/fixWorkoutRestTimerPersistence.mjs && node scripts/fixWorkoutRestFinalization.mjs && node scripts/fixWorkoutRestTemplatePersistence.mjs && node scripts/fixWorkoutTemplateIntegrity.mjs",
+    "predev": "node scripts/fixWorkoutCompletionState.mjs && node scripts/fixWorkoutPersistenceIntegrity.mjs && node scripts/fixWorkoutRestTimerPersistence.mjs && node scripts/fixWorkoutRestFinalization.mjs && node scripts/fixWorkoutRestTemplatePersistence.mjs && node scripts/fixWorkoutTemplateIntegrity.mjs && node scripts/fixWorkoutDashboardEditorConsistency.mjs",
     "dev": "tsx server.ts",
-    "prebuild": "node scripts/fixWorkoutCompletionState.mjs && node scripts/fixWorkoutPersistenceIntegrity.mjs && node scripts/fixWorkoutRestTimerPersistence.mjs && node scripts/fixWorkoutRestFinalization.mjs && node scripts/fixWorkoutRestTemplatePersistence.mjs && node scripts/fixWorkoutTemplateIntegrity.mjs",
+    "prebuild": "node scripts/fixWorkoutCompletionState.mjs && node scripts/fixWorkoutPersistenceIntegrity.mjs && node scripts/fixWorkoutRestTimerPersistence.mjs && node scripts/fixWorkoutRestFinalization.mjs && node scripts/fixWorkoutRestTemplatePersistence.mjs && node scripts/fixWorkoutTemplateIntegrity.mjs && node scripts/fixWorkoutDashboardEditorConsistency.mjs",
     "build": "node scripts/buildAcademiaSemMedoAssets.mjs && vite build && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.mjs && node -e \"require('fs').writeFileSync('dist/server.cjs', 'import(\\\"./server.mjs\\\");\\n')\"",
     "start": "node dist/server.cjs",
     "test": "vitest run",
@@ -27,7 +27,7 @@
     "@tailwindcss/vite": "^4.0.0-beta.8",
     "@types/lodash": "^4.17.24",
     "@types/uuid": "^10.0.0",
-    "clsx": "^2.1.1",
+    "clsx": "^1.1.1",
     "express": "^5.2.1",
     "idb": "^8.0.3",
     "lodash": "^4.18.1",
