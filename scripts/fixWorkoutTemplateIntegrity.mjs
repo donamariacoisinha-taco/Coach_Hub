@@ -56,15 +56,6 @@ if (!player.includes('const explicitRemovedIds = Array.from(removedExerciseIdsRe
   );
 }
 
-// 4) The review modal should describe only explicit removals as removals.
-player = replaceOrAssert(
-  player,
-  `    const activeIdsSet = new Set(exercises.map(ex => ex.id).filter(Boolean));\n    const removedCount = originalExercises.filter(ex => ex.id && !activeIdsSet.has(ex.id)).length;`,
-  `    const removedCount = originalExercises.filter(ex => ex.id && removedExerciseIdsRef.current.has(ex.id)).length;`,
-  'removedExerciseIdsRef.current.has(ex.id)).length',
-  'session diff explicit removal count'
-);
-
 fs.writeFileSync(playerFile, player);
 fs.writeFileSync(dashboardFile, dashboard);
 console.log('[WorkoutTemplateIntegrity] Dashboard count and explicit-deletion safeguards applied.');
