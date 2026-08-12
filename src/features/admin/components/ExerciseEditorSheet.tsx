@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
 import { Exercise } from '../../../types';
+import { getMuscleGroupClusters, getMuscleGroupSelectionUpdate } from '../utils/exerciseMuscleGroups';
 
 import { AssetMediaHub } from './media/AssetMediaHub';
 
@@ -38,6 +39,7 @@ const ExerciseEditorSheet: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Exercise>>({});
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'basic' | 'technical' | 'media'>('basic');
+  const muscleGroupClusters = getMuscleGroupClusters(muscleGroups);
 
   useEffect(() => {
     if (selectedExercise) {
@@ -153,15 +155,36 @@ const ExerciseEditorSheet: React.FC = () => {
                         placeholder="Ex: Supino Reto com Barra"
                       />
                     </Field>
-                    <Field label="Grupo Muscular">
+                    <Field label="Cluster Muscular">
                       <select 
-                        value={formData.muscle_group || ''}
-                        onChange={e => setFormData({ ...formData, muscle_group: e.target.value })}
+                        value={formData.muscle_group_id || ''}
+                        onChange={e => setFormData({
+                          ...formData,
+                          ...getMuscleGroupSelectionUpdate(e.target.value, muscleGroups),
+                        })}
                         className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-sm focus:ring-4 focus:ring-blue-500/5 transition-all outline-none appearance-none"
                       >
                          <option value="">Selecione...</option>
-                         {muscleGroups.map(mg => <option key={mg.id} value={mg.name}>{mg.name}</option>)}
+                         {muscleGroupClusters.map(({ parent, clusters }) => (
+                           clusters.length > 0 ? (
+                             <optgroup key={parent.id} label={parent.name}>
+                               {clusters.map((cluster) => <option key={cluster.id} value={cluster.id}>{cluster.name}</option>)}
+                             </optgroup>
+                           ) : (
+                             <option key={parent.id} value={parent.id}>{parent.name}</option>
+                           )
+                         ))}
                       </select>
+                    </Field>
+
+                    <Field label="Alias Comercial">
+                      <input
+                        type="text"
+                        value={formData.commercial_alias ?? formData.alt_name ?? ''}
+                        onChange={e => setFormData({ ...formData, commercial_alias: e.target.value })}
+                        className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-sm focus:ring-4 focus:ring-blue-500/5 transition-all outline-none"
+                        placeholder="Ex: Supino reto na barra"
+                      />
                     </Field>
                   </div>
 

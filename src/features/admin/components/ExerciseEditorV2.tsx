@@ -27,14 +27,16 @@ import { Exercise } from '../../../types';
 import { VisibilityBadge, VisibilityToggle } from './VisibilityBadge';
 import { AssetMediaHub } from './media/AssetMediaHub';
 import { useErrorHandler } from '../../../hooks/useErrorHandler';
+import { getMuscleGroupClusters, getMuscleGroupSelectionUpdate } from '../utils/exerciseMuscleGroups';
 
 const ExerciseEditorV2: React.FC = () => {
-  const { isEditorOpen, closeEditor, selectedExercise, updateExercise, createExercise, loading: storeLoading } = useAdminStore();
+  const { isEditorOpen, closeEditor, selectedExercise, updateExercise, createExercise, muscleGroups, loading: storeLoading } = useAdminStore();
   const { showSuccess, showError } = useErrorHandler();
   const [activeTab, setActiveTab] = useState<'basic' | 'technique' | 'media'>('basic');
   const [form, setForm] = useState<Partial<Exercise>>({});
   const [saving, setSaving] = useState(false);
   const [subgroupInput, setSubgroupInput] = useState('');
+  const muscleGroupClusters = getMuscleGroupClusters(muscleGroups);
 
   useEffect(() => {
     if (selectedExercise) {
@@ -209,19 +211,35 @@ const ExerciseEditorV2: React.FC = () => {
                              </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                                <Input label="Asset Performance Name" value={form.name} onChange={(val) => setForm({...form, name: val})} placeholder="Ex: Supino Reto Barra" />
-                               <Input label="Commercial Variant / Alias" value={form.alt_name} onChange={(val) => setForm({...form, alt_name: val})} placeholder="Ex: Bench Press Barbell" />
+                               <Input
+                                 label="Commercial Alias"
+                                 value={form.commercial_alias ?? form.alt_name}
+                                 onChange={(val) => setForm({ ...form, commercial_alias: val })}
+                                 placeholder="Ex: Supino reto na barra"
+                               />
                                
                                
                                <div className="space-y-3">
                                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Primary Muscle Cluster</label>
                                   <select 
-                                    value={form.muscle_group}
-                                    onChange={(e) => setForm({...form, muscle_group: e.target.value})}
+                                    value={form.muscle_group_id || ''}
+                                    onChange={(e) => setForm({
+                                      ...form,
+                                      ...getMuscleGroupSelectionUpdate(e.target.value, muscleGroups),
+                                    })}
                                     className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all appearance-none"
                                   >
-                                     <option value="">Select Cluster</option>
-                                     {['Peito', 'Costas', 'Ombros', 'Pernas', 'Bíceps', 'Tríceps', 'Abdominais', 'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilha', 'Full Body', 'Cardio', 'Mobilidade'].map(m => (
-                                       <option key={m} value={m}>{m}</option>
+                                     <option value="">Selecione o cluster</option>
+                                     {muscleGroupClusters.map(({ parent, clusters }) => (
+                                       clusters.length > 0 ? (
+                                         <optgroup key={parent.id} label={parent.name}>
+                                           {clusters.map((cluster) => (
+                                             <option key={cluster.id} value={cluster.id}>{cluster.name}</option>
+                                           ))}
+                                         </optgroup>
+                                       ) : (
+                                         <option key={parent.id} value={parent.id}>{parent.name}</option>
+                                       )
                                      ))}
                                   </select>
                                </div>

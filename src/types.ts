@@ -155,6 +155,7 @@ export interface Exercise {
   user_id?: string;
   name: string;
   alt_name?: string;
+  commercial_alias?: string;
   muscle_group: string;
   muscle_group_id: string;
   type: ExerciseType | string;
@@ -166,7 +167,7 @@ export interface Exercise {
   is_active: boolean;
   image_url?: string;
   equipment?: string;
-  subgroup?: string;
+  subgroup?: string | null;
   tags?: string[];
   difficulty_level: 'beginner' | 'intermediate' | 'advanced';
   technical_prompt?: string;
