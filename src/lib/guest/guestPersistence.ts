@@ -4,6 +4,14 @@ import { UserProfile } from '../../types';
 export const GUEST_PROFILE_KEY = 'kyron_guest_profile_v1';
 export const GUEST_DASHBOARD_KEY = 'kyron_guest_dashboard_v1';
 
+export type GuestDashboard = {
+  profile: UserProfile & Record<string, any>;
+  folders: any[];
+  workouts: any[];
+  history: any[];
+  stats: { sessions: number };
+};
+
 export const createDefaultGuestProfile = (): UserProfile & Record<string, any> => ({
   id: GUEST_USER_ID,
   email: 'guest@kyron.os',
@@ -39,7 +47,7 @@ export const saveGuestProfile = (changes: Record<string, any>): UserProfile & Re
   return profile;
 };
 
-export const createEmptyGuestDashboard = () => ({
+export const createEmptyGuestDashboard = (): GuestDashboard => ({
   profile: getGuestProfile(),
   folders: [] as any[],
   workouts: [] as any[],
@@ -47,8 +55,8 @@ export const createEmptyGuestDashboard = () => ({
   stats: { sessions: 0 },
 });
 
-export const getGuestDashboard = () => {
-  const dashboard = readJson<Record<string, any>>(GUEST_DASHBOARD_KEY);
+export const getGuestDashboard = (): GuestDashboard => {
+  const dashboard = readJson<GuestDashboard>(GUEST_DASHBOARD_KEY);
   return dashboard ? { ...dashboard, profile: getGuestProfile() } : createEmptyGuestDashboard();
 };
 
@@ -104,7 +112,7 @@ export const saveGuestPlan = (protocol: any, formData: Record<string, any>) => {
     active_plan_id: folderId,
     last_onboarding_update: new Date(now).toISOString(),
   });
-  const dashboard = {
+  const dashboard: GuestDashboard = {
     profile,
     folders: [{ id: folderId, user_id: GUEST_USER_ID, name: protocol?.name || 'Meu plano local' }],
     workouts: normalizedWorkouts,
@@ -115,4 +123,21 @@ export const saveGuestPlan = (protocol: any, formData: Record<string, any>) => {
   localStorage.setItem('favorite_workout_folder_id', folderId);
   localStorage.setItem(`rubi_dashboard_cache_${GUEST_USER_ID}`, JSON.stringify(dashboard));
   return dashboard;
+};
+
+export const activateGuestPlan = (
+  protocol: any,
+  formData: Record<string, any>,
+  navigate: (view: 'dashboard') => void,
+) => {
+  saveGuestPlan(protocol, formData);
+  const persisted = getGuestDashboard();
+  const complete = persisted.folders.length > 0
+    && persisted.workouts.length > 0
+    && persisted.workouts.every((workout: any) => Array.isArray(workout.exercises) && workout.exercises.length > 0);
+  if (!complete || !localStorage.getItem('favorite_workout_folder_id')) {
+    throw new Error('O plano local não pôde ser confirmado neste aparelho.');
+  }
+  navigate('dashboard');
+  return persisted;
 };

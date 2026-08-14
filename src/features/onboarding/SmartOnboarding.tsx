@@ -36,7 +36,7 @@ import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { Exercise, UserProfile, normalizeMuscleGroup, sortExercisesAnatomically } from '../../types';
 import { useNavigation } from '../../App';
 import kyronLogo from '../../assets/images/kyron_official_logo_1781087891387.png';
-import { getGuestProfile, saveGuestPlan, saveGuestProfile } from '../../lib/guest/guestPersistence';
+import { activateGuestPlan, getGuestDashboard, getGuestProfile, saveGuestProfile } from '../../lib/guest/guestPersistence';
 
 // Onboarding v2.1 Steps List:
 // Step 0: Welcome / Presentation
@@ -121,11 +121,12 @@ export default function SmartOnboarding() {
           }));
 
           // Guest data is local-only; authenticated profiles come from Supabase.
-          const activeProf = isGuestSession(session)
+          const guestMode = isGuestSession(session);
+          const activeProf = guestMode
             ? getGuestProfile()
             : await profileApi.getProfile(sessionUser.id);
           if (activeProf) {
-            setIsRedoing(!!activeProf.onboarding_completed);
+            setIsRedoing(guestMode ? getGuestDashboard().workouts.length > 0 : !!activeProf.onboarding_completed);
             setFormData(prev => ({
               ...prev,
               name: activeProf.name || activeProf.full_name || prev.name || '',
@@ -145,10 +146,11 @@ export default function SmartOnboarding() {
         }
 
         // Parallel cache loading of templates and protocols
+        const guestMode = isGuestSession(session);
         const [exs, prots, tmps] = await Promise.all([
           exerciseApi.getExercises().catch(() => []),
-          premiumProtocolsApi.getProtocols().catch(() => []),
-          systemTemplatesApi.getTemplates().catch(() => [])
+          guestMode ? Promise.resolve([]) : premiumProtocolsApi.getProtocols().catch(() => []),
+          guestMode ? Promise.resolve([]) : systemTemplatesApi.getTemplates().catch(() => [])
         ]);
 
         setActiveExercises(exs);
@@ -291,6 +293,8 @@ export default function SmartOnboarding() {
   const handleDeployProtocolSelection = async (matchItem: any, isFallback = false, providedFallbackDraft?: any) => {
     if (!userId) return;
     setIsFinishing(true);
+    const currentSession = await authApi.getSession();
+    const guestMode = isGuestSession(currentSession);
 
     const legPressEx = activeExercises.find(e => e.name.toLowerCase().includes('leg press')) || activeExercises[0];
     const fallbackLegPressId = legPressEx?.id || 'f1b01c1c-99e6-4251-ba84-475253896001';
@@ -304,14 +308,10 @@ export default function SmartOnboarding() {
       const finalProtocolStatus = matchItem?.status || 'Active';
       const finalProtocolCreatedAt = matchItem?.created_at || new Date().toISOString();
 
-      const session = await authApi.getSession();
-      if (isGuestSession(session)) {
+      if (guestMode) {
         const localProtocol = matchItem || providedFallbackDraft || customGeneratedDraft;
         if (!localProtocol) throw new Error('Nenhum plano local válido foi gerado.');
-        const dashboard = saveGuestPlan(localProtocol, formData as Record<string, any>);
-        if (!dashboard.workouts.length || dashboard.workouts.some((workout: any) => !workout.exercises?.length)) {
-          throw new Error('O plano local ficou incompleto e não foi ativado.');
-        }
+        const dashboard = activateGuestPlan(localProtocol, formData as Record<string, any>, navigate);
         setProfile(dashboard.profile);
         setDeployedFolderId(dashboard.folders[0].id);
         setFirstWorkoutId(dashboard.workouts[0].id);
@@ -528,6 +528,11 @@ export default function SmartOnboarding() {
 
       showSuccess('KYRON OS Ativado!', 'Seu protocolo adaptativo está pronto para iniciar.');
     } catch (err: any) {
+      if (guestMode) {
+        console.error('[Onboarding] Local guest plan activation failed:', err);
+        showError(err.message || 'Não foi possível salvar o plano local neste aparelho.');
+        return;
+      }
       console.warn('[Onboarding] Error during protocol setup, launching Failsafe...', err);
       // FAILSAFE SEVERO: Garantir que o usuário NUNCA saia sem treino ativo
       try {
@@ -1073,6 +1078,22 @@ export default function SmartOnboarding() {
     }
 
     try {
+      const session = await authApi.getSession();
+      if (isGuestSession(session)) {
+        const dashboard = getGuestDashboard();
+        const activePlanId = localStorage.getItem('favorite_workout_folder_id');
+        const complete = Boolean(activePlanId)
+          && dashboard.folders.some((folder: any) => folder.id === activePlanId)
+          && dashboard.workouts.length > 0
+          && dashboard.workouts.every((workout: any) => workout.exercises?.length > 0);
+        if (!complete) {
+          showError('Não foi possível confirmar o plano local. Gere o plano novamente antes de continuar.');
+          return;
+        }
+        cacheStore.clear();
+        navigate('dashboard');
+        return;
+      }
       console.log('[Onboarding] Navigating to Dashboard - Executing ETAPA 7 Secure Redirect Validation...');
       
       // Clear memory cache so dashboard query is forced to fetch fresh data
