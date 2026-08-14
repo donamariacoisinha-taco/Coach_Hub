@@ -7,7 +7,7 @@ import { useSync } from './hooks/useSync';
 import { useUserStore } from './store/userStore';
 import { useAuthStore } from './store/authStore';
 import { ErrorProvider } from './hooks/useErrorHandler';
-import { authApi } from './lib/api/authApi';
+import { authApi, isGuestSession } from './lib/api/authApi';
 import { workoutApi } from './lib/api/workoutApi';
 import { profileApi } from './lib/api/profileApi';
 import { exerciseApi } from './lib/api/exerciseApi';
@@ -121,6 +121,25 @@ const App: React.FC = () => {
   const prefetch = usePrefetch();
   const isInitializing = useRef(false);
 
+  const enterGuestMode = (guestSession: any) => {
+    setProfile({
+      id: guestSession.user.id,
+      email: guestSession.user.email,
+      name: 'Atleta Convidado',
+      full_name: 'Atleta Convidado',
+      onboarding_completed: true,
+      role: 'user',
+      is_admin: false,
+      is_premium: false,
+      account_status: 'active',
+      workout_streak: 0,
+    } as UserProfile);
+    setLoading(false);
+    if (getStateFromUrl().view === 'auth' || getStateFromUrl().view === 'landing') {
+      navigate('dashboard');
+    }
+  };
+
   // Initial Prefetching
   useEffect(() => {
     const initPrefetch = async () => {
@@ -224,7 +243,9 @@ const App: React.FC = () => {
         setSession(currentSession);
         useAuthStore.getState().setSession(currentSession);
         
-        if (currentSession) {
+        if (isGuestSession(currentSession)) {
+          enterGuestMode(currentSession);
+        } else if (currentSession) {
           console.log("[APP] Sessão ativa encontrada:", currentSession.user.id);
           await fetchProfile(currentSession.user.id);
         } else {
@@ -245,7 +266,9 @@ const App: React.FC = () => {
       console.log(`[AUTH] Evento detectado: ${event}`);
       setSession(s);
       useAuthStore.getState().setSession(s);
-      if (s) {
+      if (isGuestSession(s)) {
+        enterGuestMode(s);
+      } else if (s) {
         fetchProfile(s.user.id);
       } else {
         setProfile(null);
@@ -269,7 +292,7 @@ const App: React.FC = () => {
 
   // 3. Efeito Reativo de Perfil
   useEffect(() => {
-    if (isHydrated && session && !profile && !loading) {
+    if (isHydrated && session && !isGuestSession(session) && !profile && !loading) {
       fetchProfile(session.user.id);
     }
   }, [isHydrated, session, profile, loading]);

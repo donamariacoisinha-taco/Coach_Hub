@@ -258,7 +258,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
 
       <nav className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 px-4 py-3 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <button onClick={onStart} className="flex items-center gap-3 text-left" aria-label="KYRON OS">
+          <button type="button" onClick={onStart} className="flex items-center gap-3 text-left" aria-label="KYRON OS">
             <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
               <img src={kyronLogo} alt="KYRON OS" className="h-11 w-11 scale-150 object-contain" />
             </span>
@@ -280,6 +280,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             <div className="flex rounded-full border border-slate-200 bg-slate-100 p-1">
               {(['PT', 'EN'] as Lang[]).map((value) => (
                 <button
+                  type="button"
                   key={value}
                   onClick={() => setLanguage(value)}
                   className={`rounded-full px-2.5 py-1 text-[9px] font-black transition ${
@@ -291,10 +292,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                 </button>
               ))}
             </div>
-            <button onClick={onLogin} className="hidden text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 transition hover:text-slate-950 sm:block">
+            <button type="button" onClick={onLogin} className="hidden text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 transition hover:text-slate-950 sm:block">
               {t.login}
             </button>
             <button
+              type="button"
               onClick={onStart}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#7BA7FF] to-[#818CF8] px-4 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-lg shadow-[#7BA7FF]/25 transition hover:-translate-y-0.5 active:translate-y-0"
             >
@@ -344,6 +346,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
               className="mt-9 flex flex-col gap-3 sm:flex-row"
             >
               <button
+                type="button"
                 onClick={onStart}
                 className="inline-flex h-14 items-center justify-center gap-2 rounded-[1.25rem] bg-gradient-to-br from-[#7BA7FF] to-[#818CF8] px-7 text-[11px] font-black uppercase tracking-[0.17em] text-white shadow-[0_18px_50px_rgba(123,167,255,0.28)] transition hover:-translate-y-1 active:translate-y-0"
               >
@@ -717,6 +720,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
               </div>
               <div className="lg:col-span-4 lg:text-right">
                 <button
+                  type="button"
                   onClick={onStart}
                   className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-[1.25rem] bg-gradient-to-br from-[#7BA7FF] to-[#818CF8] px-7 text-[11px] font-black uppercase tracking-[0.17em] text-white shadow-lg shadow-[#7BA7FF]/25 transition hover:-translate-y-1 active:translate-y-0 sm:w-auto"
                 >
@@ -737,8 +741,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             <span>KYRON OS · Human Performance System</span>
           </div>
           <div className="flex items-center gap-5">
-            <button onClick={onLogin} className="transition hover:text-slate-950">{t.login}</button>
-            <button onClick={onStart} className="transition hover:text-slate-950">{t.start}</button>
+            <button type="button" onClick={onLogin} className="transition hover:text-slate-950">{t.login}</button>
+            <button type="button" onClick={onStart} className="transition hover:text-slate-950">{t.start}</button>
           </div>
         </footer>
       </main>

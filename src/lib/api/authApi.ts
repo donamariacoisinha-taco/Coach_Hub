@@ -2,6 +2,12 @@
 import { supabase } from './supabase';
 import { fetchWithRetry } from '../utils';
 
+export const GUEST_USER_ID = 'guest-user-id';
+
+export const isGuestSession = (session: any): boolean => (
+  session?.user?.id === GUEST_USER_ID || session?.access_token === 'guest-token'
+);
+
 // Helper to wipe Supabase-related keys from local storage if corrupt / expired
 function clearSupabaseLocalStorage() {
   try {
@@ -140,7 +146,7 @@ export const authApi = {
 
   async signInAsGuest() {
     const guestUser = {
-      id: "guest-user-id",
+      id: GUEST_USER_ID,
       email: "guest@kyron.os",
       role: "authenticated",
       user_metadata: { name: "Atleta Convidado" }
@@ -153,7 +159,7 @@ export const authApi = {
       user: guestUser
     };
     localStorage.setItem('kyron_guest_session', JSON.stringify(guestSession));
-    localStorage.setItem('coach_rubi_user_id', 'guest-user-id');
+    localStorage.setItem('coach_rubi_user_id', GUEST_USER_ID);
     // Ensure standard user ID item is set too
     return guestSession;
   },

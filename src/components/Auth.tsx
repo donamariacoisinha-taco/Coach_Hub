@@ -18,6 +18,20 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const language = typeof window !== 'undefined' && window.localStorage.getItem('kyron_lang') === 'EN' ? 'EN' : 'PT';
+  const text = language === 'EN' ? {
+    welcome: 'Welcome', create: 'Create your free account', createHint: 'Start your high-performance journey.',
+    loginHint: 'Sign in to keep progressing.', email: 'Email', password: 'Password', forgot: 'Forgot password',
+    submitLogin: 'SIGN IN', submitSignup: 'CREATE FREE ACCOUNT', hasAccount: 'I already have an account',
+    noAccount: 'Create free account', guest: 'Continue as guest (local mode)', back: 'Back',
+    recoveryHint: 'Enter your email to receive recovery instructions.', recoverySubmit: 'SEND INSTRUCTIONS', backToLogin: 'Back to sign in', processing: 'Processing...',
+  } : {
+    welcome: 'Bem-vindo', create: 'Criar conta grátis', createHint: 'Inicie sua jornada de alta performance.',
+    loginHint: 'Entre para continuar evoluindo.', email: 'E-mail', password: 'Senha', forgot: 'Recuperar senha',
+    submitLogin: 'ENTRAR', submitSignup: 'CRIAR CONTA GRÁTIS', hasAccount: 'Já possuo uma conta',
+    noAccount: 'Criar conta grátis', guest: 'Continuar como convidado (modo local)', back: 'Voltar',
+    recoveryHint: 'Insira seu e-mail para receber as instruções de recuperação.', recoverySubmit: 'ENVIAR INSTRUÇÕES', backToLogin: 'Voltar para o login', processing: 'Processando...',
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,9 +117,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
       await authApi.signInAsGuest();
       showSuccess('Modo Convidado Ativado', 'Carregando interface de alta performance offline...');
       // Force instant navigation to ensure UI handles state refresh
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      window.location.reload();
     } catch (err: any) {
       setError('Erro ao iniciar modo convidado.');
     } finally {
@@ -116,8 +128,8 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-6 flex flex-col justify-center max-w-md mx-auto relative select-none">
       {onBack && (
-        <button onClick={onBack} className="absolute top-10 left-6 text-slate-400 hover:text-[#0F172A] transition-colors flex items-center gap-1 cursor-pointer">
-          <span className="text-[10px] font-bold uppercase tracking-widest">Voltar</span>
+        <button type="button" onClick={onBack} className="absolute top-10 left-6 text-slate-400 hover:text-[#0F172A] transition-colors flex items-center gap-1 cursor-pointer">
+          <span className="text-[10px] font-bold uppercase tracking-widest">{text.back}</span>
         </button>
       )}
 
@@ -129,14 +141,14 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
           <span className="text-base font-black uppercase tracking-[0.25em] text-slate-900 pt-0.5">KYRON OS</span>
         </div>
         <h2 className="text-3xl font-[1000] tracking-tight text-slate-900 mb-2 uppercase">
-           {isForgotPassword ? 'Recuperar Senha' : isSignUp ? 'Criar Perfil' : 'Bem-vindo'}
+           {isForgotPassword ? text.forgot : isSignUp ? text.create : text.welcome}
         </h2>
         <p className="text-slate-500 text-sm font-medium">
            {isForgotPassword 
-             ? 'Insira seu e-mail para receber as instruções de recuperação.' 
+             ? text.recoveryHint
              : isSignUp 
-               ? 'Inicie sua jornada de alta performance.' 
-               : 'Entre para continuar evoluindo.'}
+               ? text.createHint
+               : text.loginHint}
         </p>
       </div>
 
@@ -149,9 +161,12 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
           )}
           
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu E-mail</label>
+            <label htmlFor="recovery-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{text.email}</label>
             <input
+              id="recovery-email"
+              name="email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
@@ -165,7 +180,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
             disabled={loading}
             className="w-full py-5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer text-center"
           >
-            {loading ? 'Processando...' : 'ENVIAR INSTRUÇÕES'}
+            {loading ? text.processing : text.recoverySubmit}
           </button>
         </form>
       ) : (
@@ -177,9 +192,12 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
           )}
           
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu E-mail</label>
+            <label htmlFor="auth-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{text.email}</label>
             <input
+              id="auth-email"
+              name="email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
@@ -190,17 +208,20 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
 
           <div className="space-y-2">
             <div className="flex justify-between items-center ml-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Senha de Acesso</label>
-              <button
+              <label htmlFor="auth-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{text.password}</label>
+              {!isSignUp && <button
                 type="button"
                 onClick={() => { setIsForgotPassword(true); setError(null); }}
                 className="text-[#7BA7FF] hover:text-blue-600 text-[10px] font-extrabold uppercase tracking-widest cursor-pointer border-none bg-transparent outline-none"
               >
-                Recuperar Senha
-              </button>
+                {text.forgot}
+              </button>}
             </div>
             <input
+              id="auth-password"
+              name="password"
               type="password"
+              autoComplete={isSignUp ? 'new-password' : 'current-password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"
@@ -214,7 +235,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
             disabled={loading}
             className="w-full py-5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer text-center"
           >
-            {loading ? 'Processando...' : isSignUp ? 'FORJAR MEU ACESSO' : 'ENTRAR NO DASHBOARD'}
+            {loading ? text.processing : isSignUp ? text.submitSignup : text.submitLogin}
           </button>
         </form>
       )}
@@ -222,17 +243,19 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
       <div className="mt-10 flex flex-col gap-4 text-center">
         {isForgotPassword ? (
           <button
+            type="button"
             onClick={() => { setIsForgotPassword(false); setError(null); }}
             className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:text-[#0F172A] transition-colors cursor-pointer border-none bg-transparent outline-none"
           >
-            Voltar para o Login
+            {text.backToLogin}
           </button>
         ) : (
           <button
+            type="button"
             onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
             className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:text-[#0F172A] transition-colors cursor-pointer"
           >
-            {isSignUp ? 'Já possuo uma conta' : 'Não possuo cadastro'}
+            {isSignUp ? text.hasAccount : text.noAccount}
           </button>
         )}
 
@@ -241,7 +264,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
           type="button"
           className="w-full py-4 bg-[#EAF2FF] hover:bg-[#D5E6FF] text-[#0F172A] font-bold text-[10px] uppercase tracking-[0.2em] rounded-2xl shadow-xs transition-all cursor-pointer border border-blue-100/30"
         >
-          Entrar como Convidado (Modo Offline)
+          {text.guest}
         </button>
       </div>
     </div>

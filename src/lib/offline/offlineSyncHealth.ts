@@ -1,10 +1,11 @@
-export type OfflineSyncHealthLevel = 'healthy' | 'pending' | 'attention' | 'offline' | 'unavailable';
+export type OfflineSyncHealthLevel = 'healthy' | 'pending' | 'attention' | 'offline' | 'local' | 'unavailable';
 
 export type OfflineSyncHealthInput = {
   online: boolean;
   pendingCount: number;
   deadLetterCount: number;
   storageAvailable: boolean;
+  localOnly?: boolean;
 };
 
 export type OfflineSyncHealth = {
@@ -18,12 +19,23 @@ export const deriveOfflineSyncHealth = ({
   pendingCount,
   deadLetterCount,
   storageAvailable,
+  localOnly = false,
 }: OfflineSyncHealthInput): OfflineSyncHealth => {
   if (!storageAvailable) {
     return {
       level: 'unavailable',
       label: 'Sync indisponível',
       summary: 'O armazenamento local não pôde ser acessado neste dispositivo.',
+    };
+  }
+
+  if (localOnly) {
+    return {
+      level: 'local',
+      label: 'Modo local',
+      summary: pendingCount + deadLetterCount > 0
+        ? 'Você está como convidado. Os dados permanecem somente neste aparelho e não foram enviados.'
+        : 'Você está como convidado. Não há sincronização com uma conta online.',
     };
   }
 

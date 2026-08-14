@@ -5,6 +5,15 @@ import { fetchWithRetry } from '../utils';
 import { exerciseApi } from './exerciseApi';
 
 export const workoutApi = {
+  getGuestDashboardData() {
+    return {
+      profile: { id: 'guest-user-id', email: 'guest@kyron.os', name: 'Atleta Convidado', onboarding_completed: true, role: 'user', is_admin: false },
+      folders: [] as WorkoutFolder[],
+      workouts: [] as WorkoutCategory[],
+      history: [] as WorkoutHistory[],
+      stats: { sessions: 0 },
+    };
+  },
   async getDashboardData(userId: string) {
     return fetchWithRetry(async () => {
       try {
