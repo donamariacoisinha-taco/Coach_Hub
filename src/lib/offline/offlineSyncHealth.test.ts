@@ -45,6 +45,18 @@ describe('deriveOfflineSyncHealth', () => {
       storageAvailable: false,
     }).level).toBe('unavailable');
   });
+
+  it('never reports cloud success for guest mode', () => {
+    const health = deriveOfflineSyncHealth({
+      online: true,
+      pendingCount: 0,
+      deadLetterCount: 0,
+      storageAvailable: true,
+      localOnly: true,
+    });
+    expect(health.level).toBe('local');
+    expect(health.label).toBe('Modo local');
+  });
 });
 
 describe('offline sync formatting', () => {

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { WorkoutCategory, UserProfile, WorkoutFolder, WorkoutHistory } from '../../types';
-import { authApi } from '../../lib/api/authApi';
+import { authApi, isGuestSession } from '../../lib/api/authApi';
 import { workoutApi } from '../../lib/api/workoutApi';
 import { useNavigation } from '../../App';
 import { MoreVertical, Plus, Flame, Play, Edit2, Trash2, Dumbbell, Copy, Calendar, Award, Compass, Heart, FolderPlus, Globe, RefreshCw } from 'lucide-react';
@@ -82,6 +82,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         showError('Sessão expirada. Por favor, faça login novamente.');
         return;
       }
+      if (isGuestSession(session)) {
+        showError('O modo convidado mantém os dados somente neste aparelho. Crie uma conta grátis para sincronizar.');
+        return;
+      }
       const userId = session.user.id;
 
       // 1. Clear caches
@@ -146,6 +150,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       };
     }
 
+    if (isGuestSession(session)) return workoutApi.getGuestDashboardData();
     return workoutApi.getDashboardData(session.user.id);
   }, {
     revalidateOnFocus: true,

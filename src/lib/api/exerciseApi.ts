@@ -213,9 +213,12 @@ export const exerciseApi = {
   },
 
   async isAdmin(userId: string) {
-    const { data, error } = await supabase.from('profiles').select('role, is_admin').eq('id', userId).maybeSingle();
+    if (!userId || userId === 'guest-user-id') return false;
+    const { data: authData } = await supabase.auth.getUser();
+    if (authData.user?.id !== userId) return false;
+    const { data, error } = await supabase.from('user_access').select('role').eq('user_id', userId).maybeSingle();
     if (error) return false;
-    return data?.role === 'admin' || data?.is_admin === true;
+    return data?.role === 'admin';
   },
 
   async getExerciseProgress(exerciseId: string) {

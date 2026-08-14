@@ -11,6 +11,7 @@ import {
   formatRelativeTimestamp,
 } from '../lib/offline/offlineSyncHealth';
 import { syncEngine } from '../lib/sync/syncEngine';
+import { authApi, isGuestSession } from '../lib/api/authApi';
 
 const EMPTY_SNAPSHOT: OfflineQueueSnapshot = {
   queue: [],
@@ -42,6 +43,11 @@ const healthStyles = {
     dot: 'bg-red-500',
     badge: 'border-red-200 bg-red-50 text-red-800',
     panel: 'bg-red-50 text-red-800',
+  },
+  local: {
+    dot: 'bg-violet-500',
+    badge: 'border-violet-200 bg-violet-50 text-violet-800',
+    panel: 'bg-violet-50 text-violet-800',
   },
 } as const;
 
@@ -103,6 +109,7 @@ const OfflineSyncHealthPanel: React.FC = () => {
   const [action, setAction] = useState<'sync' | 'retry-all' | string | null>(null);
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [localOnly, setLocalOnly] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -119,6 +126,7 @@ const OfflineSyncHealthPanel: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    void authApi.getSession().then(session => setLocalOnly(!session || isGuestSession(session)));
     void refresh();
     const unsubscribe = offlineQueue.subscribe(() => void refresh());
     const interval = window.setInterval(() => void refresh(), 10_000);
@@ -158,7 +166,8 @@ const OfflineSyncHealthPanel: React.FC = () => {
     pendingCount: snapshot.queue.length,
     deadLetterCount: snapshot.deadLetters.length,
     storageAvailable,
-  }), [online, snapshot, storageAvailable]);
+    localOnly,
+  }), [online, snapshot, storageAvailable, localOnly]);
 
   const styles = healthStyles[health.level];
   const totalIssues = snapshot.queue.length + snapshot.deadLetters.length;
@@ -166,23 +175,26 @@ const OfflineSyncHealthPanel: React.FC = () => {
   const deadLetterItems = useMemo(() => sortNewestFirst(snapshot.deadLetters).slice(0, 10), [snapshot.deadLetters]);
 
   const synchronizeNow = useCallback(async () => {
-    if (!online || action) return;
+    if (!online || localOnly || action) return;
     setAction('sync');
     setFeedback(null);
     try {
       await syncEngine.processQueue({ force: true });
+      const nextSnapshot = await offlineQueue.getSnapshot();
       await refresh();
-      setFeedback('Sincronização concluída.');
+      setFeedback(nextSnapshot.queue.length + nextSnapshot.deadLetters.length === 0
+        ? 'Sincronização concluída.'
+        : 'A sincronização terminou com itens pendentes ou com falha. Nenhum dado foi descartado.');
     } catch (error) {
       console.error('[OfflineSyncHealth] Manual sync failed:', error);
       setFeedback('Não foi possível concluir a sincronização agora. Os dados continuam preservados.');
     } finally {
       setAction(null);
     }
-  }, [action, online, refresh]);
+  }, [action, localOnly, online, refresh]);
 
   const retryAll = useCallback(async () => {
-    if (!online || action) return;
+    if (!online || localOnly || action) return;
     setAction('retry-all');
     setFeedback(null);
     try {
@@ -200,10 +212,10 @@ const OfflineSyncHealthPanel: React.FC = () => {
     } finally {
       setAction(null);
     }
-  }, [action, online, refresh]);
+  }, [action, localOnly, online, refresh]);
 
   const retryOne = useCallback(async (id: string) => {
-    if (!online || action) return;
+    if (!online || localOnly || action) return;
     setAction(id);
     setFeedback(null);
     try {
@@ -219,7 +231,7 @@ const OfflineSyncHealthPanel: React.FC = () => {
     } finally {
       setAction(null);
     }
-  }, [action, online, refresh]);
+  }, [action, localOnly, online, refresh]);
 
   return (
     <>
@@ -299,7 +311,7 @@ const OfflineSyncHealthPanel: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => void synchronizeNow()}
-                  disabled={!online || snapshot.queue.length === 0 || Boolean(action)}
+                  disabled={!online || localOnly || snapshot.queue.length === 0 || Boolean(action)}
                   className="min-h-12 rounded-2xl bg-gray-950 px-4 py-3 text-sm font-black text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
                 >
                   {action === 'sync' ? 'Sincronizando…' : 'Sincronizar agora'}
@@ -307,7 +319,7 @@ const OfflineSyncHealthPanel: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => void retryAll()}
-                  disabled={!online || snapshot.deadLetters.length === 0 || Boolean(action)}
+                  disabled={!online || localOnly || snapshot.deadLetters.length === 0 || Boolean(action)}
                   className="min-h-12 rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-black text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
                 >
                   {action === 'retry-all' ? 'Reprocessando…' : 'Reprocessar falhas'}
@@ -347,7 +359,7 @@ const OfflineSyncHealthPanel: React.FC = () => {
                 </section>
               )}
 
-              {totalIssues === 0 && storageAvailable && (
+              {totalIssues === 0 && storageAvailable && !localOnly && (
                 <div className="mt-6 rounded-3xl border border-dashed border-gray-300 bg-white px-5 py-8 text-center">
                   <p className="text-base font-black text-gray-900">Tudo sincronizado</p>
                   <p className="mt-2 text-sm leading-6 text-gray-500">
