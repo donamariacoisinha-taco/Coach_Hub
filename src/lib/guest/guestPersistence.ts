@@ -128,7 +128,6 @@ export const saveGuestPlan = (protocol: any, formData: Record<string, any>) => {
 export const activateGuestPlan = (
   protocol: any,
   formData: Record<string, any>,
-  navigate: (view: 'dashboard') => void,
 ) => {
   saveGuestPlan(protocol, formData);
   const persisted = getGuestDashboard();
@@ -138,6 +137,5 @@ export const activateGuestPlan = (
   if (!complete || !localStorage.getItem('favorite_workout_folder_id')) {
     throw new Error('O plano local não pôde ser confirmado neste aparelho.');
   }
-  navigate('dashboard');
   return persisted;
 };
