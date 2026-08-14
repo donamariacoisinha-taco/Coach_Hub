@@ -16,9 +16,8 @@ const createStorage = () => {
 describe('guest onboarding to dashboard integration', () => {
   beforeEach(() => vi.stubGlobal('localStorage', createStorage()));
 
-  it('completes onboarding, navigates, lists the plan and rehydrates after reload', async () => {
+  it('completes onboarding, lists the plan and rehydrates after reload', async () => {
     await authApi.signInAsGuest();
-    const navigate = vi.fn();
 
     activateGuestPlan({
       id: 'guest-protocol',
@@ -27,10 +26,7 @@ describe('guest onboarding to dashboard integration', () => {
         { name: 'Treino A', exercises: [{ exercise_name: 'Supino', sets: 3, reps: '10' }] },
         { name: 'Treino B', exercises: [{ exercise_name: 'Agachamento', sets: 4, reps: '8' }] },
       ],
-    }, { name: 'Maria', primary_goal: 'hypertrophy' }, navigate);
-
-    expect(navigate).toHaveBeenCalledOnce();
-    expect(navigate).toHaveBeenCalledWith('dashboard');
+    }, { name: 'Maria', primary_goal: 'hypertrophy' });
 
     const firstDashboardRead = workoutApi.getGuestDashboardData();
     expect(firstDashboardRead.folders[0].name).toBe('Plano da Maria');
@@ -46,14 +42,12 @@ describe('guest onboarding to dashboard integration', () => {
     expect(reloadedProfile).toMatchObject({ name: 'Maria', active_plan_id: reloadedDashboard.folders[0].id });
   });
 
-  it('does not navigate or announce completion when persistence cannot be read back', () => {
+  it('rejects completion when persistence cannot be read back', () => {
     const brokenStorage = {
       ...createStorage(),
       getItem: () => null,
     };
     vi.stubGlobal('localStorage', brokenStorage);
-    const navigate = vi.fn();
-    expect(() => activateGuestPlan({ name: 'Plano' }, {}, navigate)).toThrow(/não pôde ser confirmado/i);
-    expect(navigate).not.toHaveBeenCalled();
+    expect(() => activateGuestPlan({ name: 'Plano' }, {})).toThrow(/não pôde ser confirmado/i);
   });
 });

@@ -52,14 +52,20 @@ import { activateGuestPlan, getGuestDashboard, getGuestProfile, saveGuestProfile
 // Step 10: Exercícios Indesejados (exercise_dislikes)
 // Step 11: Recomendação e Payoff Final (Show recommended plans, match percentage, activates plan)
 
-export default function SmartOnboarding() {
+export type SmartOnboardingProps = {
+  initialStep?: number;
+  initialUserId?: string | null;
+  skipBootstrap?: boolean;
+};
+
+export default function SmartOnboarding({ initialStep = 0, initialUserId = null, skipBootstrap = false }: SmartOnboardingProps = {}) {
   const { setProfile } = useUserStore();
   const { navigate } = useNavigation();
   const { showSuccess, showError } = useErrorHandler();
 
   // Navigation Setup
-  const [step, setStep] = useState<number>(0);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [step, setStep] = useState<number>(initialStep);
+  const [userId, setUserId] = useState<string | null>(initialUserId);
   const [userEmail, setUserEmail] = useState<string>('');
 
   // Loaded Data Repositories for Step 11
@@ -104,6 +110,10 @@ export default function SmartOnboarding() {
 
   // 1. Load context and active user session on startup
   useEffect(() => {
+    if (skipBootstrap) {
+      setLoadingInitial(false);
+      return;
+    }
     async function bootstrap() {
       try {
         const session = await authApi.getSession();
@@ -163,7 +173,7 @@ export default function SmartOnboarding() {
       }
     }
     bootstrap();
-  }, []);
+  }, [skipBootstrap]);
 
   // 2. High-performance helper to persist immediately to DB & local state
   const saveProgressValue = async (updatedFields: Partial<UserProfile>) => {
@@ -291,10 +301,15 @@ export default function SmartOnboarding() {
 
   // Perform absolute deployment cloning the chosen plan and ending onboarding
   const handleDeployProtocolSelection = async (matchItem: any, isFallback = false, providedFallbackDraft?: any) => {
-    if (!userId) return;
-    setIsFinishing(true);
     const currentSession = await authApi.getSession();
     const guestMode = isGuestSession(currentSession);
+    if (!guestMode && !userId) {
+      const missingUserError = new Error('Sessão autenticada sem identificador de usuário no onboarding.');
+      console.error('[Onboarding] Missing user before protocol deployment:', missingUserError);
+      await showError(missingUserError);
+      return;
+    }
+    setIsFinishing(true);
 
     const legPressEx = activeExercises.find(e => e.name.toLowerCase().includes('leg press')) || activeExercises[0];
     const fallbackLegPressId = legPressEx?.id || 'f1b01c1c-99e6-4251-ba84-475253896001';
@@ -311,7 +326,7 @@ export default function SmartOnboarding() {
       if (guestMode) {
         const localProtocol = matchItem || providedFallbackDraft || customGeneratedDraft;
         if (!localProtocol) throw new Error('Nenhum plano local válido foi gerado.');
-        const dashboard = activateGuestPlan(localProtocol, formData as Record<string, any>, navigate);
+        const dashboard = activateGuestPlan(localProtocol, formData as Record<string, any>);
         setProfile(dashboard.profile);
         setDeployedFolderId(dashboard.folders[0].id);
         setFirstWorkoutId(dashboard.workouts[0].id);
@@ -530,7 +545,11 @@ export default function SmartOnboarding() {
     } catch (err: any) {
       if (guestMode) {
         console.error('[Onboarding] Local guest plan activation failed:', err);
-        showError(err.message || 'Não foi possível salvar o plano local neste aparelho.');
+        const localError = err instanceof Error
+          ? err
+          : new Error(String(err || 'Não foi possível salvar o plano local neste aparelho.'));
+        console.error('[Onboarding] Local guest failure details:', localError.message, localError.stack);
+        await showError(localError);
         return;
       }
       console.warn('[Onboarding] Error during protocol setup, launching Failsafe...', err);
@@ -1072,11 +1091,6 @@ export default function SmartOnboarding() {
   };
 
   const handleGoToDashboard = async () => {
-    if (!userId) {
-      navigate('dashboard');
-      return;
-    }
-
     try {
       const session = await authApi.getSession();
       if (isGuestSession(session)) {
@@ -1087,11 +1101,21 @@ export default function SmartOnboarding() {
           && dashboard.workouts.length > 0
           && dashboard.workouts.every((workout: any) => workout.exercises?.length > 0);
         if (!complete) {
-          showError('Não foi possível confirmar o plano local. Gere o plano novamente antes de continuar.');
+          const validationError = new Error(
+            `Plano local incompleto: activePlanId=${activePlanId || 'ausente'}, folders=${dashboard.folders.length}, workouts=${dashboard.workouts.length}, exercises=${dashboard.workouts.reduce((total: number, workout: any) => total + (workout.exercises?.length || 0), 0)}`
+          );
+          console.error('[Onboarding] Guest dashboard transition rejected:', validationError.message, validationError.stack);
+          await showError(validationError);
           return;
         }
         cacheStore.clear();
         navigate('dashboard');
+        return;
+      }
+      if (!userId) {
+        const missingUserError = new Error('Sessão autenticada sem identificador de usuário ao abrir o dashboard.');
+        console.error('[Onboarding] Missing user during dashboard transition:', missingUserError);
+        await showError(missingUserError);
         return;
       }
       console.log('[Onboarding] Navigating to Dashboard - Executing ETAPA 7 Secure Redirect Validation...');
@@ -1212,7 +1236,13 @@ export default function SmartOnboarding() {
       console.log('[Onboarding] Validation success. Redirecting safely to dashboard...');
       navigate('dashboard');
     } catch (e) {
-      console.error('[Onboarding] Error in redirection validation:', e);
+      const redirectError = e instanceof Error ? e : new Error(String(e));
+      console.error('[Onboarding] Error in redirection validation:', redirectError.message, redirectError.stack);
+      const session = await authApi.getSession().catch(() => null);
+      if (isGuestSession(session)) {
+        await showError(redirectError);
+        return;
+      }
       // FAILSAFE 4: Se qualquer etapa falhar, limpa cache e navega para que o novo Empty State do Dashboard assuma o controle
       cacheStore.clear();
       navigate('dashboard');
