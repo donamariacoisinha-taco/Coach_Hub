@@ -35,6 +35,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const { navigate } = useNavigation();
   const { showError, showSuccess } = useErrorHandler();
   const prefetch = usePrefetch();
+  const isGuestMode = Boolean(localStorage.getItem('kyron_guest_session'));
   
   const [showDiscoveryTooltip, setShowDiscoveryTooltip] = useState(false);
 
@@ -138,7 +139,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     focusMuscles: [] as string[]
   });
   const [outdatedFolderIds, setOutdatedFolderIds] = useState<string[]>([]);
-  const dashboardQuery = useSmartQuery('dashboard_data', async () => {
+  const dashboardQuery = useSmartQuery(isGuestMode ? 'guest_dashboard_data' : 'dashboard_data', async () => {
     const session = await authApi.getSession();
     if (!session?.user) {
       return {
@@ -169,6 +170,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const [loadingPublic, setLoadingPublic] = useState(false);
 
   useEffect(() => {
+    if (isGuestMode) {
+      setPublicProtocols([]);
+      return;
+    }
     const loadPublicProtocols = async () => {
       try {
         setLoadingPublic(true);
@@ -575,7 +580,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const localizedDateStr = useMemo(() => {
     const now = new Date();
     return now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-  }, []);
+  }, [isGuestMode]);
 
   // Soft Adaptive glows relative to User state or readiness
   const readinessValue = useMemo(() => {
@@ -1066,20 +1071,22 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 >
                   {filteredWorkouts.length === 0 ? (
                     <div className="text-center py-10 px-6 bg-slate-50 rounded-[2.5rem] border border-slate-200/60 max-w-md mx-auto my-6 shadow-sm">
-                      <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-500 animate-bounce">
-                        <AlertTriangle size={24} />
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                        {isGuestMode ? <Dumbbell size={24} /> : <AlertTriangle size={24} />}
                       </div>
                       
                       <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-2">
-                        Tivemos um problema ao carregar seu plano.
+                        {isGuestMode ? 'Crie seu primeiro plano' : 'Nenhum plano ativo encontrado'}
                       </h3>
                       
                       <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-                        Nenhum treino ativo ou protocolo adaptativo foi detectado para esta pasta no Dashboard. Use as opções abaixo para restabelecer ou reconstruir seu treino.
+                        {isGuestMode
+                          ? 'Você ainda não criou um plano neste aparelho. Responda ao onboarding para gerar e salvar sua ficha local.'
+                          : 'Nenhum treino ativo foi encontrado. Você pode sincronizar novamente ou gerar um novo plano.'}
                       </p>
 
                       <div className="flex flex-col gap-2.5">
-                        <button 
+                        {!isGuestMode && <button
                           onClick={handleSyncPlan}
                           disabled={isSyncing}
                           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-3.5 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer border-none"
@@ -1087,14 +1094,14 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                           {isSyncing ? (
                             <span className="w-4.5 h-4.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                           ) : '🔄 Sincronizar Plano'}
-                        </button>
+                        </button>}
                         
                         <button 
                           onClick={handleRegenerate}
                           disabled={isSyncing}
                           className="w-full bg-slate-900 hover:bg-slate-950 disabled:bg-slate-700 text-white py-3.5 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer border-none"
                         >
-                          🔄 Gerar Novamente
+                          {isGuestMode ? 'Gerar meu plano' : 'Gerar novamente'}
                         </button>
                       </div>
                     </div>

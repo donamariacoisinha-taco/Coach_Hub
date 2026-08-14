@@ -27,7 +27,7 @@ import { useUserStore } from '../../store/userStore';
 import { cacheStore } from '../../lib/cache/cacheStore';
 import { supabase } from '../../lib/api/supabase';
 import { profileApi } from '../../lib/api/profileApi';
-import { authApi } from '../../lib/api/authApi';
+import { authApi, isGuestSession } from '../../lib/api/authApi';
 import { systemTemplatesApi, SystemTemplate } from '../../lib/api/systemTemplatesApi';
 import { premiumProtocolsApi, PremiumProtocol } from '../../lib/api/premiumProtocolsApi';
 import { exerciseApi } from '../../lib/api/exerciseApi';
@@ -36,6 +36,7 @@ import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { Exercise, UserProfile, normalizeMuscleGroup, sortExercisesAnatomically } from '../../types';
 import { useNavigation } from '../../App';
 import kyronLogo from '../../assets/images/kyron_official_logo_1781087891387.png';
+import { getGuestProfile, saveGuestPlan, saveGuestProfile } from '../../lib/guest/guestPersistence';
 
 // Onboarding v2.1 Steps List:
 // Step 0: Welcome / Presentation
@@ -105,7 +106,8 @@ export default function SmartOnboarding() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const sessionUser = await authApi.getUser();
+        const session = await authApi.getSession();
+        const sessionUser = session?.user || null;
         if (sessionUser) {
           setUserId(sessionUser.id);
           const emailStr = sessionUser.email || sessionUser.user_metadata?.email || '';
@@ -118,8 +120,10 @@ export default function SmartOnboarding() {
             name: prev.name || sessionUser.user_metadata?.full_name || ''
           }));
 
-          // Load profile from SB and hydrate any previous answers
-          const activeProf = await profileApi.getProfile(sessionUser.id);
+          // Guest data is local-only; authenticated profiles come from Supabase.
+          const activeProf = isGuestSession(session)
+            ? getGuestProfile()
+            : await profileApi.getProfile(sessionUser.id);
           if (activeProf) {
             setIsRedoing(!!activeProf.onboarding_completed);
             setFormData(prev => ({
@@ -180,7 +184,12 @@ export default function SmartOnboarding() {
         payload.full_name = updatedFields.name;
       }
       
-      await profileApi.updateProfile(userId, payload);
+      const session = await authApi.getSession();
+      if (isGuestSession(session)) {
+        saveGuestProfile(payload as Record<string, any>);
+      } else {
+        await profileApi.updateProfile(userId, payload);
+      }
     } catch (err) {
       console.warn('[SmartOnboarding] Failed to silently write profile update to DB:', err);
     } finally {
@@ -294,6 +303,22 @@ export default function SmartOnboarding() {
       const finalProtocolName = matchItem?.name || providedFallbackDraft?.name || customGeneratedDraft?.name || 'Kyron OS Adaptativo';
       const finalProtocolStatus = matchItem?.status || 'Active';
       const finalProtocolCreatedAt = matchItem?.created_at || new Date().toISOString();
+
+      const session = await authApi.getSession();
+      if (isGuestSession(session)) {
+        const localProtocol = matchItem || providedFallbackDraft || customGeneratedDraft;
+        if (!localProtocol) throw new Error('Nenhum plano local válido foi gerado.');
+        const dashboard = saveGuestPlan(localProtocol, formData as Record<string, any>);
+        if (!dashboard.workouts.length || dashboard.workouts.some((workout: any) => !workout.exercises?.length)) {
+          throw new Error('O plano local ficou incompleto e não foi ativado.');
+        }
+        setProfile(dashboard.profile);
+        setDeployedFolderId(dashboard.folders[0].id);
+        setFirstWorkoutId(dashboard.workouts[0].id);
+        cacheStore.clear();
+        showSuccess('Plano criado!', 'Seu plano foi salvo localmente neste aparelho.');
+        return;
+      }
 
       console.log('[Onboarding] PROTOCOL_CREATED', {
         id: finalProtocolId,

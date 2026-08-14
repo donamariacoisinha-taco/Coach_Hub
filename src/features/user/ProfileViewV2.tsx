@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useUserStore } from '../../store/userStore';
 import { useAuthStore } from '../../store/authStore';
 import { profileApi } from '../../lib/api/profileApi';
-import { authApi } from '../../lib/api/authApi';
+import { authApi, isGuestSession } from '../../lib/api/authApi';
 import { cloudinaryService } from '../../services/cloudinaryService';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -69,6 +69,7 @@ import { EvolutionTimeline } from './components/EvolutionTimeline';
 import { BodyRecompositionVisualizer } from './components/BodyRecompositionVisualizer';
 import { ProgressPhotoSystem } from './components/ProgressPhotoSystem';
 import { ProfileActions } from './components/ProfileActions';
+import { getGuestProfile, saveGuestProfile } from '../../lib/guest/guestPersistence';
 
 interface CheckInLog {
   date: string;
@@ -83,6 +84,7 @@ export default function ProfileViewV2() {
   const { profile: storeProfile, setProfile, updateProfile, loading: storeLoading } = useUserStore();
   const { logout } = useAuthStore();
   const { goBack, navigate } = useNavigation();
+  const isGuestMode = Boolean(localStorage.getItem('kyron_guest_session'));
 
   // Local safety loader and session indicator
   const [localLoading, setLocalLoading] = useState(true);
@@ -218,10 +220,11 @@ export default function ProfileViewV2() {
   useEffect(() => {
     const fetchCoreProfile = async () => {
       try {
-        const user = await authApi.getUser();
+        const session = await authApi.getSession();
+        const user = session?.user || null;
         if (user) {
           setUserIdRef(user.id);
-          const profileData = await profileApi.getProfile(user.id);
+          const profileData = isGuestSession(session) ? getGuestProfile() : await profileApi.getProfile(user.id);
           if (profileData) {
             setProfile(profileData);
             // Cache it locally
@@ -338,8 +341,12 @@ export default function ProfileViewV2() {
       updateProfile(updates);
 
       // Save to Supabase (if online)
-      const user = await authApi.getUser();
-      if (user) {
+      const session = await authApi.getSession();
+      const user = session?.user || null;
+      if (isGuestSession(session)) {
+        const localProfile = saveGuestProfile(updates);
+        setProfile(localProfile);
+      } else if (user) {
         await profileApi.updateProfile(user.id, updates);
       }
 
@@ -347,9 +354,9 @@ export default function ProfileViewV2() {
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       console.error('[PROFILE_V4][SAVE_FAILED]', err);
-      // We still update local and show saving success to provide an outstanding offline-first app feel
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      // Never claim a local guest save succeeded if localStorage rejected it.
+      setSaveSuccess(!isGuestMode);
+      if (!isGuestMode) setTimeout(() => setSaveSuccess(false), 3000);
     } finally {
       setSaving(false);
     }
@@ -362,11 +369,15 @@ export default function ProfileViewV2() {
 
     try {
       let url = '';
-      try {
-        url = await cloudinaryService.uploadImage(file, 'avatars');
-      } catch (uploadErr) {
-        console.warn('[CLOUDINARY_FAILED_USING_BASE64_FALLBACK]', uploadErr);
-        // Fallback to FileReader reader as base64 string
+      const session = await authApi.getSession();
+      if (!isGuestSession(session)) {
+        try {
+          url = await cloudinaryService.uploadImage(file, 'avatars');
+        } catch (uploadErr) {
+          console.warn('[CLOUDINARY_FAILED_USING_BASE64_FALLBACK]', uploadErr);
+        }
+      }
+      if (!url) {
         url = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
@@ -388,8 +399,10 @@ export default function ProfileViewV2() {
       updateProfile(updates);
       
       // Save online
-      const user = await authApi.getUser();
-      if (user) {
+      const user = session?.user || null;
+      if (isGuestSession(session)) {
+        saveGuestProfile(updates);
+      } else if (user) {
         await profileApi.updateProfile(user.id, updates);
       }
     } catch (err) {
@@ -551,7 +564,7 @@ export default function ProfileViewV2() {
             {saving ? (
               <Spinner size={10} className="animate-spin text-current" />
             ) : null}
-            <span>{saving ? '...' : saveSuccess ? 'Salvo!' : 'Salvar'}</span>
+            <span>{saving ? '...' : saveSuccess ? (isGuestMode ? 'Salvo localmente' : 'Salvo!') : 'Salvar'}</span>
           </button>
         </div>
       </div>
@@ -652,9 +665,11 @@ export default function ProfileViewV2() {
                       localStorage.setItem(`rubi_cached_profile_${userIdRef}`, JSON.stringify(updatedProfileObject));
                       
                       // Save online
-                      authApi.getUser().then(user => {
-                        if (user) {
-                          profileApi.updateProfile(user.id, updates);
+                      authApi.getSession().then(session => {
+                        if (isGuestSession(session)) {
+                          saveGuestProfile(updates);
+                        } else if (session?.user) {
+                          profileApi.updateProfile(session.user.id, updates);
                         }
                       }).catch(e => console.warn(e));
                     }}
@@ -1148,7 +1163,7 @@ export default function ProfileViewV2() {
           {saving ? (
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
           ) : saveSuccess ? (
-            <span>✓ Perfil Sincronizado</span>
+            <span>{isGuestMode ? '✓ Salvo localmente' : '✓ Perfil sincronizado'}</span>
           ) : (
             <span>{hasChanges ? 'Salvar Alterações' : 'Perfil Atualizado'}</span>
           )}

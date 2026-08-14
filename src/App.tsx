@@ -23,6 +23,7 @@ import { NavItem } from './components/ui/NavItem';
 import { isAdmin } from './lib/utils/auth';
 import { ekeService } from './domain/eke/ekeService';
 import kyronLogo from './assets/images/kyron_official_logo_1781087891387.png';
+import { getGuestProfile } from './lib/guest/guestPersistence';
 
 const loadOnboarding = () => import('./features/onboarding/SmartOnboarding');
 const loadDashboard = () => import('./features/dashboard/Dashboard');
@@ -122,18 +123,7 @@ const App: React.FC = () => {
   const isInitializing = useRef(false);
 
   const enterGuestMode = (guestSession: any) => {
-    setProfile({
-      id: guestSession.user.id,
-      email: guestSession.user.email,
-      name: 'Atleta Convidado',
-      full_name: 'Atleta Convidado',
-      onboarding_completed: true,
-      role: 'user',
-      is_admin: false,
-      is_premium: false,
-      account_status: 'active',
-      workout_streak: 0,
-    } as UserProfile);
+    setProfile(getGuestProfile() as UserProfile);
     setLoading(false);
     if (getStateFromUrl().view === 'auth' || getStateFromUrl().view === 'landing') {
       navigate('dashboard');
