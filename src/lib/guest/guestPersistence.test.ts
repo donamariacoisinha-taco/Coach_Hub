@@ -9,6 +9,7 @@ import {
   saveGuestPlan,
   saveGuestProfile,
   updateGuestWorkoutExercises,
+  validateGuestWorkoutSession,
 } from './guestPersistence';
 
 const createStorage = () => {
@@ -122,5 +123,26 @@ describe('guest lifecycle persistence', () => {
     expect(completed.workout_sets_logs[0]).toMatchObject({ weight_achieved: 20, reps_achieved: 12 });
     expect(localStorage.getItem(`guest_workout_session_${first.id}`)).toBeNull();
     expect(getOrCreateGuestWorkoutSession(second.id)).toEqual(secondSession);
+  });
+
+  it('invalidates a legacy continuity state that belongs to another workout', () => {
+    const dashboard = saveGuestPlan({ workouts: [{
+      name: 'Ficha segura',
+      exercises: [{ exercise_name: 'Supino', sets: 3 }],
+    }] }, {});
+    const workoutId = dashboard.workouts[0].id;
+    const session = getOrCreateGuestWorkoutSession(workoutId);
+    localStorage.setItem(`workout_continuity_state_${session.historyId}`, JSON.stringify({
+      workoutId: 'guest-workout-outra-ficha',
+      exerciseIds: ['exercise-from-another-workout'],
+      currentIndex: 7,
+      completedSetsByExercise: { 0: [0, 8] },
+    }));
+
+    expect(validateGuestWorkoutSession(workoutId)).toEqual({ valid: false, reset: true });
+    expect(localStorage.getItem(`guest_workout_session_${workoutId}`)).toBeNull();
+    expect(localStorage.getItem(`workout_continuity_state_${session.historyId}`)).toBeNull();
+    const fresh = getOrCreateGuestWorkoutSession(workoutId);
+    expect(fresh).toMatchObject({ workoutId, currentIndex: 0, currentSet: 1 });
   });
 });

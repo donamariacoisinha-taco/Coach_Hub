@@ -173,6 +173,49 @@ export const getOrCreateGuestWorkoutSession = (workoutId: string) => {
   return session;
 };
 
+export const validateGuestWorkoutSession = (workoutId: string) => {
+  const workout = getGuestWorkout(workoutId);
+  const sessionKey = `guest_workout_session_${workoutId}`;
+  const session = readJson<any>(sessionKey);
+  if (!session) return { valid: true, reset: false };
+  const continuityKey = `workout_continuity_state_${session.historyId}`;
+  const continuity = readJson<any>(continuityKey);
+  const exerciseIds = (workout?.exercises || []).map((exercise: any) => exercise.exercise_id);
+  const storedIds = continuity?.exerciseIds;
+  const continuityWorkoutMatches = !continuity?.workoutId || continuity.workoutId === workoutId;
+  const idsMatch = !storedIds || (
+    Array.isArray(storedIds)
+    && storedIds.length === exerciseIds.length
+    && storedIds.every((id: string, index: number) => id === exerciseIds[index])
+  );
+  const indexValid = !continuity || (
+    Number(continuity.currentIndex || 0) >= 0
+    && Number(continuity.currentIndex || 0) < exerciseIds.length
+  );
+  const completedValid = !continuity?.completedSetsByExercise || Object.entries(continuity.completedSetsByExercise)
+    .every(([exerciseIndex, completed]: [string, any]) => {
+      const exercise = workout?.exercises?.[Number(exerciseIndex)];
+      const setCount = exercise?.sets_json?.length || exercise?.sets || 0;
+      return Boolean(exercise) && Array.isArray(completed)
+        && completed.every((setIndex: number) => setIndex >= 0 && setIndex < setCount);
+    });
+  const valid = Boolean(workout)
+    && session.workoutId === workoutId
+    && session.historyId === `guest-history-${workoutId}`
+    && continuityWorkoutMatches
+    && idsMatch
+    && indexValid
+    && completedValid;
+  if (valid) return { valid: true, reset: false };
+  localStorage.removeItem(sessionKey);
+  localStorage.removeItem(continuityKey);
+  localStorage.removeItem(`workout_session_temp_${workoutId}`);
+  localStorage.removeItem(`workout_rest_start_${workoutId}`);
+  localStorage.removeItem(`workout_rest_time_left_${workoutId}`);
+  console.warn('[GuestWorkout] Sessão local incompatível descartada com segurança.', { workoutId });
+  return { valid: false, reset: true };
+};
+
 export const finishGuestWorkout = (workoutId: string, result: Record<string, any>) => {
   const dashboard = getGuestDashboard();
   const workout = dashboard.workouts.find((item: any) => item.id === workoutId);
