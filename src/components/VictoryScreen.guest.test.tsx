@@ -26,4 +26,9 @@ describe('VictoryScreen guest metrics', () => {
     expect(screen.getByText('1 min')).toBeTruthy();
     expect(await screen.findByText('240kg')).toBeTruthy();
   });
+
+  it('identifies a partial session in the victory summary', async () => {
+    render(<VictoryScreen historyId="guest-history-partial" duration={1} exercisesCount={1} partial />);
+    expect(screen.getByRole('heading', { name: /sessão parcial/i })).toBeTruthy();
+  });
 });
