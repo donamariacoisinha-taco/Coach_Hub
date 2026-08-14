@@ -56,9 +56,10 @@ export type SmartOnboardingProps = {
   initialStep?: number;
   initialUserId?: string | null;
   skipBootstrap?: boolean;
+  activationTimeoutMs?: number;
 };
 
-export default function SmartOnboarding({ initialStep = 0, initialUserId = null, skipBootstrap = false }: SmartOnboardingProps = {}) {
+export default function SmartOnboarding({ initialStep = 0, initialUserId = null, skipBootstrap = false, activationTimeoutMs = 8000 }: SmartOnboardingProps = {}) {
   const { setProfile } = useUserStore();
   const { navigate } = useNavigation();
   const { showSuccess, showError } = useErrorHandler();
@@ -159,11 +160,13 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
 
         // Parallel cache loading of templates and protocols
         const guestMode = isGuestSession(session);
-        const [exs, prots, tmps] = await Promise.all([
-          exerciseApi.getExercises().catch(() => []),
-          guestMode ? Promise.resolve([]) : premiumProtocolsApi.getProtocols().catch(() => []),
-          guestMode ? Promise.resolve([]) : systemTemplatesApi.getTemplates().catch(() => [])
-        ]);
+        const [exs, prots, tmps] = guestMode
+          ? [[], [], []]
+          : await Promise.all([
+              exerciseApi.getExercises().catch(() => []),
+              premiumProtocolsApi.getProtocols().catch(() => []),
+              systemTemplatesApi.getTemplates().catch(() => [])
+            ]);
 
         setActiveExercises(exs);
         setAllPremiumProtocols(prots.filter((p: any) => p.is_active !== false));
@@ -296,7 +299,13 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
 
     // Direct auto-deploy of the best matched protocol or generated dynamic draft!
     try {
-      const activated = await handleDeployProtocolSelection(selectedMatch, fallback, generatedDraft);
+      const activated = await Promise.race([
+        handleDeployProtocolSelection(selectedMatch, fallback, generatedDraft),
+        new Promise<never>((_, reject) => window.setTimeout(
+          () => reject(new Error('A ativação do plano excedeu o tempo limite. Tente concluir novamente.')),
+          activationTimeoutMs,
+        )),
+      ]);
       if (!activated) {
         activationStartedRef.current = false;
         setActivationStatus('error');
@@ -312,13 +321,15 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
       activationStartedRef.current = false;
       setActivationStatus('error');
       setStep(8);
+    } finally {
       setIsFinishing(false);
     }
   };
 
   // Perform absolute deployment cloning the chosen plan and ending onboarding
   const handleDeployProtocolSelection = async (matchItem: any, isFallback = false, providedFallbackDraft?: any) => {
-    const currentSession = await authApi.getSession();
+    const storedGuestSession = localStorage.getItem('kyron_guest_session');
+    const currentSession = storedGuestSession ? JSON.parse(storedGuestSession) : await authApi.getSession();
     const guestMode = isGuestSession(currentSession);
     if (!guestMode && !userId) {
       const missingUserError = new Error('Sessão autenticada sem identificador de usuário no onboarding.');
