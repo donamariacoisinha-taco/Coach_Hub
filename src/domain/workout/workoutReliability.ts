@@ -153,6 +153,25 @@ export const decideWorkoutPrevious = ({
   return normalized;
 };
 
+export const shouldConfirmPartialBeforeTerminalSet = ({
+  requiredSetCounts,
+  completedSetsByExercise,
+  currentIndex,
+  currentSetIndex,
+}: {
+  requiredSetCounts: number[];
+  completedSetsByExercise: Record<number, Set<number>>;
+  currentIndex: number;
+  currentSetIndex: number;
+}) => requiredSetCounts.some((requiredCount, exerciseIndex) => {
+  const completed = completedSetsByExercise[exerciseIndex] || new Set<number>();
+  for (let setIndex = 0; setIndex < requiredCount; setIndex++) {
+    const isCurrentTerminalSet = exerciseIndex === currentIndex && setIndex === currentSetIndex;
+    if (!isCurrentTerminalSet && !completed.has(setIndex)) return true;
+  }
+  return false;
+});
+
 const normalizeRuntimeSet = (value: Partial<RuntimeSetData> | undefined): RuntimeSetData => ({
   ...(value?.id ? { id: value.id } : {}),
   weight: Math.max(0, toFiniteNumber(value?.weight, 0)),

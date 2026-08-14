@@ -216,6 +216,26 @@ export const validateGuestWorkoutSession = (workoutId: string) => {
   return { valid: false, reset: true };
 };
 
+export const clearLegacyGuestWorkoutState = (workoutId: string) => {
+  const removed: string[] = [];
+  const remove = (key: string) => {
+    if (localStorage.getItem(key) !== null) {
+      localStorage.removeItem(key);
+      removed.push(key);
+    }
+  };
+  ['workout_rest_start', 'workout_rest_time_left', 'last_valid_workout', 'workout_session', 'currentExercise']
+    .forEach(remove);
+  const persisted = readJson<any>('workout-storage');
+  const persistedWorkoutId = persisted?.state?.currentWorkoutId;
+  if (persistedWorkoutId && persistedWorkoutId !== workoutId) remove('workout-storage');
+  for (let index = localStorage.length - 1; index >= 0; index--) {
+    const key = localStorage.key(index);
+    if (key && key.startsWith('rubi_partial_session_') && key !== `rubi_partial_session_${workoutId}`) remove(key);
+  }
+  return removed;
+};
+
 export const finishGuestWorkout = (workoutId: string, result: Record<string, any>) => {
   const dashboard = getGuestDashboard();
   const workout = dashboard.workouts.find((item: any) => item.id === workoutId);

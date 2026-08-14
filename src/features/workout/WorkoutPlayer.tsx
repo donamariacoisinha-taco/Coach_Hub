@@ -52,12 +52,13 @@ import { getNextSetDecision, getPreSetHint } from "../../domain/progression/prog
 import { getEmotionalFeedback } from "../../domain/feedback/feedbackEngine";
 import { VictoryScreen } from "../../components/VictoryScreen";
 import { workoutEngine } from "../../domain/workout/workoutEngine";
+import { shouldConfirmPartialBeforeTerminalSet } from "../../domain/workout/workoutReliability";
 import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 import { fetchWithRetry } from "../../lib/utils";
 import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../services/athleteMemoryEngine";
-import { finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
+import { clearLegacyGuestWorkoutState, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
 
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -563,6 +564,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   
   // Global State
   const { isOnline, pendingSyncCount, isSyncing } = useAppStore();
+  const isolatedWorkoutRef = useRef<string | null>(null);
+  if (isGuestWorkout && isolatedWorkoutRef.current !== workoutId) {
+    clearLegacyGuestWorkoutState(workoutId);
+    const persistedWorkout = useWorkoutStore.getState();
+    if (persistedWorkout.currentWorkoutId !== workoutId) persistedWorkout.resetWorkout();
+    isolatedWorkoutRef.current = workoutId;
+  }
   const { 
     exercises, currentIndex, currentSet, historyId, startTime,
     setWorkout, nextStep, prevStep, setCurrentSet, setCurrentIndex, resetWorkout 
@@ -1847,7 +1855,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         showSuccess('Sessão anterior incompatível foi limpa. Seu plano permanece intacto.');
       }
       const currentStore = useWorkoutStore.getState();
-      const hasActiveSession = currentStore.historyId === playerQuery.data.historyId && currentStore.exercises.length > 0;
+      const queryExerciseIds = playerQuery.data.exercises.map((exercise: any) => exercise.exercise_id);
+      const storeMatchesWorkout = currentStore.currentWorkoutId === workoutId
+        && currentStore.historyId === playerQuery.data.historyId
+        && currentStore.exercises.length === queryExerciseIds.length
+        && currentStore.exercises.every((exercise, index) => exercise.exercise_id === queryExerciseIds[index]);
+      const hasActiveSession = storeMatchesWorkout && currentStore.exercises.length > 0;
 
       setWorkout({
         id: workoutId,
@@ -3070,6 +3083,25 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const isFinalSetOfExercise = currentEx && currentSet >= (activeSetsData.length || currentEx.sets_json?.length || 0);
   const isFinalExercise = exercises && currentIndex >= exercises.length - 1;
   const isWorkoutTerminal = isFinalSetOfExercise && isFinalExercise;
+  const handlePrimarySetAction = () => {
+    if (isWorkoutTerminal) {
+      const completedMap: Record<number, Set<number>> = {
+        ...completedSetsByExercise,
+        [currentIndex]: completedSetIndices,
+      };
+      const mustConfirmPartial = shouldConfirmPartialBeforeTerminalSet({
+        requiredSetCounts: exercises.map(exercise => exercise.sets_json?.length || exercise.sets || 0),
+        completedSetsByExercise: completedMap,
+        currentIndex,
+        currentSetIndex: currentSet - 1,
+      });
+      if (mustConfirmPartial) {
+        setShowExitModal(true);
+        return;
+      }
+    }
+    handleCompleteSet();
+  };
 
   const preHint = useMemo(() => {
     if (!currentEx || isAdvanced) return null;
@@ -3673,7 +3705,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         onClick={isResting ? () => { 
                           log("[REST_SKIPPED] Manual skip");
                           if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
-                        } : handleCompleteSet}
+                        } : handlePrimarySetAction}
                         disabled={saving || isTransitioning}
                         className="flex-1 h-11 bg-[#7BA7FF] hover:bg-[#6b97ee] hover:scale-[1.01] active:scale-[0.96] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-100 flex items-center justify-center gap-2 shadow-md shadow-[#7BA7FF]/20"
                       >
@@ -3861,7 +3893,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       onClick={isResting ? () => { 
                         log("[REST_SKIPPED] Manual skip");
                         if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
-                      } : handleCompleteSet}
+                      } : handlePrimarySetAction}
                       disabled={saving || isTransitioning}
                       className="flex-1 h-11 bg-[#7BA7FF] hover:bg-[#6b97ee] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md shadow-[#7BA7FF]/25"
                     >
@@ -4058,7 +4090,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     onClick={isResting ? () => { 
                       log("[REST_SKIPPED] Manual skip");
                       if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
-                    } : handleCompleteSet}
+                    } : handlePrimarySetAction}
                     disabled={saving || isTransitioning}
                     className="w-full h-12 bg-[#7BA7FF] hover:bg-[#6b97ee] text-white rounded-xl text-xs font-[1000] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7BA7FF]/25 shrink-0"
                   >
