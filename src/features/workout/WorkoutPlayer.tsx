@@ -57,7 +57,7 @@ import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 import { fetchWithRetry } from "../../lib/utils";
 import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../services/athleteMemoryEngine";
-import { finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, updateGuestWorkoutExercises } from "../../lib/guest/guestPersistence";
+import { finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
 
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -743,6 +743,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [isFinished, setIsFinished] = useState(false);
   const [isSavedSuccessfully, setIsSavedSuccessfully] = useState(false);
   const [workoutDuration, setWorkoutDuration] = useState(0);
+  const [finalDurationMinutes, setFinalDurationMinutes] = useState<number | null>(null);
   const [showExercisesList, setShowExercisesList] = useState(false);
   
   // Adaptive Protocol Management States
@@ -1520,13 +1521,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         pendingSetToComplete,
         completedSetsByExercise: Object.fromEntries(
           Object.entries(completedSetsByExercise).map(([exIdx, setObj]) => [exIdx, Array.from(setObj as Set<number>)])
-        )
+        ),
+        workoutId,
+        exerciseIds: exercises.map(exercise => exercise.exercise_id)
       };
       localStorage.setItem(`workout_continuity_state_${historyId}`, JSON.stringify(stateToSave));
     } catch (e) {
       console.warn("Continuity save failed", e);
     }
-  }, [currentIndex, currentSet, activeSetsData, workoutPerformance, completedSetIndices, completedSetsByExercise, historyId, isHydrating, isSessionReady, isResting, timeLeft, pendingSetToComplete]);
+  }, [currentIndex, currentSet, activeSetsData, workoutPerformance, completedSetIndices, completedSetsByExercise, historyId, isHydrating, isSessionReady, isResting, timeLeft, pendingSetToComplete, workoutId, exercises]);
 
   useEffect(() => {
     async function checkRecovery() {
@@ -1754,6 +1757,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     if (isGuestWorkout) {
       const workout = getGuestWorkout(workoutId);
       if (!workout) throw new Error('Ficha local não encontrada.');
+      const validation = validateGuestWorkoutSession(workoutId);
       const sessionData = getOrCreateGuestWorkoutSession(workoutId);
       const localSaved = localStorage.getItem(`workout_session_temp_${workoutId}`);
       const baseExercises = (workout.exercises || []).map((exercise: any) => ({
@@ -1770,7 +1774,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           console.warn('[WorkoutPlayer] Invalid local preparation state:', error);
         }
       }
-      return { exercises: exercisesToUse, originalExercises: baseExercises, ...sessionData };
+      return { exercises: exercisesToUse, originalExercises: baseExercises, recoveryReset: validation.reset, ...sessionData };
     }
     const user = await authApi.getUser();
     if (!user) throw new Error("Usuário não autenticado");
@@ -1839,6 +1843,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   // Sync Store with Query Data
   useEffect(() => {
     if (playerQuery.data && playerQuery.data.historyId) {
+      if ((playerQuery.data as any).recoveryReset) {
+        showSuccess('Sessão anterior incompatível foi limpa. Seu plano permanece intacto.');
+      }
       const currentStore = useWorkoutStore.getState();
       const hasActiveSession = currentStore.historyId === playerQuery.data.historyId && currentStore.exercises.length > 0;
 
@@ -2011,6 +2018,24 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     };
   }, [originalExercises, exercises]);
 
+  const incompleteSummary = useMemo(() => {
+    const requiredSets = exercises.reduce((sum, exercise) =>
+      sum + (exercise.sets_json?.length || exercise.sets || 0), 0);
+    const completedMap: Record<number, Set<number>> = { ...completedSetsByExercise, [currentIndex]: completedSetIndices };
+    const completedSets = Object.values(completedMap).reduce((sum: number, sets: Set<number>) => sum + sets.size, 0);
+    const incompleteExercises = exercises.filter((exercise, index) => {
+      const required = exercise.sets_json?.length || exercise.sets || 0;
+      return (completedMap[index]?.size || 0) < required;
+    }).length;
+    return {
+      requiredSets,
+      completedSets,
+      remainingSets: Math.max(0, requiredSets - completedSets),
+      incompleteExercises,
+      complete: requiredSets > 0 && completedSets >= requiredSets,
+    };
+  }, [exercises, completedSetsByExercise, currentIndex, completedSetIndices]);
+
   // Failsafe & Consistency Guard
   useEffect(() => {
     if (!exercises || exercises.length === 0) return;
@@ -2035,12 +2060,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   // Timers
   useEffect(() => {
-    if (!startTime) return;
+    if (!startTime || isFinished) return;
     const interval = setInterval(() => {
       setWorkoutDuration(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
     return () => clearInterval(interval);
-  }, [startTime]);
+  }, [startTime, isFinished]);
 
   // Subtle Beep Helper
   const playTimerBeep = (isTerminal = false) => {
@@ -2791,6 +2816,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             performance: localPerformance,
           });
           setWorkoutDuration(finalDuration);
+          setFinalDurationMinutes(finalDuration);
           if (sessionDiff.hasChanges) setShowEvolutionModal(true);
           else {
             setIsWorkoutComplete(true);
@@ -2862,6 +2888,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           
           cacheStore.clear(`workout_init_${workoutId}`);
           setWorkoutDuration(finalDuration);
+          setFinalDurationMinutes(finalDuration);
           if (sessionDiff.hasChanges) {
             setShowEvolutionModal(true);
           } else {
@@ -3099,7 +3126,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       {isFinished && (
         <VictoryScreen 
           historyId={historyId!} 
-          duration={workoutDuration}
+          duration={finalDurationMinutes ?? Math.max(1, Math.round(workoutDuration / 60))}
           exercisesCount={exercises.length}
           onDone={() => { resetWorkout(); navigate('dashboard'); }}
           onReturn={() => setIsFinished(false)}
@@ -4813,7 +4840,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </div>
                 <h3 className="text-xl font-[1000] text-slate-900 uppercase tracking-tighter mb-2">Interromper Treino?</h3>
                 <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
-                  Deseja salvar seu progresso atual ou descartar totalmente esta sessão?
+                  {incompleteSummary.complete
+                    ? 'Todas as séries foram concluídas. Deseja salvar e encerrar esta sessão?'
+                    : `Sessão parcial: faltam ${incompleteSummary.remainingSets} séries em ${incompleteSummary.incompleteExercises} exercícios. Somente séries concluídas serão salvas.`}
                 </p>
                 
                 <div className="w-full space-y-3">
@@ -4822,7 +4851,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     disabled={finishing}
                     className="w-full py-4 bg-[#7BA7FF] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-[#7BA7FF]/25 active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
-                    {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar e Sair"}
+                    {finishing
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : incompleteSummary.complete ? 'Salvar e Sair' : 'Finalizar sessão parcial'}
                   </button>
                   <button 
                     onClick={() => finishWorkout(false)} 
