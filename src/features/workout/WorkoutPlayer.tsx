@@ -57,6 +57,7 @@ import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 import { fetchWithRetry } from "../../lib/utils";
 import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../services/athleteMemoryEngine";
+import { finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, updateGuestWorkoutExercises } from "../../lib/guest/guestPersistence";
 
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -83,7 +84,8 @@ const SetCard = ({
   setInputRef, 
   focusedIdx,
   userLevel = 'BEGINNER',
-  focusMode = false
+  focusMode = false,
+  isGuestWorkout = false,
 }: any) => {
   const [localWeight, setLocalWeight] = useState(setData.weight.toString());
   const [localReps, setLocalReps] = useState(setData.reps.toString());
@@ -124,7 +126,7 @@ const SetCard = ({
     // Track if load was reduced
     try {
       const parsedVal = parseFloat(localWeight.replace(',', '.'));
-      if (!isNaN(parsedVal) && parsedVal < setData.weight) {
+      if (!isGuestWorkout && !isNaN(parsedVal) && parsedVal < setData.weight) {
         const uId = localStorage.getItem('coach_rubi_user_id') || 'guest';
         if (uId) {
           athleteMemoryEngine.trackExerciseIntensityReduction(uId, setData.exercise_id);
@@ -541,18 +543,23 @@ const PlayerSkeleton = () => (
 );
 
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
+  const isGuestWorkout = workoutId.startsWith('guest-workout-');
   const { navigate, goBack } = useNavigation();
   const { openExercisePreview } = useExercisePreview();
   const { showError, showSuccess } = useErrorHandler();
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    authApi.getUser().then(setUser).catch(console.error);
+    if (isGuestWorkout) {
+      setUser({ id: 'guest-user-id' });
+    } else {
+      authApi.getUser().then(setUser).catch(console.error);
+    }
     console.info(
       '[WORKOUT_PLAYER_BUILD]',
       'set-navigation-hotfix-v2'
     );
-  }, []);
+  }, [isGuestWorkout]);
   
   // Global State
   const { isOnline, pendingSyncCount, isSyncing } = useAppStore();
@@ -700,6 +707,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   useEffect(() => {
     async function fetchSuggestion() {
+      if (isGuestWorkout) {
+        setMemoryLoadSuggestion(null);
+        return;
+      }
       try {
         const u = await authApi.getUser();
         const activeEx = exercises && exercises[currentIndex];
@@ -718,7 +729,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     }
     fetchSuggestion();
-  }, [exercises, currentIndex, userLevel]);
+  }, [exercises, currentIndex, userLevel, isGuestWorkout]);
 
   const [showExitModal, setShowExitModal] = useState(false);
   const [showEvolutionModal, setShowEvolutionModal] = useState(false);
@@ -750,6 +761,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   // Fetch all exercises and favorites for smart replacement/selector
   useEffect(() => {
     async function loadAllExercisesData() {
+      if (isGuestWorkout) {
+        setAllAvailableExercises([]);
+        setFavoritesList([]);
+        return;
+      }
       setLoadingExercisesDetail(true);
       try {
         const list = await exerciseApi.getExercises();
@@ -767,7 +783,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     }
     loadAllExercisesData();
-  }, []);
+  }, [isGuestWorkout]);
 
   // Close context menu when clicking anywhere else on the screen
   useEffect(() => {
@@ -1105,6 +1121,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         sets_json: updatedSetsJson
       };
       useWorkoutStore.setState({ exercises: updatedExercises } as any);
+      if (isGuestWorkout) {
+        localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(updatedExercises));
+        return;
+      }
 
       try {
         if (target.id) {
@@ -1382,11 +1402,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
 
       // 2. Try fetching Remote logs
-      try {
-        remoteLogs = await workoutApi.getWorkoutLogsSimple(historyId) || [];
-        log("[HYDRATION] Fetched remote logs:", remoteLogs.length);
-      } catch (err) {
-        console.error("[HYDRATION] Failed to fetch remote logs", err);
+      if (!isGuestWorkout) {
+        try {
+          remoteLogs = await workoutApi.getWorkoutLogsSimple(historyId) || [];
+          log("[HYDRATION] Fetched remote logs:", remoteLogs.length);
+        } catch (err) {
+          console.error("[HYDRATION] Failed to fetch remote logs", err);
+        }
       }
 
       // 3. Reconcile states
@@ -1472,7 +1494,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
 
     coordinatedHydration();
-  }, [historyId, exercises.length]);
+  }, [historyId, exercises.length, isGuestWorkout]);
 
   // Continuity Storage Engine
   useEffect(() => {
@@ -1496,6 +1518,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   useEffect(() => {
     async function checkRecovery() {
+      if (isGuestWorkout) return;
       const user = await authApi.getUser();
       if (!user) return;
       
@@ -1506,10 +1529,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     }
     checkRecovery();
-  }, [workoutId, historyId]);
+  }, [workoutId, historyId, isGuestWorkout]);
 
   useEffect(() => {
     async function loadStreak() {
+      if (isGuestWorkout) return;
       try {
         const user = await authApi.getUser();
         if (user) {
@@ -1522,10 +1546,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     }
     loadStreak();
-  }, []);
+  }, [isGuestWorkout]);
 
   useEffect(() => {
     async function determineLevel() {
+      if (isGuestWorkout) return;
       try {
         const u = await authApi.getUser();
         if (u) {
@@ -1541,7 +1566,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     }
     determineLevel();
-  }, []);
+  }, [isGuestWorkout]);
 
   const log = (msg: string, data?: any) => {
     if (process.env.NODE_ENV === "development") {
@@ -1599,7 +1624,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           localStorage.setItem('workout_rest_time_left', timeLeft.toString());
         }
         // Save overall progress
-        if (user && workoutId && historyId) {
+        if (!isGuestWorkout && user && workoutId && historyId) {
           workoutApi.upsertPartialSession(
             user.id, 
             workoutId, 
@@ -1625,13 +1650,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isResting, timeLeft, user, workoutId, historyId]);
+  }, [isResting, timeLeft, user, workoutId, historyId, isGuestWorkout]);
 
   // Debounced Auto-Save of progress
   useEffect(() => {
     const timer = setTimeout(() => {
       // Don't auto-save if we are already finishing the workout to avoid locks
-      if (user && historyId && activeSetsData.length > 0 && !finishing && !isWorkoutComplete) {
+      if (!isGuestWorkout && user && historyId && activeSetsData.length > 0 && !finishing && !isWorkoutComplete) {
         workoutApi.updatePartialSession(historyId, currentIndex, currentSet).catch(err => {
           // Silent log for auto-saves to not interrupt user
           console.warn("[AUTO-SAVE] Failed", err);
@@ -1639,7 +1664,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     }, 2000); // Increased debounce to 2s
     return () => clearTimeout(timer);
-  }, [activeSetsData, currentIndex, currentSet, historyId, user, finishing, isWorkoutComplete]);
+  }, [activeSetsData, currentIndex, currentSet, historyId, user, finishing, isWorkoutComplete, isGuestWorkout]);
 
   // Intensity Levels
   const getIntensity = () => {
@@ -1714,6 +1739,27 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   // Data Loading
   const playerQuery = useSmartQuery(`workout_init_${workoutId}`, async () => {
+    if (isGuestWorkout) {
+      const workout = getGuestWorkout(workoutId);
+      if (!workout) throw new Error('Ficha local não encontrada.');
+      const sessionData = getOrCreateGuestWorkoutSession(workoutId);
+      const localSaved = localStorage.getItem(`workout_session_temp_${workoutId}`);
+      const baseExercises = (workout.exercises || []).map((exercise: any) => ({
+        ...exercise,
+        exercise_name: exercise.exercise_name || exercise.exercise_name_snapshot,
+        order: exercise.sort_order,
+      }));
+      let exercisesToUse = baseExercises;
+      if (localSaved) {
+        try {
+          const parsed = JSON.parse(localSaved);
+          if (Array.isArray(parsed) && parsed.length > 0) exercisesToUse = parsed;
+        } catch (error) {
+          console.warn('[WorkoutPlayer] Invalid local preparation state:', error);
+        }
+      }
+      return { exercises: exercisesToUse, originalExercises: baseExercises, ...sessionData };
+    }
     const user = await authApi.getUser();
     if (!user) throw new Error("Usuário não autenticado");
 
@@ -2016,6 +2062,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         rpe: Number(s.rpe || 8)
       }));
 
+      if (isGuestWorkout) {
+        const updatedExercises = exercises.map(ex => ex.id === exObj.id ? {
+          ...ex,
+          sets: setsData.length,
+          weight: Number(firstSet.weight),
+          reps: String(firstSet.reps),
+          rest_time: Number(exObj.rest_time || 60),
+          default_rpe: Number(firstSet.rpe || 8),
+          sets_json: setsJsonList,
+        } : ex);
+        useWorkoutStore.setState({ exercises: updatedExercises } as any);
+        localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(updatedExercises));
+        return;
+      }
+
       // 1. Save to database workout_exercises
       const { error } = await supabase.from('workout_exercises').update({
         sets_json: setsJsonList,
@@ -2130,7 +2191,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
 
     // 5. Update Remote Session with correct non-stale next values
-    workoutApi.updatePartialSession(historyId, nextIndex, nextSet).catch(console.error);
+    if (!isGuestWorkout) {
+      workoutApi.updatePartialSession(historyId, nextIndex, nextSet).catch(console.error);
+    }
     setPendingSetToComplete(null);
 
     // 6. Natural Delay for UI stability & Focus
@@ -2198,7 +2261,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   // 1. Fetch History Effect - Independent of data initialization
   useEffect(() => {
-    if (!currentEx?.exercise_id) return;
+    if (!currentEx?.exercise_id || isGuestWorkout) return;
     const fetchHistory = async () => {
       try {
         const [last, historical] = await Promise.all([
@@ -2550,17 +2613,19 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     // SAVE DATA (ASYNC)
     setSaving(true);
     try {
-      const user = await authApi.getUser();
-      await saveSet({ 
-        history_id: historyId,
-        user_id: user?.id,
-        exercise_id: currentEx.exercise_id,
-        set_number: currentSet,
-        weight_achieved: weight,
-        reps_achieved: reps,
-        rpe: rpe,
-        set_type: SetType.NORMAL
-      });
+      if (!isGuestWorkout) {
+        const user = await authApi.getUser();
+        await saveSet({
+          history_id: historyId,
+          user_id: user?.id,
+          exercise_id: currentEx.exercise_id,
+          set_number: currentSet,
+          weight_achieved: weight,
+          reps_achieved: reps,
+          rpe: rpe,
+          set_type: SetType.NORMAL
+        });
+      }
 
       log("[SET_SAVED] Progress recorded");
     } catch (err) {
@@ -2685,6 +2750,27 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     
     setFinishing(true);
     try {
+      if (isGuestWorkout) {
+        const finalDuration = Math.round((Date.now() - (currentStartTime || Date.now())) / 60000);
+        if (isSuccess) {
+          finishGuestWorkout(workoutId, {
+            duration_minutes: finalDuration,
+            performance: { ...workoutPerformance, [currentIndex]: activeSetsData },
+          });
+          setWorkoutDuration(finalDuration);
+          if (sessionDiff.hasChanges) setShowEvolutionModal(true);
+          else {
+            setIsWorkoutComplete(true);
+            setIsFinished(true);
+            showSuccess('Treino salvo localmente!');
+          }
+        } else {
+          localStorage.removeItem(`workout_continuity_state_${currentHistoryId}`);
+          resetWorkout();
+          navigate('dashboard');
+        }
+        return;
+      }
       const u = await authApi.getUser();
       if (!u) throw new Error("Usuário não autenticado");
 
@@ -2779,6 +2865,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const handleApplyTemplateEvolution = async () => {
     setSaving(true);
     try {
+      if (isGuestWorkout) {
+        updateGuestWorkoutExercises(workoutId, exercises);
+        localStorage.removeItem(`workout_session_temp_${workoutId}`);
+        setShowEvolutionModal(false);
+        setIsWorkoutComplete(true);
+        setIsFinished(true);
+        showSuccess('Alterações mantidas no plano local.');
+        return;
+      }
       const u = await authApi.getUser();
       if (!u) throw new Error("Usuário não autenticado");
 
@@ -3251,6 +3346,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       }}
                     >
                       <SetCard 
+                        isGuestWorkout={isGuestWorkout}
                         idx={idx}
                         setData={setData}
                         isCurrent={isCurrent}

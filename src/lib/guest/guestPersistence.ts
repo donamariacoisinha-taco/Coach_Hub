@@ -139,3 +139,51 @@ export const activateGuestPlan = (
   }
   return persisted;
 };
+
+export const getGuestWorkout = (workoutId: string) => (
+  getGuestDashboard().workouts.find((workout: any) => workout.id === workoutId) || null
+);
+
+export const updateGuestWorkoutExercises = (workoutId: string, exercises: any[]) => {
+  const dashboard = getGuestDashboard();
+  const index = dashboard.workouts.findIndex((workout: any) => workout.id === workoutId);
+  if (index < 0) throw new Error('Ficha local não encontrada.');
+  dashboard.workouts[index] = {
+    ...dashboard.workouts[index],
+    exercises: exercises.map((exercise, order) => ({ ...exercise, sort_order: order + 1 })),
+    exercises_count: exercises.length,
+  };
+  localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(dashboard));
+  localStorage.setItem(`rubi_dashboard_cache_${GUEST_USER_ID}`, JSON.stringify(dashboard));
+  return dashboard.workouts[index];
+};
+
+export const getOrCreateGuestWorkoutSession = (workoutId: string) => {
+  const key = `guest_workout_session_${workoutId}`;
+  const existing = readJson<any>(key);
+  if (existing) return existing;
+  const session = {
+    historyId: `guest-history-${workoutId}`,
+    workoutId,
+    startTime: Date.now(),
+    currentIndex: 0,
+    currentSet: 1,
+  };
+  localStorage.setItem(key, JSON.stringify(session));
+  return session;
+};
+
+export const finishGuestWorkout = (workoutId: string, result: Record<string, any>) => {
+  const dashboard = getGuestDashboard();
+  dashboard.history = [{
+    id: `guest-completed-${Date.now()}`,
+    workout_id: workoutId,
+    completed_at: new Date().toISOString(),
+    ...result,
+  }, ...(dashboard.history || [])];
+  dashboard.stats = { ...dashboard.stats, sessions: (dashboard.stats?.sessions || 0) + 1 };
+  localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(dashboard));
+  localStorage.setItem(`rubi_dashboard_cache_${GUEST_USER_ID}`, JSON.stringify(dashboard));
+  localStorage.removeItem(`guest_workout_session_${workoutId}`);
+  return dashboard;
+};

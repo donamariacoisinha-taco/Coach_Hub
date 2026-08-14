@@ -52,6 +52,7 @@ import { useErrorHandler } from '../hooks/useErrorHandler';
 import { WorkoutExercise, Exercise, SetType, SetConfig, WorkoutCategory } from '../types';
 import { useWorkoutStore } from '../app/store/workoutStore';
 import { ScreenState } from './ui/ScreenState';
+import { getGuestWorkout, updateGuestWorkoutExercises } from '../lib/guest/guestPersistence';
 
 // Sortable item wrapper for an exercise card in the preparation screen
 // Sortable muscle mappings and insights helpers
@@ -484,6 +485,7 @@ interface WorkoutPreparationProps {
 }
 
 export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutId }) => {
+  const isGuestWorkout = workoutId.startsWith('guest-workout-');
   const { navigate, goBack } = useNavigation();
   const { showError, showSuccess } = useErrorHandler();
 
@@ -542,6 +544,10 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
 
     setSavingToDb(true);
     try {
+      if (isGuestWorkout) {
+        updateGuestWorkoutExercises(workoutId, nextList);
+        return;
+      }
       // Delete existing exercises from database template
       await workoutApi.deleteExercisesByCategory(workoutId);
       
@@ -573,13 +579,33 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
     } finally {
       setSavingToDb(false);
     }
-  }, [workoutId]);
+  }, [workoutId, isGuestWorkout]);
 
   // Load database workout & favorites
   useEffect(() => {
     async function loadData() {
       setLoading(true);
       try {
+        if (isGuestWorkout) {
+          const guestWorkout = getGuestWorkout(workoutId);
+          if (!guestWorkout) throw new Error('Ficha local não encontrada.');
+          const savedSession = localStorage.getItem(`workout_session_temp_${workoutId}`);
+          const baseExercises = (guestWorkout.exercises || []).map((exercise: any) => ({
+            ...exercise,
+            exercise_name: exercise.exercise_name || exercise.exercise_name_snapshot,
+            order: exercise.sort_order,
+          }));
+          const parsed = savedSession ? JSON.parse(savedSession) : null;
+          setExercises(Array.isArray(parsed) && parsed.length > 0 ? parsed : baseExercises);
+          setWorkoutName(guestWorkout.name || 'Treino local');
+          setCategory({ id: workoutId, name: guestWorkout.name || 'Treino local' } as WorkoutCategory);
+          setAvailableExercises(baseExercises.map((exercise: any) => ({
+            id: exercise.exercise_id,
+            name: exercise.exercise_name,
+            muscle_group: exercise.muscle_group || 'Outros',
+          })) as Exercise[]);
+          return;
+        }
         const user = await authApi.getUser();
         if (!user) throw new Error('Usuário não autenticado');
 
@@ -620,7 +646,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
     }
 
     loadData();
-  }, [workoutId, showError]);
+  }, [workoutId, showError, isGuestWorkout]);
 
   // Drag start handler to initialize active dragging states
   const handleDragStart = useCallback((event: any) => {
