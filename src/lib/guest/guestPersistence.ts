@@ -143,9 +143,45 @@ export const activateGuestPlan = (
   return persisted;
 };
 
-export const getGuestWorkout = (workoutId: string) => (
-  getGuestDashboard().workouts.find((workout: any) => workout.id === workoutId) || null
-);
+export const getGuestWorkout = (workoutId: string) => {
+  const dashboard = getGuestDashboard();
+  const matches = dashboard.workouts.filter((workout: any) => workout.id === workoutId);
+  if (matches.length !== 1) return null;
+  const workout = matches[0];
+  const folderId = workout.folder_id || workout.workout_folder_id;
+  if (!folderId || !dashboard.folders.some((folder: any) => folder.id === folderId)) return null;
+  if (!Array.isArray(workout.exercises) || workout.exercises.some((exercise: any) =>
+    exercise.category_id && exercise.category_id !== workoutId)) return null;
+  return workout;
+};
+
+export const saveGuestWorkoutTemp = (workoutId: string, exercises: any[]) => {
+  const workout = getGuestWorkout(workoutId);
+  if (!workout) throw new Error('Ficha local não encontrada para salvar a sessão temporária.');
+  localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify({
+    schemaVersion: GUEST_STORAGE_SCHEMA_VERSION,
+    workoutId,
+    folderId: workout.folder_id || workout.workout_folder_id,
+    exercises,
+  }));
+};
+
+export const readGuestWorkoutTemp = (workoutId: string): any[] | null => {
+  const workout = getGuestWorkout(workoutId);
+  const key = `workout_session_temp_${workoutId}`;
+  const temp = readJson<any>(key);
+  const folderId = workout?.folder_id || workout?.workout_folder_id;
+  const compatible = workout && temp?.schemaVersion === GUEST_STORAGE_SCHEMA_VERSION
+    && temp.workoutId === workoutId
+    && temp.folderId === folderId
+    && Array.isArray(temp.exercises)
+    && temp.exercises.every((exercise: any) => !exercise.category_id || exercise.category_id === workoutId);
+  if (!compatible) {
+    if (temp) localStorage.removeItem(key);
+    return null;
+  }
+  return temp.exercises;
+};
 
 export const updateGuestWorkoutExercises = (workoutId: string, exercises: any[]) => {
   const dashboard = getGuestDashboard();
@@ -301,9 +337,9 @@ export const migrateGuestStorage = (): GuestStorageMigrationResult => {
   return result;
 };
 
-export const consumeGuestStorageMigrationNotice = (): GuestStorageMigrationResult | null => {
+export const consumeGuestStorageMigrationNotice = (remove = true): GuestStorageMigrationResult | null => {
   const notice = readJson<GuestStorageMigrationResult>(GUEST_STORAGE_MIGRATION_NOTICE_KEY);
-  if (notice) localStorage.removeItem(GUEST_STORAGE_MIGRATION_NOTICE_KEY);
+  if (notice && remove) localStorage.removeItem(GUEST_STORAGE_MIGRATION_NOTICE_KEY);
   return notice;
 };
 
