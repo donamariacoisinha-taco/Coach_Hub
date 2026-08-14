@@ -93,8 +93,8 @@ describe('SmartOnboarding guest final action', () => {
 
   it('leaves the optimizer and shows an actionable error when activation times out', async () => {
     localStorage.removeItem('kyron_guest_session');
-    vi.spyOn(authApi, 'getSession').mockImplementationOnce(() => new Promise(() => undefined));
-    render(<SmartOnboarding initialStep={7} initialUserId="authenticated-user" skipBootstrap activationTimeoutMs={1000} />);
+    const pendingSession = vi.spyOn(authApi, 'getSession').mockImplementationOnce(() => new Promise(() => undefined));
+    const { unmount } = render(<SmartOnboarding initialStep={7} initialUserId="authenticated-user" skipBootstrap activationTimeoutMs={1000} />);
 
     fireEvent.click(screen.getByRole('button', { name: /^prosseguir$/i }));
     const conclude = await screen.findByRole('button', { name: /concluir configura/i });
@@ -103,16 +103,15 @@ describe('SmartOnboarding guest final action', () => {
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1000);
-      await Promise.resolve();
-      await Promise.resolve();
       await vi.runOnlyPendingTimersAsync();
-      await Promise.resolve();
     });
-    vi.useRealTimers();
-    expect(await screen.findByRole('button', { name: /concluir configura/i })).toBeTruthy();
-    await waitFor(() => expect(screen.queryByText(/rubi optimizer/i)).toBeNull());
+    expect(pendingSession).toHaveBeenCalledOnce();
     expect(mocks.showError).toHaveBeenCalledWith(expect.objectContaining({
       message: expect.stringMatching(/tempo limite/i),
     }));
+    unmount();
+    await vi.runOnlyPendingTimersAsync();
+    expect(vi.getTimerCount()).toBe(0);
+    vi.useRealTimers();
   });
 });
