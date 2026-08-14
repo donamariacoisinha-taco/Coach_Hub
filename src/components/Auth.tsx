@@ -153,7 +153,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
       </div>
 
       {isForgotPassword ? (
-        <form onSubmit={handleForgotPassword} className="space-y-6">
+        <form onSubmit={handleForgotPassword} autoComplete="on" className="space-y-6">
           {error && (
             <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-500 text-[10px] font-black uppercase text-center tracking-widest animate-in fade-in slide-in-from-top-2">
               {error}
@@ -184,7 +184,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
           </button>
         </form>
       ) : (
-        <form onSubmit={handleAuth} className="space-y-6">
+        <form onSubmit={handleAuth} autoComplete="on" className="space-y-6">
           {error && (
             <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-500 text-[10px] font-black uppercase text-center tracking-widest animate-in fade-in slide-in-from-top-2">
               {error}
@@ -198,6 +198,8 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
               name="email"
               type="email"
               autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-5 bg-white border border-slate-200/60 rounded-2xl focus:border-slate-400 outline-none transition-all text-slate-900 font-bold shadow-xs"

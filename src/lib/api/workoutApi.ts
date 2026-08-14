@@ -3,16 +3,11 @@ import { supabase } from './supabase';
 import { WorkoutCategory, WorkoutExercise, WorkoutFolder, WorkoutHistory, UserProfile, MuscleGroup, Exercise, SetConfig, normalizeMuscleGroup } from '../../types';
 import { fetchWithRetry } from '../utils';
 import { exerciseApi } from './exerciseApi';
+import { getGuestDashboard } from '../guest/guestPersistence';
 
 export const workoutApi = {
   getGuestDashboardData() {
-    return {
-      profile: { id: 'guest-user-id', email: 'guest@kyron.os', name: 'Atleta Convidado', onboarding_completed: true, role: 'user', is_admin: false },
-      folders: [] as WorkoutFolder[],
-      workouts: [] as WorkoutCategory[],
-      history: [] as WorkoutHistory[],
-      stats: { sessions: 0 },
-    };
+    return getGuestDashboard();
   },
   async getDashboardData(userId: string) {
     return fetchWithRetry(async () => {
