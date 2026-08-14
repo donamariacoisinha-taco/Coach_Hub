@@ -19,11 +19,12 @@ interface VictoryScreenProps {
   historyId: string;
   duration: number;
   exercisesCount: number;
+  partial?: boolean;
   onDone?: () => void;
   onReturn?: () => void;
 }
 
-export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duration, exercisesCount, onDone, onReturn }) => {
+export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duration, exercisesCount, partial = false, onDone, onReturn }) => {
   const { navigate } = useNavigation();
   const [totalVolume, setTotalVolume] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -127,7 +128,7 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
         transition={{ delay: 0.2 }}
         className="space-y-4"
       >
-        <h1 className="text-4xl font-black tracking-tighter uppercase">Treino Concluído</h1>
+        <h1 className="text-4xl font-black tracking-tighter uppercase">{partial ? 'Sessão parcial' : 'Treino Concluído'}</h1>
         <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">{feedback || "Sessão registrada com sucesso"}</p>
       </motion.div>
 

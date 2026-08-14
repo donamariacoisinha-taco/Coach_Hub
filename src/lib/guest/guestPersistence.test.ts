@@ -138,6 +138,23 @@ describe('guest lifecycle persistence', () => {
     expect(getOrCreateGuestWorkoutSession(second.id)).toEqual(secondSession);
   });
 
+  it('persists only supplied completed sets and marks a confirmed partial session', () => {
+    const dashboard = saveGuestPlan({ workouts: [{
+      name: 'Ficha parcial',
+      exercises: [{ exercise_name: 'Supino', sets: 3 }, { exercise_name: 'Remada', sets: 3 }],
+    }] }, {});
+    const workoutId = dashboard.workouts[0].id;
+    finishGuestWorkout(workoutId, {
+      duration_seconds: 45,
+      partial: true,
+      performance: { 0: [{ weight: 20, reps: 10, rpe: 8 }] },
+    });
+    const history = getGuestDashboard().history[0];
+    expect(history).toMatchObject({ workout_id: workoutId, partial: true });
+    expect(history.workout_sets_logs).toHaveLength(1);
+    expect(history.workout_sets_logs[0]).toMatchObject({ exercise_name: 'Supino', set_number: 1 });
+  });
+
   it('invalidates a legacy continuity state that belongs to another workout', () => {
     const dashboard = saveGuestPlan({ workouts: [{
       name: 'Ficha segura',

@@ -233,7 +233,6 @@ const SetCard = ({
                 <p className={`text-[8px] font-black tracking-widest mt-0.5 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
                   {isBeginner ? 'Peso' : 'Kg'}
                 </p>
-                
                 {/* DELTA WEIGHT */}
                 {delta && !isBeginner && (
                   <motion.p 
@@ -766,6 +765,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [isSavedSuccessfully, setIsSavedSuccessfully] = useState(false);
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [finalDurationMinutes, setFinalDurationMinutes] = useState<number | null>(null);
+  const [finalWasPartial, setFinalWasPartial] = useState(false);
   const [showExercisesList, setShowExercisesList] = useState(false);
   
   // Adaptive Protocol Management States
@@ -2055,11 +2055,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       const required = exercise.sets_json?.length || exercise.sets || 0;
       return (completedMap[index]?.size || 0) < required;
     }).length;
+    const details = exercises.map((exercise, index) => {
+      const required = exercise.sets_json?.length || exercise.sets || 0;
+      const completed = completedMap[index]?.size || 0;
+      return {
+        name: exercise.exercise_name_snapshot || exercise.exercise_name || `Exercício ${index + 1}`,
+        remainingSets: Math.max(0, required - completed),
+      };
+    }).filter(item => item.remainingSets > 0);
     return {
       requiredSets,
       completedSets,
       remainingSets: Math.max(0, requiredSets - completedSets),
       incompleteExercises,
+      details,
       complete: requiredSets > 0 && completedSets >= requiredSets,
     };
   }, [exercises, completedSetsByExercise, currentIndex, completedSetIndices]);
@@ -2808,7 +2817,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
   };
 
-  const finishWorkout = async (isSuccess: boolean, completedNaturally = false) => {
+  const finishWorkout = async (isSuccess: boolean, completedNaturally = false, forcePartial = false) => {
     // Clear temporary workout planning session cache
     localStorage.removeItem(`workout_session_temp_${workoutId}`);
 
@@ -2842,7 +2851,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           finishGuestWorkout(workoutId, {
             duration_seconds: Math.max(0, Math.round((Date.now() - (currentStartTime || Date.now())) / 1000)),
             performance: localPerformance,
+            partial: forcePartial || !incompleteSummary.complete,
           });
+          setFinalWasPartial(forcePartial || !incompleteSummary.complete);
           setWorkoutDuration(finalDuration);
           setFinalDurationMinutes(finalDuration);
           if (sessionDiff.hasChanges) setShowEvolutionModal(true);
@@ -3175,9 +3186,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           historyId={historyId!} 
           duration={finalDurationMinutes ?? Math.max(1, Math.round(workoutDuration / 60))}
           exercisesCount={exercises.length}
+          partial={finalWasPartial}
           onDone={() => { resetWorkout(); navigate('dashboard'); }}
           onReturn={() => setIsFinished(false)}
         />
+      )}
+
+      {!isFinished && !showExitModal && incompleteSummary.completedSets > 0 && !incompleteSummary.complete && (
+        <button
+          type="button"
+          onClick={() => setShowExitModal(true)}
+          className="fixed z-[1200] left-1/2 -translate-x-1/2 bottom-24 px-5 py-3 rounded-2xl bg-white border border-amber-200 text-amber-700 shadow-lg font-black text-[10px] uppercase tracking-widest"
+        >
+          Finalizar sessão parcial
+        </button>
       )}
 
       <ScreenState
@@ -4891,11 +4913,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     ? 'Todas as séries foram concluídas. Deseja salvar e encerrar esta sessão?'
                     : `Sessão parcial: faltam ${incompleteSummary.remainingSets} séries em ${incompleteSummary.incompleteExercises} exercícios. Somente séries concluídas serão salvas.`}
                 </p>
+                {!incompleteSummary.complete && (
+                  <ul className="w-full mb-6 text-left space-y-2 max-h-40 overflow-y-auto" aria-label="Séries pendentes">
+                    {incompleteSummary.details.map((item) => (
+                      <li key={item.name} className="text-xs font-bold text-slate-600 flex justify-between gap-4">
+                        <span>{item.name}</span>
+                        <span className="text-amber-600 whitespace-nowrap">{item.remainingSets} pendente{item.remainingSets === 1 ? '' : 's'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 
                 <div className="w-full space-y-3">
                   <button 
-                    onClick={() => finishWorkout(true)} 
-                    disabled={finishing}
+                    onClick={() => finishWorkout(true, false, !incompleteSummary.complete)}
+                    disabled={finishing || incompleteSummary.completedSets === 0}
                     className="w-full py-4 bg-[#7BA7FF] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-[#7BA7FF]/25 active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
                     {finishing
