@@ -102,11 +102,15 @@ describe('SmartOnboarding guest final action', () => {
     fireEvent.click(conclude);
 
     await act(async () => {
-      await Promise.resolve();
       await vi.advanceTimersByTimeAsync(1000);
+      await Promise.resolve();
+      await Promise.resolve();
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
     });
-    expect(screen.queryByText(/rubi optimizer/i)).toBeNull();
-    expect(screen.getByRole('button', { name: /concluir configura/i })).toBeTruthy();
+    vi.useRealTimers();
+    expect(await screen.findByRole('button', { name: /concluir configura/i })).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText(/rubi optimizer/i)).toBeNull());
     expect(mocks.showError).toHaveBeenCalledWith(expect.objectContaining({
       message: expect.stringMatching(/tempo limite/i),
     }));

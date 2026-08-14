@@ -3,6 +3,9 @@ import { UserProfile } from '../../types';
 
 export const GUEST_PROFILE_KEY = 'kyron_guest_profile_v1';
 export const GUEST_DASHBOARD_KEY = 'kyron_guest_dashboard_v1';
+export const GUEST_STORAGE_SCHEMA_VERSION = 2;
+export const GUEST_STORAGE_VERSION_KEY = 'kyron_guest_storage_schema_version';
+const GUEST_STORAGE_MIGRATION_NOTICE_KEY = 'kyron_guest_storage_migration_notice_v2';
 
 export type GuestDashboard = {
   profile: UserProfile & Record<string, any>;
@@ -234,6 +237,74 @@ export const clearLegacyGuestWorkoutState = (workoutId: string) => {
     if (key && key.startsWith('rubi_partial_session_') && key !== `rubi_partial_session_${workoutId}`) remove(key);
   }
   return removed;
+};
+
+export type GuestStorageMigrationResult = {
+  applied: boolean;
+  fromVersion: number;
+  toVersion: number;
+  removedKeys: string[];
+  reason: string;
+};
+
+export const migrateGuestStorage = (): GuestStorageMigrationResult => {
+  const fromVersion = Number(localStorage.getItem(GUEST_STORAGE_VERSION_KEY) || 0);
+  if (fromVersion >= GUEST_STORAGE_SCHEMA_VERSION) {
+    return {
+      applied: false,
+      fromVersion,
+      toVersion: GUEST_STORAGE_SCHEMA_VERSION,
+      removedKeys: [],
+      reason: 'schema-current',
+    };
+  }
+
+  const removedKeys: string[] = [];
+  const transientExact = new Set([
+    'workout-storage',
+    'workout_rest_start',
+    'workout_rest_time_left',
+    'last_valid_workout',
+    'workout_session',
+    'currentExercise',
+    'current_exercise',
+    'workout_current_exercise',
+  ]);
+  const transientPrefixes = [
+    'workout_continuity_state_',
+    'guest_workout_session_',
+    'workout_rest_start_',
+    'workout_rest_time_left_',
+    'workout_session_temp_',
+    'rubi_partial_session_',
+    'workout_partial_session_',
+    'currentExercise_',
+  ];
+  for (let index = localStorage.length - 1; index >= 0; index--) {
+    const key = localStorage.key(index);
+    if (!key) continue;
+    if (transientExact.has(key) || transientPrefixes.some(prefix => key.startsWith(prefix))) {
+      localStorage.removeItem(key);
+      removedKeys.push(key);
+    }
+  }
+
+  const result: GuestStorageMigrationResult = {
+    applied: true,
+    fromVersion,
+    toVersion: GUEST_STORAGE_SCHEMA_VERSION,
+    removedKeys: removedKeys.sort(),
+    reason: 'legacy-transient-state-incompatible',
+  };
+  localStorage.setItem(GUEST_STORAGE_VERSION_KEY, String(GUEST_STORAGE_SCHEMA_VERSION));
+  localStorage.setItem(GUEST_STORAGE_MIGRATION_NOTICE_KEY, JSON.stringify(result));
+  return result;
+};
+
+export const consumeGuestStorageMigrationNotice = (): GuestStorageMigrationResult | null => {
+  const notice = readJson<GuestStorageMigrationResult>(GUEST_STORAGE_MIGRATION_NOTICE_KEY);
+  if (notice) localStorage.removeItem(GUEST_STORAGE_MIGRATION_NOTICE_KEY);
+  return notice;
 };
 
 export const finishGuestWorkout = (workoutId: string, result: Record<string, any>) => {

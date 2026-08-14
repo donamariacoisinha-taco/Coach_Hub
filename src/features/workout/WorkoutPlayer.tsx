@@ -58,7 +58,7 @@ import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 import { fetchWithRetry } from "../../lib/utils";
 import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../services/athleteMemoryEngine";
-import { clearLegacyGuestWorkoutState, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
+import { consumeGuestStorageMigrationNotice, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, migrateGuestStorage, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
 
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -549,6 +549,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { openExercisePreview } = useExercisePreview();
   const { showError, showSuccess } = useErrorHandler();
   const [user, setUser] = useState<any>(null);
+  const migrationResultRef = useRef<ReturnType<typeof migrateGuestStorage> | null>(null);
+  if (isGuestWorkout && migrationResultRef.current === null) {
+    migrationResultRef.current = migrateGuestStorage();
+  }
 
   useEffect(() => {
     if (isGuestWorkout) {
@@ -561,12 +565,19 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       'set-navigation-hotfix-v2'
     );
   }, [isGuestWorkout]);
+
+  useEffect(() => {
+    if (!isGuestWorkout) return;
+    const notice = consumeGuestStorageMigrationNotice();
+    if (notice?.applied) {
+      showSuccess('Recuperação concluída', 'Estados antigos de treino foram limpos. Suas fichas e histórico foram preservados.');
+    }
+  }, [isGuestWorkout, showSuccess]);
   
   // Global State
   const { isOnline, pendingSyncCount, isSyncing } = useAppStore();
   const isolatedWorkoutRef = useRef<string | null>(null);
   if (isGuestWorkout && isolatedWorkoutRef.current !== workoutId) {
-    clearLegacyGuestWorkoutState(workoutId);
     const persistedWorkout = useWorkoutStore.getState();
     if (persistedWorkout.currentWorkoutId !== workoutId) persistedWorkout.resetWorkout();
     isolatedWorkoutRef.current = workoutId;
