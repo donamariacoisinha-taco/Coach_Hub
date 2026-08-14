@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authApi, GUEST_USER_ID } from '../../lib/api/authApi';
 import { getGuestDashboard } from '../../lib/guest/guestPersistence';
@@ -39,7 +39,24 @@ describe('SmartOnboarding guest final action', () => {
     vi.clearAllMocks();
     await authApi.signInAsGuest();
   });
-  afterEach(() => cleanup());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    cleanup();
+  });
+
+  it('moves from Prosseguir to Concluir Configuração without waiting for remote guest data', async () => {
+    mocks.getExercises.mockImplementationOnce(() => new Promise(() => undefined));
+    render(<SmartOnboarding initialStep={7} initialUserId={GUEST_USER_ID} />);
+
+    const proceed = await screen.findByRole('button', { name: /^prosseguir$/i });
+    fireEvent.click(proceed);
+
+    expect(await screen.findByRole('button', { name: /concluir configura/i })).toBeTruthy();
+    expect(screen.queryByText(/rubi optimizer/i)).toBeNull();
+    expect(mocks.getExercises).not.toHaveBeenCalled();
+    expect(mocks.isAdmin).not.toHaveBeenCalled();
+  });
 
   it('uses the real buttons to persist a complete plan and navigate without an error toast', async () => {
     render(<SmartOnboarding initialStep={7} initialUserId={GUEST_USER_ID} skipBootstrap />);
@@ -63,8 +80,29 @@ describe('SmartOnboarding guest final action', () => {
   it('does not request system templates or admin status while bootstrapping a guest', async () => {
     render(<SmartOnboarding initialStep={0} initialUserId={GUEST_USER_ID} />);
     await screen.findByText(/kyron onboarding/i);
-    await waitFor(() => expect(mocks.getExercises).toHaveBeenCalled());
+    expect(mocks.getExercises).not.toHaveBeenCalled();
     expect(mocks.getTemplates).not.toHaveBeenCalled();
     expect(mocks.isAdmin).not.toHaveBeenCalled();
+  });
+
+  it('leaves the optimizer and shows an actionable error when activation times out', async () => {
+    localStorage.removeItem('kyron_guest_session');
+    vi.spyOn(authApi, 'getSession').mockImplementationOnce(() => new Promise(() => undefined));
+    render(<SmartOnboarding initialStep={7} initialUserId="authenticated-user" skipBootstrap activationTimeoutMs={1000} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^prosseguir$/i }));
+    const conclude = await screen.findByRole('button', { name: /concluir configura/i });
+    vi.useFakeTimers();
+    fireEvent.click(conclude);
+
+    await act(async () => {
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(screen.queryByText(/rubi optimizer/i)).toBeNull();
+    expect(screen.getByRole('button', { name: /concluir configura/i })).toBeTruthy();
+    expect(mocks.showError).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.stringMatching(/tempo limite/i),
+    }));
   });
 });
