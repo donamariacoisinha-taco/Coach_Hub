@@ -42,16 +42,19 @@ describe('SmartOnboarding guest final action', () => {
   afterEach(() => cleanup());
 
   it('uses the real buttons to persist a complete plan and navigate without an error toast', async () => {
-    render(<SmartOnboarding initialStep={8} initialUserId={GUEST_USER_ID} skipBootstrap />);
+    render(<SmartOnboarding initialStep={7} initialUserId={GUEST_USER_ID} skipBootstrap />);
 
+    fireEvent.click(await screen.findByRole('button', { name: /^prosseguir$/i }));
     fireEvent.click(await screen.findByRole('button', { name: /concluir configura/i }));
-    const dashboardButton = await screen.findByRole('button', { name: /ir para o dashboard/i });
+    expect(await screen.findByText(/configuração concluída/i)).toBeTruthy();
 
     const persistedBeforeNavigation = getGuestDashboard();
+    expect(persistedBeforeNavigation.profile.active_plan_id).toBe(persistedBeforeNavigation.folders[0].id);
     expect(persistedBeforeNavigation.folders).toHaveLength(1);
     expect(persistedBeforeNavigation.workouts.length).toBeGreaterThan(0);
     expect(persistedBeforeNavigation.workouts.every((workout: any) => workout.exercises?.length > 0)).toBe(true);
 
+    const dashboardButton = await screen.findByRole('button', { name: /ir para o dashboard/i });
     fireEvent.click(dashboardButton);
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('dashboard'));
     expect(mocks.showError).not.toHaveBeenCalled();
