@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ChevronRight, 
@@ -77,6 +77,8 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [savingStep, setSavingStep] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [activationStatus, setActivationStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const activationStartedRef = useRef(false);
 
   // Recommendations calculated state
   const [calculatedMatches, setCalculatedMatches] = useState<any[]>([]);
@@ -215,8 +217,11 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
 
   // Compute recommendation results once Step 10 finishes
   const computeAndShowRecommendations = async () => {
+    if (activationStartedRef.current) return;
+    activationStartedRef.current = true;
     setStep(9);
     setIsFinishing(true);
+    setActivationStatus('pending');
 
     let selectedMatch: any = null;
     let fallback = false;
@@ -291,10 +296,22 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
 
     // Direct auto-deploy of the best matched protocol or generated dynamic draft!
     try {
-      await handleDeployProtocolSelection(selectedMatch, fallback, generatedDraft);
+      const activated = await handleDeployProtocolSelection(selectedMatch, fallback, generatedDraft);
+      if (!activated) {
+        activationStartedRef.current = false;
+        setActivationStatus('error');
+        setStep(8);
+        return;
+      }
+      setActivationStatus('success');
     } catch (err: any) {
       console.error('[Onboarding] Error on auto deployment:', err);
-      showError(err.message || 'Falha ao ativar protocolo de treinamento.');
+      const activationError = err instanceof Error ? err : new Error(String(err || 'Falha ao ativar protocolo de treinamento.'));
+      console.error('[Onboarding] Activation exception details:', activationError.message, activationError.stack);
+      await showError(activationError);
+      activationStartedRef.current = false;
+      setActivationStatus('error');
+      setStep(8);
       setIsFinishing(false);
     }
   };
@@ -307,7 +324,7 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
       const missingUserError = new Error('Sessão autenticada sem identificador de usuário no onboarding.');
       console.error('[Onboarding] Missing user before protocol deployment:', missingUserError);
       await showError(missingUserError);
-      return;
+      return false;
     }
     setIsFinishing(true);
 
@@ -332,7 +349,7 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
         setFirstWorkoutId(dashboard.workouts[0].id);
         cacheStore.clear();
         showSuccess('Plano criado!', 'Seu plano foi salvo localmente neste aparelho.');
-        return;
+        return true;
       }
 
       console.log('[Onboarding] PROTOCOL_CREATED', {
@@ -542,6 +559,7 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
       localStorage.removeItem(`rubi_dashboard_cache_${userId}`); // Clear local storage dashboard backup cache
 
       showSuccess('KYRON OS Ativado!', 'Seu protocolo adaptativo está pronto para iniciar.');
+      return true;
     } catch (err: any) {
       if (guestMode) {
         console.error('[Onboarding] Local guest plan activation failed:', err);
@@ -550,7 +568,7 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
           : new Error(String(err || 'Não foi possível salvar o plano local neste aparelho.'));
         console.error('[Onboarding] Local guest failure details:', localError.message, localError.stack);
         await showError(localError);
-        return;
+        return false;
       }
       console.warn('[Onboarding] Error during protocol setup, launching Failsafe...', err);
       // FAILSAFE SEVERO: Garantir que o usuário NUNCA saia sem treino ativo
@@ -622,8 +640,14 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
         localStorage.removeItem(`rubi_dashboard_cache_${userId}`);
 
         showSuccess('KYRON OS Ativado!', 'Plano de emergência configurado para garantir seu treino.');
+        return true;
       } catch (fError) {
         console.error('[Severe Failsafe error]', fError);
+        const failsafeError = fError instanceof Error
+          ? fError
+          : new Error(String(fError || 'Falha ao criar o plano de emergência.'));
+        await showError(failsafeError);
+        return false;
       }
     } finally {
       setIsFinishing(false);
@@ -1765,7 +1789,7 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
 
       case 9:
         // Loading state of computing matches / builder fallbacks
-        if (isFinishing || loadingInitial) {
+        if (isFinishing || loadingInitial || activationStatus !== 'success') {
           return (
             <div className="flex flex-col items-center justify-center text-center space-y-6 py-12">
               <div className="relative w-16 h-16">
