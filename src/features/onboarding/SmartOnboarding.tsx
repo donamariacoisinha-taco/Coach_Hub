@@ -180,6 +180,16 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
     bootstrap();
   }, [skipBootstrap]);
 
+  // Step 9 is reserved for an activation already in progress. Recover instead
+  // of showing an endless optimizer if an old/double navigation reaches it.
+  useEffect(() => {
+    if (step === 9 && activationStatus === 'idle') {
+      console.warn('[SmartOnboarding] Final step reached without activation; returning to configuration.');
+      setIsFinishing(false);
+      setStep(8);
+    }
+  }, [step, activationStatus]);
+
   // 2. High-performance helper to persist immediately to DB & local state
   const saveProgressValue = async (updatedFields: Partial<UserProfile>) => {
     // 1. Sync React State immediately
@@ -215,7 +225,7 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
   };
 
   // Navigations Actions
-  const handleNext = () => setStep(prev => prev + 1);
+  const handleNext = () => setStep(prev => Math.min(8, prev + 1));
   const handleBack = () => setStep(prev => Math.max(0, prev - 1));
 
   // Compute recommendation results once Step 10 finishes
@@ -1620,7 +1630,6 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
                 type="button"
                 onClick={() => {
                   saveProgressValue({ restrictions: ['Nenhuma'] });
-                  setTimeout(handleNext, 200);
                 }}
                 className={`col-span-2 p-3 rounded-xl border text-center font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   isNone 
