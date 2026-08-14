@@ -7,6 +7,11 @@ import {
   getWorkoutSetCount,
   normalizeWorkoutPosition,
 } from '../../domain/workout/workoutReliability';
+import { migrateGuestStorage } from '../../lib/guest/guestPersistence';
+
+if (typeof localStorage !== 'undefined' && localStorage.getItem('kyron_guest_session')) {
+  migrateGuestStorage();
+}
 
 interface WorkoutState {
   currentWorkoutId: string | null;

@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { shouldConfirmPartialBeforeTerminalSet } from '../../domain/workout/workoutReliability';
 import {
   GUEST_DASHBOARD_KEY,
+  GUEST_STORAGE_SCHEMA_VERSION,
+  GUEST_STORAGE_VERSION_KEY,
   finishGuestWorkout,
   clearLegacyGuestWorkoutState,
   getGuestDashboard,
   getGuestProfile,
   getGuestWorkout,
   getOrCreateGuestWorkoutSession,
+  migrateGuestStorage,
   saveGuestPlan,
   saveGuestProfile,
   updateGuestWorkoutExercises,
@@ -168,5 +172,57 @@ describe('guest lifecycle persistence', () => {
       'rubi_partial_session_guest-workout-a',
     ]));
     expect(localStorage.getItem('workout-storage')).toBeNull();
+  });
+
+  it('migrates A/B/C legacy sessions once while preserving durable plans, order, profile and history', () => {
+    saveGuestProfile({ name: 'Maria preservada' });
+    const dashboard = saveGuestPlan({ name: 'Plano ABC', workouts: [
+      { name: 'Ficha A', exercises: [{ exercise_name: 'Supino A', weight: 0 }, { exercise_name: 'Remada A', weight: 0 }] },
+      { name: 'Ficha B', exercises: [{ exercise_name: 'Agachamento B', weight: 0 }] },
+      { name: 'Ficha C', exercises: [{ exercise_name: 'Elevação C', weight: 0 }] },
+    ] }, { name: 'Maria preservada' });
+    finishGuestWorkout(dashboard.workouts[0].id, {
+      duration_seconds: 60,
+      performance: { 0: [{ weight: 20, reps: 12, rpe: 8 }] },
+    });
+    const durableBefore = getGuestDashboard();
+    const legacy = JSON.stringify({ currentIndex: 5, exerciseIds: ['prancha'], weight: 240 });
+    ['A', 'B', 'C'].forEach(label => {
+      localStorage.setItem(`workout_continuity_state_guest-history-${label}`, legacy);
+      localStorage.setItem(`guest_workout_session_guest-workout-${label}`, legacy);
+      localStorage.setItem(`workout_session_temp_guest-workout-${label}`, legacy);
+      localStorage.setItem(`workout_rest_start_guest-workout-${label}`, '1');
+      localStorage.setItem(`workout_rest_time_left_guest-workout-${label}`, '60');
+      localStorage.setItem(`rubi_partial_session_guest-workout-${label}`, legacy);
+    });
+    localStorage.setItem('workout-storage', legacy);
+    localStorage.setItem('currentExercise', legacy);
+
+    const first = migrateGuestStorage();
+    expect(first.applied).toBe(true);
+    expect(localStorage.getItem(GUEST_STORAGE_VERSION_KEY)).toBe(String(GUEST_STORAGE_SCHEMA_VERSION));
+    expect(first.removedKeys.length).toBeGreaterThan(10);
+    expect(getGuestProfile().name).toBe('Maria preservada');
+    expect(getGuestDashboard().history).toEqual(durableBefore.history);
+    expect(getGuestDashboard().workouts.map((workout: any) => workout.name)).toEqual(['Ficha A', 'Ficha B', 'Ficha C']);
+    expect(getGuestDashboard().workouts.map((workout: any) => ({
+      first: workout.exercises[0].exercise_name_snapshot,
+      weight: workout.exercises[0].weight,
+    }))).toEqual([
+      { first: 'Supino A', weight: 0 },
+      { first: 'Agachamento B', weight: 0 },
+      { first: 'Elevação C', weight: 0 },
+    ]);
+
+    const durableAfterFirstRun = JSON.stringify(getGuestDashboard());
+    const second = migrateGuestStorage();
+    expect(second).toMatchObject({ applied: false, reason: 'schema-current' });
+    expect(JSON.stringify(getGuestDashboard())).toBe(durableAfterFirstRun);
+    expect(shouldConfirmPartialBeforeTerminalSet({
+      requiredSetCounts: [3, 3],
+      completedSetsByExercise: { 0: new Set(), 1: new Set([0, 1]) },
+      currentIndex: 1,
+      currentSetIndex: 2,
+    })).toBe(true);
   });
 });
