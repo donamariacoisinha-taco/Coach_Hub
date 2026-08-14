@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   GUEST_DASHBOARD_KEY,
+  finishGuestWorkout,
   getGuestDashboard,
   getGuestProfile,
+  getGuestWorkout,
+  getOrCreateGuestWorkoutSession,
   saveGuestPlan,
   saveGuestProfile,
+  updateGuestWorkoutExercises,
 } from './guestPersistence';
 
 const createStorage = () => {
@@ -52,5 +56,43 @@ describe('guest lifecycle persistence', () => {
 
   it('treats a new guest without a plan as an empty state, not an error', () => {
     expect(getGuestDashboard()).toMatchObject({ workouts: [], folders: [], stats: { sessions: 0 } });
+  });
+
+  it('supports preparation, reload, keep/discard and local workout history', () => {
+    const dashboard = saveGuestPlan({
+      name: 'Plano player',
+      workouts: [{
+        name: 'Treino local',
+        exercises: [
+          { exercise_name: 'Supino', weight: 10, reps: '10' },
+          { exercise_name: 'Remada', weight: 12, reps: '12' },
+        ],
+      }],
+    }, {});
+    const workoutId = dashboard.workouts[0].id;
+    const base = getGuestWorkout(workoutId);
+    const reordered = [base.exercises[1], base.exercises[0]];
+    updateGuestWorkoutExercises(workoutId, reordered);
+    expect(getGuestWorkout(workoutId).exercises.map((exercise: any) => exercise.exercise_name_snapshot))
+      .toEqual(['Remada', 'Supino']);
+
+    const session = getOrCreateGuestWorkoutSession(workoutId);
+    localStorage.setItem(`workout_continuity_state_${session.historyId}`, JSON.stringify({
+      currentIndex: 1,
+      currentSet: 2,
+      workoutPerformance: { 1: [{ weight: 20, reps: 8, rpe: 9, rest_time: 75 }] },
+    }));
+    expect(getOrCreateGuestWorkoutSession(workoutId)).toEqual(session);
+
+    const discardedDraft = reordered.map((exercise: any) => ({ ...exercise, weight: 99 }));
+    localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(discardedDraft));
+    localStorage.removeItem(`workout_session_temp_${workoutId}`);
+    expect(getGuestWorkout(workoutId).exercises[0].weight).toBe(12);
+
+    updateGuestWorkoutExercises(workoutId, discardedDraft);
+    expect(getGuestWorkout(workoutId).exercises[0].weight).toBe(99);
+    finishGuestWorkout(workoutId, { duration_minutes: 30, performance: { 0: [{ weight: 99, reps: 8, rpe: 9 }] } });
+    expect(getGuestDashboard()).toMatchObject({ stats: { sessions: 1 } });
+    expect(getGuestDashboard().history).toHaveLength(1);
   });
 });
