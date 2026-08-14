@@ -1479,6 +1479,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         if (localState.activeSetsData) {
           setActiveSetsData(localState.activeSetsData);
         }
+        if (localState.isResting) {
+          const elapsed = localState.restSavedAt
+            ? Math.floor((Date.now() - Number(localState.restSavedAt)) / 1000)
+            : 0;
+          setTimeLeft(Math.max(0, Number(localState.timeLeft || 0) - elapsed));
+          setPendingSetToComplete(localState.pendingSetToComplete ?? null);
+          setIsResting(true);
+        }
       }
 
       setWorkoutPerformance(reconciledPerf);
@@ -1506,6 +1514,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         activeSetsData,
         workoutPerformance,
         completedSetIndices: Array.from(completedSetIndices),
+        isResting,
+        timeLeft,
+        restSavedAt: Date.now(),
+        pendingSetToComplete,
         completedSetsByExercise: Object.fromEntries(
           Object.entries(completedSetsByExercise).map(([exIdx, setObj]) => [exIdx, Array.from(setObj as Set<number>)])
         )
@@ -1514,7 +1526,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     } catch (e) {
       console.warn("Continuity save failed", e);
     }
-  }, [currentIndex, currentSet, activeSetsData, workoutPerformance, completedSetIndices, completedSetsByExercise, historyId, isHydrating, isSessionReady]);
+  }, [currentIndex, currentSet, activeSetsData, workoutPerformance, completedSetIndices, completedSetsByExercise, historyId, isHydrating, isSessionReady, isResting, timeLeft, pendingSetToComplete]);
 
   useEffect(() => {
     async function checkRecovery() {
@@ -1620,8 +1632,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       if (document.hidden) {
         // Save current timestamp if resting
         if (isResting) {
-          localStorage.setItem('workout_rest_start', Date.now().toString());
-          localStorage.setItem('workout_rest_time_left', timeLeft.toString());
+          localStorage.setItem(`workout_rest_start_${workoutId}`, Date.now().toString());
+          localStorage.setItem(`workout_rest_time_left_${workoutId}`, timeLeft.toString());
         }
         // Save overall progress
         if (!isGuestWorkout && user && workoutId && historyId) {
@@ -1634,8 +1646,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         }
       } else {
         // Returned to app
-        const restStart = localStorage.getItem('workout_rest_start');
-        const restTimeLeft = localStorage.getItem('workout_rest_time_left');
+        const restStart = localStorage.getItem(`workout_rest_start_${workoutId}`);
+        const restTimeLeft = localStorage.getItem(`workout_rest_time_left_${workoutId}`);
         
         if (isResting && restStart && restTimeLeft) {
           const elapsed = Math.floor((Date.now() - parseInt(restStart)) / 1000);
@@ -1643,8 +1655,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           setTimeLeft(newTimeLeft);
         }
         
-        localStorage.removeItem('workout_rest_start');
-        localStorage.removeItem('workout_rest_time_left');
+        localStorage.removeItem(`workout_rest_start_${workoutId}`);
+        localStorage.removeItem(`workout_rest_time_left_${workoutId}`);
       }
     };
 
@@ -1896,7 +1908,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const sessionDiff = useMemo(() => {
     if (!originalExercises || originalExercises.length === 0 || !exercises || exercises.length === 0) {
-      return { hasChanges: false, diffs: [] as string[] };
+      return { hasChanges: false, isConsistent: true, diffs: [] as string[] };
     }
 
     const diffsList: string[] = [];
@@ -1937,6 +1949,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
 
     const activeIdsSet = new Set(exercises.map(ex => ex.id).filter(Boolean));
+    const sharedIdsCount = originalExercises.filter(ex => ex.id && activeIdsSet.has(ex.id)).length;
+    const isConsistent = sharedIdsCount > 0 || originalExercises.length === 0;
     const removedCount = originalExercises.filter(ex => ex.id && !activeIdsSet.has(ex.id)).length;
     if (removedCount > 0) {
       diffsList.push(`${removedCount} exercícios removidos da ficha`);
@@ -1992,6 +2006,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
     return {
       hasChanges: changed,
+      isConsistent,
       diffs: diffsList
     };
   }, [originalExercises, exercises]);
@@ -2182,7 +2197,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         setCompletedSetIndices(new Set()); 
       } else {
         log("[ADVANCE_WORKOUT] Workout Finished");
-        finishWorkout(true);
+        finishWorkout(true, true);
       }
     } else {
       log("[ADVANCE_WORKOUT] Next Set");
@@ -2299,12 +2314,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         img.src = imgSrc;
       }
       // 2. Preload data
-      if (nextEx.exercise_id) {
+      if (!isGuestWorkout && nextEx.exercise_id) {
         workoutApi.getLastSet(nextEx.exercise_id).catch(() => {});
         workoutApi.getHistoricalSets(nextEx.exercise_id, historyId || undefined).catch(() => {});
       }
     }
-  }, [currentIndex, exercises, historyId]);
+  }, [currentIndex, exercises, historyId, isGuestWorkout]);
 
   // 2. Initialize Sets Data Effect - Only run on major context changes (exercise, index, hydration)
   const lastInitializedIdx = useRef<number | null>(null);
@@ -2540,6 +2555,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     completingSetRef.current = true;
     
     const setIdx = currentSet - 1;
+    if (completedSetIndices.has(setIdx)) {
+      showError(new Error('Esta série já foi concluída. Avance ou reverta a série para editá-la.'));
+      completingSetRef.current = false;
+      return;
+    }
     const currentSetData = activeSetsData[setIdx];
     if (!currentSetData) {
       completingSetRef.current = false;
@@ -2735,7 +2755,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
   };
 
-  const finishWorkout = async (isSuccess: boolean) => {
+  const finishWorkout = async (isSuccess: boolean, completedNaturally = false) => {
     // Clear temporary workout planning session cache
     localStorage.removeItem(`workout_session_temp_${workoutId}`);
 
@@ -2753,9 +2773,22 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       if (isGuestWorkout) {
         const finalDuration = Math.round((Date.now() - (currentStartTime || Date.now())) / 60000);
         if (isSuccess) {
+          const completionMap = { ...completedSetsByExercise, [currentIndex]: completedSetIndices };
+          const localPerformance = Object.fromEntries(Object.entries({
+            ...workoutPerformance,
+            [currentIndex]: activeSetsData,
+          }).map(([exerciseIndex, sets]: [string, any]) => {
+            const completed = completionMap[Number(exerciseIndex)] || new Set<number>();
+            return [exerciseIndex, completedNaturally && Number(exerciseIndex) === currentIndex
+              ? sets
+              : (sets || []).filter((_: any, setIndex: number) => completed.has(setIndex))];
+          }).filter(([, sets]: [string, any]) => sets.length > 0));
+          if (Object.keys(localPerformance).length === 0) {
+            throw new Error('Conclua ao menos uma série antes de salvar esta sessão.');
+          }
           finishGuestWorkout(workoutId, {
-            duration_minutes: finalDuration,
-            performance: { ...workoutPerformance, [currentIndex]: activeSetsData },
+            duration_seconds: Math.max(0, Math.round((Date.now() - (currentStartTime || Date.now())) / 1000)),
+            performance: localPerformance,
           });
           setWorkoutDuration(finalDuration);
           if (sessionDiff.hasChanges) setShowEvolutionModal(true);
@@ -2766,9 +2799,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           }
         } else {
           localStorage.removeItem(`workout_continuity_state_${currentHistoryId}`);
+          localStorage.removeItem(`guest_workout_session_${workoutId}`);
           resetWorkout();
           navigate('dashboard');
         }
+        localStorage.removeItem(`workout_continuity_state_${currentHistoryId}`);
+        localStorage.removeItem(`workout_rest_start_${workoutId}`);
+        localStorage.removeItem(`workout_rest_time_left_${workoutId}`);
         return;
       }
       const u = await authApi.getUser();
@@ -2865,6 +2902,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const handleApplyTemplateEvolution = async () => {
     setSaving(true);
     try {
+      if (!sessionDiff.isConsistent) {
+        throw new Error('As alterações não correspondem à ficha completa. Reabra o treino antes de atualizar o plano.');
+      }
       if (isGuestWorkout) {
         updateGuestWorkoutExercises(workoutId, exercises);
         localStorage.removeItem(`workout_session_temp_${workoutId}`);

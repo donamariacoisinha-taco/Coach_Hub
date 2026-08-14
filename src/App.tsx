@@ -133,6 +133,7 @@ const App: React.FC = () => {
   // Initial Prefetching
   useEffect(() => {
     const initPrefetch = async () => {
+      if (localStorage.getItem('kyron_guest_session')) return;
       // 1. Prefetch most used exercises images
       try {
         const exercises = await exerciseApi.getExercises();

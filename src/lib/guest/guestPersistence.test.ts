@@ -95,4 +95,32 @@ describe('guest lifecycle persistence', () => {
     expect(getGuestDashboard()).toMatchObject({ stats: { sessions: 1 } });
     expect(getGuestDashboard().history).toHaveLength(1);
   });
+
+  it('isolates sequential workout sessions and normalizes seconds, volume and completion fields', () => {
+    const dashboard = saveGuestPlan({ workouts: [
+      { name: 'Ficha A', exercises: [{ exercise_name: 'Supino', weight: 20, reps: '12' }] },
+      { name: 'Ficha B', exercises: [{ exercise_name: 'Prancha', weight: 0, reps: '30' }] },
+    ] }, {});
+    const [first, second] = dashboard.workouts;
+    const firstSession = getOrCreateGuestWorkoutSession(first.id);
+    const secondSession = getOrCreateGuestWorkoutSession(second.id);
+    expect(firstSession.historyId).not.toBe(secondSession.historyId);
+    expect(getGuestWorkout(first.id).exercises[0].exercise_name_snapshot).toBe('Supino');
+    expect(getGuestWorkout(second.id).exercises[0].exercise_name_snapshot).toBe('Prancha');
+
+    finishGuestWorkout(first.id, {
+      duration_seconds: 84,
+      performance: { 0: [{ weight: 20, reps: 12, rpe: 8, rest_time: 60 }] },
+    });
+    const completed = getGuestDashboard().history[0];
+    expect(completed).toMatchObject({
+      category_id: first.id,
+      workout_id: first.id,
+      duration_minutes: 1,
+      total_volume: 240,
+    });
+    expect(completed.workout_sets_logs[0]).toMatchObject({ weight_achieved: 20, reps_achieved: 12 });
+    expect(localStorage.getItem(`guest_workout_session_${first.id}`)).toBeNull();
+    expect(getOrCreateGuestWorkoutSession(second.id)).toEqual(secondSession);
+  });
 });

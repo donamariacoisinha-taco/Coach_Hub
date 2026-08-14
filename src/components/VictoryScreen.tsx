@@ -13,6 +13,7 @@ import { getNextGoal } from "../domain/goalEngine";
 import { exerciseApi } from "../lib/api/exerciseApi";
 import { calculatePR } from "../domain/progression/progressionEngine";
 import { getProgressInsights } from "../domain/progression/progressInsights";
+import { getGuestDashboard } from "../lib/guest/guestPersistence";
 
 interface VictoryScreenProps {
   historyId: string;
@@ -34,6 +35,18 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
   useEffect(() => {
     async function loadStats() {
       try {
+        if (historyId.startsWith('guest-history-')) {
+          const dashboard = getGuestDashboard();
+          const latest = dashboard.history?.[0];
+          const performance = latest?.performance || {};
+          const volume = Object.values(performance).flatMap((sets: any) => sets || [])
+            .reduce((sum: number, set: any) => sum + Number(set.weight || 0) * Number(set.reps || 0), 0);
+          setTotalVolume(volume);
+          setStreak(new Set((dashboard.history || []).map((item: any) =>
+            new Date(item.completed_at).toDateString())).size);
+          setFeedback('Sessão salva localmente');
+          return;
+        }
         const user = await authApi.getUser();
         if (!user) return;
 
@@ -147,7 +160,9 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
           className="p-6 bg-gray-50 rounded-[2rem] text-left"
         >
           <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-2">Volume</p>
-          <p className="text-xl font-black tabular-nums">{(totalVolume / 1000).toFixed(1)}t</p>
+          <p className="text-xl font-black tabular-nums">
+            {totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}t` : `${Math.round(totalVolume)}kg`}
+          </p>
         </motion.div>
       </div>
 
