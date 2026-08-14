@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   GUEST_DASHBOARD_KEY,
   finishGuestWorkout,
+  clearLegacyGuestWorkoutState,
   getGuestDashboard,
   getGuestProfile,
   getGuestWorkout,
@@ -15,7 +16,9 @@ import {
 const createStorage = () => {
   const values = new Map<string, string>();
   return {
+    get length() { return values.size; },
     getItem: (key: string) => values.get(key) ?? null,
+    key: (index: number) => Array.from(values.keys())[index] ?? null,
     setItem: (key: string, value: string) => values.set(key, String(value)),
     removeItem: (key: string) => values.delete(key),
     clear: () => values.clear(),
@@ -144,5 +147,26 @@ describe('guest lifecycle persistence', () => {
     expect(localStorage.getItem(`workout_continuity_state_${session.historyId}`)).toBeNull();
     const fresh = getOrCreateGuestWorkoutSession(workoutId);
     expect(fresh).toMatchObject({ workoutId, currentIndex: 0, currentSet: 1 });
+  });
+
+  it('clears every legacy global workout source before opening another guest workout', () => {
+    const legacyExercise = [{ exercise_id: 'prancha', weight: 240 }];
+    localStorage.setItem('workout-storage', JSON.stringify({ state: {
+      currentWorkoutId: 'guest-workout-a', exercises: legacyExercise, currentIndex: 5,
+    } }));
+    localStorage.setItem('workout_rest_start', '123');
+    localStorage.setItem('workout_rest_time_left', '60');
+    localStorage.setItem('last_valid_workout', JSON.stringify(legacyExercise));
+    localStorage.setItem('workout_session', JSON.stringify(legacyExercise));
+    localStorage.setItem('currentExercise', JSON.stringify(legacyExercise[0]));
+    localStorage.setItem('rubi_partial_session_guest-workout-a', JSON.stringify(legacyExercise));
+
+    const removed = clearLegacyGuestWorkoutState('guest-workout-b');
+    expect(removed).toEqual(expect.arrayContaining([
+      'workout-storage', 'workout_rest_start', 'workout_rest_time_left',
+      'last_valid_workout', 'workout_session', 'currentExercise',
+      'rubi_partial_session_guest-workout-a',
+    ]));
+    expect(localStorage.getItem('workout-storage')).toBeNull();
   });
 });

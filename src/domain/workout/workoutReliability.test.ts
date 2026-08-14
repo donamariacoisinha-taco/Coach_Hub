@@ -7,6 +7,7 @@ import {
   getWorkoutSetCount,
   normalizeWorkoutPosition,
   reconcileWorkoutProgress,
+  shouldConfirmPartialBeforeTerminalSet,
   type RuntimeSetData,
 } from './workoutReliability';
 
@@ -205,5 +206,20 @@ describe('workout reliability engine', () => {
       'FINISH_WORKOUT',
     ]);
     expect(position).toEqual({ currentIndex: 1, currentSet: 3 });
+  });
+
+  it('opens partial confirmation before completing the terminal set when earlier work is missing', () => {
+    expect(shouldConfirmPartialBeforeTerminalSet({
+      requiredSetCounts: [3, 3],
+      completedSetsByExercise: { 0: new Set(), 1: new Set([0, 1]) },
+      currentIndex: 1,
+      currentSetIndex: 2,
+    })).toBe(true);
+    expect(shouldConfirmPartialBeforeTerminalSet({
+      requiredSetCounts: [3, 3],
+      completedSetsByExercise: { 0: new Set([0, 1, 2]), 1: new Set([0, 1]) },
+      currentIndex: 1,
+      currentSetIndex: 2,
+    })).toBe(false);
   });
 });
