@@ -32,6 +32,6 @@ describe('workoutStore guest migration ordering', () => {
     });
     expect(localStorage.getItem('workout_rest_start')).toBeNull();
     expect(localStorage.getItem('currentExercise')).toBeNull();
-    expect(localStorage.getItem('kyron_guest_storage_schema_version')).toBe('3');
+    expect(localStorage.getItem('kyron_guest_storage_schema_version')).toBe('4');
   });
 });
