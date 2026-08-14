@@ -11,6 +11,8 @@ import {
   getGuestWorkout,
   getOrCreateGuestWorkoutSession,
   migrateGuestStorage,
+  readGuestWorkoutTemp,
+  saveGuestWorkoutTemp,
   saveGuestPlan,
   saveGuestProfile,
   updateGuestWorkoutExercises,
@@ -178,9 +180,12 @@ describe('guest lifecycle persistence', () => {
     saveGuestProfile({ name: 'Maria preservada' });
     const dashboard = saveGuestPlan({ name: 'Plano ABC', workouts: [
       { name: 'Ficha A', exercises: [{ exercise_name: 'Supino A', weight: 0 }, { exercise_name: 'Remada A', weight: 0 }] },
-      { name: 'Ficha B', exercises: [{ exercise_name: 'Agachamento B', weight: 0 }] },
-      { name: 'Ficha C', exercises: [{ exercise_name: 'Elevação C', weight: 0 }] },
+      { name: 'Ficha B', exercises: [{ exercise_name: 'Puxada B', weight: 0 }, { exercise_name: 'Rosca B', weight: 0 }] },
+      { name: 'Ficha C', exercises: [{ exercise_name: 'Agachamento C', weight: 0 }, { exercise_name: 'Panturrilha C', weight: 0 }] },
     ] }, { name: 'Maria preservada' });
+    updateGuestWorkoutExercises(dashboard.workouts[0].id, [
+      dashboard.workouts[0].exercises[1], dashboard.workouts[0].exercises[0],
+    ]);
     finishGuestWorkout(dashboard.workouts[0].id, {
       duration_seconds: 60,
       performance: { 0: [{ weight: 20, reps: 12, rpe: 8 }] },
@@ -205,14 +210,24 @@ describe('guest lifecycle persistence', () => {
     expect(getGuestProfile().name).toBe('Maria preservada');
     expect(getGuestDashboard().history).toEqual(durableBefore.history);
     expect(getGuestDashboard().workouts.map((workout: any) => workout.name)).toEqual(['Ficha A', 'Ficha B', 'Ficha C']);
-    expect(getGuestDashboard().workouts.map((workout: any) => ({
-      first: workout.exercises[0].exercise_name_snapshot,
-      weight: workout.exercises[0].weight,
-    }))).toEqual([
-      { first: 'Supino A', weight: 0 },
-      { first: 'Agachamento B', weight: 0 },
-      { first: 'Elevação C', weight: 0 },
+    const [aId, bId, cId] = getGuestDashboard().workouts.map((workout: any) => workout.id);
+    expect([aId, bId, cId].map(id => getGuestWorkout(id).exercises.map((exercise: any) =>
+      exercise.exercise_name_snapshot))).toEqual([
+      ['Remada A', 'Supino A'],
+      ['Puxada B', 'Rosca B'],
+      ['Agachamento C', 'Panturrilha C'],
     ]);
+    expect([aId, bId, cId].map(id => getGuestWorkout(id).exercises[0].weight)).toEqual([0, 0, 0]);
+
+    localStorage.setItem(`workout_session_temp_${bId}`, JSON.stringify({
+      schemaVersion: GUEST_STORAGE_SCHEMA_VERSION,
+      workoutId: cId,
+      folderId: getGuestWorkout(cId).folder_id,
+      exercises: getGuestWorkout(cId).exercises,
+    }));
+    expect(readGuestWorkoutTemp(bId)).toBeNull();
+    saveGuestWorkoutTemp(aId, getGuestWorkout(aId).exercises);
+    expect(readGuestWorkoutTemp(aId)?.[0].exercise_name_snapshot).toBe('Remada A');
 
     const durableAfterFirstRun = JSON.stringify(getGuestDashboard());
     const second = migrateGuestStorage();

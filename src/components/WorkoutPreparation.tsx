@@ -52,7 +52,7 @@ import { useErrorHandler } from '../hooks/useErrorHandler';
 import { WorkoutExercise, Exercise, SetType, SetConfig, WorkoutCategory } from '../types';
 import { useWorkoutStore } from '../app/store/workoutStore';
 import { ScreenState } from './ui/ScreenState';
-import { getGuestWorkout, updateGuestWorkoutExercises } from '../lib/guest/guestPersistence';
+import { getGuestWorkout, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises } from '../lib/guest/guestPersistence';
 
 // Sortable item wrapper for an exercise card in the preparation screen
 // Sortable muscle mappings and insights helpers
@@ -538,7 +538,8 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
     let nextList: WorkoutExercise[] = [];
     setExercises(prev => {
       nextList = getNewExercises(prev);
-      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(nextList));
+      if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, nextList);
+      else localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(nextList));
       return nextList;
     });
 
@@ -589,13 +590,12 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
         if (isGuestWorkout) {
           const guestWorkout = getGuestWorkout(workoutId);
           if (!guestWorkout) throw new Error('Ficha local não encontrada.');
-          const savedSession = localStorage.getItem(`workout_session_temp_${workoutId}`);
+          const parsed = readGuestWorkoutTemp(workoutId);
           const baseExercises = (guestWorkout.exercises || []).map((exercise: any) => ({
             ...exercise,
             exercise_name: exercise.exercise_name || exercise.exercise_name_snapshot,
             order: exercise.sort_order,
           }));
-          const parsed = savedSession ? JSON.parse(savedSession) : null;
           setExercises(Array.isArray(parsed) && parsed.length > 0 ? parsed : baseExercises);
           setWorkoutName(guestWorkout.name || 'Treino local');
           setCategory({ id: workoutId, name: guestWorkout.name || 'Treino local' } as WorkoutCategory);

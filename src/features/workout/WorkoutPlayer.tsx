@@ -58,7 +58,7 @@ import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 import { fetchWithRetry } from "../../lib/utils";
 import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../services/athleteMemoryEngine";
-import { consumeGuestStorageMigrationNotice, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, migrateGuestStorage, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
+import { consumeGuestStorageMigrationNotice, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, migrateGuestStorage, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
 
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -568,9 +568,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   useEffect(() => {
     if (!isGuestWorkout) return;
-    const notice = consumeGuestStorageMigrationNotice();
+    const notice = consumeGuestStorageMigrationNotice(false);
     if (notice?.applied) {
       showSuccess('Recuperação concluída', 'Estados antigos de treino foram limpos. Suas fichas e histórico foram preservados.');
+      const acknowledgementTimer = window.setTimeout(() => {
+        consumeGuestStorageMigrationNotice(true);
+      }, 8000);
+      return () => window.clearTimeout(acknowledgementTimer);
     }
   }, [isGuestWorkout, showSuccess]);
   
@@ -1142,7 +1146,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       };
       useWorkoutStore.setState({ exercises: updatedExercises } as any);
       if (isGuestWorkout) {
-        localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(updatedExercises));
+        saveGuestWorkoutTemp(workoutId, updatedExercises);
         return;
       }
 
@@ -1778,22 +1782,22 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       if (!workout) throw new Error('Ficha local não encontrada.');
       const validation = validateGuestWorkoutSession(workoutId);
       const sessionData = getOrCreateGuestWorkoutSession(workoutId);
-      const localSaved = localStorage.getItem(`workout_session_temp_${workoutId}`);
+      const localExercises = readGuestWorkoutTemp(workoutId);
       const baseExercises = (workout.exercises || []).map((exercise: any) => ({
         ...exercise,
         exercise_name: exercise.exercise_name || exercise.exercise_name_snapshot,
         order: exercise.sort_order,
       }));
       let exercisesToUse = baseExercises;
-      if (localSaved) {
-        try {
-          const parsed = JSON.parse(localSaved);
-          if (Array.isArray(parsed) && parsed.length > 0) exercisesToUse = parsed;
-        } catch (error) {
-          console.warn('[WorkoutPlayer] Invalid local preparation state:', error);
-        }
-      }
-      return { exercises: exercisesToUse, originalExercises: baseExercises, recoveryReset: validation.reset, ...sessionData };
+      if (Array.isArray(localExercises) && localExercises.length > 0) exercisesToUse = localExercises;
+      return {
+        exercises: exercisesToUse,
+        originalExercises: baseExercises,
+        recoveryReset: validation.reset,
+        resolvedWorkoutId: workout.id,
+        resolvedFolderId: workout.folder_id || workout.workout_folder_id,
+        ...sessionData,
+      };
     }
     const user = await authApi.getUser();
     if (!user) throw new Error("Usuário não autenticado");
@@ -1861,7 +1865,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   // Sync Store with Query Data
   useEffect(() => {
-    if (playerQuery.data && playerQuery.data.historyId) {
+    if (playerQuery.data && playerQuery.data.historyId
+      && (!isGuestWorkout || (playerQuery.data as any).resolvedWorkoutId === workoutId)) {
       if ((playerQuery.data as any).recoveryReset) {
         showSuccess('Sessão anterior incompatível foi limpa. Seu plano permanece intacto.');
       }
@@ -2137,7 +2142,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           sets_json: setsJsonList,
         } : ex);
         useWorkoutStore.setState({ exercises: updatedExercises } as any);
-        localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(updatedExercises));
+        saveGuestWorkoutTemp(workoutId, updatedExercises);
         return;
       }
 
