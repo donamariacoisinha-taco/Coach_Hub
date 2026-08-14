@@ -3,9 +3,10 @@ import { UserProfile } from '../../types';
 
 export const GUEST_PROFILE_KEY = 'kyron_guest_profile_v1';
 export const GUEST_DASHBOARD_KEY = 'kyron_guest_dashboard_v1';
-export const GUEST_STORAGE_SCHEMA_VERSION = 3;
+export const GUEST_STORAGE_SCHEMA_VERSION = 4;
 export const GUEST_STORAGE_VERSION_KEY = 'kyron_guest_storage_schema_version';
 const GUEST_STORAGE_MIGRATION_NOTICE_KEY = 'kyron_guest_storage_migration_notice_v2';
+const GUEST_STORAGE_MIGRATION_DISPLAY_PREFIX = 'kyron_guest_storage_migration_displayed_';
 
 export type GuestDashboard = {
   profile: UserProfile & Record<string, any>;
@@ -323,6 +324,7 @@ const repairGuestWorkoutIntegrity = () => {
   const signatures = dashboard.workouts.map((workout: any) => (workout.exercises || [])
     .map((exercise: any) => exercise.exercise_id || exercise.exercise_name_snapshot).join('|'));
   const repairedWorkoutIds: string[] = [];
+  let normalizedRuntimePayload = false;
   dashboard.workouts = dashboard.workouts.map((workout: any, workoutIndex: number) => {
     const role = getWorkoutRole(workout, workoutIndex);
     const exercises = Array.isArray(workout.exercises) ? workout.exercises : [];
@@ -333,7 +335,26 @@ const repairGuestWorkoutIntegrity = () => {
     const duplicatedAcrossRoles = signatures.some((signature, otherIndex) =>
       otherIndex !== workoutIndex && signature && signature === signatures[workoutIndex]
       && getWorkoutRole(dashboard.workouts[otherIndex], otherIndex) !== role);
-    if (categoryValid && roleValid && (!duplicatedAcrossRoles || roleMatchCount === exercises.length)) return workout;
+    if (categoryValid && roleValid && (!duplicatedAcrossRoles || roleMatchCount === exercises.length)) {
+      const normalizedExercises = exercises.map((exercise: any) => {
+        const configuredSetCount = Number(exercise.sets_json?.length || exercise.set_count || exercise.series || exercise.sets || 3);
+        const setCount = Number.isFinite(configuredSetCount) && configuredSetCount > 0
+          ? Math.max(1, Math.trunc(configuredSetCount))
+          : 3;
+        const setsJson = Array.isArray(exercise.sets_json) && exercise.sets_json.length > 0
+          ? exercise.sets_json
+          : Array.from({ length: setCount }, () => ({
+            weight: Number(exercise.weight) || 0,
+            reps: String(exercise.reps || '10-12'),
+            rpe: 0,
+            rest_time: Number(exercise.rest_time) || 60,
+          }));
+        if (exercise.sets !== setCount || exercise.set_count !== setCount || exercise.series !== setCount
+          || exercise.sets_json !== setsJson) normalizedRuntimePayload = true;
+        return { ...exercise, sets: setCount, set_count: setCount, series: setCount, sets_json: setsJson };
+      });
+      return { ...workout, exercises: normalizedExercises };
+    }
     repairedWorkoutIds.push(workout.id);
     const rebuilt = GUEST_WORKOUT_ROLE_FALLBACKS[role].map(([name, muscleGroup], exerciseIndex) => ({
       id: `guest-v3-${workout.id}-${role}-${exerciseIndex}`,
@@ -342,15 +363,17 @@ const repairGuestWorkoutIntegrity = () => {
       exercise_name_snapshot: name,
       muscle_group: muscleGroup,
       sets: 3,
+      set_count: 3,
+      series: 3,
       reps: '10-12',
       weight: 0,
       rest_time: 60,
       sort_order: exerciseIndex + 1,
-      sets_json: [],
+      sets_json: Array.from({ length: 3 }, () => ({ weight: 0, reps: '10-12', rpe: 0, rest_time: 60 })),
     }));
     return { ...workout, exercises: rebuilt, exercises_count: rebuilt.length };
   });
-  if (repairedWorkoutIds.length > 0) {
+  if (repairedWorkoutIds.length > 0 || normalizedRuntimePayload) {
     localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(dashboard));
     localStorage.setItem(`rubi_dashboard_cache_${GUEST_USER_ID}`, JSON.stringify(dashboard));
   }
@@ -423,6 +446,14 @@ export const consumeGuestStorageMigrationNotice = (remove = true): GuestStorageM
   const notice = readJson<GuestStorageMigrationResult>(GUEST_STORAGE_MIGRATION_NOTICE_KEY);
   if (notice && remove) localStorage.removeItem(GUEST_STORAGE_MIGRATION_NOTICE_KEY);
   return notice;
+};
+
+export const claimGuestStorageMigrationNoticeDisplay = (notice: GuestStorageMigrationResult | null) => {
+  if (!notice?.applied || typeof sessionStorage === 'undefined') return false;
+  const key = `${GUEST_STORAGE_MIGRATION_DISPLAY_PREFIX}${notice.toVersion}`;
+  if (sessionStorage.getItem(key) === 'true') return false;
+  sessionStorage.setItem(key, 'true');
+  return true;
 };
 
 export const finishGuestWorkout = (workoutId: string, result: Record<string, any>) => {

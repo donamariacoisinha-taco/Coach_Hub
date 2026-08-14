@@ -58,7 +58,7 @@ import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 import { fetchWithRetry } from "../../lib/utils";
 import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../services/athleteMemoryEngine";
-import { consumeGuestStorageMigrationNotice, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, migrateGuestStorage, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
+import { claimGuestStorageMigrationNoticeDisplay, consumeGuestStorageMigrationNotice, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, migrateGuestStorage, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
 
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -569,12 +569,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   useEffect(() => {
     if (!isGuestWorkout) return;
     const notice = consumeGuestStorageMigrationNotice(false);
-    if (notice?.applied) {
+    if (claimGuestStorageMigrationNoticeDisplay(notice)) {
       showSuccess('Recuperação concluída', 'Estados antigos de treino foram limpos. Suas fichas e histórico foram preservados.');
-      const acknowledgementTimer = window.setTimeout(() => {
+      window.setTimeout(() => {
         consumeGuestStorageMigrationNotice(true);
       }, 8000);
-      return () => window.clearTimeout(acknowledgementTimer);
     }
   }, [isGuestWorkout, showSuccess]);
   

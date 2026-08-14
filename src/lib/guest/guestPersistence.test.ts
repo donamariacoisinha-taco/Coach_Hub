@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { shouldConfirmPartialBeforeTerminalSet } from '../../domain/workout/workoutReliability';
+import { decideWorkoutAdvance, getWorkoutSetCount, shouldConfirmPartialBeforeTerminalSet } from '../../domain/workout/workoutReliability';
 import {
   GUEST_DASHBOARD_KEY,
   GUEST_STORAGE_SCHEMA_VERSION,
   GUEST_STORAGE_VERSION_KEY,
   finishGuestWorkout,
+  claimGuestStorageMigrationNoticeDisplay,
   clearLegacyGuestWorkoutState,
   getGuestDashboard,
   getGuestProfile,
@@ -32,7 +33,10 @@ const createStorage = () => {
 };
 
 describe('guest lifecycle persistence', () => {
-  beforeEach(() => vi.stubGlobal('localStorage', createStorage()));
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
+  });
 
   it('persists profile changes across a fresh read', () => {
     saveGuestProfile({ name: 'Maria', weight: 68 });
@@ -256,7 +260,7 @@ describe('guest lifecycle persistence', () => {
     corrupted.workouts[0].exercises = cExercises;
     corrupted.workouts[1].exercises = cExercises;
     localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(corrupted));
-    localStorage.setItem(GUEST_STORAGE_VERSION_KEY, '2');
+    localStorage.setItem(GUEST_STORAGE_VERSION_KEY, '3');
     localStorage.setItem('workout-storage', JSON.stringify({ state: {
       currentWorkoutId: corrupted.workouts[0].id,
       exercises: cExercises,
@@ -280,7 +284,7 @@ describe('guest lifecycle persistence', () => {
     });
 
     const result = migrateGuestStorage();
-    expect(result).toMatchObject({ applied: true, fromVersion: 2, toVersion: 3 });
+    expect(result).toMatchObject({ applied: true, fromVersion: 3, toVersion: 4 });
     expect(result.repairedWorkoutIds).toEqual([dashboard.workouts[0].id, dashboard.workouts[1].id]);
     const repaired = getGuestDashboard();
     expect(repaired.workouts[0].exercises[0]).toMatchObject({ exercise_name_snapshot: 'Supino reto', weight: 0, sort_order: 1 });
@@ -288,10 +292,19 @@ describe('guest lifecycle persistence', () => {
     expect(repaired.workouts[2].exercises[0].exercise_name_snapshot).toBe('Agachamento livre');
     repaired.workouts.forEach((workout: any) => {
       expect(workout.exercises.every((exercise: any) => exercise.category_id === workout.id)).toBe(true);
+      expect(workout.exercises.every((exercise: any) => exercise.sets === 3)).toBe(true);
+      expect(workout.exercises.every((exercise: any) => exercise.set_count === 3)).toBe(true);
+      expect(workout.exercises.every((exercise: any) => exercise.series === 3)).toBe(true);
+      expect(workout.exercises.every((exercise: any) => exercise.sets_json.length === 3)).toBe(true);
       expect(localStorage.getItem(`guest_workout_session_${workout.id}`)).toBeNull();
       expect(localStorage.getItem(`workout_rest_start_${workout.id}`)).toBeNull();
       expect(localStorage.getItem(`workout_timer_${workout.id}`)).toBeNull();
       expect(localStorage.getItem(`workout_elapsed_${workout.id}`)).toBeNull();
+      const totalSets = getWorkoutSetCount(workout.exercises[0]);
+      expect(totalSets).toBe(3);
+      expect(decideWorkoutAdvance({
+        currentIndex: 0, currentSet: 1, exerciseCount: workout.exercises.length, runtimeSetCount: totalSets,
+      })).toMatchObject({ action: 'NEXT_SET', currentSet: 2 });
     });
     expect(localStorage.getItem('workout-storage')).toBeNull();
     expect(localStorage.getItem('workout_start_time')).toBeNull();
@@ -299,5 +312,13 @@ describe('guest lifecycle persistence', () => {
     expect(localStorage.getItem('startTime')).toBeNull();
     expect(getGuestProfile().name).toBe('Perfil mantido');
     expect(migrateGuestStorage().applied).toBe(false);
+  });
+
+  it('claims the recovery notice only once per browser session while it remains persisted', () => {
+    const notice = { applied: true, fromVersion: 3, toVersion: 4, removedKeys: [], reason: 'recovery' };
+    expect(claimGuestStorageMigrationNoticeDisplay(notice)).toBe(true);
+    expect(claimGuestStorageMigrationNoticeDisplay(notice)).toBe(false);
+    sessionStorage.clear();
+    expect(claimGuestStorageMigrationNoticeDisplay(notice)).toBe(true);
   });
 });
