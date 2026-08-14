@@ -224,6 +224,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   // Check which user folders contain outdated protocols compared to templates published globally
   useEffect(() => {
     async function checkUpdates() {
+      if (isGuestMode) return;
       try {
         const u = await authApi.getUser();
         if (u && folders.length > 0) {
@@ -235,7 +236,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       }
     }
     checkUpdates();
-  }, [folders]);
+  }, [folders, isGuestMode]);
 
   // Alinha o activeFolderId com as pastas existentes do usuário para evitar telas de erro de pasta inexistente ou obsoleta
   useEffect(() => {

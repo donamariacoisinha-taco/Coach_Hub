@@ -175,11 +175,34 @@ export const getOrCreateGuestWorkoutSession = (workoutId: string) => {
 
 export const finishGuestWorkout = (workoutId: string, result: Record<string, any>) => {
   const dashboard = getGuestDashboard();
+  const workout = dashboard.workouts.find((item: any) => item.id === workoutId);
+  const performance = result.performance || {};
+  const workoutSetsLogs = Object.entries(performance).flatMap(([exerciseIndex, sets]: [string, any]) =>
+    (sets || []).map((set: any, setIndex: number) => ({
+      exercise_id: workout?.exercises?.[Number(exerciseIndex)]?.exercise_id,
+      exercise_name: workout?.exercises?.[Number(exerciseIndex)]?.exercise_name_snapshot,
+      set_number: setIndex + 1,
+      weight_achieved: Number(set.weight || 0),
+      reps_achieved: Number(set.reps || 0),
+      rpe: Number(set.rpe || 0),
+      rest_time: Number(set.rest_time || 0),
+    }))
+  );
+  const totalVolume = workoutSetsLogs.reduce((sum: number, set: any) =>
+    sum + set.weight_achieved * set.reps_achieved, 0);
+  const durationMinutes = result.duration_seconds !== undefined
+    ? Math.max(1, Math.round(Number(result.duration_seconds) / 60))
+    : Math.max(1, Math.round(Number(result.duration_minutes) || 0));
   dashboard.history = [{
+    ...result,
     id: `guest-completed-${Date.now()}`,
     workout_id: workoutId,
+    category_id: workoutId,
+    workout_name: workout?.name || 'Treino local',
     completed_at: new Date().toISOString(),
-    ...result,
+    duration_minutes: durationMinutes,
+    total_volume: totalVolume,
+    workout_sets_logs: workoutSetsLogs,
   }, ...(dashboard.history || [])];
   dashboard.stats = { ...dashboard.stats, sessions: (dashboard.stats?.sessions || 0) + 1 };
   localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(dashboard));
