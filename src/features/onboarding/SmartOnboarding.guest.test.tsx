@@ -50,7 +50,13 @@ describe('SmartOnboarding guest final action', () => {
     render(<SmartOnboarding initialStep={7} initialUserId={GUEST_USER_ID} />);
 
     const proceed = await screen.findByRole('button', { name: /^prosseguir$/i });
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    fireEvent.click(screen.getByRole('button', { name: /nenhuma limita/i }));
     fireEvent.click(proceed);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    vi.useRealTimers();
 
     expect(await screen.findByRole('button', { name: /concluir configura/i })).toBeTruthy();
     expect(screen.queryByText(/rubi optimizer/i)).toBeNull();
