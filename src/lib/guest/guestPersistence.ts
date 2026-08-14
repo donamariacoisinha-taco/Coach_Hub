@@ -3,7 +3,7 @@ import { UserProfile } from '../../types';
 
 export const GUEST_PROFILE_KEY = 'kyron_guest_profile_v1';
 export const GUEST_DASHBOARD_KEY = 'kyron_guest_dashboard_v1';
-export const GUEST_STORAGE_SCHEMA_VERSION = 2;
+export const GUEST_STORAGE_SCHEMA_VERSION = 3;
 export const GUEST_STORAGE_VERSION_KEY = 'kyron_guest_storage_schema_version';
 const GUEST_STORAGE_MIGRATION_NOTICE_KEY = 'kyron_guest_storage_migration_notice_v2';
 
@@ -281,6 +281,80 @@ export type GuestStorageMigrationResult = {
   toVersion: number;
   removedKeys: string[];
   reason: string;
+  repairedWorkoutIds?: string[];
+};
+
+const GUEST_WORKOUT_ROLE_FALLBACKS: Record<'push' | 'pull' | 'legs', Array<[string, string]>> = {
+  push: [
+    ['Supino reto', 'Peito'], ['Supino inclinado', 'Peito'], ['Desenvolvimento com halteres', 'Ombros'],
+    ['Elevação lateral', 'Ombros'], ['Tríceps corda', 'Tríceps'], ['Flexão de braços', 'Peito'],
+  ],
+  pull: [
+    ['Puxada frontal', 'Costas'], ['Remada baixa', 'Costas'], ['Remada unilateral', 'Costas'],
+    ['Rosca direta', 'Bíceps'], ['Rosca martelo', 'Bíceps'], ['Crucifixo inverso', 'Ombros'],
+  ],
+  legs: [
+    ['Agachamento livre', 'Quadríceps'], ['Leg press', 'Quadríceps'], ['Mesa flexora', 'Posterior'],
+    ['Elevação pélvica', 'Glúteos'], ['Panturrilha em pé', 'Panturrilha'], ['Prancha', 'Abdômen'],
+  ],
+};
+
+const getWorkoutRole = (workout: any, index: number): 'push' | 'pull' | 'legs' => {
+  const name = String(workout?.name || '').toLowerCase();
+  if (/pux|costas|bíceps|pull/.test(name)) return 'pull';
+  if (/perna|inferior|quad|glúte|leg/.test(name)) return 'legs';
+  if (/empurr|peito|tríceps|push/.test(name)) return 'push';
+  return index % 3 === 0 ? 'push' : index % 3 === 1 ? 'pull' : 'legs';
+};
+
+const exerciseMatchesRole = (exercise: any, role: 'push' | 'pull' | 'legs') => {
+  const text = `${exercise?.exercise_name_snapshot || exercise?.exercise_name || ''} ${exercise?.muscle_group || ''}`.toLowerCase();
+  const patterns = {
+    push: /supino|peito|tríceps|desenvolvimento|elevação lateral|flexão/,
+    pull: /puxada|remada|costas|bíceps|rosca|crucifixo inverso/,
+    legs: /agachamento|leg press|quadríceps|posterior|flexora|glúte|panturrilha|prancha|abdô/,
+  };
+  return patterns[role].test(text);
+};
+
+const repairGuestWorkoutIntegrity = () => {
+  const dashboard = readJson<GuestDashboard>(GUEST_DASHBOARD_KEY);
+  if (!dashboard?.workouts?.length) return [] as string[];
+  const signatures = dashboard.workouts.map((workout: any) => (workout.exercises || [])
+    .map((exercise: any) => exercise.exercise_id || exercise.exercise_name_snapshot).join('|'));
+  const repairedWorkoutIds: string[] = [];
+  dashboard.workouts = dashboard.workouts.map((workout: any, workoutIndex: number) => {
+    const role = getWorkoutRole(workout, workoutIndex);
+    const exercises = Array.isArray(workout.exercises) ? workout.exercises : [];
+    const categoryValid = exercises.length > 0 && exercises.every((exercise: any) =>
+      !exercise.category_id || exercise.category_id === workout.id);
+    const roleMatchCount = exercises.filter((exercise: any) => exerciseMatchesRole(exercise, role)).length;
+    const roleValid = roleMatchCount >= Math.min(2, exercises.length);
+    const duplicatedAcrossRoles = signatures.some((signature, otherIndex) =>
+      otherIndex !== workoutIndex && signature && signature === signatures[workoutIndex]
+      && getWorkoutRole(dashboard.workouts[otherIndex], otherIndex) !== role);
+    if (categoryValid && roleValid && (!duplicatedAcrossRoles || roleMatchCount === exercises.length)) return workout;
+    repairedWorkoutIds.push(workout.id);
+    const rebuilt = GUEST_WORKOUT_ROLE_FALLBACKS[role].map(([name, muscleGroup], exerciseIndex) => ({
+      id: `guest-v3-${workout.id}-${role}-${exerciseIndex}`,
+      category_id: workout.id,
+      exercise_id: `guest-v3-catalog-${role}-${exerciseIndex}`,
+      exercise_name_snapshot: name,
+      muscle_group: muscleGroup,
+      sets: 3,
+      reps: '10-12',
+      weight: 0,
+      rest_time: 60,
+      sort_order: exerciseIndex + 1,
+      sets_json: [],
+    }));
+    return { ...workout, exercises: rebuilt, exercises_count: rebuilt.length };
+  });
+  if (repairedWorkoutIds.length > 0) {
+    localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(dashboard));
+    localStorage.setItem(`rubi_dashboard_cache_${GUEST_USER_ID}`, JSON.stringify(dashboard));
+  }
+  return repairedWorkoutIds;
 };
 
 export const migrateGuestStorage = (): GuestStorageMigrationResult => {
@@ -295,6 +369,7 @@ export const migrateGuestStorage = (): GuestStorageMigrationResult => {
     };
   }
 
+  const repairedWorkoutIds = repairGuestWorkoutIntegrity();
   const removedKeys: string[] = [];
   const transientExact = new Set([
     'workout-storage',
@@ -305,6 +380,9 @@ export const migrateGuestStorage = (): GuestStorageMigrationResult => {
     'currentExercise',
     'current_exercise',
     'workout_current_exercise',
+    'workout_start_time',
+    'workoutStartTime',
+    'startTime',
   ]);
   const transientPrefixes = [
     'workout_continuity_state_',
@@ -315,6 +393,9 @@ export const migrateGuestStorage = (): GuestStorageMigrationResult => {
     'rubi_partial_session_',
     'workout_partial_session_',
     'currentExercise_',
+    'workout_timer_',
+    'workout_start_time_',
+    'workout_elapsed_',
   ];
   for (let index = localStorage.length - 1; index >= 0; index--) {
     const key = localStorage.key(index);
@@ -331,6 +412,7 @@ export const migrateGuestStorage = (): GuestStorageMigrationResult => {
     toVersion: GUEST_STORAGE_SCHEMA_VERSION,
     removedKeys: removedKeys.sort(),
     reason: 'legacy-transient-state-incompatible',
+    repairedWorkoutIds,
   };
   localStorage.setItem(GUEST_STORAGE_VERSION_KEY, String(GUEST_STORAGE_SCHEMA_VERSION));
   localStorage.setItem(GUEST_STORAGE_MIGRATION_NOTICE_KEY, JSON.stringify(result));

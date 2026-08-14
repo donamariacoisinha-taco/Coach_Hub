@@ -179,7 +179,7 @@ describe('guest lifecycle persistence', () => {
   it('migrates A/B/C legacy sessions once while preserving durable plans, order, profile and history', () => {
     saveGuestProfile({ name: 'Maria preservada' });
     const dashboard = saveGuestPlan({ name: 'Plano ABC', workouts: [
-      { name: 'Ficha A', exercises: [{ exercise_name: 'Supino A', weight: 0 }, { exercise_name: 'Remada A', weight: 0 }] },
+      { name: 'Ficha A', exercises: [{ exercise_name: 'Supino A', weight: 0 }, { exercise_name: 'Tríceps A', weight: 0 }] },
       { name: 'Ficha B', exercises: [{ exercise_name: 'Puxada B', weight: 0 }, { exercise_name: 'Rosca B', weight: 0 }] },
       { name: 'Ficha C', exercises: [{ exercise_name: 'Agachamento C', weight: 0 }, { exercise_name: 'Panturrilha C', weight: 0 }] },
     ] }, { name: 'Maria preservada' });
@@ -213,7 +213,7 @@ describe('guest lifecycle persistence', () => {
     const [aId, bId, cId] = getGuestDashboard().workouts.map((workout: any) => workout.id);
     expect([aId, bId, cId].map(id => getGuestWorkout(id).exercises.map((exercise: any) =>
       exercise.exercise_name_snapshot))).toEqual([
-      ['Remada A', 'Supino A'],
+      ['Tríceps A', 'Supino A'],
       ['Puxada B', 'Rosca B'],
       ['Agachamento C', 'Panturrilha C'],
     ]);
@@ -227,7 +227,7 @@ describe('guest lifecycle persistence', () => {
     }));
     expect(readGuestWorkoutTemp(bId)).toBeNull();
     saveGuestWorkoutTemp(aId, getGuestWorkout(aId).exercises);
-    expect(readGuestWorkoutTemp(aId)?.[0].exercise_name_snapshot).toBe('Remada A');
+    expect(readGuestWorkoutTemp(aId)?.[0].exercise_name_snapshot).toBe('Tríceps A');
 
     const durableAfterFirstRun = JSON.stringify(getGuestDashboard());
     const second = migrateGuestStorage();
@@ -239,5 +239,65 @@ describe('guest lifecycle persistence', () => {
       currentIndex: 1,
       currentSetIndex: 2,
     })).toBe(true);
+  });
+
+  it('repairs the exact v2 production corruption where A/B/C all contain the C sequence', () => {
+    const dashboard = saveGuestPlan({ name: 'Plano produção', workouts: [
+      { name: 'Superior Empurrar A', exercises: [{ exercise_name: 'Supino original', weight: 0 }] },
+      { name: 'Superior Puxar B', exercises: [{ exercise_name: 'Puxada original', weight: 0 }] },
+      { name: 'Pernas C', exercises: [
+        { exercise_name: 'Agachamento livre', weight: 0 },
+        { exercise_name: 'Leg press', weight: 0 },
+        { exercise_name: 'Mesa flexora', weight: 0 },
+      ] },
+    ] }, { name: 'Perfil mantido' });
+    const corrupted = getGuestDashboard();
+    const cExercises = corrupted.workouts[2].exercises;
+    corrupted.workouts[0].exercises = cExercises;
+    corrupted.workouts[1].exercises = cExercises;
+    localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(corrupted));
+    localStorage.setItem(GUEST_STORAGE_VERSION_KEY, '2');
+    localStorage.setItem('workout-storage', JSON.stringify({ state: {
+      currentWorkoutId: corrupted.workouts[0].id,
+      exercises: cExercises,
+      currentIndex: 5,
+      currentSet: 3,
+      startTime: Date.now() - 478000,
+    } }));
+    localStorage.setItem('workout_start_time', String(Date.now() - 478000));
+    localStorage.setItem('workoutStartTime', String(Date.now() - 453000));
+    localStorage.setItem('startTime', String(Date.now() - 453000));
+    corrupted.workouts.forEach((workout: any, index: number) => {
+      localStorage.setItem(`guest_workout_session_${workout.id}`, JSON.stringify({
+        workoutId: workout.id, historyId: `guest-history-${workout.id}`, startTime: Date.now() - (453000 + index),
+      }));
+      localStorage.setItem(`workout_continuity_state_guest-history-${workout.id}`, JSON.stringify({
+        workoutId: workout.id, exerciseIds: cExercises.map((exercise: any) => exercise.exercise_id), currentIndex: 5,
+      }));
+      localStorage.setItem(`workout_rest_start_${workout.id}`, String(Date.now() - 10000));
+      localStorage.setItem(`workout_timer_${workout.id}`, String(478 - index));
+      localStorage.setItem(`workout_elapsed_${workout.id}`, String(453 - index));
+    });
+
+    const result = migrateGuestStorage();
+    expect(result).toMatchObject({ applied: true, fromVersion: 2, toVersion: 3 });
+    expect(result.repairedWorkoutIds).toEqual([dashboard.workouts[0].id, dashboard.workouts[1].id]);
+    const repaired = getGuestDashboard();
+    expect(repaired.workouts[0].exercises[0]).toMatchObject({ exercise_name_snapshot: 'Supino reto', weight: 0, sort_order: 1 });
+    expect(repaired.workouts[1].exercises[0]).toMatchObject({ exercise_name_snapshot: 'Puxada frontal', weight: 0, sort_order: 1 });
+    expect(repaired.workouts[2].exercises[0].exercise_name_snapshot).toBe('Agachamento livre');
+    repaired.workouts.forEach((workout: any) => {
+      expect(workout.exercises.every((exercise: any) => exercise.category_id === workout.id)).toBe(true);
+      expect(localStorage.getItem(`guest_workout_session_${workout.id}`)).toBeNull();
+      expect(localStorage.getItem(`workout_rest_start_${workout.id}`)).toBeNull();
+      expect(localStorage.getItem(`workout_timer_${workout.id}`)).toBeNull();
+      expect(localStorage.getItem(`workout_elapsed_${workout.id}`)).toBeNull();
+    });
+    expect(localStorage.getItem('workout-storage')).toBeNull();
+    expect(localStorage.getItem('workout_start_time')).toBeNull();
+    expect(localStorage.getItem('workoutStartTime')).toBeNull();
+    expect(localStorage.getItem('startTime')).toBeNull();
+    expect(getGuestProfile().name).toBe('Perfil mantido');
+    expect(migrateGuestStorage().applied).toBe(false);
   });
 });
