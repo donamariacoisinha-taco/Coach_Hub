@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useDragControls } from 'motion/react';
 import { X, Search, Sparkles, Check } from 'lucide-react';
 import { Exercise } from '../types';
 import { useExerciseFilters } from '../hooks/useExerciseFilters';
@@ -8,6 +8,7 @@ import { FilterChips } from './FilterChips';
 import { SubFilterChips } from './SubFilterChips';
 import { ExerciseListItem } from './ExerciseListItem';
 import { useExercisePreview } from '../context/ExercisePreviewContext';
+import { shouldCloseSheetFromDrag } from '../lib/ui/sheetGestures';
 
 interface ExerciseReplaceScreenProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
   favoriteIds = new Set<string>()
 }) => {
   const { openExercisePreview } = useExercisePreview();
+  const sheetDragControls = useDragControls();
   const {
     search,
     setSearch,
@@ -84,9 +86,24 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            drag="y"
+            dragControls={sheetDragControls}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.22 }}
+            dragMomentum={false}
+            onDragEnd={(_, info) => {
+              if (shouldCloseSheetFromDrag(info.offset.y, info.velocity.y)) onClose();
+            }}
             className="w-full h-[94vh] bg-[#F7F8FA] rounded-t-[3rem] flex flex-col relative z-10 overflow-hidden shadow-2xl"
           >
-            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-4 mb-2 shrink-0" />
+            <div
+              onPointerDown={(event) => sheetDragControls.start(event)}
+              className="w-full pt-4 pb-3 flex items-center justify-center shrink-0 cursor-grab active:cursor-grabbing touch-none"
+              aria-label="Deslize para baixo para fechar"
+            >
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
+            </div>
             
             <header className="px-8 pt-4 pb-4 flex justify-between items-center bg-[#F7F8FA]">
               <div className="flex flex-col">
@@ -134,7 +151,10 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
             </div>
 
             {/* CONTENT AREA */}
-            <div className="flex-1 overflow-y-auto no-scrollbar bg-white rounded-t-[2.5rem] shadow-inner relative">
+            <div
+              className="flex-1 overflow-y-auto overscroll-contain no-scrollbar bg-white rounded-t-[2.5rem] shadow-inner relative"
+              style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+            >
               
               {/* SUGGESTIONS SECTION */}
               {suggestions.length > 0 && !search && !selectedMuscle && (

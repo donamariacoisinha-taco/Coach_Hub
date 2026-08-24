@@ -110,6 +110,9 @@ const OfflineSyncHealthPanel: React.FC = () => {
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [localOnly, setLocalOnly] = useState(false);
+  const [workoutSessionActive, setWorkoutSessionActive] = useState(() => (
+    typeof document !== 'undefined' && document.body.dataset.workoutSessionActive === 'true'
+  ));
 
   const refresh = useCallback(async () => {
     try {
@@ -160,6 +163,16 @@ const OfflineSyncHealthPanel: React.FC = () => {
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isOpen]);
+
+  useEffect(() => {
+    const handleWorkoutSession = (event: Event) => {
+      const active = Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active);
+      setWorkoutSessionActive(active);
+      if (active) setIsOpen(false);
+    };
+    window.addEventListener('kyron:workout-session-active', handleWorkoutSession);
+    return () => window.removeEventListener('kyron:workout-session-active', handleWorkoutSession);
+  }, []);
 
   const health = useMemo(() => deriveOfflineSyncHealth({
     online,
@@ -232,6 +245,9 @@ const OfflineSyncHealthPanel: React.FC = () => {
       setAction(null);
     }
   }, [action, localOnly, online, refresh]);
+
+  // Keep queue subscriptions and state alive, but never cover an active workout.
+  if (workoutSessionActive) return null;
 
   return (
     <>

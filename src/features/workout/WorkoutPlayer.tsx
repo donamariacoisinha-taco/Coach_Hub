@@ -35,7 +35,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { exerciseApi } from "../../lib/api/exerciseApi";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useDragControls } from "motion/react";
 import { useExercisePreview } from "../../context/ExercisePreviewContext";
 import { supabase } from "../../lib/api/supabase";
 import { authApi } from "../../lib/api/authApi";
@@ -59,6 +59,8 @@ import { calculateStreak } from "../../domain/streak/streakEngine";
 import { fetchWithRetry } from "../../lib/utils";
 import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../services/athleteMemoryEngine";
 import { claimGuestStorageMigrationNoticeDisplay, consumeGuestStorageMigrationNotice, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, migrateGuestStorage, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
+import { filterExerciseSelectorCandidates, remapIndexedExerciseState, replaceOrSwapExercise } from "./exerciseSelector";
+import { shouldCloseSheetFromDrag } from "../../lib/ui/sheetGestures";
 
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -547,6 +549,62 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { navigate, goBack } = useNavigation();
   const { openExercisePreview } = useExercisePreview();
   const { showError, showSuccess } = useErrorHandler();
+  const workoutRootRef = useRef<HTMLDivElement>(null);
+
+  // A workout is an editing session: contain overscroll so a downward gesture
+  // cannot trigger a browser refresh and discard in-progress inputs.
+  useEffect(() => {
+    const root = workoutRootRef.current;
+    const html = document.documentElement;
+    const body = document.body;
+    const previous = {
+      htmlOverscroll: html.style.overscrollBehavior,
+      htmlOverscrollY: html.style.overscrollBehaviorY,
+      bodyOverscroll: body.style.overscrollBehavior,
+      bodyOverscrollY: body.style.overscrollBehaviorY,
+      activeSession: body.dataset.workoutSessionActive,
+    };
+
+    html.style.overscrollBehavior = 'none';
+    html.style.overscrollBehaviorY = 'none';
+    body.style.overscrollBehavior = 'none';
+    body.style.overscrollBehaviorY = 'none';
+    body.dataset.workoutSessionActive = 'true';
+    window.dispatchEvent(new CustomEvent('kyron:workout-session-active', { detail: { active: true } }));
+
+    let touchStartY = 0;
+    let touchScroller: HTMLElement | null = null;
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return;
+      touchStartY = event.touches[0].clientY;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      touchScroller = target?.closest<HTMLElement>('[data-workout-scrollable="true"]')
+        || root?.querySelector<HTMLElement>('[data-workout-main-scroll="true"]')
+        || null;
+    };
+    const handleTouchMove = (event: TouchEvent) => {
+      if (event.touches.length !== 1 || event.touches[0].clientY <= touchStartY) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      // Motion owns dock gestures; allowing them here keeps expand/minimize intact.
+      if (target?.closest('[data-workout-dock="true"], [data-workout-sheet-handle="true"]')) return;
+      if (!touchScroller || touchScroller.scrollTop <= 0) event.preventDefault();
+    };
+
+    root?.addEventListener('touchstart', handleTouchStart, { passive: true });
+    root?.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      root?.removeEventListener('touchstart', handleTouchStart);
+      root?.removeEventListener('touchmove', handleTouchMove);
+      html.style.overscrollBehavior = previous.htmlOverscroll;
+      html.style.overscrollBehaviorY = previous.htmlOverscrollY;
+      body.style.overscrollBehavior = previous.bodyOverscroll;
+      body.style.overscrollBehaviorY = previous.bodyOverscrollY;
+      if (previous.activeSession === undefined) delete body.dataset.workoutSessionActive;
+      else body.dataset.workoutSessionActive = previous.activeSession;
+      window.dispatchEvent(new CustomEvent('kyron:workout-session-active', { detail: { active: false } }));
+    };
+  }, []);
   const [user, setUser] = useState<any>(null);
   const migrationResultRef = useRef<ReturnType<typeof migrateGuestStorage> | null>(null);
   if (isGuestWorkout && migrationResultRef.current === null) {
@@ -767,6 +825,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [finalDurationMinutes, setFinalDurationMinutes] = useState<number | null>(null);
   const [finalWasPartial, setFinalWasPartial] = useState(false);
   const [showExercisesList, setShowExercisesList] = useState(false);
+  const protocolSheetDragControls = useDragControls();
+
+  const closeProtocolSheet = () => {
+    setExerciseSelectorMode(null);
+    setReplaceIndex(null);
+    setContextMenuIndex(null);
+    setShowExercisesList(false);
+  };
   
   // Adaptive Protocol Management States
   const [allAvailableExercises, setAllAvailableExercises] = useState<any[]>([]);
@@ -785,8 +851,17 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   useEffect(() => {
     async function loadAllExercisesData() {
       if (isGuestWorkout) {
-        setAllAvailableExercises([]);
+        setLoadingExercisesDetail(true);
         setFavoritesList([]);
+        try {
+          const publicExercises = await exerciseApi.getPublicExercises();
+          setAllAvailableExercises(publicExercises || []);
+        } catch (err) {
+          console.error("Failed to load public exercises for guest replacement", err);
+          setAllAvailableExercises([]);
+        } finally {
+          setLoadingExercisesDetail(false);
+        }
         return;
       }
       setLoadingExercisesDetail(true);
@@ -870,33 +945,64 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const target = exercises[replaceIndex];
     if (!target) return;
 
-    const updatedExercises = [...exercises];
-    updatedExercises[replaceIndex] = {
-      ...target,
-      exercise_id: ex.id,
-      exercise_name: ex.name,
-      muscle_group: ex.muscle_group || target.muscle_group,
-      exercise_image: ex.image_url || target.exercise_image,
-      exercise_name_snapshot: ex.name
-    };
+    const { exercises: updatedExercises, swappedWithIndex } = replaceOrSwapExercise(exercises, replaceIndex, ex);
 
     useWorkoutStore.setState({ exercises: updatedExercises } as any);
 
-    // If we're replacing the CURRENT ACTIVE exercise, synchronize UI inputs
-    if (replaceIndex === currentIndex) {
-      const numSets = target.sets_json?.length || target.sets || 3;
-      const defaultSets = Array.from({ length: numSets }).map(() => ({
-        weight: target.weight || 0,
-        reps: parseInt(target.reps) || 10,
-        rpe: 8
-      }));
-      setActiveSetsData(defaultSets);
-      setCurrentSet(1);
-      setCompletedSetIndices(new Set());
-      setLastSet(null); // Invalidate cache to refetch history for new ID
+    // New replacements must not inherit the removed exercise's state. A swap,
+    // however, moves state with each exercise to its new position.
+    setWorkoutPerformance(prev => remapIndexedExerciseState(prev, replaceIndex, swappedWithIndex));
+    setCompletedSetsByExercise(prev => remapIndexedExerciseState(prev, replaceIndex, swappedWithIndex));
+
+    // If the active position changed, move its progress with the exercise.
+    if (replaceIndex === currentIndex || swappedWithIndex === currentIndex) {
+      const activeExercise = updatedExercises[currentIndex];
+      const previousSourceIndex = swappedWithIndex === null
+        ? currentIndex
+        : (currentIndex === replaceIndex ? swappedWithIndex : replaceIndex);
+      const savedPerformance = swappedWithIndex === null ? null : workoutPerformance[previousSourceIndex];
+      const numSets = activeExercise.sets_json?.length || activeExercise.sets || 3;
+      const defaultSets = activeExercise.sets_json?.length
+        ? activeExercise.sets_json.map((set: any) => ({
+            weight: Number(set.weight ?? activeExercise.weight ?? 0),
+            reps: parseInt(String(set.reps ?? activeExercise.reps ?? 10), 10) || 10,
+            rpe: Number(set.rpe ?? 8),
+          }))
+        : Array.from({ length: numSets }).map(() => ({
+            weight: activeExercise.weight || 0,
+            reps: parseInt(activeExercise.reps) || 10,
+            rpe: 8,
+          }));
+      const nextActiveSets = savedPerformance?.length ? savedPerformance : defaultSets;
+      const nextCompleted = swappedWithIndex === null
+        ? new Set<number>()
+        : new Set(completedSetsByExercise[previousSourceIndex] || []);
+      const firstIncomplete = nextActiveSets.findIndex((_, index) => !nextCompleted.has(index));
+      setActiveSetsData(nextActiveSets);
+      setCurrentSet(firstIncomplete >= 0 ? firstIncomplete + 1 : Math.max(1, nextActiveSets.length));
+      setCompletedSetIndices(nextCompleted);
+      setIsResting(false);
+      setPendingSetToComplete(null);
+      // Exercise-scoped derivations must never leak into the newly active item.
+      // Its own history/suggestions will be fetched again from the new ID.
+      setLastSet(null);
+      setPreviousSet(null);
+      setHistoricalSets([]);
+      setSuggestion(null);
+      setFatigueDetected(false);
+      setAnomalyDetected(false);
+      setFeedback(null);
+      setMemoryLoadSuggestion(null);
+      setShowPR(false);
+      setRestOvertime(0);
     }
 
-    showSuccess(`Substituído por: ${ex.name}`);
+    showSuccess(
+      swappedWithIndex === null ? `Substituído por: ${ex.name}` : `Ordem ajustada: ${ex.name}`,
+      swappedWithIndex === null
+        ? 'O exercício foi atualizado nesta sessão.'
+        : 'O exercício já estava na ficha e trocou de posição sem duplicar dados.',
+    );
     setExerciseSelectorMode(null);
     setReplaceIndex(null);
     setSearchQuery('');
@@ -1253,19 +1359,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const filteredSelectorExercises = useMemo(() => {
     if (!allAvailableExercises) return [];
-    return allAvailableExercises.filter(ex => {
-      const nameMatches = (ex.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (ex.description && ex.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          (ex.equipment && ex.equipment.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          ((ex.muscle_group || "").normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(searchQuery.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()));
-      
-      const normalizeMuscle = (value: unknown) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-      const selectedMuscle = normalizeMuscle(selectedMuscleGroup);
-      const exerciseMuscle = normalizeMuscle(ex.muscle_group);
-      const muscleMatches = !selectedMuscle || selectedMuscle === 'tudo' || exerciseMuscle.includes(selectedMuscle) || selectedMuscle.includes(exerciseMuscle);
-      
-      return nameMatches && muscleMatches;
-    });
+    return filterExerciseSelectorCandidates(allAvailableExercises, searchQuery, selectedMuscleGroup);
   }, [allAvailableExercises, searchQuery, selectedMuscleGroup]);
 
   const [finishing, setFinishing] = useState(false);
@@ -1399,9 +1493,52 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [focusMode, setFocusMode] = useState(false);
   const [anomalyDetected, setAnomalyDetected] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [isDockInsightVisible, setIsDockInsightVisible] = useState(false);
+  const dockInsightTimerRef = useRef<number | null>(null);
+  const previousDockInsightKeysRef = useRef<Set<string>>(new Set());
   const [historicalSets, setHistoricalSets] = useState<{weight_achieved: number, reps_achieved: number, set_number: number}[]>([]);
   const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
   const [recoverySession, setRecoverySession] = useState<any>(null);
+  const hasRestOvertimeInsight = isResting && restOvertime > 15;
+  const hasActiveDockInsight = Boolean(feedback || suggestion || anomalyDetected || fatigueDetected || hasRestOvertimeInsight);
+
+  const revealDockInsight = () => {
+    if (dockInsightTimerRef.current !== null) window.clearTimeout(dockInsightTimerRef.current);
+    setIsDockInsightVisible(true);
+    dockInsightTimerRef.current = window.setTimeout(() => {
+      setIsDockInsightVisible(false);
+      dockInsightTimerRef.current = null;
+    }, 3600);
+  };
+
+  // Keep fatigue/anomaly state available to the progression engine, but present
+  // each dock insight briefly so it never becomes a permanent obstruction.
+  useEffect(() => {
+    const activeKeys = new Set([
+      feedback ? `feedback:${feedback}` : '',
+      suggestion ? `suggestion:${suggestion}` : '',
+      anomalyDetected ? 'anomaly' : '',
+      fatigueDetected ? 'fatigue' : '',
+      hasRestOvertimeInsight ? 'rest-overtime' : '',
+    ].filter(Boolean));
+    const hasNewInsight = [...activeKeys].some(key => !previousDockInsightKeysRef.current.has(key));
+    previousDockInsightKeysRef.current = activeKeys;
+
+    if (activeKeys.size === 0) {
+      if (dockInsightTimerRef.current !== null) window.clearTimeout(dockInsightTimerRef.current);
+      dockInsightTimerRef.current = null;
+      setIsDockInsightVisible(false);
+      return;
+    }
+    // Removing one message while another persistent state remains must not
+    // restart the clock. Only genuinely new insight content opens it again.
+    if (!hasNewInsight) return;
+    revealDockInsight();
+  }, [feedback, suggestion, anomalyDetected, fatigueDetected, hasRestOvertimeInsight]);
+
+  useEffect(() => () => {
+    if (dockInsightTimerRef.current !== null) window.clearTimeout(dockInsightTimerRef.current);
+  }, []);
 
   useEffect(() => {
     if (!historyId || exercises.length === 0 || isSessionReady) return;
@@ -1766,8 +1903,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const vibratedAlert5s = useRef(false);
-  const footerRef = useRef<HTMLElement>(null);
-  const [footerHeight, setFooterHeight] = useState(180);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const [footerHeight, setFooterHeight] = useState(215);
 
   useEffect(() => {
     // Initialize audio for timer
@@ -1852,8 +1989,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
 
     // Default height if observer hasn't run yet or returned 0
-    if (footerHeight === 0) setFooterHeight(200);
-
     return () => {
       if (currentFooter) {
         observer.unobserve(currentFooter);
@@ -3136,9 +3271,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       targetReps: parseInt(currentEx.sets_json?.[currentSet - 1]?.reps as string) || 10
     });
   }, [currentEx, currentSet, lastSet, isAdvanced]);
+  const dockClearance = footerHeight + 48;
 
   return (
-    <div className="h-screen bg-[#F7F8FA] text-slate-900 flex flex-col font-sans overflow-hidden">
+    <div
+      ref={workoutRootRef}
+      data-workout-player="true"
+      className="h-[100dvh] bg-[#F7F8FA] text-slate-900 flex flex-col font-sans overflow-hidden"
+    >
       {showRecoveryPrompt && recoverySession && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
@@ -3311,13 +3451,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
             {/* 2. CONTEÚDO SCROLLABLE */}
             <div 
-
+              data-workout-scrollable="true"
+              data-workout-main-scroll="true"
               className={`flex-1 overflow-y-auto transition-all duration-500 ${
                 focusMode ? "bg-slate-950 text-slate-100" : "bg-[#F8FAFC] text-slate-900"
               }`}
               onScroll={handleScroll}
               onClick={() => setIsFooterVisible(true)}
-              style={{ paddingBottom: `calc(${footerHeight + 120}px + env(safe-area-inset-bottom))` }}
+              style={{
+                paddingBottom: `calc(${dockClearance}px + env(safe-area-inset-bottom))`,
+                scrollPaddingBottom: `calc(${dockClearance}px + env(safe-area-inset-bottom))`,
+                overscrollBehaviorY: 'contain',
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-y',
+              }}
             >
               
               {/* COMPACT EXERCISE HEADER (DYNAMIC COMPRESSION) */}
@@ -3427,7 +3574,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               {/* AÇÕES QUICK */}
               <div className={`flex gap-2 px-4 transition-all duration-500 ${momentum ? "mb-2 mt-2" : "mb-4"}`}>
                 <button 
-                  onClick={() => setShowExercisesList(true)}
+                  onClick={() => {
+                    setReplaceIndex(currentIndex);
+                    setExerciseSelectorMode('replace');
+                    setSearchQuery('');
+                    setShowExercisesList(true);
+                  }}
                   className={`flex-1 rounded-xl py-2.5 shadow-sm text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all h-[44px] ${
                     focusMode ? 'bg-slate-900 text-slate-300 border border-slate-800' : 'bg-white border border-slate-100 text-slate-500 hover:bg-slate-50'
                   }`}
@@ -3613,13 +3765,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </button>
               </div>
 
-              {/* FAILSAFE SPACER */}
-              <div style={{ height: `calc(${footerHeight + 120}px + env(safe-area-inset-bottom))` }} />
+              {/* Small visual breathing room; dock clearance is handled by scroll padding. */}
+              <div className="h-6 shrink-0" aria-hidden="true" />
 
             </div>
 
             {/* 3. ADAPTIVE GESTURE-DRIVEN WORKOUT DOCK */}
             <motion.div 
+              ref={footerRef}
+              data-workout-dock="true"
               drag="y"
               dragConstraints={{ top: 0, bottom: 0 }}
               dragElastic={0.16}
@@ -3654,9 +3808,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-slate-400 group-active:scale-x-110 transition-all shadow-inner" />
               </div>
 
+              {!isDockInsightVisible && hasActiveDockInsight && activeDockMode !== 'expanded' && (
+                <button
+                  type="button"
+                  onClick={revealDockInsight}
+                  aria-label="Reabrir orientação do treino"
+                  title="Ver orientação"
+                  className="absolute right-4 top-2 z-[60] w-8 h-8 rounded-full bg-slate-100/90 border border-slate-200/70 text-slate-500 flex items-center justify-center shadow-sm active:scale-90 transition-transform"
+                >
+                  <Info size={14} strokeWidth={2.5} />
+                </button>
+              )}
+
               {/* PR / FEEDBACK / SUGGESTION OVERLAY */}
               <AnimatePresence>
-                {(feedback || suggestion || anomalyDetected || fatigueDetected || (isResting && restOvertime > 15)) && activeDockMode !== 'expanded' && (
+                {isDockInsightVisible && (feedback || suggestion || anomalyDetected || fatigueDetected || hasRestOvertimeInsight) && activeDockMode !== 'expanded' && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -3682,7 +3848,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                          </div>
                       )}
 
-                      {isResting && restOvertime > 15 && (
+                      {hasRestOvertimeInsight && (
                          <div className="flex items-center gap-2 text-[#7BA7FF] animate-pulse font-bold text-[10px] uppercase tracking-widest">
                            Vamos para a próxima?
                          </div>
@@ -4382,10 +4548,26 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 220 }}
+              drag="y"
+              dragControls={protocolSheetDragControls}
+              dragListener={false}
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.22 }}
+              dragMomentum={false}
+              onDragEnd={(_, info) => {
+                if (shouldCloseSheetFromDrag(info.offset.y, info.velocity.y)) closeProtocolSheet();
+              }}
               className="mt-auto bg-white/95 backdrop-blur-3xl rounded-t-[1.5rem] p-6 shadow-2xl relative z-10 max-w-md mx-auto w-full max-h-[92vh] overflow-hidden flex flex-col border border-white/40"
             >
               {/* Drag Handle Indicator */}
-              <div className="w-12 h-1 bg-slate-200/80 rounded-full mx-auto mb-5 shrink-0" />
+              <div
+                data-workout-sheet-handle="true"
+                onPointerDown={(event) => protocolSheetDragControls.start(event)}
+                className="w-full -mt-2 pt-2 pb-4 flex items-center justify-center shrink-0 cursor-grab active:cursor-grabbing touch-none"
+                aria-label="Deslize para baixo para fechar"
+              >
+                <div className="w-12 h-1 bg-slate-200/80 rounded-full" />
+              </div>
 
               {exerciseSelectorMode !== null ? (
                 /* ================= PREMIUM EXERCISE SELECTOR ================= */
@@ -4482,7 +4664,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </div>
 
                   {/* Exercises Selector Results View */}
-                  <div className="flex-1 overflow-y-auto pr-1 space-y-2 select-none no-scrollbar">
+                  <div data-workout-scrollable="true" className="flex-1 overflow-y-auto pr-1 space-y-2 select-none no-scrollbar overscroll-contain">
                     {loadingExercisesDetail ? (
                       <div className="flex flex-col items-center justify-center py-10 gap-3">
                         <Loader2 className="w-8 h-8 text-[#7BA7FF] animate-spin" />
@@ -4577,7 +4759,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </div>
 
                   {/* Exercises Segment Tracker */}
-                  <div className="flex-1 overflow-y-auto pr-1 space-y-5 no-scrollbar">
+                  <div data-workout-scrollable="true" className="flex-1 overflow-y-auto pr-1 space-y-5 no-scrollbar overscroll-contain">
                     
                     {/* 1. COMPLETED BLOCK */}
                     {exercises.filter((_, idx) => idx < currentIndex).length > 0 && (
