@@ -23,6 +23,12 @@ import { useAdminStore } from '../../../store/adminStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { useErrorHandler } from '../../../hooks/useErrorHandler';
 import { Exercise } from '../../../types';
+import {
+  buildExerciseFilterGroups,
+  buildExerciseSearchText,
+  exerciseMatchesMuscleFilter,
+  normalizeExerciseFilterText,
+} from '../../../lib/exercises/exerciseFilters';
 import InlineCellEditor from './InlineCellEditor';
 import { adminApi } from '../../../lib/api/adminApi';
 import { VisibilityBadge, VisibilityToggle } from './VisibilityBadge';
@@ -86,6 +92,14 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
   // Sorting state
   const [sortField, setSortField] = useState<string | null>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const muscleFilterGroups = useMemo(
+    () => buildExerciseFilterGroups(exercises, { includeInactive: true }),
+    [exercises],
+  );
+  const muscleFilterOptions = useMemo(() => muscleFilterGroups.flatMap((group) => [
+    group.name,
+    ...group.subgroups.map((subgroup) => subgroup.name),
+  ]), [muscleFilterGroups]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -105,38 +119,33 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
 
     // 1. Global Search query tracking
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(ex => 
-        (ex.name || '').toLowerCase().includes(q) || 
-        (ex.muscle_group || '').toLowerCase().includes(q)
-      );
+      const q = normalizeExerciseFilterText(searchQuery);
+      result = result.filter(ex => buildExerciseSearchText(ex).includes(q));
     }
 
     // 2. Global Muscle filter pill selection
     if (selectedMuscleFilter !== 'Todos') {
-      result = result.filter(ex => 
-        ex.muscle_group === selectedMuscleFilter ||
-        (selectedMuscleFilter === 'Pernas' && (ex.muscle_group === 'Perna' || ex.muscle_group === 'Panturrilhas' || ex.muscle_group === 'Adutores' || ex.muscle_group === 'Glúteos' || ex.muscle_group === 'Quadríceps' || ex.muscle_group === 'Posterior' || ex.muscle_group === 'Posteriores')) ||
-        (selectedMuscleFilter === 'Abdominais' && (ex.muscle_group === 'Abdômen' || ex.muscle_group === 'Oblíquos')) ||
-        (selectedMuscleFilter === 'Ombros' && ex.muscle_group === 'Ombro')
-      );
+      result = result.filter(ex => exerciseMatchesMuscleFilter(ex, selectedMuscleFilter));
     }
 
     // 3. Column-specific filters
     if (colFilters.name) {
-      const q = colFilters.name.toLowerCase();
-      result = result.filter(ex => (ex.name || '').toLowerCase().includes(q));
+      const q = normalizeExerciseFilterText(colFilters.name);
+      result = result.filter(ex => normalizeExerciseFilterText(ex.name).includes(q));
     }
 
     if (colFilters.subgroups) {
-      const q = colFilters.subgroups.toLowerCase();
-      result = result.filter(ex => 
-        (ex.secondary_muscles || []).some(m => m.toLowerCase().includes(q))
-      );
+      const q = normalizeExerciseFilterText(colFilters.subgroups);
+      result = result.filter(ex => [
+        ex.subgroup,
+        ex.anatomical_cut,
+        ...(ex.secondary_muscles || []),
+        ...(ex.biomechanics?.agonist_muscles || []),
+      ].some((value) => normalizeExerciseFilterText(value).includes(q)));
     }
 
     if (colFilters.group !== 'Todos') {
-      result = result.filter(ex => ex.muscle_group === colFilters.group);
+      result = result.filter(ex => exerciseMatchesMuscleFilter(ex, colFilters.group));
     }
 
     if (colFilters.visibility !== 'Todos') {
@@ -555,20 +564,9 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                           className="w-full bg-slate-50 border border-slate-100 rounded-xl px-2 py-1 text-[11px] font-bold text-slate-600 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-400 transition-all cursor-pointer"
                         >
                            <option value="Todos">Todos</option>
-                           <option value="Peito">Peito</option>
-                           <option value="Costas">Costas</option>
-                           <option value="Ombros">Ombros</option>
-                           <option value="Pernas">Pernas</option>
-                           <option value="Bíceps">Bíceps</option>
-                           <option value="Tríceps">Tríceps</option>
-                           <option value="Abdominais">Abdominais</option>
-                           <option value="Quadríceps">Quadríceps</option>
-                           <option value="Posterior">Posterior</option>
-                           <option value="Glúteos">Glúteos</option>
-                           <option value="Panturrilha">Panturrilha</option>
-                           <option value="Full Body">Full Body</option>
-                           <option value="Cardio">Cardio</option>
-                           <option value="Mobilidade">Mobilidade</option>
+                           {muscleFilterOptions.map((option) => (
+                             <option key={option} value={option}>{option}</option>
+                           ))}
                         </select>
                      </div>
                   </th>
@@ -751,7 +749,10 @@ const SmartGrid: React.FC<SmartGridProps> = ({ selectedIds, onSelectChange }) =>
                          className="w-full bg-blue-50 hover:bg-blue-100/80 border border-blue-100/50 rounded-xl px-2.5 py-1.5 text-[10px] font-black uppercase text-blue-700 outline-none focus:ring-4 focus:ring-blue-500/5 cursor-pointer transition-all font-sans"
                        >
                          <option value="">Selecione</option>
-                         {['Peito', 'Costas', 'Ombros', 'Pernas', 'Bíceps', 'Tríceps', 'Abdominais', 'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilha', 'Full Body', 'Cardio', 'Mobilidade'].map(opt => (
+                         {ex.muscle_group && !muscleFilterGroups.some((group) => group.name === ex.muscle_group) && (
+                           <option value={ex.muscle_group}>{ex.muscle_group}</option>
+                         )}
+                         {muscleFilterGroups.map((group) => group.name).map(opt => (
                            <option key={opt} value={opt}>{opt}</option>
                          ))}
                        </select>

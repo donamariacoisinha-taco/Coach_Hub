@@ -24,6 +24,12 @@ import { Exercise, SystemTemplateWorkout, SystemTemplateExercise } from '../../.
 import { geminiService } from '../../../services/geminiService';
 import { authApi } from '../../../lib/api/authApi';
 import { adminPreferencesApi } from '../../../lib/api/adminPreferencesApi';
+import {
+  buildExerciseFilterGroups,
+  buildExerciseSearchText,
+  exerciseMatchesMuscleFilter,
+  normalizeExerciseFilterText,
+} from '../../../lib/exercises/exerciseFilters';
 
 interface ExerciseBuilderComponentProps {
   workouts: SystemTemplateWorkout[];
@@ -79,12 +85,6 @@ const TEMPLATE_STRUCTURES: Record<string, TemplateItem[]> = {
     { exercise_id: 'f1b01c1c-99e6-4251-ba84-475253896018', fallback_name: 'Stiff com Halteres', muscle: 'Pernas' }
   ]
 };
-
-const MUSCLE_FILTER_CHIPS = [
-  'Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps', 
-  'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilha', 
-  'Core', 'Cardio', 'Mobilidade'
-];
 
 export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> = ({
   workouts,
@@ -261,22 +261,26 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
   };
 
   // Filter & search exercises
+  const muscleFilterGroups = useMemo(() => buildExerciseFilterGroups(exercises), [exercises]);
+  const selectedMainGroup = useMemo(() => muscleFilterGroups.find((group) => (
+    group.name === selectedMuscle
+    || group.subgroups.some((subgroup) => subgroup.name === selectedMuscle)
+  )) || null, [muscleFilterGroups, selectedMuscle]);
+  const suggestionMuscleOptions = useMemo(
+    () => muscleFilterGroups.flatMap((group) => [
+      group.name,
+      ...group.subgroups.map((subgroup) => subgroup.name),
+    ]),
+    [muscleFilterGroups],
+  );
+
   const filteredExercises = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
+    const query = normalizeExerciseFilterText(searchQuery);
     return exercises.filter(ex => {
       if (!ex.is_active) return false;
       
-      const matchesSearch = !query || 
-        ex.name?.toLowerCase().includes(query) ||
-        ex.muscle_group?.toLowerCase().includes(query) ||
-        ex.equipment?.toLowerCase().includes(query) ||
-        (ex.description && ex.description.toLowerCase().includes(query));
-
-      const matchesMuscle = !selectedMuscle || 
-        ex.muscle_group?.toLowerCase() === selectedMuscle.toLowerCase() ||
-        (selectedMuscle === 'Quadríceps' && ex.muscle_group?.toLowerCase().includes('perna')) ||
-        (selectedMuscle === 'Posterior' && ex.muscle_group?.toLowerCase().includes('perna')) ||
-        (selectedMuscle === 'Glúteos' && ex.muscle_group?.toLowerCase().includes('glúteo'));
+      const matchesSearch = !query || buildExerciseSearchText(ex).includes(query);
+      const matchesMuscle = !selectedMuscle || exerciseMatchesMuscleFilter(ex, selectedMuscle);
 
       return matchesSearch && matchesMuscle;
     });
@@ -874,20 +878,47 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
             >
               Todos
             </button>
-            {MUSCLE_FILTER_CHIPS.map(m => (
+            {muscleFilterGroups.map((group) => (
               <button
-                key={m}
-                onClick={() => setSelectedMuscle(m)}
+                key={group.name}
+                onClick={() => setSelectedMuscle(group.name)}
                 className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all ${
-                  selectedMuscle === m 
+                  selectedMainGroup?.name === group.name
                     ? 'bg-slate-900 text-white shadow-sm' 
                     : 'bg-slate-50 border border-slate-200 text-slate-650 hover:bg-slate-100'
                 }`}
               >
-                {m}
+                {group.name} ({group.count})
               </button>
             ))}
           </div>
+          {selectedMainGroup && selectedMainGroup.subgroups.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin">
+              <button
+                onClick={() => setSelectedMuscle(selectedMainGroup.name)}
+                className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all ${
+                  selectedMuscle === selectedMainGroup.name
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100'
+                }`}
+              >
+                Todos {selectedMainGroup.name}
+              </button>
+              {selectedMainGroup.subgroups.map((subgroup) => (
+                <button
+                  key={subgroup.name}
+                  onClick={() => setSelectedMuscle(subgroup.name)}
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all ${
+                    selectedMuscle === subgroup.name
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100'
+                  }`}
+                >
+                  {subgroup.name} ({subgroup.count})
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Exercises Scroll Container */}
@@ -1196,7 +1227,7 @@ export const ExerciseBuilderComponent: React.FC<ExerciseBuilderComponentProps> =
 
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-[10px] text-emerald-700 font-bold">Focar em:</span>
-                {['Peito', 'Costas', 'Ombros', 'Quadríceps', 'Posterior', 'Glúteos', 'Braços'].map(m => (
+                {suggestionMuscleOptions.map(m => (
                   <button
                     key={m}
                     type="button"

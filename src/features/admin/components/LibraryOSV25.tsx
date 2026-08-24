@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, 
@@ -25,6 +25,7 @@ import BulkActionBar from './BulkActionBar';
 import SavedViews from './SavedViews';
 import ColumnsManager from './ColumnsManager';
 import { useKeyboardShortcuts } from '../utils/KeyboardShortcuts';
+import { buildExerciseFilterGroups } from '../../../lib/exercises/exerciseFilters';
 
 const LibraryOSV25: React.FC = () => {
   const { exercises, searchQuery, setSearchQuery, openEditor, selectedMuscleFilter, setMuscleFilter } = useAdminStore();
@@ -54,11 +55,14 @@ const LibraryOSV25: React.FC = () => {
 
   useKeyboardShortcuts(shortcuts);
 
-  const muscleGroups = [
-    'Todos', 'Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps', 
-    'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilha', 
-    'Abdômen', 'Full Body', 'Cardio', 'Mobilidade'
-  ];
+  const muscleFilterGroups = useMemo(
+    () => buildExerciseFilterGroups(exercises, { includeInactive: true }),
+    [exercises],
+  );
+  const activeMuscleGroup = useMemo(() => muscleFilterGroups.find((group) => (
+    group.name === selectedMuscleFilter
+    || group.subgroups.some((subgroup) => subgroup.name === selectedMuscleFilter)
+  )) || null, [muscleFilterGroups, selectedMuscleFilter]);
 
   return (
     <div className="space-y-10 pb-32">
@@ -119,13 +123,14 @@ const LibraryOSV25: React.FC = () => {
       </div>
 
       {/* Muscle Filter Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mask-fade-right">
-        {muscleGroups.map((muscle) => (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mask-fade-right">
+        {['Todos', ...muscleFilterGroups.map((group) => group.name)].map((muscle) => (
           <button
             key={muscle}
             onClick={() => setMuscleFilter(muscle)}
             className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${
-              selectedMuscleFilter === muscle
+              (muscle === 'Todos' ? selectedMuscleFilter === 'Todos' : activeMuscleGroup?.name === muscle)
                 ? 'bg-slate-950 border-slate-950 text-white shadow-lg'
                 : 'bg-white border-slate-200 text-slate-400 hover:border-slate-400 hover:text-slate-900'
             }`}
@@ -133,6 +138,24 @@ const LibraryOSV25: React.FC = () => {
             {muscle}
           </button>
         ))}
+        </div>
+        {activeMuscleGroup && activeMuscleGroup.subgroups.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2" aria-label={`Subcategorias de ${activeMuscleGroup.name}`}>
+            {activeMuscleGroup.subgroups.map((subgroup) => (
+              <button
+                key={subgroup.name}
+                onClick={() => setMuscleFilter(subgroup.name)}
+                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${
+                  selectedMuscleFilter === subgroup.name
+                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                    : 'bg-indigo-50/50 border-indigo-100 text-indigo-500 hover:bg-indigo-50'
+                }`}
+              >
+                {subgroup.name} · {subgroup.count}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main Content Area */}

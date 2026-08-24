@@ -1678,6 +1678,11 @@ const MagicBuildModal: React.FC<{
     onBuild: () => void,
     muscleGroups: MuscleGroup[]
 }> = ({ isOpen, onClose, loading, params, setParams, onBuild, muscleGroups }) => {
+    const focusMuscleGroups = muscleGroups
+        .filter((group) => !group.parent_id)
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+        .map((group) => group.name);
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -1708,7 +1713,10 @@ const MagicBuildModal: React.FC<{
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Foco Muscular</label>
                                 <div className="grid grid-cols-3 gap-2">
-                                    {['Peito', 'Costas', 'Pernas', 'Ombros', 'Braços'].map(m => (
+                                    {(focusMuscleGroups.length > 0
+                                        ? focusMuscleGroups
+                                        : ['Peito', 'Costas', 'Ombros', 'Braços', 'Abdômen', 'Pernas']
+                                    ).map(m => (
                                         <button 
                                             key={m} 
                                             onClick={() => {

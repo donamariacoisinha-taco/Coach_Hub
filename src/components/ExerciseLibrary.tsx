@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Exercise, MuscleGroup } from '../types';
+import { Exercise } from '../types';
 import { authApi } from '../lib/api/authApi';
 import { exerciseApi } from '../lib/api/exerciseApi';
 import { workoutApi } from '../lib/api/workoutApi';
@@ -17,6 +17,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ekeService } from '../domain/eke/ekeService';
 import { EKEExplanation } from './eke/EKEExplanation';
 import { Goal, ExperienceLevel } from '../types';
+import {
+  buildExerciseFilterGroups,
+  buildExerciseSearchText,
+  exerciseMatchesMuscleFilter,
+  getExerciseFilterSide,
+  normalizeExerciseFilterText,
+} from '../lib/exercises/exerciseFilters';
 
 const ExerciseLibrary: React.FC = () => {
   const { navigate } = useNavigation();
@@ -111,37 +118,12 @@ const ExerciseLibrary: React.FC = () => {
 
   const filteredExercises = useMemo(() => {
     return exercises.filter(ex => {
-      const name = ex.name || '';
-      const exMuscleGroupId = ex.muscle_group_id;
-      const exMuscleGroupName = (ex.muscle_group || '').trim();
-      
-      const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // Find the muscle group object for this exercise - try ID first, then name fallback
-      const mg = muscleGroups.find(m => m.id === exMuscleGroupId) || 
-                 muscleGroups.find(m => m.name.toLowerCase() === exMuscleGroupName.toLowerCase());
-      
-      // Parent matching logic
-      let isParentMatch = selectedMuscle === 'Todos';
-      if (!isParentMatch) {
-        // Direct match (case insensitive)
-        if (exMuscleGroupName.toLowerCase() === selectedMuscle.toLowerCase()) {
-          isParentMatch = true;
-        } 
-        // Hierarchy match: if the exercise's muscle group belongs to the selected parent
-        else if (mg) {
-          if (mg.name.toLowerCase() === selectedMuscle.toLowerCase()) {
-            isParentMatch = true;
-          } else if (mg.parent_id) {
-            const parent = muscleGroups.find(p => p.id === mg.parent_id);
-            if (parent && parent.name.toLowerCase() === selectedMuscle.toLowerCase()) {
-              isParentMatch = true;
-            }
-          }
-        }
-      }
+      const matchesSearch = buildExerciseSearchText(ex)
+        .includes(normalizeExerciseFilterText(searchQuery));
 
-      const matchesSide = selectedSide === 'all' || (mg && mg.body_side === selectedSide);
+      const isParentMatch = exerciseMatchesMuscleFilter(ex, selectedMuscle);
+
+      const matchesSide = selectedSide === 'all' || getExerciseFilterSide(ex) === selectedSide;
       
       let matchesStatus = true;
       if (isAdmin) {
@@ -153,11 +135,23 @@ const ExerciseLibrary: React.FC = () => {
 
       return matchesSearch && matchesSide && isParentMatch && matchesStatus;
     }).sort((a, b) => favoriteExerciseIds.has(b.id) ? -1 : 1);
-  }, [exercises, searchQuery, selectedMuscle, selectedSide, muscleGroups, favoriteExerciseIds, isAdmin, adminActiveFilter]);
+  }, [exercises, searchQuery, selectedMuscle, selectedSide, favoriteExerciseIds, isAdmin, adminActiveFilter]);
 
   const parentMuscleGroups = useMemo(() => {
-    return muscleGroups.filter(mg => !mg.parent_id && (selectedSide === 'all' || !mg.body_side || mg.body_side === selectedSide));
-  }, [muscleGroups, selectedSide]);
+    const visibleExercises = exercises.filter((exercise) => {
+      if (!isAdmin && exercise.is_active === false) return false;
+      if (isAdmin && adminActiveFilter === 'active' && exercise.is_active === false) return false;
+      if (isAdmin && adminActiveFilter === 'inactive' && exercise.is_active !== false) return false;
+      if (selectedSide === 'all') return true;
+
+      return getExerciseFilterSide(exercise) === selectedSide;
+    });
+
+    return buildExerciseFilterGroups(visibleExercises, { includeInactive: isAdmin }).map((group) => ({
+      id: group.name,
+      name: group.name,
+    }));
+  }, [exercises, selectedSide, isAdmin, adminActiveFilter]);
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] pb-32">

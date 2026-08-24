@@ -29,6 +29,12 @@ import { useAdminStore } from '../../../store/adminStore';
 import { useErrorHandler } from '../../../hooks/useErrorHandler';
 import { Exercise } from '../../../types';
 import { VisibilityBadge, VisibilityToggle } from './VisibilityBadge';
+import {
+  buildExerciseFilterGroups,
+  buildExerciseSearchText,
+  exerciseMatchesMuscleFilter,
+  normalizeExerciseFilterText,
+} from '../../../lib/exercises/exerciseFilters';
 
 const LibraryOS: React.FC = () => {
   const { 
@@ -45,33 +51,27 @@ const LibraryOS: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<'all' | 'published' | 'hidden' | 'premium' | 'rising' | 'critical' | 'no-media'>('all');
 
-  const muscleGroups = [
-    'Todos', 'Peito', 'Costas', 'Ombros', 'Pernas', 'Bíceps', 'Tríceps', 
-    'Abdominais', 'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilha', 
-    'Full Body', 'Cardio', 'Mobilidade'
-  ];
+  const muscleFilterGroups = useMemo(
+    () => buildExerciseFilterGroups(exercises, { includeInactive: true }),
+    [exercises],
+  );
+  const activeMuscleGroup = useMemo(() => muscleFilterGroups.find((group) => (
+    group.name === selectedMuscleFilter
+    || group.subgroups.some((subgroup) => subgroup.name === selectedMuscleFilter)
+  )) || null, [muscleFilterGroups, selectedMuscleFilter]);
 
   const filtered = useMemo(() => {
     let result = exercises;
     
     // Search
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(ex => 
-        (ex.name || '').toLowerCase().includes(q) || 
-        (ex.muscle_group || '').toLowerCase().includes(q) ||
-        (ex.alt_name || '').toLowerCase().includes(q)
-      );
+      const q = normalizeExerciseFilterText(searchQuery);
+      result = result.filter(ex => buildExerciseSearchText(ex).includes(q));
     }
 
     // Muscle Filter
     if (selectedMuscleFilter !== 'Todos') {
-      result = result.filter(ex => 
-        ex.muscle_group === selectedMuscleFilter ||
-        (selectedMuscleFilter === 'Pernas' && (ex.muscle_group === 'Perna' || ex.muscle_group === 'Panturrilhas' || ex.muscle_group === 'Adutores' || ex.muscle_group === 'Glúteos' || ex.muscle_group === 'Quadríceps' || ex.muscle_group === 'Posterior' || ex.muscle_group === 'Posteriores')) ||
-        (selectedMuscleFilter === 'Abdominais' && (ex.muscle_group === 'Abdômen' || ex.muscle_group === 'Oblíquos')) ||
-        (selectedMuscleFilter === 'Ombros' && ex.muscle_group === 'Ombro')
-      );
+      result = result.filter(ex => exerciseMatchesMuscleFilter(ex, selectedMuscleFilter));
     }
     
     // Status Filter
@@ -135,13 +135,14 @@ const LibraryOS: React.FC = () => {
       </div>
 
       {/* Muscle Filter: Segmented Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mask-fade-right">
-        {muscleGroups.map((muscle) => (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mask-fade-right">
+        {['Todos', ...muscleFilterGroups.map((group) => group.name)].map((muscle) => (
           <button
             key={muscle}
             onClick={() => setMuscleFilter(muscle)}
             className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${
-              selectedMuscleFilter === muscle
+              (muscle === 'Todos' ? selectedMuscleFilter === 'Todos' : activeMuscleGroup?.name === muscle)
                 ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20'
                 : 'bg-white border-slate-200 text-slate-400 hover:border-slate-400 hover:text-slate-900'
             }`}
@@ -149,6 +150,24 @@ const LibraryOS: React.FC = () => {
             {muscle}
           </button>
         ))}
+        </div>
+        {activeMuscleGroup && activeMuscleGroup.subgroups.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2" aria-label={`Subcategorias de ${activeMuscleGroup.name}`}>
+            {activeMuscleGroup.subgroups.map((subgroup) => (
+              <button
+                key={subgroup.name}
+                onClick={() => setMuscleFilter(subgroup.name)}
+                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${
+                  selectedMuscleFilter === subgroup.name
+                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                    : 'bg-indigo-50/50 border-indigo-100 text-indigo-500 hover:bg-indigo-50'
+                }`}
+              >
+                {subgroup.name} · {subgroup.count}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Quick Status Filters */}
@@ -673,4 +692,3 @@ function BulkButton({ icon, label, color = 'default', onClick }: { icon: React.R
 }
 
 export default LibraryOS;
-

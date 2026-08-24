@@ -19,6 +19,10 @@ import { useAdminStore } from '../../../store/adminStore';
 import { premiumProtocolsApi, PremiumProtocol } from '../../../lib/api/premiumProtocolsApi';
 import { profileApi } from '../../../lib/api/profileApi';
 import { Exercise } from '../../../types';
+import {
+  buildExerciseSearchText,
+  normalizeExerciseFilterText,
+} from '../../../lib/exercises/exerciseFilters';
 
 const CommandPalette: React.FC = () => {
   const { 
@@ -110,25 +114,22 @@ const CommandPalette: React.FC = () => {
   ];
 
   // 2. Filter data matching query
-  const q = query.toLowerCase().trim();
+  const q = normalizeExerciseFilterText(query);
 
   const filteredCommands = baseCommands.filter(c => 
-    c.label.toLowerCase().includes(q)
+    normalizeExerciseFilterText(c.label).includes(q)
   );
 
   const filteredExercises = q === '' ? [] : exercises.filter(ex => 
-    ex.name.toLowerCase().includes(q) || 
-    (ex.muscle_group && ex.muscle_group.toLowerCase().includes(q))
+    buildExerciseSearchText(ex).includes(q)
   ).slice(0, 5);
 
   const filteredProtocols = q === '' ? [] : protocols.filter(pr => 
-    pr.name.toLowerCase().includes(q) || 
-    (pr.description && pr.description.toLowerCase().includes(q))
+    normalizeExerciseFilterText(`${pr.name} ${pr.description || ''}`).includes(q)
   ).slice(0, 5);
 
   const filteredProfiles = q === '' ? [] : profiles.filter(pf => 
-    (pf.name && pf.name.toLowerCase().includes(q)) || 
-    (pf.email && pf.email.toLowerCase().includes(q))
+    normalizeExerciseFilterText(`${pf.name || ''} ${pf.email || ''}`).includes(q)
   ).slice(0, 5);
 
   const handleCommandTrigger = (actionFn: () => void) => {

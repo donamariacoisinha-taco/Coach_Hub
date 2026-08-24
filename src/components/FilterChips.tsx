@@ -1,17 +1,16 @@
 
 import React from 'react';
-import { motion } from 'motion/react';
-import { MUSCLE_GROUPS } from '../hooks/useExerciseFilters';
 
 interface FilterChipsProps {
+  muscles: string[];
   selectedMuscle: string | null;
   onSelect: (muscle: string) => void;
 }
 
-export const FilterChips: React.FC<FilterChipsProps> = ({ selectedMuscle, onSelect }) => {
+export const FilterChips: React.FC<FilterChipsProps> = ({ muscles, selectedMuscle, onSelect }) => {
   return (
     <div className="flex gap-2 overflow-x-auto no-scrollbar px-6 py-2">
-      {MUSCLE_GROUPS.map((muscle) => (
+      {muscles.map((muscle) => (
         <button
           key={muscle}
           onClick={() => onSelect(muscle)}

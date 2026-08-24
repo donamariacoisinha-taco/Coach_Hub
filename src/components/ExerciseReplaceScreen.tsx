@@ -40,6 +40,7 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
     setSelectedCut,
     filteredExercises,
     suggestions,
+    availableMuscles,
     availableCuts
   } = useExerciseFilters(availableExercises, currentExercise, favoriteIds);
 
@@ -139,6 +140,7 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
 
               <div className="space-y-2">
                 <FilterChips 
+                   muscles={availableMuscles}
                    selectedMuscle={selectedMuscle} 
                    onSelect={handleMuscleSelect} 
                 />

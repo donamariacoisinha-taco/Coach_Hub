@@ -61,6 +61,7 @@ import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../
 import { claimGuestStorageMigrationNoticeDisplay, consumeGuestStorageMigrationNotice, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, migrateGuestStorage, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
 import { filterExerciseSelectorCandidates, remapIndexedExerciseState, replaceOrSwapExercise } from "./exerciseSelector";
 import { shouldCloseSheetFromDrag } from "../../lib/ui/sheetGestures";
+import { buildExerciseFilterGroups } from "../../lib/exercises/exerciseFilters";
 
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -1361,6 +1362,26 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     if (!allAvailableExercises) return [];
     return filterExerciseSelectorCandidates(allAvailableExercises, searchQuery, selectedMuscleGroup);
   }, [allAvailableExercises, searchQuery, selectedMuscleGroup]);
+
+  const selectorFilterGroups = useMemo(
+    () => buildExerciseFilterGroups(allAvailableExercises),
+    [allAvailableExercises],
+  );
+  const activeSelectorFilterGroup = useMemo(() => (
+    selectorFilterGroups.find((group) => (
+      group.name === selectedMuscleGroup
+      || group.subgroups.some((subgroup) => subgroup.name === selectedMuscleGroup)
+    )) || null
+  ), [selectorFilterGroups, selectedMuscleGroup]);
+
+  useEffect(() => {
+    if (selectedMuscleGroup === 'Tudo') return;
+    const stillAvailable = selectorFilterGroups.some((group) => (
+      group.name === selectedMuscleGroup
+      || group.subgroups.some((subgroup) => subgroup.name === selectedMuscleGroup)
+    ));
+    if (!stillAvailable) setSelectedMuscleGroup('Tudo');
+  }, [selectorFilterGroups, selectedMuscleGroup]);
 
   const [finishing, setFinishing] = useState(false);
   const [pendingSetToComplete, setPendingSetToComplete] = useState<number | null>(null);
@@ -4612,28 +4633,52 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     )}
                   </div>
 
-                  {/* Horizontal Scroll Filter Pills */}
-                  <div className="grid grid-cols-3 gap-2 pb-3 mb-4 shrink-0">
-                    {/* Muscle Groups Pills */}
-                    {['Tudo', 'Peito', 'Costas', 'Quadríceps', 'Glúteo', 'Ombro', 'Bíceps', 'Tríceps', 'Cardio'].map((cat) => {
-                      const isActive = selectedMuscleGroup === cat;
-                      return (
-                        <button
-                          key={cat}
-                          onClick={() => {
-                            setSelectedMuscleGroup(cat);
-                            playHapticFeedback('light');
-                          }}
-                          className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap border ${
-                            isActive 
-                              ? "bg-slate-900 text-white border-slate-950" 
-                              : "bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100"
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      );
-                    })}
+                  {/* Canonical category/subcategory filters derived from available exercises. */}
+                  <div className="space-y-2 pb-3 mb-4 shrink-0">
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                      {['Tudo', ...selectorFilterGroups.map((group) => group.name)].map((cat) => {
+                        const isActive = cat === 'Tudo'
+                          ? selectedMuscleGroup === 'Tudo'
+                          : activeSelectorFilterGroup?.name === cat;
+                        return (
+                          <button
+                            key={cat}
+                            onClick={() => {
+                              setSelectedMuscleGroup(cat);
+                              playHapticFeedback('light');
+                            }}
+                            className={`px-3 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap border ${
+                              isActive
+                                ? "bg-slate-900 text-white border-slate-950"
+                                : "bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100"
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {activeSelectorFilterGroup && activeSelectorFilterGroup.subgroups.length > 0 && (
+                      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1" aria-label={`Subcategorias de ${activeSelectorFilterGroup.name}`}>
+                        {activeSelectorFilterGroup.subgroups.map((subgroup) => (
+                          <button
+                            key={subgroup.name}
+                            onClick={() => {
+                              setSelectedMuscleGroup(subgroup.name);
+                              playHapticFeedback('light');
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap border ${
+                              selectedMuscleGroup === subgroup.name
+                                ? "bg-indigo-600 text-white border-indigo-600"
+                                : "bg-indigo-50/60 text-indigo-500 border-indigo-100 hover:bg-indigo-50"
+                            }`}
+                          >
+                            {subgroup.name} · {subgroup.count}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* KYRON SMART BIOLOGICAL CONTEXT ADVICES */}

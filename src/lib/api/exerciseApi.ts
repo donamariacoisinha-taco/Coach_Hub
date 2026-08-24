@@ -3,6 +3,12 @@ import { supabase } from './supabase';
 import { Exercise, MuscleGroup, normalizeMuscleGroup, getVirtualAnatomicalCut } from '../../types';
 import { fetchWithRetry } from '../utils';
 import { fallbackExercises } from './fallbackExercises';
+import {
+  buildExerciseFilterGroups,
+  exerciseMatchesMuscleFilter,
+  getExerciseFilterSide,
+  normalizeExerciseFilterText,
+} from '../exercises/exerciseFilters';
 
 const CACHE_KEY = 'rubi_exercises_offline_cache';
 
@@ -35,6 +41,41 @@ function setLocalCache(exercises: Exercise[]): void {
   } catch (err) {
     console.error('[ExerciseApi] Falha ao escrever cache no localStorage:', err);
   }
+}
+
+function getFallbackMuscleGroups(): MuscleGroup[] {
+  return buildExerciseFilterGroups(fallbackExercises).flatMap((group, groupIndex) => {
+    const parentId = normalizeExerciseFilterText(group.name).replace(/\s+/g, '-');
+    const groupExercises = fallbackExercises.filter((exercise) => (
+      normalizeMuscleGroup(exercise.muscle_group || '') === group.name
+    ));
+    const rootSide = groupExercises.some((exercise) => getExerciseFilterSide(exercise) === 'back')
+      && !groupExercises.some((exercise) => getExerciseFilterSide(exercise) === 'front')
+      ? 'back'
+      : 'front';
+
+    return [
+      {
+        id: parentId,
+        name: group.name,
+        body_side: rootSide,
+        parent_id: null,
+        sort_order: groupIndex + 1,
+      },
+      ...group.subgroups.map((subgroup, subgroupIndex) => {
+        const representative = groupExercises.find((exercise) => (
+          exerciseMatchesMuscleFilter(exercise, subgroup.name)
+        ));
+        return {
+          id: `${parentId}-${normalizeExerciseFilterText(subgroup.name).replace(/\s+/g, '-')}`,
+          name: subgroup.name,
+          body_side: representative ? getExerciseFilterSide(representative) : rootSide,
+          parent_id: parentId,
+          sort_order: subgroupIndex + 1,
+        } satisfies MuscleGroup;
+      }),
+    ];
+  });
 }
 
 async function getTechnicalQualityMap(): Promise<Map<string, { score: number; status: string }>> {
@@ -172,14 +213,7 @@ export const exerciseApi = {
       });
     } catch (err) {
       console.warn('[ExerciseApi] Erro ao buscar grupos musculares do Supabase, utilizando fallback estático local.', err);
-      return [
-        { id: 'peito', name: 'Peito', sort_order: 1 },
-        { id: 'costas', name: 'Costas', sort_order: 2 },
-        { id: 'pernas', name: 'Pernas', sort_order: 3 },
-        { id: 'ombros', name: 'Ombros', sort_order: 4 },
-        { id: 'braços', name: 'Bíceps/Tríceps', sort_order: 5 },
-        { id: 'abdômen', name: 'Core', sort_order: 6 }
-      ] as any[];
+      return getFallbackMuscleGroups();
     }
   },
 

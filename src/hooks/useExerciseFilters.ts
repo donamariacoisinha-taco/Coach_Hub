@@ -1,54 +1,30 @@
 
 import { useState, useMemo } from 'react';
 import { Exercise } from '../types';
-
-export const MUSCLE_GROUPS = [
-  'Peito',
-  'Costas',
-  'Pernas',
-  'Ombros',
-  'Braços',
-  'Abdômen'
-];
-
-export const ANATOMICAL_CUTS: Record<string, string[]> = {
-  'Peito': ['Superior', 'Médio', 'Inferior'],
-  'Costas': ['Largura', 'Espessura', 'Lombar'],
-  'Ombros': ['Anterior', 'Lateral', 'Posterior'],
-  'Pernas': ['Quadríceps', 'Posterior', 'Glúteo', 'Panturrilha'],
-  'Braços': ['Bíceps', 'Tríceps', 'Antebraço'],
-  'Abdômen': ['Superior', 'Inferior', 'Oblíquos']
-};
+import {
+  buildExerciseFilterGroups,
+  buildExerciseSearchText,
+  exerciseMatchesMuscleFilter,
+  normalizeExerciseFilterText,
+} from '../lib/exercises/exerciseFilters';
 
 export const useExerciseFilters = (availableExercises: Exercise[], currentExercise?: any, favoriteIds: Set<string> = new Set()) => {
   const [search, setSearch] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [selectedCut, setSelectedCut] = useState<string | null>(null);
 
+  const filterGroups = useMemo(() => buildExerciseFilterGroups(availableExercises), [availableExercises]);
+
   const filteredExercises = useMemo(() => {
-    const query = search.toLowerCase();
+    const queryTerms = normalizeExerciseFilterText(search).split(' ').filter(Boolean);
     
     return availableExercises
       .filter(ex => {
-        const matchesSearch = ex.name.toLowerCase().includes(query);
+        const searchText = buildExerciseSearchText(ex);
+        const matchesSearch = queryTerms.every((term) => searchText.includes(term));
         
-        // Robust Muscle Matching
-        const exMuscle = (ex.muscle_group || '').toLowerCase();
-        let matchesMuscle = !selectedMuscle;
-        
-        if (selectedMuscle) {
-          const muscle = selectedMuscle.toLowerCase();
-          
-          if (muscle === 'peito') matchesMuscle = exMuscle.includes('peito') || exMuscle.includes('peitoral');
-          else if (muscle === 'costas') matchesMuscle = exMuscle.includes('costas') || exMuscle.includes('dorsal') || exMuscle.includes('lombar') || exMuscle.includes('latíssimo') || exMuscle.includes('trapézio');
-          else if (muscle === 'ombros') matchesMuscle = exMuscle.includes('ombro') || exMuscle.includes('deltóide') || exMuscle.includes('manguito');
-          else if (muscle === 'pernas') matchesMuscle = exMuscle.includes('perna') || exMuscle.includes('coxa') || exMuscle.includes('panturrilha') || exMuscle.includes('glúteo') || exMuscle.includes('quadríceps') || exMuscle.includes('isquiotibiais') || exMuscle.includes('adutor') || exMuscle.includes('abdutor');
-          else if (muscle === 'braços') matchesMuscle = exMuscle.includes('braç') || exMuscle.includes('brac') || exMuscle.includes('bíceps') || exMuscle.includes('tríceps') || exMuscle.includes('antebraço');
-          else if (muscle === 'abdômen') matchesMuscle = exMuscle.includes('abdômen') || exMuscle.includes('abdominal') || exMuscle.includes('oblíquo') || exMuscle.includes('core') || exMuscle.includes('abdominais');
-          else matchesMuscle = exMuscle.includes(muscle);
-        }
-
-        const matchesCut = !selectedCut || ex.anatomical_cut === selectedCut;
+        const matchesMuscle = !selectedMuscle || exerciseMatchesMuscleFilter(ex, selectedMuscle);
+        const matchesCut = !selectedCut || exerciseMatchesMuscleFilter(ex, selectedCut);
         return matchesSearch && matchesMuscle && matchesCut && (ex.is_active !== false);
       })
       .sort((a, b) => {
@@ -82,7 +58,7 @@ export const useExerciseFilters = (availableExercises: Exercise[], currentExerci
     if (!currentExercise) return [];
     return availableExercises
       .filter(ex => 
-        ex.muscle_group === currentExercise.muscle_group && 
+        exerciseMatchesMuscleFilter(ex, currentExercise.muscle_group) &&
         ex.id !== currentExercise.exercise_id &&
         (ex.is_active !== false)
       )
@@ -108,6 +84,9 @@ export const useExerciseFilters = (availableExercises: Exercise[], currentExerci
     setSelectedCut,
     filteredExercises,
     suggestions,
-    availableCuts: selectedMuscle ? ANATOMICAL_CUTS[selectedMuscle] || [] : []
+    availableMuscles: filterGroups.map((group) => group.name),
+    availableCuts: selectedMuscle
+      ? filterGroups.find((group) => group.name === selectedMuscle)?.subgroups.map((subgroup) => subgroup.name) || []
+      : []
   };
 }
