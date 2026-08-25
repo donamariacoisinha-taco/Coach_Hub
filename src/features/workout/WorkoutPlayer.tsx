@@ -1997,7 +1997,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     // Consolidated height observer for footer to ensure scroll padding is always accurate
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const height = entry.target.clientHeight;
+        const height = Math.max(entry.target.clientHeight, entry.target.scrollHeight);
         if (height > 0) {
           setFooterHeight(height);
         }
@@ -2766,6 +2766,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
 
     if ('vibrate' in navigator) navigator.vibrate([10, 30, 10]);
+    const newSetIndex = updatedActiveSets.length - 1;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      setRefs.current[newSetIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }));
   };
 
   const handleCompleteSet = async () => {
