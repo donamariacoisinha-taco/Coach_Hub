@@ -412,6 +412,7 @@ const SwipeableSetCard: React.FC<SwipeableSetCardProps> = ({
       <motion.div
         drag="x"
         dragDirectionLock
+        style={{ touchAction: 'pan-y' }}
         dragConstraints={{ left: -300, right: 0 }}
         dragElastic={{ left: 0.12, right: 0 }}
         dragMomentum={false}
@@ -467,6 +468,7 @@ const SwipeableSetRow: React.FC<SwipeableSetRowProps> = ({
       <motion.div
         drag="x"
         dragDirectionLock
+        style={{ touchAction: 'pan-y' }}
         dragConstraints={{ left: -300, right: 0 }}
         dragElastic={{ left: 0.15, right: 0 }}
         dragMomentum={false}
@@ -573,30 +575,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     body.dataset.workoutSessionActive = 'true';
     window.dispatchEvent(new CustomEvent('kyron:workout-session-active', { detail: { active: true } }));
 
-    let touchStartY = 0;
-    let touchScroller: HTMLElement | null = null;
-    const handleTouchStart = (event: TouchEvent) => {
-      if (event.touches.length !== 1) return;
-      touchStartY = event.touches[0].clientY;
-      const target = event.target instanceof HTMLElement ? event.target : null;
-      touchScroller = target?.closest<HTMLElement>('[data-workout-scrollable="true"]')
-        || root?.querySelector<HTMLElement>('[data-workout-main-scroll="true"]')
-        || null;
-    };
-    const handleTouchMove = (event: TouchEvent) => {
-      if (event.touches.length !== 1 || event.touches[0].clientY <= touchStartY) return;
-      const target = event.target instanceof HTMLElement ? event.target : null;
-      // Motion owns dock gestures; allowing them here keeps expand/minimize intact.
-      if (target?.closest('[data-workout-dock="true"], [data-workout-sheet-handle="true"]')) return;
-      if (!touchScroller || touchScroller.scrollTop <= 0) event.preventDefault();
-    };
-
-    root?.addEventListener('touchstart', handleTouchStart, { passive: true });
-    root?.addEventListener('touchmove', handleTouchMove, { passive: false });
-
     return () => {
-      root?.removeEventListener('touchstart', handleTouchStart);
-      root?.removeEventListener('touchmove', handleTouchMove);
       html.style.overscrollBehavior = previous.htmlOverscroll;
       html.style.overscrollBehaviorY = previous.htmlOverscrollY;
       body.style.overscrollBehavior = previous.bodyOverscroll;
