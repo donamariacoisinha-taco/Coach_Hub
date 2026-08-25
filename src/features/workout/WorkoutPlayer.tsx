@@ -3478,7 +3478,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             <div 
               data-workout-scrollable="true"
               data-workout-main-scroll="true"
-              className={`flex-1 overflow-y-auto transition-all duration-500 ${
+              className={`flex-1 min-h-0 overflow-y-auto transition-all duration-500 ${
                 focusMode ? "bg-slate-950 text-slate-100" : "bg-[#F8FAFC] text-slate-900"
               }`}
               onScroll={handleScroll}
