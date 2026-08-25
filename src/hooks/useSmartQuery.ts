@@ -2,12 +2,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { cacheStore } from '../lib/cache/cacheStore';
 import { UIStatus } from '../components/ui/ScreenState';
-import { fetchWithRetry } from '../lib/utils';
+import { fetchWithRetry, withTimeout } from '../lib/utils';
 
 interface SmartQueryOptions {
   ttl?: number;
   revalidateOnFocus?: boolean;
   refreshInterval?: number;
+  /** Tempo máximo da consulta antes de exibir um estado recuperável de erro. */
+  timeoutMs?: number;
 }
 
 export function useSmartQuery<T>(
@@ -15,7 +17,7 @@ export function useSmartQuery<T>(
   fetcher: () => Promise<T>,
   options: SmartQueryOptions = {}
 ) {
-  const { ttl = 300000, revalidateOnFocus = true, refreshInterval } = options;
+  const { ttl = 300000, revalidateOnFocus = true, refreshInterval, timeoutMs = 15000 } = options;
   
   const [data, setData] = useState<T | null>(() => cacheStore.get<T>(key));
   const [status, setStatus] = useState<UIStatus>(data ? 'success' : 'loading');
@@ -31,7 +33,7 @@ export function useSmartQuery<T>(
     }
 
     try {
-      const result = await fetchWithRetry(fetcher);
+      const result = await withTimeout(fetchWithRetry(fetcher), timeoutMs);
       cacheStore.set(key, result);
       setData(result);
       
@@ -50,7 +52,7 @@ export function useSmartQuery<T>(
     } finally {
       setIsFetching(false);
     }
-  }, [key, fetcher, data]);
+  }, [key, fetcher, data, timeoutMs]);
 
   useEffect(() => {
     const cached = cacheStore.get<T>(key);

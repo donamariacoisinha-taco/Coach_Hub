@@ -158,7 +158,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     refreshInterval: 60000
   });
 
-  const { data, status, isFetching, refresh, mutate } = dashboardQuery;
+  const { data, status, isFetching, error, refresh, mutate } = dashboardQuery;
   const { profile: storeProfile } = useUserStore();
   const profile = storeProfile || data?.profile;
   const folders = data?.folders || [];
@@ -1066,6 +1066,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               <div className="space-y-6 pb-6">
                 <ScreenState
                   status={status}
+                  error={error instanceof Error ? error.message : null}
                   isFetching={isFetching}
                   skeleton={<DashboardSkeleton />}
                   onRetry={refresh}

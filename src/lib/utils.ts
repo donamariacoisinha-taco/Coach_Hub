@@ -5,6 +5,33 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export class FetchTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`A solicitação demorou mais de ${Math.ceil(timeoutMs / 1000)} segundos para responder.`);
+    this.name = 'FetchTimeoutError';
+  }
+}
+
+/**
+ * Impede que uma solicitação de rede que ficou pendurada mantenha uma tela
+ * em carregamento infinito. A requisição original pode terminar em segundo
+ * plano, mas o chamador recebe um erro tratável dentro do prazo definido.
+ */
+export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new FetchTimeoutError(timeoutMs)), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export async function fetchWithRetry<T>(
   fn: () => Promise<T>,
   retries = 3,
