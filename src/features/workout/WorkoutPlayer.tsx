@@ -391,115 +391,21 @@ const SwipeableSetCard: React.FC<SwipeableSetCardProps> = ({
   onDeleteRequest,
   children,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isSwiping, setIsSwiping] = useState(false);
-
   return (
-    <div ref={containerRef} className="relative overflow-hidden rounded-2xl select-none">
-      {/* Red Delete Background */}
-      <div 
-        className={`absolute inset-0 bg-rose-50 flex items-center justify-end px-6 text-rose-500 rounded-2xl border border-rose-100/50 z-0 transition-opacity duration-200 ${
-          isSwiping ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-      >
-        <div className="flex items-center gap-1.5 font-extrabold text-[10px] uppercase tracking-wider">
-          <span>Excluir Série {idx + 1}</span>
-          <Trash2 size={14} strokeWidth={2.5} />
-        </div>
-      </div>
-
-      {/* Swipeable Foreground */}
-      <motion.div
-        drag="x"
-        dragDirectionLock
-        style={{ touchAction: 'pan-y' }}
-        dragConstraints={{ left: -300, right: 0 }}
-        dragElastic={{ left: 0.12, right: 0 }}
-        dragMomentum={false}
-        onDragStart={() => setIsSwiping(true)}
-        onDragEnd={(event, info) => {
-          setIsSwiping(false);
-          const width = containerRef.current?.getBoundingClientRect().width || 320;
-          const threshold = width * 0.45;
-          if (info.offset.x < -threshold) {
-            onDeleteRequest(idx);
-          }
-        }}
-        className="relative z-10"
-      >
-        {children}
-      </motion.div>
-    </div>
-  );
-};
-
-interface SwipeableSetRowProps {
-  set: { weight: number; reps: number; rpe: number };
-  sIdx: number;
-  isCompleted: boolean;
-  isCurrent: boolean;
-  onDeleteRequest: (idx: number) => void;
-}
-
-const SwipeableSetRow: React.FC<SwipeableSetRowProps> = ({
-  set,
-  sIdx,
-  isCompleted,
-  isCurrent,
-  onDeleteRequest,
-}) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isSwiping, setIsSwiping] = useState(false);
-  return (
-    <div ref={containerRef} className="relative overflow-hidden rounded-xl h-11 select-none">
-      {/* Red Delete Background */}
-      <div 
-        className={`absolute inset-0 bg-rose-50 flex items-center justify-end px-4 text-rose-500 rounded-xl border border-rose-100 z-0 transition-opacity duration-200 ${
-          isSwiping ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-      >
-        <div className="flex items-center gap-1.5 font-extrabold text-[9px] uppercase tracking-wider">
-          <span>Excluir</span>
+    <div className="relative rounded-2xl" style={{ touchAction: 'pan-y' }}>
+      {children}
+      <div className="flex justify-end px-1 pt-1">
+        <button
+          type="button"
+          onClick={() => onDeleteRequest(idx)}
+          className="min-h-11 px-3 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition-all flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider"
+          aria-label={`Excluir Série ${idx + 1}`}
+          title={`Excluir Série ${idx + 1}`}
+        >
           <Trash2 size={13} strokeWidth={2.5} />
-        </div>
+          Excluir Série {idx + 1}
+        </button>
       </div>
-
-      {/* Swipeable Foreground */}
-      <motion.div
-        drag="x"
-        dragDirectionLock
-        style={{ touchAction: 'pan-y' }}
-        dragConstraints={{ left: -300, right: 0 }}
-        dragElastic={{ left: 0.15, right: 0 }}
-        dragMomentum={false}
-        onDragStart={() => setIsSwiping(true)}
-        onDragEnd={(event, info) => {
-          setIsSwiping(false);
-          const width = containerRef.current?.getBoundingClientRect().width || 320;
-          const threshold = width * 0.6;
-          if (info.offset.x < -threshold) {
-            onDeleteRequest(sIdx);
-          }
-        }}
-        className={`absolute inset-0 flex justify-between items-center py-2 px-3 rounded-xl border cursor-grab active:cursor-grabbing transition-colors duration-155 z-10 ${
-          isCompleted 
-            ? 'bg-emerald-50 border-emerald-100 text-emerald-900 shadow-sm' 
-            : isCurrent 
-              ? 'bg-blue-50 border-blue-100 text-[#7BA7FF] shadow-sm' 
-              : 'bg-white border-slate-100 text-slate-600 shadow-sm'
-        } text-xs font-bold font-mono`}
-      >
-        <span className="uppercase tracking-tight text-[10px] font-black">Série {sIdx + 1}</span>
-        <div className="flex items-center gap-3">
-          <span className="font-extrabold text-[#1E293B] tabular-nums">{set.weight}kg × {set.reps} reps</span>
-          <span className="text-slate-400 font-normal">RPE {set.rpe}</span>
-          {isCompleted ? (
-            <CheckCircle2 size={14} className="text-emerald-500 fill-emerald-50" />
-          ) : (
-            <div className="w-4 h-4 rounded-full border border-slate-200 bg-slate-50" />
-          )}
-        </div>
-      </motion.div>
     </div>
   );
 };
@@ -3281,7 +3187,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     <div
       ref={workoutRootRef}
       data-workout-player="true"
-      className="h-[100dvh] bg-[#F7F8FA] text-slate-900 flex flex-col font-sans overflow-hidden"
+      className="h-[100dvh] min-h-0 bg-[#F7F8FA] text-slate-900 flex flex-col font-sans overflow-hidden"
     >
       {showRecoveryPrompt && recoverySession && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6">
@@ -3351,9 +3257,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         isFetching={isFetching}
         onRetry={() => refresh()}
         skeleton={<PlayerSkeleton />}
+        constrainHeight
       >
         {!isAdvanced && (
-          <div className={`transition-all duration-500 overflow-hidden ${isResting ? 'h-0' : 'h-auto border-b border-slate-50 bg-[#F8FAFC]'}`}>
+          <div className={`shrink-0 transition-all duration-500 overflow-hidden ${isResting ? 'h-0' : 'h-auto border-b border-slate-50 bg-[#F8FAFC]'}`}>
             <div className="px-4 py-1.5 flex items-center justify-center gap-2">
               <p className="text-[8px] font-[1000] text-slate-400 uppercase tracking-[0.2em]">
                 {isBeginner ? "Modo Iniciante • Guiado" : "Modo Intermediário • Adaptativo"}
@@ -3365,9 +3272,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="flex flex-col h-full items-center"
+          className="flex-1 min-h-0 w-full overflow-hidden flex flex-col items-center"
         >
-          <div className="w-full max-w-md flex flex-col h-full bg-white relative">
+          <div className="w-full max-w-md flex-1 min-h-0 overflow-hidden flex flex-col bg-white relative">
             
             {/* 1. HEADER & PROGRESS */}
             <motion.header 
@@ -3377,7 +3284,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 opacity: (isHeaderVisible || isResting) ? 1 : 0
               }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className={`sticky top-0 z-50 bg-white transition-all duration-500 overflow-hidden ${
+              className={`sticky top-0 z-50 shrink-0 bg-white transition-all duration-500 overflow-hidden ${
               momentum ? "h-14 border-b-0 shadow-sm" : "h-16 border-b border-slate-100"
             } px-4 flex items-center justify-between`}>
               <div className="flex items-center gap-3">
@@ -3621,7 +3528,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               )}
 
               {/* SERIES LIST (CORE) */}
-              <div className={`px-4 ${isAdvanced ? 'space-y-2' : 'space-y-3'} pb-8 overflow-hidden`}>
+              <div className={`px-4 ${isAdvanced ? 'space-y-2' : 'space-y-3'} pb-8`}>
                 {activeSetsData.map((setData, idx) => {
                   const isCurrent = idx === currentSet - 1;
                   const isCompleted = completedSetIndices.has(idx);
