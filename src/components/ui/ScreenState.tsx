@@ -12,6 +12,7 @@ interface ScreenStateProps {
   onRetry?: () => void;
   skeleton?: ReactNode;
   emptyState?: ReactNode;
+  constrainHeight?: boolean;
   children: ReactNode;
 }
 
@@ -22,10 +23,11 @@ export const ScreenState: React.FC<ScreenStateProps> = ({
   onRetry,
   skeleton,
   emptyState,
+  constrainHeight = false,
   children,
 }) => {
   return (
-    <div className="relative w-full h-full flex-1 flex flex-col">
+    <div className={`relative w-full h-full flex-1 flex flex-col ${constrainHeight ? 'min-h-0 overflow-hidden' : ''}`}>
       <AnimatePresence mode="wait">
         {status === "loading" && !isFetching ? (
           <motion.div
@@ -33,7 +35,7 @@ export const ScreenState: React.FC<ScreenStateProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex-1 flex flex-col"
+            className={`flex-1 flex flex-col ${constrainHeight ? 'min-h-0 overflow-hidden' : ''}`}
           >
             {skeleton || (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -103,7 +105,7 @@ export const ScreenState: React.FC<ScreenStateProps> = ({
             key="content"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex-1 flex flex-col"
+            className={`flex-1 flex flex-col ${constrainHeight ? 'min-h-0 overflow-hidden' : ''}`}
           >
             {children}
           </motion.div>
