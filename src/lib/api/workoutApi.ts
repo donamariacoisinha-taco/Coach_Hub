@@ -4,6 +4,7 @@ import { WorkoutCategory, WorkoutExercise, WorkoutFolder, WorkoutHistory, UserPr
 import { fetchWithRetry } from '../utils';
 import { exerciseApi } from './exerciseApi';
 import { getGuestDashboard } from '../guest/guestPersistence';
+import { GUEST_USER_ID } from './authApi';
 
 export const workoutApi = {
   getGuestDashboardData() {
@@ -528,6 +529,22 @@ export const workoutApi = {
   },
 
   async getWorkoutHistory(userId: string) {
+    // Convidado guarda o histórico no próprio aparelho: consultar o Supabase
+    // aqui devolveria lista vazia e a tela de Histórico ficaria em branco.
+    if (userId === GUEST_USER_ID) {
+      return (getGuestDashboard().history || [])
+        .filter((entry: any) => entry?.completed_at)
+        .map((entry: any) => ({
+          ...entry,
+          user_id: GUEST_USER_ID,
+          category_name: entry.category_name || entry.workout_name || 'Treino local',
+          exercises_count: entry.exercises_count
+            ?? new Set((entry.workout_sets_logs || []).map((log: any) => log.exercise_id)).size,
+        }))
+        .sort((a: any, b: any) =>
+          new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
+    }
+
     return fetchWithRetry(async () => {
       const { data, error } = await supabase
         .from('workout_history')
@@ -560,6 +577,17 @@ export const workoutApi = {
   },
 
   async getWorkoutDetails(historyId: string) {
+    // Séries do convidado ficam em `history[].workout_sets_logs`, não na tabela.
+    if (String(historyId).startsWith('guest-')) {
+      const entry = (getGuestDashboard().history || [])
+        .find((item: any) => item.id === historyId);
+      return (entry?.workout_sets_logs || []).map((log: any) => ({
+        ...log,
+        history_id: historyId,
+        exercises: { name: log.exercise_name || 'Exercício', muscle_group: 'Outros' },
+      }));
+    }
+
     let response: any = await supabase.from('workout_sets_log').select(`*, exercises (name, muscle_group)`).eq('history_id', historyId).order('created_at', { ascending: true });
     
     if (response.error) {

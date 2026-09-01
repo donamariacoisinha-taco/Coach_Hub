@@ -7,6 +7,14 @@ import { profileApi } from '../lib/api/profileApi';
 import { systemTemplatesApi } from '../lib/api/systemTemplatesApi';
 import { supabase } from '../lib/api/supabase';
 import { exerciseApi } from '../lib/api/exerciseApi';
+import {
+  SessionSummary,
+  formatSessionVolume,
+  formatSetWeight,
+  sessionDataBadge,
+  sessionStatusBadge,
+  summarizeSession,
+} from '../domain/workout/sessionSummary';
 import ProgressPhotos from './ProgressPhotos';
 import BioReport from './BioReport';
 import ShareCard from './ShareCard';
@@ -80,6 +88,7 @@ const HistoryView: React.FC = () => {
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [workoutLogs, setWorkoutLogs] = useState<any[]>([]);
+  const [workoutSummary, setWorkoutSummary] = useState<SessionSummary | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [shareData, setShareData] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -501,20 +510,22 @@ const HistoryView: React.FC = () => {
     }
   };
 
-  const fetchWorkoutDetails = async (historyId: string) => {
+  const fetchWorkoutDetails = async (entry: WorkoutHistory) => {
+    const historyId = entry.id;
     setLoadingDetails(true);
     setSelectedWorkout(historyId);
+    setWorkoutSummary(null);
     try {
       const data = await workoutApi.getWorkoutDetails(historyId);
-      if (data) {
-        const grouped = data.reduce((acc: any, curr: any) => {
-          const exName = curr.exercises?.name || curr.exercise_name_snapshot || 'Exercício Indisponível';
-          if (!acc[exName]) acc[exName] = [];
-          acc[exName].push(curr);
-          return acc;
-        }, {});
-        setWorkoutLogs(Object.entries(grouped));
-      }
+      const logs = data || [];
+      const grouped = logs.reduce((acc: any, curr: any) => {
+        const exName = curr.exercises?.name || curr.exercise_name_snapshot || 'Exercício Indisponível';
+        if (!acc[exName]) acc[exName] = [];
+        acc[exName].push(curr);
+        return acc;
+      }, {});
+      setWorkoutLogs(Object.entries(grouped));
+      setWorkoutSummary(summarizeSession(entry, logs));
     } catch (err) { console.error(err); }
     finally { setLoadingDetails(false); }
   };
@@ -1153,7 +1164,7 @@ const HistoryView: React.FC = () => {
                {(historyState.data || []).map((item, idx) => (
                  <div key={item.id} className="relative">
                     <div 
-                      onClick={() => selectedWorkout === item.id ? setSelectedWorkout(null) : fetchWorkoutDetails(item.id)}
+                      onClick={() => selectedWorkout === item.id ? setSelectedWorkout(null) : fetchWorkoutDetails(item)}
                       className={`flex justify-between items-center py-8 active:bg-slate-50 transition-colors cursor-pointer ${idx !== (historyState.data || []).length - 1 ? 'border-b border-slate-100' : ''}`}
                     >
                        <div className="flex-1 min-w-0">
@@ -1161,6 +1172,21 @@ const HistoryView: React.FC = () => {
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1.5">
                             {new Date(item.completed_at!).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} • {item.duration_minutes || '--'} min
                           </p>
+                          {(() => {
+                            const badge = sessionStatusBadge(item);
+                            return (
+                              <span
+                                title={badge.description}
+                                className={`inline-block mt-2.5 px-2.5 py-1 rounded-lg text-[11px] font-black tracking-tight border ${
+                                  badge.tone === 'partial'
+                                    ? 'text-amber-700 bg-amber-50 border-amber-200'
+                                    : 'text-blue-700 bg-blue-50 border-blue-200'
+                                }`}
+                              >
+                                {badge.label}
+                              </span>
+                            );
+                          })()}
                        </div>
                        <div className="flex items-center gap-4">
                           <button 
@@ -1208,19 +1234,50 @@ const HistoryView: React.FC = () => {
                              <div className="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
                            </div>
                          ) : (
-                            workoutLogs.map(([exName, sets]: [string, any[]]) => (
+                          <>
+                            {workoutSummary && (() => {
+                              const badge = sessionDataBadge(workoutSummary);
+                              const tone = badge.tone === 'measurable'
+                                ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                                : badge.tone === 'bodyweight'
+                                  ? 'text-indigo-700 bg-indigo-50 border-indigo-200'
+                                  : 'text-slate-500 bg-slate-50 border-slate-200 border-dashed';
+                              return (
+                                <div className={`rounded-2xl border p-4 space-y-2 ${tone}`}>
+                                  <p className="text-[13px] font-black tracking-tight">{badge.label}</p>
+                                  <p className="text-[12px] font-semibold leading-relaxed opacity-90">{badge.description}</p>
+                                  <div className="flex flex-wrap gap-x-6 gap-y-1 pt-1 text-[12px] font-bold">
+                                    <span>Volume: {formatSessionVolume(workoutSummary)}</span>
+                                    <span>RPE médio: {workoutSummary.avgRpe === null ? '—' : workoutSummary.avgRpe.toFixed(1)}</span>
+                                    <span>Séries: {workoutSummary.setCount || '—'}</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {workoutLogs.length === 0 && !loadingDetails && (
+                              <p className="text-[12px] font-bold text-slate-400 text-center py-4">
+                                Nenhuma série registrada nesta sessão.
+                              </p>
+                            )}
+
+                            {workoutLogs.map(([exName, sets]: [string, any[]]) => (
                               <div key={exName} className="space-y-6">
                                  <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">{exName}</h5>
-                                 <div className="grid grid-cols-4 gap-6">
+                                 <div className="grid grid-cols-3 gap-6">
                                     {sets.map((set, sIdx) => (
                                       <div key={sIdx} className="space-y-1">
-                                         <p className="text-lg font-black text-slate-900 tracking-tighter tabular-nums">{set.weight_achieved}<span className="text-[10px] ml-0.5">kg</span></p>
-                                         <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">{set.reps_achieved} reps</p>
+                                         <p className="text-[15px] font-black text-slate-900 tracking-tight tabular-nums">{formatSetWeight(set)}</p>
+                                         <p className="text-[11px] font-black text-blue-600 uppercase tracking-wider">{set.reps_achieved} reps</p>
+                                         {Number(set.rpe) > 0 && (
+                                           <p className="text-[11px] font-bold text-slate-400">RPE {Number(set.rpe).toFixed(1)}</p>
+                                         )}
                                       </div>
                                     ))}
                                  </div>
                               </div>
-                            ))
+                            ))}
+                          </>
                          )}
                       </div>
                     )}

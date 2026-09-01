@@ -6,7 +6,9 @@
  * valor demonstrativo apresentado como se fosse do usuário.
  */
 
-export type SetLog = Record<string, any>;
+import { SetLog, summarizeSetLogs } from '../../domain/workout/sessionSummary';
+
+export type { SetLog };
 
 export type SessionTelemetry = Record<string, any> & {
   id: string;
@@ -43,12 +45,6 @@ export const groupLogsByHistory = (logs: SetLog[]): Record<string, SetLog[]> => 
   return groups;
 };
 
-const setVolume = (log: SetLog): number => {
-  const weight = parseFloat(log?.weight_achieved) || 0;
-  const reps = parseInt(log?.reps_achieved) || 0;
-  return weight * reps;
-};
-
 /**
  * Combina o histórico com os logs de série e calcula volume e RPE reais.
  * Volume 0 continua 0 — exercício de peso corporal não vira carga fictícia.
@@ -59,16 +55,13 @@ export const buildSessionsWithTelemetry = (
 ): SessionTelemetry[] => (history || [])
   .map(entry => {
     const logs = logsByHistory[entry.id] || [];
-    const total_volume = logs.reduce((sum, log) => sum + setVolume(log), 0);
-    const ratedSets = logs.filter(log => Number(log?.rpe) > 0);
-    const avg_rpe = ratedSets.length > 0
-      ? parseFloat((ratedSets.reduce((sum, log) => sum + Number(log.rpe), 0) / ratedSets.length).toFixed(1))
-      : null;
+    const summary = summarizeSetLogs(logs);
     return {
       ...entry,
-      total_volume,
-      avg_rpe,
-      hasMeasurableLoad: total_volume > 0,
+      total_volume: summary.totalVolume,
+      avg_rpe: summary.avgRpe,
+      hasMeasurableLoad: summary.hasMeasurableLoad,
+      loadKind: summary.loadKind,
       logs,
     };
   })
