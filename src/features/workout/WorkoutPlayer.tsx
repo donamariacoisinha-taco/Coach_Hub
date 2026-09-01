@@ -52,7 +52,7 @@ import { getNextSetDecision, getPreSetHint } from "../../domain/progression/prog
 import { getEmotionalFeedback } from "../../domain/feedback/feedbackEngine";
 import { VictoryScreen } from "../../components/VictoryScreen";
 import { workoutEngine } from "../../domain/workout/workoutEngine";
-import { shouldConfirmPartialBeforeTerminalSet } from "../../domain/workout/workoutReliability";
+import { resolveResumeSetNumber, shouldConfirmPartialBeforeTerminalSet } from "../../domain/workout/workoutReliability";
 import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
@@ -940,10 +940,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       return next;
     });
 
+    // As conclusões do exercício que continua ativo são preservadas, então zerar
+    // a posição deixaria a tela numa série já concluída — e travada.
+    const remainingCompleted: Set<number> = (newCurrentIdx === currentIndex
+      ? completedSetIndices
+      : completedSetsByExercise[newCurrentIdx > index ? newCurrentIdx + 1 : newCurrentIdx]) || new Set<number>();
+    const remainingExercise = updatedExercises[newCurrentIdx];
+
     useWorkoutStore.setState({
       exercises: updatedExercises,
       currentIndex: newCurrentIdx,
-      currentSet: 1
+      currentSet: resolveResumeSetNumber({
+        completedSetIndices: remainingCompleted,
+        setCount: remainingExercise?.sets_json?.length || Number(remainingExercise?.sets) || 1,
+        storedSetNumber: 1,
+      })
     } as any);
 
     if (newCurrentIdx === currentIndex) {
@@ -1541,7 +1552,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       // 4. Update React States
       if (localState) {
         if (localState.currentIndex !== undefined) setCurrentIndex(localState.currentIndex);
-        if (localState.currentSet !== undefined) setCurrentSet(localState.currentSet);
+        if (localState.currentSet !== undefined) {
+          // As conclusões acima têm precedência dos logs remotos, mas a posição
+          // vem só do estado local. Sem reconciliar as duas, a tela pode abrir
+          // numa série já concluída e travar.
+          const resumeIndex = localState.currentIndex ?? currentIndex;
+          const resumeSetCount = localState.activeSetsData?.length
+            || exercises[resumeIndex]?.sets_json?.length
+            || Number(exercises[resumeIndex]?.sets)
+            || 1;
+          setCurrentSet(resolveResumeSetNumber({
+            completedSetIndices: reconciledCompletedByEx[resumeIndex],
+            setCount: resumeSetCount,
+            storedSetNumber: localState.currentSet,
+          }));
+        }
         if (localState.activeSetsData) {
           setActiveSetsData(localState.activeSetsData);
         }
