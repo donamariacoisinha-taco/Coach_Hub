@@ -20,13 +20,14 @@ import { useNutritionStore } from '../../store/nutritionStore';
 interface BodyProjectionModuleProps {
   profile: UserProfile | null;
   history: WorkoutHistory[];
-  volChangePercent?: number;  // Passed from ProgressIntelligence
+  /** Passed from ProgressIntelligence; `null` quando não há base real de comparação. */
+  volChangePercent?: number | null;
 }
 
 export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
   profile,
   history,
-  volChangePercent = 12
+  volChangePercent = null
 }) => {
   const syncFromUserProfile = useNutritionStore(state => state.syncFromUserProfile);
   const metabolicState = useNutritionStore(state => state.metabolicState);
@@ -561,10 +562,12 @@ export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
             <span className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider block">Análise de Performance Integrada</span>
             <h5 className="text-xs font-black text-slate-800 leading-snug">Relação Força / Composição Corporal</h5>
             <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1">
-              {isGain ? (
-                `Seu volume de treino aumentou ${volChangePercent}% acompanhado de um ganho saudável de peso. Excelente sinal de desenvolvimento de tecidos magros e resposta hipertrófica favorável.`
+              {volChangePercent === null ? (
+                `Dados insuficientes: ainda não há duas sessões equivalentes com carga registrada para relacionar volume de treino e composição corporal.`
+              ) : isGain ? (
+                `Seu volume de treino variou ${volChangePercent}% acompanhado de um ganho saudável de peso. Excelente sinal de desenvolvimento de tecidos magros e resposta hipertrófica favorável.`
               ) : (
-                `Seu volume de treino aumentou ${volChangePercent}% enquanto seu peso corporal reduziu 0,5 kg nesta semana. Este é um excelente sinal de preservação de desempenho durante o déficit calórico.`
+                `Seu volume de treino variou ${volChangePercent}% enquanto seu peso corporal reduziu 0,5 kg nesta semana. Este é um excelente sinal de preservação de desempenho durante o déficit calórico.`
               )}
             </p>
           </div>

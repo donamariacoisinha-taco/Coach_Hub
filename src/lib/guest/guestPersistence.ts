@@ -3,7 +3,7 @@ import { UserProfile } from '../../types';
 
 export const GUEST_PROFILE_KEY = 'kyron_guest_profile_v1';
 export const GUEST_DASHBOARD_KEY = 'kyron_guest_dashboard_v1';
-export const GUEST_STORAGE_SCHEMA_VERSION = 4;
+export const GUEST_STORAGE_SCHEMA_VERSION = 5;
 export const GUEST_STORAGE_VERSION_KEY = 'kyron_guest_storage_schema_version';
 const GUEST_STORAGE_MIGRATION_NOTICE_KEY = 'kyron_guest_storage_migration_notice_v2';
 const GUEST_STORAGE_MIGRATION_DISPLAY_PREFIX = 'kyron_guest_storage_migration_displayed_';
@@ -14,6 +14,48 @@ export type GuestDashboard = {
   workouts: any[];
   history: any[];
   stats: { sessions: number };
+};
+
+/**
+ * Quantidade de séries efetivamente prescrita para um exercício.
+ * O campo `sets` (ou seus sinônimos) é a fonte da verdade; `sets_json` só é
+ * consultado quando nenhuma contagem explícita foi gravada.
+ */
+export const resolvePrescribedSetCount = (exercise: any): number => {
+  for (const candidate of [exercise?.sets, exercise?.set_count, exercise?.series]) {
+    const value = Number(candidate);
+    if (Number.isFinite(value) && value > 0) return Math.max(1, Math.trunc(value));
+  }
+  const fromJson = Number(exercise?.sets_json?.length);
+  if (Number.isFinite(fromJson) && fromJson > 0) return Math.max(1, Math.trunc(fromJson));
+  return 3;
+};
+
+/**
+ * Ajusta `sets_json` para ter exatamente `setCount` itens: completa o que
+ * faltar replicando a configuração-base e descarta o excedente.
+ */
+export const normalizeGuestSetsJson = (exercise: any, setCount: number): any[] => {
+  const source = Array.isArray(exercise?.sets_json) ? exercise.sets_json : [];
+  const template = source[0] || {
+    weight: Number(exercise?.weight) || 0,
+    reps: String(exercise?.reps || '10-12'),
+    rpe: 0,
+    rest_time: Number(exercise?.rest_time) || 60,
+  };
+  return Array.from({ length: setCount }, (_, index) => ({ ...(source[index] || template) }));
+};
+
+/** Aplica a contagem prescrita ao exercício, mantendo `sets`/`sets_json` coerentes. */
+export const normalizeGuestExerciseSets = (exercise: any) => {
+  const setCount = resolvePrescribedSetCount(exercise);
+  return {
+    ...exercise,
+    sets: setCount,
+    set_count: setCount,
+    series: setCount,
+    sets_json: normalizeGuestSetsJson(exercise, setCount),
+  };
 };
 
 export const createDefaultGuestProfile = (): UserProfile & Record<string, any> => ({
@@ -87,7 +129,7 @@ export const saveGuestPlan = (protocol: any, formData: Record<string, any>) => {
         duration_minutes: workout.duration_minutes || 45,
         created_at: new Date(now).toISOString(),
         exercises_count: sourceExercises.length,
-        exercises: sourceExercises.map((exercise: any, exerciseIndex: number) => ({
+        exercises: sourceExercises.map((exercise: any, exerciseIndex: number) => normalizeGuestExerciseSets({
           id: `guest-exercise-${now}-${workoutIndex}-${exerciseIndex}`,
           category_id: id,
           exercise_id: exercise.exercise_id || exercise.id || `guest-catalog-${exerciseIndex}`,
@@ -337,21 +379,13 @@ const repairGuestWorkoutIntegrity = () => {
       && getWorkoutRole(dashboard.workouts[otherIndex], otherIndex) !== role);
     if (categoryValid && roleValid && (!duplicatedAcrossRoles || roleMatchCount === exercises.length)) {
       const normalizedExercises = exercises.map((exercise: any) => {
-        const configuredSetCount = Number(exercise.sets_json?.length || exercise.set_count || exercise.series || exercise.sets || 3);
-        const setCount = Number.isFinite(configuredSetCount) && configuredSetCount > 0
-          ? Math.max(1, Math.trunc(configuredSetCount))
-          : 3;
-        const setsJson = Array.isArray(exercise.sets_json) && exercise.sets_json.length > 0
-          ? exercise.sets_json
-          : Array.from({ length: setCount }, () => ({
-            weight: Number(exercise.weight) || 0,
-            reps: String(exercise.reps || '10-12'),
-            rpe: 0,
-            rest_time: Number(exercise.rest_time) || 60,
-          }));
-        if (exercise.sets !== setCount || exercise.set_count !== setCount || exercise.series !== setCount
-          || exercise.sets_json !== setsJson) normalizedRuntimePayload = true;
-        return { ...exercise, sets: setCount, set_count: setCount, series: setCount, sets_json: setsJson };
+        const normalized = normalizeGuestExerciseSets(exercise);
+        if (exercise.sets !== normalized.sets || exercise.set_count !== normalized.set_count
+          || exercise.series !== normalized.series
+          || !Array.isArray(exercise.sets_json) || exercise.sets_json.length !== normalized.sets_json.length) {
+          normalizedRuntimePayload = true;
+        }
+        return normalized;
       });
       return { ...workout, exercises: normalizedExercises };
     }

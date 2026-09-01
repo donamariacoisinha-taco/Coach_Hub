@@ -2931,7 +2931,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         
         // Only mark as finished if there are actually exercises recorded
         if (finalExCount > 0) {
-          await workoutApi.finishWorkout(currentHistoryId, finalDuration, finalExCount);
+          const wasPartial = forcePartial || !incompleteSummary.complete;
+          await workoutApi.finishWorkout(currentHistoryId, finalDuration, finalExCount, wasPartial);
+          setFinalWasPartial(wasPartial);
           
           // Learn from Completed Session in Athlete Memory
           try {

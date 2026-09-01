@@ -30,6 +30,7 @@ import { premiumProtocolRealtimeService } from '../../lib/api/PremiumProtocolRea
 import { Crown, Sliders } from 'lucide-react';
 import { isAdmin } from '../../lib/utils/auth';
 import { playHapticFeedback } from '../../services/athleteMemoryEngine';
+import { buildCalendarDays, buildEmotionalGuidance } from './dashboardDayState';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
@@ -471,112 +472,18 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   };
 
   // 7-day calendar strip computation
-  const calendarDays = useMemo(() => {
-    const days = [];
-    const now = new Date();
-    
-    // Create completed dates map for faster lookup
-    const completedDates = new Set(
-      history
-        .map(h => {
-          if (!h.completed_at) return null;
-          return new Date(h.completed_at).toDateString();
-        })
-        .filter(Boolean)
-    );
+  const calendarDays = useMemo(
+    () => buildCalendarDays(history, profile?.preferred_training_days || []),
+    [history, profile?.preferred_training_days],
+  );
 
-    const daysOfWeekEn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-
-    for (let i = -3; i <= 3; i++) {
-      const d = new Date();
-      d.setDate(now.getDate() + i);
-      const isToday = i === 0;
-      const isFuture = i > 0;
-      
-      const weekdayNameEn = daysOfWeekEn[d.getDay()];
-      const isPreferred = (profile?.preferred_training_days || []).includes(weekdayNameEn);
-      const isCompleted = completedDates.has(d.toDateString());
-
-      let state: 'completed' | 'missed' | 'future' | 'rest' = 'rest';
-      if (isCompleted) {
-        state = 'completed';
-      } else if (isPreferred) {
-        if (isFuture || isToday) {
-          state = 'future';
-        } else {
-          state = 'missed';
-        }
-      } else {
-        state = 'rest';
-      }
-
-      days.push({
-        date: d,
-        dayNum: d.getDate(),
-        dayName: d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').toUpperCase().substring(0, 3),
-        isToday,
-        isFuture,
-        isPreferred,
-        isCompleted,
-        state,
-        id: `cal-${i}-${d.getDate()}`
-      });
-    }
-    return days;
-  }, [history, profile?.preferred_training_days]);
-
-  const emotionalGuidance = useMemo(() => {
-    const streak = profile?.workout_streak || 0;
-    const now = new Date();
-    const daysOfWeekEn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    
-    // Check if today is preferred
-    const todayWdEn = daysOfWeekEn[now.getDay()];
-    const todayPreferred = (profile?.preferred_training_days || []).includes(todayWdEn);
-
-    // Check today completed
-    const completedToday = history.some(h => {
-      if (!h.completed_at) return false;
-      return new Date(h.completed_at).toDateString() === now.toDateString();
-    });
-
-    if (streak >= 3) {
-      return {
-        text: "Seu corpo está respondendo perfeitamente ao estímulo. Continue assim!",
-        emoji: "🔥",
-        color: "text-blue-600 bg-blue-50/60 border-blue-105"
-      };
-    }
-
-    if (!todayPreferred && !completedToday) {
-      return {
-        text: "Hoje seu corpo se reconstrói. Hidrate-se e recupere o foco.",
-        emoji: "☕",
-        color: "text-indigo-600 bg-indigo-50/40 border-indigo-100/30"
-      };
-    }
-
-    if (todayPreferred && !completedToday) {
-      if (streak > 0) {
-        return {
-          text: "Última chamada para salvar sua sequência de consistência. Que tal 20 minutos de foco hoje?",
-          emoji: "⚡",
-          color: "text-amber-600 bg-amber-50/80 border-amber-200/50"
-        };
-      }
-      return {
-        text: "Sem culpa. O progresso não é linear. Um treino leve hoje é melhor do que nenhum.",
-        emoji: "🤝",
-        color: "text-purple-600 bg-purple-50/80 border-purple-100"
-      };
-    }
-
-    return {
-      text: "Hoje é dia de construir sobrecarga mecânica progressiva. Bons treinos!",
-      emoji: "💪",
-      color: "text-emerald-600 bg-emerald-50/80 border-emerald-100"
-    };
-  }, [profile?.workout_streak, profile?.preferred_training_days, history]);
+  const emotionalGuidance = useMemo(
+    () => buildEmotionalGuidance(history, {
+      streak: profile?.workout_streak || 0,
+      preferredTrainingDays: profile?.preferred_training_days || [],
+    }),
+    [profile?.workout_streak, profile?.preferred_training_days, history],
+  );
 
   const localizedDateStr = useMemo(() => {
     const now = new Date();
@@ -757,7 +664,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               exit={{ opacity: 0, y: -12 }}
               className="mb-6 font-sans"
             >
-              {nextAction.type === 'start_workout' || nextAction.type === 'resume' || nextAction.type === 'motivation' ? (
+              {nextAction.type === 'start_workout' || nextAction.type === 'resume' || nextAction.type === 'motivation' || nextAction.type === 'partial' ? (
                 <div className="w-full bg-[#0F172A] bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#1E293B] text-white rounded-[2rem] px-5 sm:pl-6 sm:pr-10 py-6 shadow-xl relative overflow-hidden border border-slate-800 flex flex-col justify-between min-h-[140px]">
                   <motion.div 
                     animate={{ 
@@ -776,7 +683,9 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                   <div className="relative z-10 w-full text-left space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="text-[7.5px] font-black uppercase tracking-[0.2em] text-[#7BA7FF] bg-[#7BA7FF]/10 border border-[#7BA7FF]/20 px-2.5 py-1 rounded-full shrink-0">
-                        {nextAction.type === 'resume' ? 'Retomar Treino' : 'Hoje Recomendado'}
+                        {nextAction.type === 'resume' ? 'Retomar Treino'
+                          : nextAction.type === 'partial' ? 'Sessão Parcial'
+                          : 'Hoje Recomendado'}
                       </span>
                       <span className="text-[7.5px] font-[1000] text-slate-400 uppercase tracking-wider truncate">
                         {folders.length > 0 ? (
@@ -825,7 +734,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         className="px-3 sm:px-5 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10.5px] font-black uppercase text-center tracking-[0.1em] bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white hover:opacity-95 shadow-md shadow-[#7BA7FF]/15 cursor-pointer flex items-center gap-1.5 sm:gap-2 shrink-0 border-none"
                       >
                         <Play size={10} fill="#ffffff" className="text-white relative z-10" />
-                        <span>Iniciar Treino</span>
+                        <span>{nextAction.type === 'partial' ? 'Retomar Treino' : 'Iniciar Treino'}</span>
                       </motion.button>
                     )}
                   </div>
@@ -1111,7 +1020,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     const isOptimistic = typeof workout.id === 'string' && workout.id.startsWith('temp-');
                     
                     const workoutHistory = history.filter(h => h.category_id === workout.id && h.completed_at);
-                    const exercisesCount = workout.exercises_count || (idx % 3 === 0 ? 8 : (idx % 3 === 1 ? 6 : 7));
+                    const exercisesCount = workout.exercises_count ?? 0;
                     const estDuration = idx % 2 === 0 ? 45 : 60;
 
                     const getLastExecutionText = () => {
@@ -1426,10 +1335,17 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 {calendarDays.map((day) => {
                   let cellClass = "bg-white/40 border-transparent text-slate-400 hover:bg-white/90";
                   let indicatorLabel = null;
+                  let cellTitle = '';
 
                   if (day.state === 'completed') {
                     cellClass = "bg-gradient-to-tr from-[#7BA7FF] to-[#A5C8FF] border-[#7BA7FF]/30 text-white shadow-lg shadow-[#7BA7FF]/25 font-black";
                     indicatorLabel = <span className="absolute bottom-1 text-[8px] tracking-[0.2em] font-extrabold text-white/90 animate-pulse">✓</span>;
+                    cellTitle = 'Treino concluído';
+                  } else if (day.state === 'partial') {
+                    // Sessão parcial: nunca recebe o check de treino completo.
+                    cellClass = "bg-amber-50 border-2 border-amber-300 text-amber-700 font-black";
+                    indicatorLabel = <span className="absolute bottom-1 text-[8px] font-[1000] text-amber-600">◑</span>;
+                    cellTitle = 'Sessão parcial';
                   } else if (day.state === 'missed') {
                     cellClass = "bg-slate-50/50 border-2 border-dashed border-[#C4B5FD]/70 text-[#8B5CF6]/85 hover:bg-slate-50";
                     indicatorLabel = <span className="absolute bottom-0.5 text-[7.5px] scale-90 font-[1000] text-[#8B5CF6]/70 uppercase tracking-widest">•</span>;
@@ -1440,6 +1356,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     // Rest day
                     cellClass = "bg-slate-100/40 border border-slate-100 text-slate-400 hover:bg-slate-50";
                     indicatorLabel = <span className="absolute bottom-1 text-[8px]">☕</span>;
+                    cellTitle = 'Dia de descanso';
                   }
 
                   return (
@@ -1451,6 +1368,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                       onClick={() => {
                         if ('vibrate' in navigator) navigator.vibrate(5);
                       }}
+                      title={cellTitle}
+                      aria-label={`${day.dayName} ${day.dayNum}${cellTitle ? ` — ${cellTitle}` : ''}`}
                       className={`flex-1 flex flex-col items-center py-3 rounded-2xl border relative transition-all min-w-[43px] cursor-pointer ${cellClass}`}
                     >
                       <span className="text-[7.5px] font-[1000] tracking-widest leading-none mb-2 uppercase">{day.dayName}</span>
@@ -1463,6 +1382,15 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                   );
                 })}
               </div>
+
+              {calendarDays.some(day => day.state === 'partial') && (
+                <div className="flex items-center gap-2 -mt-3 ml-1">
+                  <span className="text-[11px] font-[1000] text-amber-600 leading-none">◑</span>
+                  <p className="text-[11px] font-bold text-amber-700 tracking-tight">
+                    Parcial — sessão registrada em parte, sem contar como treino completo.
+                  </p>
+                </div>
+              )}
 
               {/* EMOTIONAL CALENDAR STRIP GUIDANCE */}
               <motion.div 
