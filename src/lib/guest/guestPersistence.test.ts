@@ -32,6 +32,117 @@ const createStorage = () => {
   };
 };
 
+describe('séries prescritas em planos de convidado', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
+  });
+
+  const planWith = (exercise: Record<string, any>) => saveGuestPlan({
+    id: 'local-protocol',
+    name: 'Plano teste',
+    workouts: [{ name: 'Treino A', exercises: [exercise] }],
+  }, { name: 'Maria' }).workouts[0].exercises[0];
+
+  it('cria as 3 séries quando sets_json vem vazio', () => {
+    const exercise = planWith({ exercise_name: 'Supino', sets: 3, reps: '10', sets_json: [] });
+    expect(exercise.sets).toBe(3);
+    expect(exercise.sets_json).toHaveLength(3);
+  });
+
+  it('replica a configuração-base quando sets_json vem com um único item', () => {
+    const exercise = planWith({
+      exercise_name: 'Supino', sets: 3, reps: '10',
+      sets_json: [{ weight: 40, reps: '8', rpe: 0, rest_time: 90 }],
+    });
+    expect(exercise.sets).toBe(3);
+    expect(exercise.sets_json).toHaveLength(3);
+    expect(exercise.sets_json.every((set: any) => set.weight === 40 && set.rest_time === 90)).toBe(true);
+  });
+
+  it('descarta o excedente quando sets_json tem mais itens que sets', () => {
+    const exercise = planWith({
+      exercise_name: 'Supino', sets: 2, reps: '10',
+      sets_json: [{ weight: 10 }, { weight: 20 }, { weight: 30 }],
+    });
+    expect(exercise.sets).toBe(2);
+    expect(exercise.sets_json.map((set: any) => set.weight)).toEqual([10, 20]);
+  });
+
+  it('repara planos v4 persistidos com sets_json curto ao migrar para v5', () => {
+    localStorage.setItem(GUEST_STORAGE_VERSION_KEY, '4');
+    localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify({
+      profile: getGuestProfile(),
+      folders: [{ id: 'f1', name: 'Plano' }],
+      workouts: [{
+        id: 'w1', name: 'Treino A — Empurrar', folder_id: 'f1',
+        exercises: [
+          { category_id: 'w1', exercise_name_snapshot: 'Supino reto', sets: 3, reps: '10', sets_json: [{ weight: 20, reps: '10', rpe: 0, rest_time: 60 }] },
+          { category_id: 'w1', exercise_name_snapshot: 'Tríceps corda', sets: 3, reps: '12', sets_json: [] },
+        ],
+      }],
+      history: [],
+      stats: { sessions: 0 },
+    }));
+
+    const result = migrateGuestStorage();
+
+    expect(result.applied).toBe(true);
+    expect(result.toVersion).toBe(5);
+    expect(GUEST_STORAGE_SCHEMA_VERSION).toBe(5);
+    const exercises = getGuestDashboard().workouts[0].exercises;
+    expect(exercises[0].sets_json).toHaveLength(3);
+    expect(exercises[1].sets_json).toHaveLength(3);
+    expect(getWorkoutSetCount(exercises[0])).toBe(3);
+  });
+
+  it('avança 1/3 → 2/3 → 3/3 antes de trocar de exercício', () => {
+    const workout = saveGuestPlan({
+      id: 'local-protocol', name: 'Plano teste',
+      workouts: [{
+        name: 'Treino A',
+        exercises: [
+          { exercise_name: 'Supino', sets: 3, reps: '10', sets_json: [] },
+          { exercise_name: 'Remada', sets: 3, reps: '10', sets_json: [] },
+        ],
+      }],
+    }, { name: 'Maria' }).workouts[0];
+
+    const exercises = workout.exercises;
+    const setCount = getWorkoutSetCount(exercises[0]);
+    expect(setCount).toBe(3);
+
+    const advance = (currentSet: number) => decideWorkoutAdvance({
+      currentIndex: 0,
+      currentSet,
+      exerciseCount: exercises.length,
+      runtimeSetCount: setCount,
+    });
+
+    expect(advance(1)).toMatchObject({ action: 'NEXT_SET', currentIndex: 0, currentSet: 2 });
+    expect(advance(2)).toMatchObject({ action: 'NEXT_SET', currentIndex: 0, currentSet: 3 });
+    expect(advance(3)).toMatchObject({ action: 'NEXT_EXERCISE', currentIndex: 1, currentSet: 1 });
+  });
+
+  it('mantém o marcador de sessão parcial no histórico local', () => {
+    const workout = saveGuestPlan({
+      id: 'local-protocol', name: 'Plano teste',
+      workouts: [{ name: 'Treino A', exercises: [{ exercise_name: 'Supino', sets: 3, reps: '10' }] }],
+    }, { name: 'Maria' }).workouts[0];
+
+    finishGuestWorkout(workout.id, {
+      duration_seconds: 600,
+      performance: { 0: [{ weight: 0, reps: 10, rpe: 7 }] },
+      partial: true,
+    });
+
+    const [entry] = getGuestDashboard().history;
+    expect(entry.partial).toBe(true);
+    expect(entry.total_volume).toBe(0);
+    expect(entry.workout_sets_logs[0].rpe).toBe(7);
+  });
+});
+
 describe('guest lifecycle persistence', () => {
   beforeEach(() => {
     vi.stubGlobal('localStorage', createStorage());
@@ -301,7 +412,7 @@ describe('guest lifecycle persistence', () => {
     });
 
     const result = migrateGuestStorage();
-    expect(result).toMatchObject({ applied: true, fromVersion: 3, toVersion: 4 });
+    expect(result).toMatchObject({ applied: true, fromVersion: 3, toVersion: GUEST_STORAGE_SCHEMA_VERSION });
     expect(result.repairedWorkoutIds).toEqual([dashboard.workouts[0].id, dashboard.workouts[1].id]);
     const repaired = getGuestDashboard();
     expect(repaired.workouts[0].exercises[0]).toMatchObject({ exercise_name_snapshot: 'Supino reto', weight: 0, sort_order: 1 });

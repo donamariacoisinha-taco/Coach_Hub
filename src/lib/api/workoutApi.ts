@@ -459,13 +459,24 @@ export const workoutApi = {
     return data || [];
   },
 
-  async finishWorkout(historyId: string, durationMinutes: number, exercisesCount: number) {
-    const { error: histError } = await supabase.from('workout_history').update({ 
-      duration_minutes: durationMinutes, 
-      completed_at: new Date().toISOString(), 
-      exercises_count: exercisesCount 
-    }).eq('id', historyId);
-    
+  async finishWorkout(historyId: string, durationMinutes: number, exercisesCount: number, partial = false) {
+    const basePayload = {
+      duration_minutes: durationMinutes,
+      completed_at: new Date().toISOString(),
+      exercises_count: exercisesCount
+    };
+
+    let histError = (await supabase.from('workout_history')
+      .update(partial ? { ...basePayload, partial: true } : basePayload)
+      .eq('id', historyId)).error;
+
+    // Bancos que ainda não têm a coluna `partial` rejeitam o update inteiro.
+    // Nesse caso a sessão é salva sem o marcador — nunca perdida.
+    if (histError && partial && (histError.code === '42703' || /partial/i.test(histError.message || ''))) {
+      console.warn('[workoutApi] Coluna `partial` ausente em workout_history; sessão salva sem o marcador.', histError);
+      histError = (await supabase.from('workout_history').update(basePayload).eq('id', historyId)).error;
+    }
+
     if (histError) throw histError;
     
     // EKE Feedback Loop

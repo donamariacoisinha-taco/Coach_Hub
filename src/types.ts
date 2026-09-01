@@ -346,6 +346,8 @@ export interface WorkoutHistory {
   completed_at: string | null;
   duration_minutes: number;
   exercises_count: number;
+  /** Sessão encerrada antes de todas as séries prescritas. */
+  partial?: boolean;
 }
 
 export type LastSetData = {
