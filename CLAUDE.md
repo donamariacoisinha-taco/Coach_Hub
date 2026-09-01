@@ -27,9 +27,14 @@ Consequências práticas:
 - Elas introduzem 2 erros de TypeScript: rodar `npm run lint` logo após
   `npm run build` falha, e isso não é culpa da sua alteração.
 
-O fluxo seguro: **commite antes de buildar**, e depois do build descarte a
-sujeira com `git checkout -- src/`, conferindo antes que suas próprias edições
-sobreviveram (elas sobrevivem — os scripts fazem substituição pontual).
+O fluxo seguro: **commite antes de buildar, sempre — sem exceção.**
+
+`git checkout -- src/` não distingue sua edição da sujeira dos scripts: ele
+descarta **tudo que não está commitado** em `src/`. Se você buildar antes de
+commitar e depois rodar esse comando para limpar a reescrita do prebuild, perde
+seu próprio trabalho junto — já aconteceu nesta base de código. Não existe
+atalho seguro aqui: commit primeiro, build depois, `git checkout -- src/` só
+depois disso.
 
 ### Migration de banco é manual
 
