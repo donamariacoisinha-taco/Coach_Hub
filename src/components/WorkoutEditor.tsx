@@ -459,15 +459,17 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
     // 1. Try Cache First
     const cacheKey = workoutId ? `editor_init_${workoutId}` : 'editor_init_new';
     const cached = cacheStore.get(cacheKey);
+    const hasCachedData = !!cached;
     
     if (cached) {
-      console.log(`[EDITOR] Using cached data for ${cacheKey}`, cached);
+      console.log(`[EDITOR] Hydrating cached data for ${cacheKey} before revalidation`, cached);
       hydrateEditorState(cached);
       editorState.setData(true);
-      return;
     }
 
-    editorState.setLoading(true);
+    // Always revalidate an existing workout against Supabase. Only show the
+    // blocking loading state when there is no cached snapshot to render.
+    if (!hasCachedData) editorState.setLoading(true);
     try {
       const user = await authApi.getUser();
       if (!user) return;
@@ -480,7 +482,11 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
       
       hydrateEditorState(data);
       editorState.setData(true);
-    } catch (err) { 
+    } catch (err) {
+      if (hasCachedData) {
+        console.warn('[EDITOR] Revalidation failed; keeping cached workout snapshot.', err);
+        return;
+      }
       editorState.setError(err);
       showError(err);
     }

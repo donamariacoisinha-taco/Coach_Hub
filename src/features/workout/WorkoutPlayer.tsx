@@ -807,16 +807,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const updatedExercises = [...exercises, newEx];
     useWorkoutStore.setState({ exercises: updatedExercises } as any);
     
-    // Auto-update live tracker performance map
-    setWorkoutPerformance(prev => {
-      const nextIdx = updatedExercises.length - 1;
-      return {
-        ...prev,
-        [nextIdx]: Array.from({ length: 3 }).map(() => ({
-          weight: 0, reps: 10, rpe: 8
-        }))
-      };
-    });
+    // Auto-update live tracker performance map. Performance data is not completion state.
+    const nextIdx = updatedExercises.length - 1;
+    setWorkoutPerformance(prev => ({
+      ...prev,
+      [nextIdx]: Array.from({ length: 3 }).map(() => ({
+        weight: 0, reps: 10, rpe: 8
+      }))
+    }));
+
+    // A newly added exercise must always start with zero completed sets.
+    setCompletedSetsByExercise(prev => ({
+      ...prev,
+      [nextIdx]: new Set<number>()
+    }));
 
     showSuccess(`Adicionado: ${ex.name}`);
     setExerciseSelectorMode(null);
@@ -902,7 +906,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       return;
     }
 
-    const exName = exercises[index]?.exercise_name || "Exercício";
+    const exerciseToRemove = exercises[index];
+    const exName = exerciseToRemove?.exercise_name || "Exercício";
+    if (exerciseToRemove?.id && !exerciseToRemove.id.startsWith('ex-live-')) {
+      removedExerciseIdsRef.current.add(exerciseToRemove.id);
+    }
     const updatedExercises = exercises.filter((_, i) => i !== index);
 
     // Dynamic index adjustment
@@ -1278,6 +1286,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [lastDeletedBackup, setLastDeletedBackup] = useState<any | null>(null);
   const deleteTimeoutRef = useRef<any>(null);
   const restEndTimestampRef = useRef<number | null>(null);
+  const restStartedAtRef = useRef<number | null>(null);
+  const restActualBySetRef = useRef<Record<string, number>>({});
 
   const activeSetsDataRef = useRef(activeSetsData);
   activeSetsDataRef.current = activeSetsData;
@@ -1290,6 +1300,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const exercisesRef = useRef(exercises);
   exercisesRef.current = exercises;
+  const removedExerciseIdsRef = useRef<Set<string>>(new Set());
 
   // Sync completedSetIndices with completedSetsByExercise
   useEffect(() => {
@@ -1309,14 +1320,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       if (savedCompleted) {
         setCompletedSetIndices(savedCompleted);
       } else {
-        // Fallback: check if we have workoutPerformance logs already completed
-        if (workoutPerformance[currentIndex] && workoutPerformance[currentIndex].length > 0) {
-          const defaultCompleted = new Set<number>();
-          workoutPerformance[currentIndex].forEach((_, sIdx) => defaultCompleted.add(sIdx));
-          setCompletedSetIndices(defaultCompleted);
-        } else {
-          setCompletedSetIndices(new Set());
-        }
+        // workoutPerformance may contain editable/prefilled targets. It must never imply completion.
+        // Completion comes only from completedSetsByExercise or hydrated workout logs.
+        setCompletedSetIndices(new Set());
       }
       lastIndexForCompletionRef.current = currentIndex;
     }
@@ -1478,7 +1484,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
 
       // 3. Reconcile states
-      const reconciledPerf: Record<number, {weight: number, reps: number, rpe: number, type?: SetType, rest_time?: number}[]> = {};
+      const reconciledPerf: Record<number, {weight: number, reps: number, rpe: number, type?: SetType, rest_time?: number, rest_time_actual?: number}[]> = {};
       const reconciledCompletedByEx: Record<number, Set<number>> = {};
 
       // Initialize from localState if available
@@ -1490,7 +1496,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             reps: Number(s.reps),
             rpe: Number(s.rpe || 8),
             type: s.type || SetType.NORMAL,
-            rest_time: s.rest_time
+            rest_time: s.rest_time,
+            rest_time_actual: s.rest_time_actual
           }));
         });
       }
@@ -1519,7 +1526,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               weight: l.weight_achieved,
               reps: l.reps_achieved,
               rpe: l.rpe || 8,
-              type: l.set_type || SetType.NORMAL
+              type: l.set_type || SetType.NORMAL,
+              rest_time_actual: l.rest_time_actual ?? undefined
             };
           } else {
             reconciledPerf[exIdx][sIdx] = {
@@ -1527,7 +1535,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               weight: l.weight_achieved,
               reps: l.reps_achieved,
               rpe: l.rpe || 8,
-              type: l.set_type || reconciledPerf[exIdx][sIdx].type || SetType.NORMAL
+              type: l.set_type || reconciledPerf[exIdx][sIdx].type || SetType.NORMAL,
+              rest_time_actual: l.rest_time_actual ?? reconciledPerf[exIdx][sIdx].rest_time_actual
             };
           }
 
@@ -1675,16 +1684,70 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   };
 
   const handleAdjustTimer = (delta: number) => {
-    setTimeLeft(prev => {
-      const newVal = Math.max(0, prev + delta);
-      if (newVal === 0 && prev > 0) {
-        log("[REST_SKIPPED] Timer adjusted to 0");
-        // We'll let the useEffect handle the 1s delay for "VAI LÁ"
-        // But if we want immediate:
-        // advanceWorkout(pendingSetToComplete!);
+    const now = Date.now();
+    const currentRemaining = restEndTimestampRef.current !== null
+      ? Math.max(0, Math.round((restEndTimestampRef.current - now) / 1000))
+      : timeLeft;
+    const adjustedRemaining = Math.max(0, currentRemaining + delta);
+
+    // Keep the countdown source of truth aligned with the visible timer so the
+    // 200ms interval cannot overwrite a manual +10s/-10s adjustment.
+    restEndTimestampRef.current = now + adjustedRemaining * 1000;
+    setTimeLeft(adjustedRemaining);
+
+    const exerciseIndex = currentIndexRef.current;
+    const storeExercises = useWorkoutStore.getState().exercises;
+    const liveExercise = storeExercises[exerciseIndex] || currentEx;
+
+    if (delta !== 0 && liveExercise) {
+      const currentBaseRest = Number(liveExercise.rest_time || 60);
+      const nextBaseRest = Math.max(10, Math.min(600, currentBaseRest + delta));
+      const appliedDelta = nextBaseRest - currentBaseRest;
+
+      if (appliedDelta !== 0) {
+        // While resting after set N, currentSet is still N (1-based). Therefore
+        // zero-based indexes >= currentSet are upcoming sets.
+        const firstUpcomingSetIndex = Math.max(0, currentSetRef.current);
+
+        setActiveSetsData(prev => prev.map((set, idx) =>
+          idx >= firstUpcomingSetIndex ? { ...set, rest_time: nextBaseRest } : set
+        ));
+
+        setWorkoutPerformance(prev => {
+          const existing = prev[exerciseIndex];
+          if (!existing) return prev;
+          return {
+            ...prev,
+            [exerciseIndex]: existing.map((set: any, idx: number) =>
+              idx >= firstUpcomingSetIndex ? { ...set, rest_time: nextBaseRest } : set
+            )
+          };
+        });
+
+        const updatedExercises = storeExercises.map((exercise, idx) => {
+          if (idx !== exerciseIndex) return exercise;
+          return {
+            ...exercise,
+            rest_time: nextBaseRest,
+            sets_json: (exercise.sets_json || []).map((set: any, setIdx: number) =>
+              setIdx >= firstUpcomingSetIndex ? { ...set, rest_time: nextBaseRest } : set
+            )
+          };
+        });
+        useWorkoutStore.setState({ exercises: updatedExercises } as any);
+
+        log('[REST_DEFAULT_ADJUSTED]', {
+          exerciseId: liveExercise.exercise_id,
+          previousRest: currentBaseRest,
+          nextRest: nextBaseRest,
+          firstUpcomingSetIndex
+        });
       }
-      return newVal;
-    });
+    }
+
+    if (adjustedRemaining === 0 && currentRemaining > 0) {
+      log('[REST_SKIPPED] Timer adjusted to 0');
+    }
   };
 
   // Smart Footer Logic
@@ -2018,13 +2081,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       changed = true;
     }
 
-    const addedCount = exercises.filter(ex => !ex.id).length;
+    const addedCount = exercises.filter(ex => !ex.id || ex.id.startsWith('ex-live-')).length;
     if (addedCount > 0) {
       diffsList.push(`${addedCount} novos exercícios adicionados`);
       changed = true;
     }
 
-    const activeIdsSet = new Set(exercises.map(ex => ex.id).filter(Boolean));
+    const activeIdsSet = new Set(exercises.map(ex => ex.id).filter(id => !!id && !id.startsWith('ex-live-')));
     const sharedIdsCount = originalExercises.filter(ex => ex.id && activeIdsSet.has(ex.id)).length;
     const isConsistent = sharedIdsCount > 0 || originalExercises.length === 0;
     const removedCount = originalExercises.filter(ex => ex.id && !activeIdsSet.has(ex.id)).length;
@@ -2063,20 +2126,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       changed = true;
     }
 
-    // 5. Sets/reps count target adjustments
+    // 5. Granular set/reps/load/RPE target adjustments
     const targetChanges: string[] = [];
     exercises.forEach((ex) => {
       if (ex.id) {
         const orig = originalExercises.find(o => o.id === ex.id);
         const originalSets = orig ? (orig.sets_json?.length || orig.sets || 3) : 3;
         const activeSets = ex.sets_json?.length || ex.sets || 3;
-        if (orig && (orig.reps !== ex.reps || originalSets !== activeSets)) {
-          targetChanges.push(`${ex.exercise_name}`);
+        const originalRpe = Number(orig?.default_rpe ?? orig?.sets_json?.[0]?.rpe ?? 8);
+        const activeRpe = Number(ex.default_rpe ?? ex.sets_json?.[0]?.rpe ?? 8);
+        const granularSetsChanged = !!orig && JSON.stringify(orig.sets_json || []) !== JSON.stringify(ex.sets_json || []);
+        if (orig && (orig.reps !== ex.reps || originalSets !== activeSets || originalRpe !== activeRpe || granularSetsChanged)) {
+          targetChanges.push(ex.exercise_name);
         }
       }
     });
     if (targetChanges.length > 0) {
-      diffsList.push(`Target de Séries/Reps de ${targetChanges.join(', ')}`);
+      diffsList.push(`Séries, reps, carga ou esforço de ${targetChanges.join(', ')}`);
       changed = true;
     }
 
@@ -2166,74 +2232,42 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     } catch (e) { /* Ignore audio errors */ }
   };
 
-  // HELPER TO SAVE EXERCISE DATA FOR THE NEXT WORKOUT SESSION
+  // STAGE EXERCISE DATA FOR THE NEXT WORKOUT SESSION
+  // Database persistence happens only in handleApplyTemplateEvolution so that
+  // "manter apenas para hoje" truly leaves the template unchanged.
   const promptAndSaveExerciseData = async (exObj: any, setsData: any[]) => {
     if (!exObj || !setsData || setsData.length === 0) return;
-    
-    try {
-      const firstSet = setsData[0] || { weight: exObj.weight || 0, reps: parseInt(exObj.reps) || 10, rpe: exObj.default_rpe || 8 };
-      const setsJsonList = setsData.map((s) => ({
-        reps: String(s.reps),
-        weight: Number(s.weight),
-        rest_time: Number(exObj.rest_time || 60),
-        type: 'NORMAL' as any,
-        rpe: Number(s.rpe || 8)
-      }));
 
-      if (isGuestWorkout) {
-        const updatedExercises = exercises.map(ex => ex.id === exObj.id ? {
-          ...ex,
-          sets: setsData.length,
-          weight: Number(firstSet.weight),
-          reps: String(firstSet.reps),
-          rest_time: Number(exObj.rest_time || 60),
-          default_rpe: Number(firstSet.rpe || 8),
-          sets_json: setsJsonList,
-        } : ex);
-        useWorkoutStore.setState({ exercises: updatedExercises } as any);
-        saveGuestWorkoutTemp(workoutId, updatedExercises);
-        return;
-      }
+    const firstSet = setsData[0] || {
+      weight: exObj.weight || 0,
+      reps: parseInt(exObj.reps) || 10,
+      rpe: exObj.default_rpe || 8
+    };
+    const setsJsonList = setsData.map((s) => ({
+      reps: String(s.reps),
+      weight: Number(s.weight),
+      rest_time: Number(s.rest_time || exObj.rest_time || 60),
+      type: s.type || SetType.NORMAL,
+      rpe: Number(s.rpe || 8)
+    }));
 
-      // 1. Save to database workout_exercises
-      const { error } = await supabase.from('workout_exercises').update({
-        sets_json: setsJsonList,
+    const currentExercises = exercisesRef.current;
+    const updatedExercises = currentExercises.map(ex => {
+      const sameRow = exObj.id && ex.id === exObj.id;
+      const sameTransientExercise = !exObj.id && ex.exercise_id === exObj.exercise_id;
+      if (!sameRow && !sameTransientExercise) return ex;
+      return {
+        ...ex,
+        sets: setsData.length,
         weight: Number(firstSet.weight),
         reps: String(firstSet.reps),
-        sets: setsData.length,
         rest_time: Number(exObj.rest_time || 60),
-        default_rpe: Number(firstSet.rpe || 8)
-      }).eq('id', exObj.id);
+        default_rpe: Number(firstSet.rpe || 8),
+        sets_json: setsJsonList
+      };
+    });
 
-      if (error) throw error;
-
-      // Clear query caches to ensure fresh data loads on next workout / editor run
-      cacheStore.clear(`workout_init_${workoutId}`);
-      cacheStore.clear(`editor_init_${workoutId}`);
-
-      // 2. State Sync: Update current in-memory store so it keeps updated
-      const updatedExercises = exercises.map(ex => {
-        if (ex.id === exObj.id) {
-          return {
-            ...ex,
-            sets: setsData.length,
-            weight: Number(firstSet.weight),
-            reps: String(firstSet.reps),
-            rest_time: Number(exObj.rest_time || 60),
-            default_rpe: Number(firstSet.rpe || 8),
-            sets_json: setsJsonList
-          };
-        }
-        return ex;
-      });
-      useWorkoutStore.setState({ exercises: updatedExercises } as any);
-
-      // Light, unobtrusive visual feedback
-      showSuccess(`Novos padrões de "${exObj.exercise_name}" salvos.`);
-      playSensoryTone('success');
-    } catch (err: any) {
-      console.error("Error saving exercise default data:", err);
-    }
+    useWorkoutStore.setState({ exercises: updatedExercises } as any);
   };
 
   // CENTRALIZED PROGRESSION LOGIC
@@ -2250,12 +2284,43 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       next.add(completedIdx);
       return next;
     });
+    setCompletedSetsByExercise(prev => {
+      const exerciseIndex = currentIndexRef.current;
+      const nextCompleted = new Set(prev[exerciseIndex] || []);
+      nextCompleted.add(completedIdx);
+      return { ...prev, [exerciseIndex]: nextCompleted };
+    });
     
     // 2. Sound & Haptic
     playTimerBeep(true);
     if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
 
-    // 3. Reset states for progression
+    // 3. Persist actual rest duration before resetting rest state
+    const actualRestSeconds = restStartedAtRef.current !== null
+      ? Math.max(0, Math.round((Date.now() - restStartedAtRef.current) / 1000))
+      : null;
+
+    if (actualRestSeconds !== null) {
+      const exerciseIndex = currentIndexRef.current;
+      restActualBySetRef.current[`${exerciseIndex}:${completedIdx}`] = actualRestSeconds;
+      setWorkoutPerformance(prev => {
+        const sourceSets = prev[exerciseIndex] || activeSetsDataRef.current || [];
+        if (!sourceSets[completedIdx]) return prev;
+        const nextSets = [...sourceSets];
+        nextSets[completedIdx] = { ...nextSets[completedIdx], rest_time_actual: actualRestSeconds } as any;
+        return { ...prev, [exerciseIndex]: nextSets };
+      });
+
+      supabase.from('workout_sets_log')
+        .update({ rest_time_actual: actualRestSeconds })
+        .eq('history_id', historyId)
+        .eq('exercise_id', currentEx.exercise_id)
+        .eq('set_number', completedIdx + 1)
+        .then(({ error }) => {
+          if (error) console.warn('[REST_ACTUAL_SAVE_WARN]', error);
+        });
+    }
+
     setIsResting(false);
     setRestOvertime(0);
     hasTriggeredRef.current = false; // Prepare for next rest
@@ -2287,8 +2352,36 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     let nextSet = latestCurrentSet;
 
     if (isLastSet) {
-      // Ask user if they wish to keep current exercise settings for next sessions
-      await promptAndSaveExerciseData(currentEx, latestActiveSetsData);
+      const latestExercise = exercisesRef.current[latestCurrentIndex] || currentEx;
+      const hasPersistentRow = !!latestExercise?.id && !latestExercise.id.startsWith('ex-live-');
+      if (hasPersistentRow) {
+        const originalExercise = originalExercises.find(o => o.id === latestExercise.id);
+        const currentRest = Number(latestExercise.rest_time || 60);
+        const originalRest = Number(originalExercise?.rest_time || 60);
+        if (currentRest !== originalRest) {
+          // REST_TEMPLATE_SETS_PERSISTED: keep top-level and per-set defaults aligned.
+          const persistedRestSets = (latestExercise.sets_json || []).map((set: any) => ({
+            ...set,
+            rest_time: currentRest
+          }));
+          const { error: restSaveError } = await supabase.from('workout_exercises')
+            .update({ rest_time: currentRest, sets_json: persistedRestSets })
+            .eq('id', latestExercise.id);
+          if (restSaveError) {
+            console.warn('[REST_DEFAULT_SAVE_WARN]', restSaveError);
+          } else {
+            log('[REST_DEFAULT_SAVED]', { exerciseId: latestExercise.exercise_id, restTime: currentRest });
+          }
+        }
+      }
+
+      // Stage all other exercise settings for the normal template-evolution flow.
+      // Newly added exercises are inserted there with the adjusted rest_time.
+      const normalizedRestSetsData = latestActiveSetsData.map((set: any) => ({
+        ...set,
+        rest_time: Number(latestExercise.rest_time || 60)
+      }));
+      await promptAndSaveExerciseData(latestExercise, normalizedRestSetsData);
 
       if (latestCurrentIndex < latestExercises.length - 1) {
         log("[ADVANCE_WORKOUT] Next Exercise");
@@ -2340,6 +2433,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       vibratedAlert5s.current = false;
       hasTriggeredRef.current = false;
       restEndTimestampRef.current = null;
+      restStartedAtRef.current = null;
       return;
     }
 
@@ -2454,7 +2548,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           reps: s.reps,
           rpe: s.rpe,
           type: (s as any).type || origSet?.type || SetType.NORMAL,
-          rest_time: (s as any).rest_time || origSet?.rest_time || currentEx.rest_time || 60
+          rest_time: (s as any).rest_time || origSet?.rest_time || currentEx.rest_time || 60,
+          rest_time_actual: (s as any).rest_time_actual
         };
       });
     } else if (currentEx.sets_json && currentEx.sets_json.length > 0) {
@@ -2731,6 +2826,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     setPreviousSet(currentSetData);
 
     // INITIATE REST
+    const restStartedAt = Date.now();
+    restStartedAtRef.current = restStartedAt;
+    restEndTimestampRef.current = restStartedAt + adaptiveRest * 1000;
     setTimeLeft(adaptiveRest);
     setRestOvertime(0);
     setIsResting(true);
@@ -2783,9 +2881,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       if (!ex) return;
       
       const sets = setsUntyped as {weight: number, reps: number, rpe: number}[];
+      const completedForExercise = new Set<number>([
+        ...Array.from<number>(completedSetsByExercise[exIdx] || new Set<number>()),
+        ...(exIdx === currentIndex ? Array.from<number>(completedSetIndices) : [])
+      ]);
 
+      // At the terminal exercise the last React state update can still be in
+      // flight. Reaching the terminal state itself proves all runtime sets in
+      // the current exercise were completed.
+      if (exIdx === currentIndex && currentSet >= sets.length && currentIndex >= exercises.length - 1) {
+        sets.forEach((_, idx) => completedForExercise.add(idx));
+      }
+
+      const completedPerformance: { set: {weight: number, reps: number, rpe: number}, setIdx: number }[] = [];
       sets.forEach((set, setIdx) => {
-        // Only save sets that have at least 1 rep or some weight
+        if (!completedForExercise.has(setIdx)) return;
         if (set.reps > 0 || set.weight > 0) {
           logs.push({
             history_id: histId,
@@ -2795,14 +2905,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             weight_achieved: typeof set.weight === 'string' ? parseFloat(set.weight) : set.weight,
             reps_achieved: typeof set.reps === 'string' ? parseInt(set.reps) : set.reps,
             rpe: set.rpe,
+            rest_time_actual: Number((set as any).rest_time_actual ?? restActualBySetRef.current[`${exIdx}:${setIdx}`] ?? 0) || null,
             set_type: SetType.NORMAL,
             created_at: new Date().toISOString()
           });
+          completedPerformance.push({ set, setIdx });
         }
       });
 
-      if (sets.length > 0) {
-        const lastSetVal = sets[sets.length - 1];
+      if (completedPerformance.length > 0) {
+        const lastSetVal = completedPerformance[completedPerformance.length - 1].set;
         if (lastSetVal.reps > 0) {
           progressions.push({
             exerciseId: ex.exercise_id,
@@ -3036,35 +3148,33 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         const targetWeight = typeof ex.weight === 'string' ? parseFloat(ex.weight) : (ex.weight || 0);
         const targetRest = ex.rest_time || 60;
 
-        // Resolve individual, non-uniform sets_json
-        let finalSetsJson = ex.sets_json;
-        const perfSets = workoutPerformance[index];
-        if (!finalSetsJson || finalSetsJson.length !== numSets) {
-          if (perfSets && perfSets.length === numSets) {
-            finalSetsJson = perfSets.map((s, sIdx) => ({
-              reps: String(s.reps),
-              weight: Number(s.weight),
-              rest_time: Number(s.rest_time || ex.rest_time || 60),
-              rpe: Number(s.rpe || 8),
-              type: s.type || SetType.NORMAL
-            }));
-          } else {
-            finalSetsJson = Array.from({ length: numSets }).map((_, sIdx) => {
-              const existingSet = ex.sets_json?.[sIdx] || perfSets?.[sIdx];
-              return {
-                reps: existingSet?.reps ? String(existingSet.reps) : targetReps,
-                weight: existingSet?.weight !== undefined ? Number(existingSet.weight) : targetWeight,
-                rest_time: Number(existingSet?.rest_time || targetRest),
-                type: existingSet?.type || SetType.NORMAL
-              };
-            });
-          }
-        }
+        // Resolve individual, non-uniform sets_json. Executed data wins only
+        // for sets that were actually completed; untouched sets keep their target.
+        const perfSets = workoutPerformance[index] || [];
+        const completedForExercise = new Set<number>([
+          ...Array.from<number>(completedSetsByExercise[index] || new Set<number>()),
+          ...(index === currentIndex ? Array.from<number>(completedSetIndices) : [])
+        ]);
+        const finalSetsJson = Array.from({ length: numSets }).map((_, sIdx) => {
+          const existingSet = ex.sets_json?.[sIdx];
+          const performedSet = perfSets?.[sIdx];
+          const usePerformed = completedForExercise.has(sIdx) && !!performedSet;
+          const sourceSet: any = usePerformed ? performedSet : (existingSet || performedSet || {});
+          return {
+            reps: sourceSet.reps !== undefined ? String(sourceSet.reps) : targetReps,
+            weight: sourceSet.weight !== undefined ? Number(sourceSet.weight) : targetWeight,
+            rest_time: Number(sourceSet.rest_time || existingSet?.rest_time || targetRest),
+            rpe: Number(sourceSet.rpe || existingSet?.rpe || ex.default_rpe || 8),
+            type: sourceSet.type || existingSet?.type || SetType.NORMAL
+          };
+        });
 
         const firstSetReps = finalSetsJson[0]?.reps || targetReps;
         const firstSetWeight = finalSetsJson[0]?.weight !== undefined ? Number(finalSetsJson[0].weight) : targetWeight;
+        const firstSetRpe = Number(finalSetsJson[0]?.rpe || ex.default_rpe || 8);
 
-        if (ex.id) {
+        const isNewExercise = !ex.id || ex.id.startsWith('ex-live-');
+        if (!isNewExercise) {
           // Existed in original template -> Update granularly
           const orig = originalExercises.find(o => o.id === ex.id);
           const patch: any = {};
@@ -3088,6 +3198,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             if (orig.rest_time !== targetRest) {
               patch.rest_time = targetRest;
             }
+            if (Number(orig.default_rpe ?? 8) !== firstSetRpe) {
+              patch.default_rpe = firstSetRpe;
+            }
 
             if (JSON.stringify(orig.sets_json) !== JSON.stringify(finalSetsJson)) {
               patch.sets_json = finalSetsJson;
@@ -3108,6 +3221,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             reps: firstSetReps,
             weight: firstSetWeight,
             rest_time: targetRest,
+            default_rpe: firstSetRpe,
             sets_json: finalSetsJson,
             exercise_name_snapshot: ex.exercise_name || 'Exercício'
           };
@@ -3116,13 +3230,17 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         }
       }
 
-      // 2. Remove deleted exercises
-      const activeIdsSet = new Set(exercises.map(ex => ex.id).filter(Boolean));
-      const removedExercises = originalExercises.filter(ex => ex.id && !activeIdsSet.has(ex.id));
-      for (const rem of removedExercises) {
-        const { error } = await supabase.from('workout_exercises').delete().eq('id', rem.id);
+      // 2. Remove only exercises explicitly deleted by the user.
+      // Missing/transient ids can occur during hydration and must never trigger mass deletion.
+      const explicitRemovedIds = Array.from(removedExerciseIdsRef.current);
+      for (const removedId of explicitRemovedIds) {
+        const { error } = await supabase.from('workout_exercises')
+          .delete()
+          .eq('id', removedId)
+          .eq('category_id', workoutId);
         if (error) throw error;
       }
+      removedExerciseIdsRef.current.clear();
 
       showSuccess("Ficha de treino atualizada com sucesso!");
       cacheStore.clear(`workout_init_${workoutId}`);
