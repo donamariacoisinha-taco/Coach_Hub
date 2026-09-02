@@ -233,7 +233,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`text-[8px] font-black tracking-widest mt-0.5 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
+                <p className={`text-[10px] font-black tracking-widest mt-0.5 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
                   {isBeginner ? 'Peso' : 'Kg'}
                 </p>
                 {/* DELTA WEIGHT */}
@@ -273,7 +273,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`text-[8px] font-black tracking-widest mt-0.5 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
+                <p className={`text-[10px] font-black tracking-widest mt-0.5 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
                   {isBeginner ? 'Repetições' : 'Reps'}
                 </p>
                 
@@ -332,6 +332,8 @@ const SetCard = ({
                         playSensoryTone('click');
                         if ('vibrate' in navigator) navigator.vibrate(10);
                       }}
+                      aria-label={`RPE ${v}${isSelected ? ' (selecionado)' : ''}`}
+                      aria-pressed={isSelected}
                       className={`w-6 h-6 rounded-lg text-[10px] font-black transition-all flex items-center justify-center shrink-0 ${
                         isSelected 
                           ? `${activeBg} text-white shadow-sm scale-110`
@@ -346,7 +348,7 @@ const SetCard = ({
                 })}
              </div>
            </div>
-           <p className={`text-[7px] font-black tracking-widest mt-1 uppercase leading-none ${
+           <p className={`text-[8.5px] font-black tracking-wide mt-1 uppercase leading-none ${
              focusMode ? 'text-slate-500' : 'text-slate-400/80'
            }`}>RPE • Esforço</p>
         </div>
@@ -3271,7 +3273,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         <button
           type="button"
           onClick={() => setShowExitModal(true)}
-          className="fixed z-[1200] left-1/2 -translate-x-1/2 bottom-24 px-5 py-3 rounded-2xl bg-white border border-amber-200 text-amber-700 shadow-lg font-black text-[10px] uppercase tracking-widest"
+          className="fixed z-[1200] left-1/2 -translate-x-1/2 bottom-24 min-h-11 px-5 py-3.5 rounded-2xl bg-white border border-amber-200 text-amber-700 shadow-lg font-black text-[11px] uppercase tracking-wide"
         >
           Finalizar sessão parcial
         </button>
@@ -3611,7 +3613,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     whileHover={{ opacity: 1 }}
                     className="mt-10 px-2 transition-all duration-300"
                   >
-                    <p className="text-[7px] font-[1000] text-slate-400 uppercase tracking-[0.25em] mb-3 text-center">Prepare-se: Próximo Exercício</p>
+                    <p className="text-[9.5px] font-[1000] text-slate-400 uppercase tracking-[0.15em] mb-3 text-center">Prepare-se: Próximo Exercício</p>
                     <div className="flex items-center gap-4 bg-white/40 backdrop-blur-sm rounded-[2rem] p-4 border border-slate-100 shadow-sm">
                       <div 
                         onClick={() => {
@@ -3816,16 +3818,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         )}
                       </div>
                       <div className="flex-1 min-w-0 text-left">
-                        <p className="text-[7.5px] font-[1000] uppercase text-[#7BA7FF] tracking-wider leading-none mb-0.5">A SEGUIR</p>
+                        <p className="text-[9.5px] font-[1000] uppercase text-[#7BA7FF] tracking-wide leading-none mb-0.5">A SEGUIR</p>
                         <p className="text-[11px] font-black text-slate-800 truncate leading-tight">{exercises[currentIndex + 1].exercise_name}</p>
-                        <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">{exercises[currentIndex + 1].sets || exercises[currentIndex + 1].sets_json?.length || 3} Séries • {exercises[currentIndex + 1].muscle_group}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{exercises[currentIndex + 1].sets || exercises[currentIndex + 1].sets_json?.length || 3} Séries • {exercises[currentIndex + 1].muscle_group}</p>
                       </div>
                     </div>
                   )}
 
                   <div className="flex items-center justify-between h-[64px] px-1 gap-4">
                     <div className="flex flex-col items-start shrink-0">
-                      <span className="text-[7px] font-black uppercase tracking-[0.25em] text-slate-400">SÉRIE</span>
+                      <span className="text-[9.5px] font-black uppercase tracking-[0.2em] text-slate-400">SÉRIE</span>
                       <span className="text-xs font-black text-slate-700 tracking-tighter">
                         {currentSet} DE {activeSetsData.length}
                       </span>
@@ -3876,7 +3878,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         userDockPreferenceRef.current = 'compact';
                       }}
                     >
-                      <span className="text-[7px] font-black uppercase tracking-[0.25em] text-slate-400 font-sans">DESCANSO</span>
+                      <span className="text-[9.5px] font-black uppercase tracking-[0.2em] text-slate-400 font-sans">DESCANSO</span>
                       <span className={`text-xs font-black tracking-tight font-mono ${isResting ? 'text-[#7BA7FF] animate-pulse' : 'text-slate-400'}`}>
                         {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
                       </span>
@@ -3901,9 +3903,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         )}
                       </div>
                       <div className="flex-1 min-w-0 text-left">
-                        <p className="text-[8px] font-black uppercase text-[#7BA7FF] tracking-wider leading-none mb-0.5">A SEGUIR</p>
+                        <p className="text-[9.5px] font-black uppercase text-[#7BA7FF] tracking-wide leading-none mb-0.5">A SEGUIR</p>
                         <p className="text-xs font-black text-slate-800 truncate leading-tight">{exercises[currentIndex + 1].exercise_name}</p>
-                        <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">{exercises[currentIndex + 1].sets || exercises[currentIndex + 1].sets_json?.length || 3} Séries • {exercises[currentIndex + 1].muscle_group}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{exercises[currentIndex + 1].sets || exercises[currentIndex + 1].sets_json?.length || 3} Séries • {exercises[currentIndex + 1].muscle_group}</p>
                       </div>
                     </div>
                   )}
@@ -3921,7 +3923,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       <span className={`text-xl font-black tracking-tight font-mono leading-none ${isResting ? 'text-[#7BA7FF]' : 'text-slate-500'}`}>
                         {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
                       </span>
-                      <span className="text-[6.5px] font-[1000] text-slate-400 uppercase tracking-[0.2em] mt-0.5">DESCANSO</span>
+                      <span className="text-[9px] font-[1000] text-slate-400 uppercase tracking-[0.15em] mt-0.5">DESCANSO</span>
                     </div>
 
                     <button 
@@ -3936,13 +3938,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <div className="grid grid-cols-3 gap-2 items-center text-center">
                     {/* PESO */}
                     <div className="flex flex-col items-center">
-                      <span className="text-[7px] font-black uppercase tracking-[0.14em] text-slate-400 mb-0.5">Peso</span>
+                      <span className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400 mb-0.5">Peso</span>
                       <div className="flex items-center gap-1 bg-slate-50/80 py-0.5 px-1 rounded-xl border border-slate-100">
                         <button 
                           onClick={() => {
                             const currentVal = activeSetsData[currentSet - 1]?.weight || 0;
                             updateSetData(currentSet - 1, 'weight', Math.max(0, currentVal - 2));
                           }}
+                          aria-label="Diminuir peso em 2 kg"
                           className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm font-black text-slate-600 flex items-center justify-center hover:bg-slate-50 active:scale-90 active:bg-slate-100 transition-all"
                         >
                           -
@@ -3955,6 +3958,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             const currentVal = activeSetsData[currentSet - 1]?.weight || 0;
                             updateSetData(currentSet - 1, 'weight', currentVal + 2);
                           }}
+                          aria-label="Aumentar peso em 2 kg"
                           className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm font-black text-slate-600 flex items-center justify-center hover:bg-slate-50 active:scale-90 active:bg-slate-100 transition-all"
                         >
                           +
@@ -3964,13 +3968,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                     {/* REPS */}
                     <div className="flex flex-col items-center">
-                      <span className="text-[7px] font-black uppercase tracking-[0.14em] text-slate-400 mb-0.5">Reps</span>
+                      <span className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400 mb-0.5">Reps</span>
                       <div className="flex items-center gap-1 bg-slate-50/80 py-0.5 px-1 rounded-xl border border-slate-100">
                         <button 
                           onClick={() => {
                             const currentVal = activeSetsData[currentSet - 1]?.reps || 10;
                             updateSetData(currentSet - 1, 'reps', Math.max(1, currentVal - 1));
                           }}
+                          aria-label="Diminuir uma repetição"
                           className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm font-black text-slate-600 flex items-center justify-center hover:bg-slate-50 active:scale-90 active:bg-slate-100 transition-all"
                         >
                           -
@@ -3983,6 +3988,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             const currentVal = activeSetsData[currentSet - 1]?.reps || 10;
                             updateSetData(currentSet - 1, 'reps', currentVal + 1);
                           }}
+                          aria-label="Aumentar uma repetição"
                           className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm font-black text-slate-600 flex items-center justify-center hover:bg-slate-50 active:scale-90 active:bg-slate-100 transition-all"
                         >
                           +
@@ -3992,7 +3998,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                     {/* RPE */}
                     <div className="flex flex-col items-center">
-                      <span className="text-[7px] font-black uppercase tracking-[0.14em] text-slate-400 mb-0.5">Esforço RPE</span>
+                      <span className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400 mb-0.5">Esforço RPE</span>
                       <div className="flex gap-0.5 bg-slate-50 p-0.5 rounded-xl border border-slate-100">
                         {[8, 9, 10].map(rpeVal => {
                           const active = (activeSetsData[currentSet - 1]?.rpe || 8) === rpeVal;
@@ -4004,6 +4010,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                 playSensoryTone?.('click');
                                 playHapticFeedback?.('light');
                               }}
+                              aria-label={`RPE ${rpeVal}${active ? ' (selecionado)' : ''}`}
+                              aria-pressed={active}
                               className={`w-6 h-6 rounded-md text-[9px] font-black leading-none transition-all ${
                                 active 
                                   ? "bg-[#7BA7FF] text-white shadow-sm" 
@@ -4213,7 +4221,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       <span className={`text-2xl font-black font-mono leading-none tracking-tighter ${isResting ? 'text-[#7BA7FF]' : 'text-slate-700'}`}>
                         {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
                       </span>
-                      <span className="text-[7px] font-[1000] text-slate-400/85 uppercase tracking-widest mt-0.5">DESCANSO ADAPATIVO</span>
+                      <span className="text-[9px] font-[1000] text-slate-400/85 uppercase tracking-wide mt-0.5">DESCANSO ADAPTATIVO</span>
                     </div>
 
                     <button 
@@ -4292,7 +4300,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                 />
                               </div>
                               <div className="min-w-0">
-                                <span className={`text-[7px] font-extrabold tracking-widest uppercase block ${
+                                <span className={`text-[9px] font-extrabold tracking-wide uppercase block ${
                                   isCurrent ? 'text-[#7BA7FF]' : 'text-slate-400'
                                 }`}>
                                   {label}
