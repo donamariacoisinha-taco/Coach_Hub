@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { 
   Sparkles, 
@@ -16,6 +16,12 @@ import {
 } from 'lucide-react';
 import { UserProfile, WorkoutHistory } from '../../types';
 import { useNutritionStore } from '../../store/nutritionStore';
+import {
+  computeWeightDelta,
+  formatWeightDeltaSentence,
+  parseWeightCheckInLogs,
+  WeightDelta,
+} from '../../domain/checkin/weightCheckInHistory';
 
 interface BodyProjectionModuleProps {
   profile: UserProfile | null;
@@ -38,6 +44,22 @@ export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
       syncFromUserProfile(profile);
     }
   }, [profile, syncFromUserProfile]);
+
+  // Check-ins reais de peso, gravados pelo WeeklyCheckIn em localStorage.
+  // Nenhuma variação é mostrada sem pelo menos dois check-ins para comparar.
+  const [weightDelta, setWeightDelta] = useState<WeightDelta | null>(null);
+  const [weightCheckInCount, setWeightCheckInCount] = useState(0);
+  useEffect(() => {
+    if (!profile?.id) {
+      setWeightDelta(null);
+      setWeightCheckInCount(0);
+      return;
+    }
+    const raw = localStorage.getItem(`rubi_history_${profile.id}`);
+    const logs = parseWeightCheckInLogs(raw);
+    setWeightCheckInCount(logs.length);
+    setWeightDelta(computeWeightDelta(logs));
+  }, [profile?.id]);
 
   // Retrieve current demographics with safe defaults
   const weight = profile?.weight || 96;
@@ -548,7 +570,11 @@ export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
             <span className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider block">Integração Semanal (Weekly Check-In)</span>
             <h5 className="text-xs font-black text-slate-800 leading-snug">Metodologia e Consistência Semanais</h5>
             <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1">
-              "Seu peso médio caiu <strong className="text-slate-700">0,6 kg</strong> nesta semana, mantendo um ritmo saudável para atingir sua meta dentro do prazo estimado."
+              {weightDelta
+                ? formatWeightDeltaSentence(weightDelta)
+                : weightCheckInCount === 1
+                  ? 'Você fez 1 check-in de peso. Registre outro na próxima semana para começarmos a mostrar sua variação real.'
+                  : 'Nenhum check-in de peso registrado ainda. Use o Check-in de Evolução para acompanhar sua variação real, semana a semana.'}
             </p>
           </div>
         </div>
@@ -563,11 +589,15 @@ export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
             <h5 className="text-xs font-black text-slate-800 leading-snug">Relação Força / Composição Corporal</h5>
             <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1">
               {volChangePercent === null ? (
-                `Dados insuficientes: ainda não há duas sessões equivalentes com carga registrada para relacionar volume de treino e composição corporal.`
-              ) : isGain ? (
-                `Seu volume de treino variou ${volChangePercent}% acompanhado de um ganho saudável de peso. Excelente sinal de desenvolvimento de tecidos magros e resposta hipertrófica favorável.`
+                weightDelta
+                  ? `Ainda não há duas sessões equivalentes com carga registrada para relacionar volume de treino e composição corporal. ${formatWeightDeltaSentence(weightDelta)}`
+                  : 'Dados insuficientes: ainda não há duas sessões equivalentes com carga registrada, nem dois check-ins de peso, para relacionar volume de treino e composição corporal.'
+              ) : !weightDelta ? (
+                `Seu volume de treino variou ${volChangePercent}%. Faça um segundo check-in de peso para vermos como isso se relaciona com sua composição corporal.`
+              ) : weightDelta.deltaKg <= 0 ? (
+                `Seu volume de treino variou ${volChangePercent}% enquanto seu peso corporal ${weightDelta.deltaKg < 0 ? `reduziu ${Math.abs(weightDelta.deltaKg).toFixed(1).replace('.', ',')} kg` : 'se manteve estável'} nos últimos ${weightDelta.days} dias. Sinal de preservação de desempenho durante o déficit calórico.`
               ) : (
-                `Seu volume de treino variou ${volChangePercent}% enquanto seu peso corporal reduziu 0,5 kg nesta semana. Este é um excelente sinal de preservação de desempenho durante o déficit calórico.`
+                `Seu volume de treino variou ${volChangePercent}% acompanhado de um ganho de ${weightDelta.deltaKg.toFixed(1).replace('.', ',')} kg nos últimos ${weightDelta.days} dias. Sinal de desenvolvimento de tecidos magros e resposta hipertrófica favorável.`
               )}
             </p>
           </div>
