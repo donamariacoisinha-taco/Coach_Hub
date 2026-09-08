@@ -7,9 +7,7 @@
     "node": "24.x"
   },
   "scripts": {
-    "predev": "node scripts/fixWorkoutCompletionState.mjs && node scripts/fixWorkoutPersistenceIntegrity.mjs && node scripts/fixWorkoutRestTimerPersistence.mjs && node scripts/fixWorkoutRestFinalization.mjs && node scripts/fixWorkoutRestTemplatePersistence.mjs && node scripts/fixWorkoutTemplateIntegrity.mjs && node scripts/fixWorkoutDashboardEditorConsistency.mjs && node scripts/fixAdminExerciseMuscleFilters.mjs",
     "dev": "tsx server.ts",
-    "prebuild": "node scripts/fixWorkoutCompletionState.mjs && node scripts/fixWorkoutPersistenceIntegrity.mjs && node scripts/fixWorkoutRestTimerPersistence.mjs && node scripts/fixWorkoutRestFinalization.mjs && node scripts/fixWorkoutRestTemplatePersistence.mjs && node scripts/fixWorkoutTemplateIntegrity.mjs && node scripts/fixWorkoutDashboardEditorConsistency.mjs && node scripts/fixAdminExerciseMuscleFilters.mjs",
     "build": "node scripts/buildAcademiaSemMedoAssets.mjs && vite build && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.mjs && node -e \"require('fs').writeFileSync('dist/server.cjs', 'import(\\\"./server.mjs\\\");\\n')\"",
     "start": "node dist/server.cjs",
     "test": "vitest run",

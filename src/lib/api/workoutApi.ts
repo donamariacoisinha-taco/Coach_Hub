@@ -346,35 +346,37 @@ export const workoutApi = {
   },
 
   async startWorkoutHistory(userId: string, workoutId: string, categoryName: string) {
-    try {
-      const { data, error } = await supabase.from('workout_history').insert([{ 
-        user_id: userId, 
-        category_id: workoutId, 
-        category_name: categoryName 
-      }]).select().single();
-      
-      if (error) throw error;
-      return data as WorkoutHistory;
-    } catch (err: any) {
-      console.warn("[workoutApi] Failed to start workout history online. Using local mock history fallback.", err);
-      const mockHistory: WorkoutHistory = {
-        id: `mock-history-${Date.now()}`,
-        user_id: userId,
-        category_id: workoutId,
-        category_name: categoryName,
-        completed_at: null,
-        duration_minutes: 0,
-        exercises_count: 0,
-        created_at: new Date().toISOString()
-      };
-      
-      try {
-        localStorage.setItem(`rubi_mock_history_${mockHistory.id}`, JSON.stringify(mockHistory));
-      } catch (e) {
-        console.error("Local storage error in mock history fallback", e);
-      }
-      return mockHistory;
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (!uuidPattern.test(workoutId)) {
+      throw new Error('Não foi possível iniciar o treino: a ficha não possui um identificador válido no banco.');
     }
+
+    let lastError: any = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const { data, error } = await supabase.from('workout_history').insert([{
+          user_id: userId,
+          category_id: workoutId,
+          category_name: categoryName,
+          completed_at: null
+        }]).select().single();
+
+        if (error) throw error;
+        if (!data?.id || !uuidPattern.test(data.id)) {
+          throw new Error('O banco não retornou um identificador válido para a sessão de treino.');
+        }
+        return data as WorkoutHistory;
+      } catch (err: any) {
+        lastError = err;
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 350 * attempt));
+        }
+      }
+    }
+
+    console.error('[workoutApi] Failed to create a real workout history after retries.', lastError);
+    throw lastError || new Error('Não foi possível criar a sessão de treino no banco. Tente novamente.');
   },
 
   async upsertPartialSession(userId: string, workoutId: string, historyId: string, startTime: string) {
