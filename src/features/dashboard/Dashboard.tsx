@@ -1111,7 +1111,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     const isOptimistic = typeof workout.id === 'string' && workout.id.startsWith('temp-');
                     
                     const workoutHistory = history.filter(h => h.category_id === workout.id && h.completed_at);
-                    const exercisesCount = workout.exercises_count || (idx % 3 === 0 ? 8 : (idx % 3 === 1 ? 6 : 7));
+                    const exercisesCount = workout.exercises_count ?? 0;
                     const estDuration = idx % 2 === 0 ? 45 : 60;
 
                     const getLastExecutionText = () => {
