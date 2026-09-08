@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { GUEST_STORAGE_SCHEMA_VERSION } from '../../lib/guest/guestPersistence';
 
 describe('workoutStore guest migration ordering', () => {
   it('migrates legacy global state before Zustand hydration', async () => {
@@ -32,6 +33,6 @@ describe('workoutStore guest migration ordering', () => {
     });
     expect(localStorage.getItem('workout_rest_start')).toBeNull();
     expect(localStorage.getItem('currentExercise')).toBeNull();
-    expect(localStorage.getItem('kyron_guest_storage_schema_version')).toBe('4');
+    expect(localStorage.getItem('kyron_guest_storage_schema_version')).toBe(String(GUEST_STORAGE_SCHEMA_VERSION));
   });
 });
