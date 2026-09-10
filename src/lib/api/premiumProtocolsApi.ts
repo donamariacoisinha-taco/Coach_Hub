@@ -2,6 +2,8 @@ import { supabase } from './supabase';
 import { conflictResolutionService } from './ConflictResolutionService';
 import { workoutApi } from './workoutApi';
 import { SetConfig, WorkoutFolder, Exercise } from '../../types';
+import { GUEST_USER_ID } from './authApi';
+import { createGuestFolder, createGuestWorkout } from '../guest/guestPersistence';
 
 import chestPressAnatomical from '../../assets/images/chest_press_anatomical_v01_1779099846928.png';
 import kyronAppIcon from '../../assets/images/kyron_app_icon_1781260685156.jpg';
@@ -1813,6 +1815,23 @@ class PremiumProtocolsApi {
   async cloneToUser(userId: string, protocolId: string): Promise<WorkoutFolder> {
     const protocol = await this.getProtocolById(protocolId);
     if (!protocol) throw new Error('Protocolo Premium não encontrado.');
+
+    // Convidado não tem pasta/categoria/exercício em tabela do Supabase —
+    // user_id sentinela quebraria as 3 escritas abaixo. Cada ficha do
+    // protocolo vira uma entrada no dashboard local, numa pasta nova; nada
+    // do que o convidado já tinha (planos, histórico) é tocado.
+    if (userId === GUEST_USER_ID) {
+      const folder = createGuestFolder(protocol.name);
+      for (const tw of protocol.workouts) {
+        createGuestWorkout({
+          name: tw.name,
+          description: tw.description,
+          folder_id: folder.id,
+          exercises: tw.exercises,
+        });
+      }
+      return folder as unknown as WorkoutFolder;
+    }
 
     // 1. Fetch available exercises to map names to actual UUIDs
     let exerciseMap = new Map<string, string>();

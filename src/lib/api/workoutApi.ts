@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { WorkoutCategory, WorkoutExercise, WorkoutFolder, WorkoutHistory, UserProfile, MuscleGroup, Exercise, SetConfig, normalizeMuscleGroup } from '../../types';
 import { fetchWithRetry } from '../utils';
 import { exerciseApi } from './exerciseApi';
-import { getGuestDashboard } from '../guest/guestPersistence';
+import { getGuestDashboard, getGuestWorkout, deleteGuestWorkout } from '../guest/guestPersistence';
 import { GUEST_USER_ID } from './authApi';
 
 export const workoutApi = {
@@ -130,6 +130,11 @@ export const workoutApi = {
   },
 
   async deleteWorkout(id: string) {
+    if (id.startsWith('guest-workout-')) {
+      deleteGuestWorkout(id);
+      return;
+    }
+
     // We explicitly delete exercises first to avoid foreign key issues if cascade is not set
     await supabase.from('workout_exercises').delete().eq('category_id', id);
     const { error } = await supabase.from('workout_categories').delete().eq('id', id);
@@ -627,7 +632,72 @@ export const workoutApi = {
   },
 
   async getWorkoutEditorData(userId: string, workoutId?: string) {
-    // We fetch folders, muscle groups, and user favorites. 
+    // Convidado não tem pasta/ficha/favorito em tabela do Supabase — user_id
+    // é o id sentinela, que a coluna uuid rejeita antes de chegarmos perto do
+    // conteúdo real. Fonte da verdade é o dashboard local.
+    if (userId === GUEST_USER_ID) {
+      const dashboard = getGuestDashboard();
+
+      let exercisesList: Exercise[] = [];
+      try {
+        exercisesList = await exerciseApi.getExercises();
+      } catch (err) {
+        console.warn('[WorkoutEditor] Erro ao buscar exercícios via exerciseApi. Retornando padrão estático.', err);
+        try {
+          const { fallbackExercises } = await import('./fallbackExercises');
+          exercisesList = fallbackExercises;
+        } catch (importErr) {
+          console.error('[WorkoutEditor] Falha crítica de importação de fallback:', importErr);
+        }
+      }
+
+      let muscleGroups: MuscleGroup[] = [];
+      try {
+        muscleGroups = await exerciseApi.getMuscleGroups();
+      } catch (err) {
+        console.warn('[WorkoutEditor] Erro ao buscar grupos musculares:', err);
+      }
+
+      let category: WorkoutCategory | null = null;
+      let workoutExercises: any[] = [];
+      if (workoutId) {
+        const workout = getGuestWorkout(workoutId);
+        if (workout) {
+          category = {
+            id: workout.id,
+            user_id: GUEST_USER_ID,
+            folder_id: workout.folder_id,
+            name: workout.name,
+            description: workout.description,
+          } as WorkoutCategory;
+
+          const exercisesMap = new Map(exercisesList.map(e => [e.id, e]));
+          workoutExercises = (workout.exercises || []).map((item: any) => {
+            const resolvedExercise = exercisesMap.get(item.exercise_id);
+            return {
+              ...item,
+              exercises: resolvedExercise || null,
+              exercise_name: resolvedExercise?.name || item.exercise_name_snapshot || item.exercise_name || 'Exercício Indisponível',
+              muscle_group: normalizeMuscleGroup(resolvedExercise?.muscle_group || item.muscle_group || 'Outros'),
+              exercise_image: resolvedExercise?.image_url || item.exercise_image,
+            };
+          });
+        }
+      }
+
+      return {
+        folders: dashboard.folders || [],
+        muscleGroups,
+        exercises: exercisesList,
+        // Favoritar exercício não existe no modo convidado ainda — lista
+        // vazia é o dado real, não uma ausência disfarçada.
+        favorites: [] as string[],
+        category,
+        workoutExercises: workoutExercises as WorkoutExercise[],
+      };
+    }
+
+    // We fetch folders, muscle groups, and user favorites.
     // Exercises are fetched reliably below.
     const queries: any[] = [
       supabase.from('workout_folders').select('*').eq('user_id', userId).order('name'),
