@@ -9,10 +9,16 @@ export interface UserContext {
   daysSinceLastWorkout: number;
   timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night';
   isTrainingDay: boolean;
+  /** Existe hoje ao menos uma sessão concluída integralmente. */
+  completedToday: boolean;
+  /** Existe hoje ao menos uma sessão parcial e nenhuma completa. */
+  partialToday: boolean;
+  /** Sessão parcial mais recente de hoje, quando não houver sessão completa. */
+  partialTodayWorkout?: WorkoutHistory;
 }
 
 export interface PredictiveAction {
-  type: 'start_workout' | 'rest' | 'motivation' | 'resume';
+  type: 'start_workout' | 'rest' | 'motivation' | 'resume' | 'partial';
   title: string;
   description: string;
   suggestedWorkoutId?: string;
@@ -27,6 +33,14 @@ export const getContext = (
   const now = new Date();
   const dayOfWeek = now.getDay();
   const lastWorkout = (history && history.length > 0) ? history[0] : undefined;
+
+  const isToday = (entry: WorkoutHistory) => Boolean(entry?.completed_at)
+    && new Date(entry.completed_at as string).toDateString() === now.toDateString();
+  const todaySessions = (history || []).filter(isToday);
+  // Uma sessão parcial nunca vale como treino concluído; se as duas existirem
+  // no mesmo dia, a completa prevalece.
+  const completedToday = todaySessions.some(entry => !entry.partial);
+  const partialTodayWorkout = completedToday ? undefined : todaySessions.find(entry => entry.partial);
   
   let daysSinceLastWorkout = 999;
   if (lastWorkout) {
@@ -54,7 +68,10 @@ export const getContext = (
     weeklyFrequency: freq,
     daysSinceLastWorkout,
     timeOfDay,
-    isTrainingDay
+    isTrainingDay,
+    completedToday,
+    partialToday: Boolean(partialTodayWorkout),
+    partialTodayWorkout
   };
 };
 
@@ -62,10 +79,30 @@ export const getNextBestAction = (
   context: UserContext,
   workouts: WorkoutCategory[]
 ): PredictiveAction => {
-  const { daysSinceLastWorkout, isTrainingDay, timeOfDay, lastWorkout } = context;
-  const trainedToday = lastWorkout && new Date(lastWorkout.completed_at).toDateString() === context.currentTime.toDateString();
+  const { daysSinceLastWorkout, isTrainingDay, timeOfDay, lastWorkout, completedToday, partialTodayWorkout } = context;
 
-  if (isTrainingDay && !trainedToday) {
+  if (completedToday) {
+    return {
+      type: 'rest',
+      title: 'Missão Cumprida!',
+      description: 'Você já treinou hoje. Aproveite o descanso e foque na recuperação.',
+      priority: 5
+    };
+  }
+
+  if (partialTodayWorkout) {
+    const resumable = (workouts || []).find(w => w.id === partialTodayWorkout.category_id);
+    return {
+      type: 'partial',
+      title: 'Sessão parcial registrada',
+      description: 'Você salvou parte do treino de hoje. Só as séries concluídas foram guardadas — retome quando quiser.',
+      suggestedWorkoutId: resumable?.id,
+      suggestedWorkoutName: resumable?.name || partialTodayWorkout.category_name,
+      priority: 8
+    };
+  }
+
+  if (isTrainingDay) {
     const suggested = (workouts && workouts.length > 0) ? (workouts.find(w => w.id !== lastWorkout?.category_id) || workouts[0]) : null;
     let timeMsg = 'Hora de esmagar!';
     if (timeOfDay === 'morning') timeMsg = 'Bom dia! Que tal começar com energia?';
@@ -81,7 +118,7 @@ export const getNextBestAction = (
     };
   }
 
-  if (daysSinceLastWorkout >= 2 && !trainedToday) {
+  if (daysSinceLastWorkout >= 2) {
     const suggested = (workouts && workouts.length > 0) ? workouts[0] : null;
     return {
       type: 'motivation',
@@ -90,15 +127,6 @@ export const getNextBestAction = (
       suggestedWorkoutId: suggested?.id,
       suggestedWorkoutName: suggested?.name,
       priority: 9
-    };
-  }
-
-  if (trainedToday) {
-    return {
-      type: 'rest',
-      title: 'Missão Cumprida!',
-      description: 'Você já treinou hoje. Aproveite o descanso e foque na recuperação.',
-      priority: 5
     };
   }
 

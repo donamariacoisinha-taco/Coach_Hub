@@ -30,12 +30,21 @@ import {
 } from 'lucide-react';
 import { WorkoutHistory, UserProfile, WorkoutCategory } from '../../types';
 import { athleteMemoryEngine } from '../../services/athleteMemoryEngine';
-import { authApi } from '../../lib/api/authApi';
+import { authApi, GUEST_USER_ID } from '../../lib/api/authApi';
 import { mediaApi } from '../../lib/api/mediaApi';
 import { useNavigation } from '../../App';
 import { supabase } from '../../lib/api/supabase';
 import { BodyProjectionModule } from './BodyProjectionModule';
 import { exerciseApi } from '../../lib/api/exerciseApi';
+import {
+  buildSessionsWithTelemetry,
+  computePerformanceScore,
+  computeVolumeChangePercent,
+  flattenGuestSetLogs,
+  formatRpe,
+  formatScore,
+  groupLogsByHistory,
+} from './progressTelemetry';
 
 interface ProgressIntelligenceProps {
   history: WorkoutHistory[];
@@ -75,6 +84,13 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
           if (photos && photos.length > 0) {
             setLatestPhoto(photos[0]);
             setRecentPhotosCount(photos.length);
+          }
+
+          // Convidado: os logs vivem no histórico local, não em `workout_sets_log`.
+          // Buscar no Supabase aqui só produziria consulta vazia e perderia o RPE real.
+          if (u.id === GUEST_USER_ID) {
+            setAllLogs(flattenGuestSetLogs(history));
+            return;
           }
 
           // Fetch all granular set logs completed by this user (including coordinates and weights)
@@ -129,58 +145,17 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
   }, [history]);
 
   // Group set logs by history_id to accurately compute session statistics
-  const logsByHistory = useMemo(() => {
-    const groups: Record<string, any[]> = {};
-    allLogs.forEach(log => {
-      if (!groups[log.history_id]) {
-        groups[log.history_id] = [];
-      }
-      groups[log.history_id].push(log);
-    });
-    return groups;
-  }, [allLogs]);
+  const logsByHistory = useMemo(() => groupLogsByHistory(allLogs), [allLogs]);
 
-  // Transform raw history into computed sessions with complete load volumes (load * reps * sets)
-  const historyWithVolume = useMemo(() => {
-    return history.map(h => {
-      const sessionLogs = logsByHistory[h.id] || [];
-      const total_volume = sessionLogs.reduce((sum, log) => {
-        const w = parseFloat(log.weight_achieved) || 0;
-        const r = parseInt(log.reps_achieved) || 0;
-        return sum + (w * r);
-      }, 0);
-
-      const validSets = sessionLogs.filter(log => log.rpe > 0);
-      const avg_rpe = validSets.length > 0 
-        ? parseFloat((validSets.reduce((sum, log) => sum + log.rpe, 0) / validSets.length).toFixed(1))
-        : 8.0;
-
-      return {
-        ...h,
-        total_volume,
-        avg_rpe,
-        logs: sessionLogs
-      };
-    }).sort((a, b) => new Date(b.completed_at || b.created_at).getTime() - new Date(a.completed_at || a.created_at).getTime());
-  }, [history, logsByHistory]);
-
-  // High-reliability layout parser to avoid telemetry flatlines for first-time or onboarding athletes
-  const parsedHistory = useMemo(() => {
-    return historyWithVolume.map(item => {
-      let vol = item.total_volume;
-      if (vol === 0) {
-        // Aesthetic projection based on completed exercise quotas
-        vol = (item.exercises_count || 4) * 3 * 10 * 35; // default estimate
-      }
-      return {
-        ...item,
-        displayVolume: vol
-      };
-    });
-  }, [historyWithVolume]);
+  // Transform raw history into computed sessions with the real load volume.
+  // Volume 0 permanece 0: peso corporal não vira carga estimada.
+  const parsedHistory = useMemo(
+    () => buildSessionsWithTelemetry(history, logsByHistory),
+    [history, logsByHistory],
+  );
 
   const latestSession = parsedHistory[0];
-  const totalWorkoutLoad = latestSession ? latestSession.displayVolume : 0;
+  const totalWorkoutLoad = latestSession ? latestSession.total_volume : 0;
   
   // Locate the previous session belonging to the exact same category/template
   const previousEquivalent = useMemo(() => {
@@ -188,44 +163,23 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
     return parsedHistory.find(h => h.id !== latestSession.id && h.category_id === latestSession.category_id);
   }, [latestSession, parsedHistory]);
 
-  const volChangePercent = useMemo(() => {
-    if (!latestSession || !previousEquivalent) return 0;
-    const currentVol = latestSession.displayVolume;
-    const prevVol = previousEquivalent.displayVolume;
-    if (prevVol === 0) return 0;
-    return parseFloat((((currentVol - prevVol) / prevVol) * 100).toFixed(1));
-  }, [latestSession, previousEquivalent]);
+  // `null` quando não há duas sessões com carga mensurável para comparar.
+  const volChangePercent = useMemo(
+    () => computeVolumeChangePercent(latestSession, previousEquivalent),
+    [latestSession, previousEquivalent],
+  );
 
-  // 1. PERFORMANCE SCORE SYSTEM (Ready state biological index 0-100)
-  const performanceScore = useMemo(() => {
-    let score = 70; // core baseline
-    const streak = profile?.workout_streak || 0;
-    score += Math.min(15, streak * 3);
-
-    // Recent consistency over last 14 days
-    const recentWorkouts = parsedHistory.filter(h => {
-      const date = new Date(h.completed_at || h.created_at);
-      const diffTime = Math.abs(Date.now() - date.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays <= 14;
-    }).length;
-
-    score += Math.min(15, recentWorkouts * 5);
-
-    if (volChangePercent > 2) {
-      score += 10;
-    } else if (volChangePercent >= -2) {
-      score += 5;
-    } else {
-      score -= 5;
-    }
-
-    if (latestSession && latestSession.avg_rpe >= 7.5 && latestSession.avg_rpe <= 8.5) {
-      score += 10;
-    }
-
-    return Math.min(100, Math.max(15, score));
-  }, [profile, parsedHistory, volChangePercent, latestSession]);
+  // 1. PERFORMANCE SCORE SYSTEM (Ready state biological index 0-100).
+  // `null` sem carga mensurável — a interface mostra "—" em vez de um número.
+  const performanceScore = useMemo(
+    () => computePerformanceScore({
+      streak: profile?.workout_streak || 0,
+      sessions: parsedHistory,
+      latestSession,
+      volChangePercent,
+    }),
+    [profile?.workout_streak, parsedHistory, volChangePercent, latestSession],
+  );
 
   // 2. OVERLOAD INTELLIGENCE ENGINE (AI Insights based on volume and perceived effort)
   const progressiveOverloadInsight = useMemo(() => {
@@ -245,10 +199,27 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
       };
     }
 
-    const currentVol = latestSession.displayVolume;
-    const prevVol = previousEquivalent.displayVolume;
+    // Sem carga mensurável (ou sem RPE registrado) não há progressão a afirmar.
+    if (!latestSession.hasMeasurableLoad || !previousEquivalent.hasMeasurableLoad) {
+      return {
+        text: "As séries registradas não têm carga mensurável, então ainda não dá para comparar progressão. Registre peso nas séries para liberar esta leitura.",
+        status: "INSUFFICIENT",
+        title: "Dados insuficientes"
+      };
+    }
+
+    const currentVol = latestSession.total_volume;
+    const prevVol = previousEquivalent.total_volume;
     const currentRpe = latestSession.avg_rpe;
     const prevRpe = previousEquivalent.avg_rpe;
+
+    if (currentRpe === null || prevRpe === null) {
+      return {
+        text: "Falta o RPE de uma das sessões comparadas. Registre o esforço percebido para liberar a leitura de progressão.",
+        status: "INSUFFICIENT",
+        title: "Dados insuficientes"
+      };
+    }
 
     if (currentVol > prevVol && currentRpe <= prevRpe) {
       return {
@@ -299,15 +270,8 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
       currentByExercise[exId].setsCount += 1;
     });
 
-    if (Object.keys(currentByExercise).length === 0) {
-      // Stunning illustrative fallback to showcase telemetry mapping immediately
-      return [
-        { name: "Supino Inclinado Articulado", muscle_group: "Peitoral", volume: 1600, prevVolume: 1450, delta: 10.3 },
-        { name: "Puxada na Polia Alta", muscle_group: "Costas", volume: 2100, prevVolume: 1980, delta: 6.0 },
-        { name: "Agachamento Búlgaro", muscle_group: "Quadríceps", volume: 1200, prevVolume: 1200, delta: 0 },
-        { name: "Elevação Lateral", muscle_group: "Ombros", volume: 540, prevVolume: 485, delta: 11.3 }
-      ];
-    }
+    // Sem logs reais não há comparação: a interface mostra o estado vazio.
+    if (Object.keys(currentByExercise).length === 0) return [];
 
     // Match with previous equivalent workout logs to extract precise deltas
     const prevLogs = previousEquivalent ? previousEquivalent.logs || [] : [];
@@ -334,13 +298,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
 
   // 4. CHRONOLOGICAL OVERVIEW TIMELINE ("Histórico de Performance")
   const similarWorkoutTimeline = useMemo(() => {
-    if (!latestSession) {
-      return [
-        { id: "1", name: "Foco PUSH A", dateLabel: "Hoje", volume: 5440, deltaLabel: "↑ +12.0%" },
-        { id: "2", name: "Foco PUSH A", dateLabel: "1 sem atrás", volume: 4850, deltaLabel: "↑ +5.4%" },
-        { id: "3", name: "Foco PUSH A", dateLabel: "2 sem atrás", volume: 4600, deltaLabel: "Estável" }
-      ];
-    }
+    if (!latestSession) return [];
 
     const filtered = parsedHistory
       .filter(h => h.category_id === latestSession.category_id)
@@ -353,20 +311,20 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
       else if (i === 1) dateLabel = "Último";
 
       const nextOlder = filtered[i + 1];
+      const delta = computeVolumeChangePercent(h, nextOlder);
       let deltaLabel = "";
-      if (nextOlder) {
-        const dPct = (((h.displayVolume - nextOlder.displayVolume) / nextOlder.displayVolume) * 100).toFixed(1);
-        const numVal = parseFloat(dPct);
-        if (numVal > 0) deltaLabel = `↑ +${numVal}%`;
-        else if (numVal < 0) deltaLabel = `↓ ${numVal}%`;
+      if (delta !== null) {
+        if (delta > 0) deltaLabel = `↑ +${delta}%`;
+        else if (delta < 0) deltaLabel = `↓ ${delta}%`;
         else deltaLabel = "Estável";
       }
 
       return {
         id: h.id,
-        name: h.category_name || h.workout_name || "Sessão Concluída",
+        name: h.category_name || h.workout_name || (h.partial ? "Sessão parcial" : "Sessão Concluída"),
         dateLabel,
-        volume: h.displayVolume,
+        volume: h.total_volume,
+        partial: Boolean(h.partial),
         deltaLabel
       };
     });
@@ -374,16 +332,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
 
   // 5. CHART METRICS PREPARATION
   const chartsData = useMemo(() => {
-    if (parsedHistory.length === 0) {
-      return [
-        { name: "D1", volume: 4200 },
-        { name: "D2", volume: 4500 },
-        { name: "D3", volume: 4800 },
-        { name: "D4", volume: 4700 },
-        { name: "D5", volume: 5100 },
-        { name: "D6", volume: 5440 }
-      ];
-    }
+    if (parsedHistory.length === 0) return [];
     return [...parsedHistory]
       .reverse()
       .slice(-6)
@@ -392,7 +341,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
         const formatLabel = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
         return {
           name: formatLabel,
-          volume: h.displayVolume,
+          volume: h.total_volume,
           rpe: h.avg_rpe
         };
       });
@@ -415,15 +364,8 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
       }
     });
 
-    if (totalVolumeSum === 0) {
-      return [
-        { name: "Peitoral", percent: 32 },
-        { name: "Dorsais", percent: 22 },
-        { name: "Ombros", percent: 18 },
-        { name: "Quadríceps", percent: 14 },
-        { name: "Bíceps/Tríceps", percent: 14 }
-      ];
-    }
+    // Sem volume real não há distribuição a mostrar.
+    if (totalVolumeSum === 0) return [];
 
     return Object.entries(counts).map(([name, vol]) => {
       return {
@@ -646,7 +588,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
 
           <div className="relative z-10 pt-4 flex items-center justify-between border-t border-slate-100/60 mt-6">
             <div className="flex items-center gap-1.5">
-              {volChangePercent >= 0 ? (
+              {volChangePercent === null || volChangePercent >= 0 ? (
                 <div className="w-5 h-5 rounded-full bg-emerald-50 border border-emerald-100/50 flex items-center justify-center">
                   <TrendingUp size={11} className="text-emerald-500" />
                 </div>
@@ -656,14 +598,16 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                 </div>
               )}
               <span className="text-[10.5px] font-bold text-slate-500">
-                {volChangePercent !== 0 ? (
+                {volChangePercent === null ? (
+                  <span>Sem base de comparação</span>
+                ) : volChangePercent !== 0 ? (
                   <span className={volChangePercent > 0 ? "text-emerald-600 font-extrabold" : "text-rose-600 font-extrabold"}>
                     {volChangePercent > 0 ? `+${volChangePercent}%` : `${volChangePercent}%`}
                   </span>
                 ) : (
                   <span>Pronto p/ progresso</span>
                 )}{" "}
-                vs último treino similar
+                {volChangePercent === null ? "com carga registrada" : "vs último treino similar"}
               </span>
             </div>
             <span className="text-[9px] font-black tracking-wider uppercase text-[#7BA7FF] bg-[#7BA7FF]/5 border border-[#7BA7FF]/20 px-2 py-0.5 rounded-lg">
@@ -689,7 +633,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
               </span>
               <div className="space-y-1">
                 <span className="text-4xl font-extrabold text-slate-900 leading-none">
-                  {performanceScore}
+                  {formatScore(performanceScore)}
                 </span>
                 <span className="text-xs font-bold text-slate-400 block uppercase tracking-widest mt-1">
                   Índice de Prontidão
@@ -709,7 +653,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                   className="stroke-[#7BA7FF]" strokeWidth="3.5" fill="transparent"
                   strokeDasharray={2 * Math.PI * 38}
                   initial={{ strokeDashoffset: 2 * Math.PI * 38 }}
-                  animate={{ strokeDashoffset: 2 * Math.PI * 38 * (1 - performanceScore / 100) }}
+                  animate={{ strokeDashoffset: 2 * Math.PI * 38 * (1 - (performanceScore ?? 0) / 100) }}
                   transition={{ duration: 1.2, ease: 'easeOut' }}
                   strokeLinecap="round"
                 />
@@ -722,11 +666,13 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
 
           <div className="relative z-10 pt-4 border-t border-slate-100/60 mt-6 flex justify-between items-center">
             <span className="text-[10px] text-slate-500 font-bold leading-none">
-              {performanceScore > 80 
-                ? "Performance em evolução constante" 
-                : performanceScore > 65
-                  ? "Sinal de prontidão ideal"
-                  : "Foco técnico para regenerar"}
+              {performanceScore === null
+                ? "Dados insuficientes para calcular prontidão"
+                : performanceScore > 80
+                  ? "Performance em evolução constante"
+                  : performanceScore > 65
+                    ? "Sinal de prontidão ideal"
+                    : "Foco técnico para regenerar"}
             </span>
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg shrink-0">
               {profile?.workout_streak || 0}d seguidos
@@ -752,7 +698,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
               <div className="space-y-1">
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-5xl font-black tracking-tight text-slate-900">
-                    {latestSession?.avg_rpe ? latestSession.avg_rpe.toFixed(1) : "8.0"}
+                    {formatRpe(latestSession?.avg_rpe)}
                   </span>
                   <span className="text-lg font-extrabold text-slate-400">RPE</span>
                 </div>
@@ -772,19 +718,21 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
               <div 
                 className="h-full rounded-full transition-all duration-500" 
                 style={{
-                  width: `${((latestSession?.avg_rpe || 8.0) / 10) * 100}%`,
-                  backgroundColor: (latestSession?.avg_rpe || 8.0) >= 9.0 ? '#FB7185' : (latestSession?.avg_rpe || 8.0) >= 8.0 ? '#F59E0B' : (latestSession?.avg_rpe || 8.0) >= 6.0 ? '#7BA7FF' : '#34D399'
+                  width: `${((latestSession?.avg_rpe ?? 0) / 10) * 100}%`,
+                  backgroundColor: (latestSession?.avg_rpe ?? 0) >= 9.0 ? '#FB7185' : (latestSession?.avg_rpe ?? 0) >= 8.0 ? '#F59E0B' : (latestSession?.avg_rpe ?? 0) >= 6.0 ? '#7BA7FF' : '#34D399'
                 }}
               />
             </div>
 
             <div className="flex justify-between items-center border-t border-slate-100/60 pt-3 mt-1">
               <span className="text-[10px] text-slate-500 font-bold leading-none truncate pr-2">
-                {(latestSession?.avg_rpe || 8.0) >= 9.0 
-                  ? "Alerta de Sobrecarga Neuromuscular" 
-                  : (latestSession?.avg_rpe || 8.0) >= 8.0
-                    ? "Esforço Consolidado Ativo (Ideal)"
-                    : "Volume Regenerativo / Ativação"}
+                {latestSession?.avg_rpe === null || latestSession?.avg_rpe === undefined
+                  ? "Sem RPE registrado nesta sessão"
+                  : latestSession.avg_rpe >= 9.0
+                    ? "Alerta de Sobrecarga Neuromuscular"
+                    : latestSession.avg_rpe >= 8.0
+                      ? "Esforço Consolidado Ativo (Ideal)"
+                      : "Volume Regenerativo / Ativação"}
               </span>
               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg shrink-0">
                 Alvo: 7.5 - 8.5
@@ -1050,6 +998,11 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                   </div>
 
                   <div className="space-y-3">
+                    {exerciseComparison.length === 0 && (
+                      <p className="text-[11px] font-bold text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-2xl px-4 py-5 text-center leading-relaxed">
+                        Dados insuficientes: nenhuma série com carga registrada nesta sessão.
+                      </p>
+                    )}
                     {exerciseComparison.slice(0, 4).map((ex, eIdx) => {
                       const isUp = ex.delta > 0;
                       return (
@@ -1097,6 +1050,11 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                   </div>
 
                   <div className="relative border-l border-slate-150/80 ml-2 pl-4 space-y-4 pt-1">
+                    {similarWorkoutTimeline.length === 0 && (
+                      <p className="text-[11px] font-bold text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-2xl px-4 py-5 text-center leading-relaxed">
+                        Dados insuficientes: nenhuma sessão registrada para esta ficha ainda.
+                      </p>
+                    )}
                     {similarWorkoutTimeline.map((item, id) => (
                       <div key={item.id || id} className="relative">
                         {/* Elegant dot */}
@@ -1194,6 +1152,13 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                 </div>
 
                 <div className="h-48 w-full mt-2">
+                  {chartsData.length === 0 ? (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-[11px] font-bold text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-2xl px-4 py-5 text-center leading-relaxed">
+                        Dados insuficientes: nenhuma sessão com carga registrada para desenhar a curva.
+                      </p>
+                    </div>
+                  ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartsData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                       <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 'bold', fill: '#94a3b8' }} axisLine={false} tickLine={false} />
@@ -1208,6 +1173,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                       <Area type="monotone" dataKey="volume" stroke="#7BA7FF" fill="url(#volGrad)" strokeWidth={3.5} />
                     </AreaChart>
                   </ResponsiveContainer>
+                  )}
                 </div>
 
                 <div className="text-[9px] text-slate-400 italic text-center pt-2 leading-none">
@@ -1230,6 +1196,13 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                 </div>
 
                 <div className="h-48 w-full mt-2">
+                  {chartsData.every(point => point.rpe === null || point.rpe === undefined) ? (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-[11px] font-bold text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-2xl px-4 py-5 text-center leading-relaxed">
+                        Dados insuficientes: nenhuma série com RPE registrado para desenhar a curva.
+                      </p>
+                    </div>
+                  ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartsData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                       <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 'bold', fill: '#94a3b8' }} axisLine={false} tickLine={false} />
@@ -1244,6 +1217,7 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                       <Area type="monotone" dataKey="rpe" stroke="#F59E0B" fill="url(#rpeGrad)" strokeWidth={3.5} />
                     </AreaChart>
                   </ResponsiveContainer>
+                  )}
                 </div>
 
                 <div className="text-[9px] text-slate-400 italic text-center pt-2 leading-none">
@@ -1273,6 +1247,11 @@ export const ProgressIntelligence: React.FC<ProgressIntelligenceProps> = ({
                 </div>
 
                 <div className="space-y-4">
+                  {muscleDistribution.length === 0 && (
+                    <p className="text-[11px] font-bold text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-2xl px-4 py-5 text-center leading-relaxed">
+                      Dados insuficientes: registre séries com peso para mapear o volume por grupo muscular.
+                    </p>
+                  )}
                   {muscleDistribution.map((muscle) => {
                     return (
                       <div key={muscle.name} className="group flex items-center justify-between gap-4">

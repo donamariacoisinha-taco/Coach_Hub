@@ -99,6 +99,44 @@ export const normalizeWorkoutPosition = (
   return { currentIndex: normalizedIndex, currentSet: normalizedSet };
 };
 
+/**
+ * Número da série (1-based) em que a execução deve retomar.
+ *
+ * Existe porque duas fontes descrevem o mesmo progresso e podem divergir: a
+ * posição gravada (`storedSetNumber`) e as séries efetivamente concluídas.
+ * Quando a posição fica atrás das conclusões — retomada com logs remotos à
+ * frente do estado local, ou remoção de exercício que zera a posição sem zerar
+ * as conclusões — a tela abre numa série já concluída e trava: o app recusa
+ * concluir de novo e não há para onde ir.
+ *
+ * A regra é apontar para a primeira série ainda não concluída, e nunca andar
+ * para trás em relação à posição gravada.
+ */
+export const resolveResumeSetNumber = ({
+  completedSetIndices,
+  setCount,
+  storedSetNumber = 1,
+}: {
+  completedSetIndices: Iterable<number> | null | undefined;
+  setCount: number;
+  storedSetNumber?: unknown;
+}): number => {
+  const totalSets = Math.max(1, Math.trunc(toFiniteNumber(setCount, 1)) || 1);
+  const completed = new Set<number>(completedSetIndices ? Array.from(completedSetIndices) : []);
+  const stored = Math.min(Math.max(toNonNegativeInteger(storedSetNumber, 1), 1), totalSets);
+
+  let firstIncomplete = totalSets;
+  for (let index = 0; index < totalSets; index++) {
+    if (!completed.has(index)) {
+      firstIncomplete = index + 1;
+      break;
+    }
+  }
+
+  // Só avança: uma posição já adiantada pelo usuário não é puxada de volta.
+  return Math.min(totalSets, Math.max(stored, firstIncomplete));
+};
+
 export const decideWorkoutAdvance = ({
   currentIndex,
   currentSet,

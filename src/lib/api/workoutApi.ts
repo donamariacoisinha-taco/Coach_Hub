@@ -4,6 +4,7 @@ import { WorkoutCategory, WorkoutExercise, WorkoutFolder, WorkoutHistory, UserPr
 import { fetchWithRetry } from '../utils';
 import { exerciseApi } from './exerciseApi';
 import { getGuestDashboard } from '../guest/guestPersistence';
+import { GUEST_USER_ID } from './authApi';
 
 export const workoutApi = {
   getGuestDashboardData() {
@@ -346,35 +347,37 @@ export const workoutApi = {
   },
 
   async startWorkoutHistory(userId: string, workoutId: string, categoryName: string) {
-    try {
-      const { data, error } = await supabase.from('workout_history').insert([{ 
-        user_id: userId, 
-        category_id: workoutId, 
-        category_name: categoryName 
-      }]).select().single();
-      
-      if (error) throw error;
-      return data as WorkoutHistory;
-    } catch (err: any) {
-      console.warn("[workoutApi] Failed to start workout history online. Using local mock history fallback.", err);
-      const mockHistory: WorkoutHistory = {
-        id: `mock-history-${Date.now()}`,
-        user_id: userId,
-        category_id: workoutId,
-        category_name: categoryName,
-        completed_at: null,
-        duration_minutes: 0,
-        exercises_count: 0,
-        created_at: new Date().toISOString()
-      };
-      
-      try {
-        localStorage.setItem(`rubi_mock_history_${mockHistory.id}`, JSON.stringify(mockHistory));
-      } catch (e) {
-        console.error("Local storage error in mock history fallback", e);
-      }
-      return mockHistory;
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (!uuidPattern.test(workoutId)) {
+      throw new Error('Não foi possível iniciar o treino: a ficha não possui um identificador válido no banco.');
     }
+
+    let lastError: any = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const { data, error } = await supabase.from('workout_history').insert([{
+          user_id: userId,
+          category_id: workoutId,
+          category_name: categoryName,
+          completed_at: null
+        }]).select().single();
+
+        if (error) throw error;
+        if (!data?.id || !uuidPattern.test(data.id)) {
+          throw new Error('O banco não retornou um identificador válido para a sessão de treino.');
+        }
+        return data as WorkoutHistory;
+      } catch (err: any) {
+        lastError = err;
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 350 * attempt));
+        }
+      }
+    }
+
+    console.error('[workoutApi] Failed to create a real workout history after retries.', lastError);
+    throw lastError || new Error('Não foi possível criar a sessão de treino no banco. Tente novamente.');
   },
 
   async upsertPartialSession(userId: string, workoutId: string, historyId: string, startTime: string) {
@@ -459,13 +462,24 @@ export const workoutApi = {
     return data || [];
   },
 
-  async finishWorkout(historyId: string, durationMinutes: number, exercisesCount: number) {
-    const { error: histError } = await supabase.from('workout_history').update({ 
-      duration_minutes: durationMinutes, 
-      completed_at: new Date().toISOString(), 
-      exercises_count: exercisesCount 
-    }).eq('id', historyId);
-    
+  async finishWorkout(historyId: string, durationMinutes: number, exercisesCount: number, partial = false) {
+    const basePayload = {
+      duration_minutes: durationMinutes,
+      completed_at: new Date().toISOString(),
+      exercises_count: exercisesCount
+    };
+
+    let histError = (await supabase.from('workout_history')
+      .update(partial ? { ...basePayload, partial: true } : basePayload)
+      .eq('id', historyId)).error;
+
+    // Bancos que ainda não têm a coluna `partial` rejeitam o update inteiro.
+    // Nesse caso a sessão é salva sem o marcador — nunca perdida.
+    if (histError && partial && (histError.code === '42703' || /partial/i.test(histError.message || ''))) {
+      console.warn('[workoutApi] Coluna `partial` ausente em workout_history; sessão salva sem o marcador.', histError);
+      histError = (await supabase.from('workout_history').update(basePayload).eq('id', historyId)).error;
+    }
+
     if (histError) throw histError;
     
     // EKE Feedback Loop
@@ -517,6 +531,22 @@ export const workoutApi = {
   },
 
   async getWorkoutHistory(userId: string) {
+    // Convidado guarda o histórico no próprio aparelho: consultar o Supabase
+    // aqui devolveria lista vazia e a tela de Histórico ficaria em branco.
+    if (userId === GUEST_USER_ID) {
+      return (getGuestDashboard().history || [])
+        .filter((entry: any) => entry?.completed_at)
+        .map((entry: any) => ({
+          ...entry,
+          user_id: GUEST_USER_ID,
+          category_name: entry.category_name || entry.workout_name || 'Treino local',
+          exercises_count: entry.exercises_count
+            ?? new Set((entry.workout_sets_logs || []).map((log: any) => log.exercise_id)).size,
+        }))
+        .sort((a: any, b: any) =>
+          new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
+    }
+
     return fetchWithRetry(async () => {
       const { data, error } = await supabase
         .from('workout_history')
@@ -549,6 +579,17 @@ export const workoutApi = {
   },
 
   async getWorkoutDetails(historyId: string) {
+    // Séries do convidado ficam em `history[].workout_sets_logs`, não na tabela.
+    if (String(historyId).startsWith('guest-')) {
+      const entry = (getGuestDashboard().history || [])
+        .find((item: any) => item.id === historyId);
+      return (entry?.workout_sets_logs || []).map((log: any) => ({
+        ...log,
+        history_id: historyId,
+        exercises: { name: log.exercise_name || 'Exercício', muscle_group: 'Outros' },
+      }));
+    }
+
     let response: any = await supabase.from('workout_sets_log').select(`*, exercises (name, muscle_group)`).eq('history_id', historyId).order('created_at', { ascending: true });
     
     if (response.error) {
