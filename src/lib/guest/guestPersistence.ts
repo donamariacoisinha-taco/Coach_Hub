@@ -240,6 +240,101 @@ export const updateGuestWorkoutExercises = (workoutId: string, exercises: any[])
   return dashboard.workouts[index];
 };
 
+const persistGuestDashboard = (dashboard: GuestDashboard) => {
+  localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(dashboard));
+  localStorage.setItem(`rubi_dashboard_cache_${GUEST_USER_ID}`, JSON.stringify(dashboard));
+};
+
+/** Usa a pasta pedida se existir; senão a primeira disponível; senão cria uma padrão. */
+const resolveGuestFolderId = (dashboard: GuestDashboard, requestedFolderId?: string | null): string => {
+  if (requestedFolderId && dashboard.folders.some((folder: any) => folder.id === requestedFolderId)) {
+    return requestedFolderId;
+  }
+  if (dashboard.folders.length > 0) return dashboard.folders[0].id;
+  const folderId = `guest-folder-${Date.now()}`;
+  dashboard.folders = [...dashboard.folders, { id: folderId, user_id: GUEST_USER_ID, name: 'Meus Treinos' }];
+  return folderId;
+};
+
+/** Sempre cria uma pasta nova — mesmo comportamento de workoutApi.createFolder, sem deduplicar por nome. */
+export const createGuestFolder = (name: string) => {
+  const dashboard = getGuestDashboard();
+  const folder = { id: `guest-folder-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, user_id: GUEST_USER_ID, name };
+  dashboard.folders = [...dashboard.folders, folder];
+  persistGuestDashboard(dashboard);
+  return folder;
+};
+
+/** Cria uma ficha nova no armazenamento local do convidado (Editor de Treino → "Criar Nova"). */
+export const createGuestWorkout = (payload: {
+  name: string;
+  description?: string;
+  folder_id?: string | null;
+  exercises: any[];
+}) => {
+  const dashboard = getGuestDashboard();
+  const folderId = resolveGuestFolderId(dashboard, payload.folder_id);
+  const now = Date.now();
+  // Sufixo aleatório evita colisão de id quando várias fichas de um mesmo
+  // protocolo são criadas em sequência rápida (mesmo milissegundo).
+  const id = `guest-workout-${now}-${Math.random().toString(36).slice(2, 8)}`;
+  const exercises = (payload.exercises || []).map((exercise: any, index: number) => normalizeGuestExerciseSets({
+    id: exercise.id || `guest-exercise-${now}-${index}`,
+    category_id: id,
+    exercise_id: exercise.exercise_id || `guest-catalog-${index}`,
+    exercise_name_snapshot: exercise.exercise_name || exercise.exercise_name_snapshot,
+    sets: Number(exercise.sets) || Number(exercise.sets_json?.length) || 3,
+    reps: String(exercise.reps || '10-12'),
+    weight: Number(exercise.weight) || 0,
+    rest_time: Number(exercise.rest_time) || 60,
+    superset_id: exercise.superset_id || null,
+    sort_order: index + 1,
+    sets_json: exercise.sets_json || [],
+  }));
+  const workout = {
+    id,
+    user_id: GUEST_USER_ID,
+    folder_id: folderId,
+    name: payload.name,
+    description: payload.description || '',
+    duration_minutes: 45,
+    created_at: new Date(now).toISOString(),
+    exercises_count: exercises.length,
+    exercises,
+  };
+  dashboard.workouts = [workout, ...dashboard.workouts];
+  persistGuestDashboard(dashboard);
+  return workout;
+};
+
+/** Atualiza nome/descrição/pasta de uma ficha existente do convidado. */
+export const updateGuestWorkoutMeta = (
+  workoutId: string,
+  payload: { name?: string; description?: string; folder_id?: string | null },
+) => {
+  const dashboard = getGuestDashboard();
+  const index = dashboard.workouts.findIndex((workout: any) => workout.id === workoutId);
+  if (index < 0) throw new Error('Ficha local não encontrada.');
+  const folderId = payload.folder_id !== undefined
+    ? resolveGuestFolderId(dashboard, payload.folder_id)
+    : dashboard.workouts[index].folder_id;
+  dashboard.workouts[index] = {
+    ...dashboard.workouts[index],
+    name: payload.name ?? dashboard.workouts[index].name,
+    description: payload.description ?? dashboard.workouts[index].description,
+    folder_id: folderId,
+  };
+  persistGuestDashboard(dashboard);
+  return dashboard.workouts[index];
+};
+
+/** Remove uma ficha do convidado — sem tabela remota para tocar, é só filtrar o array local. */
+export const deleteGuestWorkout = (workoutId: string) => {
+  const dashboard = getGuestDashboard();
+  dashboard.workouts = dashboard.workouts.filter((workout: any) => workout.id !== workoutId);
+  persistGuestDashboard(dashboard);
+};
+
 export const getOrCreateGuestWorkoutSession = (workoutId: string) => {
   const key = `guest_workout_session_${workoutId}`;
   const existing = readJson<any>(key);

@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { WorkoutExercise, Exercise, SetConfig, WorkoutFolder, MuscleGroup, SetType, WorkoutCategory } from '../types';
-import { authApi } from '../lib/api/authApi';
+import { authApi, GUEST_USER_ID } from '../lib/api/authApi';
 import { workoutApi } from '../lib/api/workoutApi';
+import { createGuestWorkout, updateGuestWorkoutMeta, updateGuestWorkoutExercises } from '../lib/guest/guestPersistence';
 import { useNavigation } from '../App';
 import { ExerciseReplaceScreen } from './ExerciseReplaceScreen';
 import { useErrorHandler } from '../hooks/useErrorHandler';
@@ -637,6 +638,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
       await workoutApi.deleteWorkout(workoutId);
       // Invalidate cache
       cacheStore.clear('dashboard_data');
+      cacheStore.clear('guest_dashboard_data');
       cacheStore.clear(`workout_init_${workoutId}`);
       cacheStore.clear(`editor_init_${workoutId}`);
       cacheStore.clear('editor_init_new');
@@ -662,7 +664,39 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
     try {
       const user = await authApi.getUser();
       if (!user) throw new Error("Não autenticado");
-      
+
+      if (user.id === GUEST_USER_ID) {
+        // Sem Supabase para o convidado: a ficha inteira (categoria +
+        // exercícios) vive num único objeto local, sem os 4 round-trips do
+        // fluxo autenticado abaixo.
+        const guestExercises = exercises.map(({ tempId, ...rest }) => rest);
+        let currentId = workoutId;
+        if (!currentId) {
+          const created = createGuestWorkout({
+            name,
+            description,
+            folder_id: folderId || null,
+            exercises: guestExercises,
+          });
+          currentId = created.id;
+        } else {
+          updateGuestWorkoutMeta(currentId, { name, description, folder_id: folderId || null });
+          updateGuestWorkoutExercises(currentId, guestExercises);
+        }
+
+        cacheStore.clear('guest_dashboard_data');
+        cacheStore.clearPrefix('editor_init');
+        cacheStore.clear(`workout_init_${currentId}`);
+
+        if (isPermanent) {
+          showSuccess('Treino salvo', 'Tudo pronto! Seu treino foi atualizado com sucesso.');
+          navigate('dashboard', { folderId });
+        } else {
+          navigate('workout', { id: currentId });
+        }
+        return;
+      }
+
       let currentId = workoutId;
       const payload = { user_id: user.id, name, description, folder_id: folderId || null };
 
