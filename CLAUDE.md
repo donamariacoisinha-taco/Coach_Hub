@@ -14,27 +14,21 @@ legibilidade, poucas ações por tela.
 
 Leia esta seção antes de mexer em qualquer coisa. Cada item aqui já quebrou algo.
 
-### `npm run build` reescreve o código-fonte
+### `npm run build` já não reescreve mais o código-fonte (histórico)
 
-O `prebuild` roda oito scripts `scripts/fixWorkout*.mjs` e
-`scripts/fixAdminExerciseMuscleFilters.mjs` que **editam arquivos em `src/`** —
-principalmente `WorkoutPlayer.tsx`, `WorkoutEditor.tsx` e `workoutApi.ts`.
+Até o PR #65, o `prebuild` rodava oito scripts `scripts/fixWorkout*.mjs` e
+`scripts/fixAdminExerciseMuscleFilters.mjs` que editavam arquivos em `src/` a
+cada build — principalmente `WorkoutPlayer.tsx`, `WorkoutEditor.tsx` e
+`workoutApi.ts` — sem que a reescrita estivesse commitada na `main`. O #65
+aplicou essas correções como código-fonte real e removeu os oito scripts e os
+hooks `predev`/`prebuild` do `package.json`. `npm run build` hoje não altera
+`src/`; um `git status` sujo depois de um build voltou a ser sinal real de
+problema, não ruído esperado.
 
-Consequências práticas:
-
-- Depois de um build, `git status` mostra alterações que você não fez.
-- Essas reescritas **não estão commitadas na `main`** e reaparecem a cada build.
-- Elas introduzem 2 erros de TypeScript: rodar `npm run lint` logo após
-  `npm run build` falha, e isso não é culpa da sua alteração.
-
-O fluxo seguro: **commite antes de buildar, sempre — sem exceção.**
-
-`git checkout -- src/` não distingue sua edição da sujeira dos scripts: ele
-descarta **tudo que não está commitado** em `src/`. Se você buildar antes de
-commitar e depois rodar esse comando para limpar a reescrita do prebuild, perde
-seu próprio trabalho junto — já aconteceu nesta base de código. Não existe
-atalho seguro aqui: commit primeiro, build depois, `git checkout -- src/` só
-depois disso.
+Ainda assim, **commite antes de buildar** continua sendo o hábito certo: é o
+que garante que `git checkout -- src/` — caso você precise limpar algo — nunca
+tenha chance de descartar trabalho seu não commitado junto com o que quer que
+esteja limpando. Já aconteceu nesta base de código.
 
 ### Migration de banco é manual
 
@@ -71,12 +65,10 @@ entrar por acidente.
 npm ci            # Node 24
 npm run lint      # tsc --noEmit
 npm test          # vitest run
-npm run build     # ATENÇÃO: reescreve src/ (ver acima)
+npm run build     # não reescreve mais src/ desde o PR #65 (ver acima)
 npm run smoke     # sobe o build e checa health + shell da aplicação
 npm run dev       # tsx server.ts, porta 3000
 ```
-
-O `predev` roda os mesmos scripts de reescrita do `prebuild`.
 
 ## Duas pessoas, dois lugares de dados
 

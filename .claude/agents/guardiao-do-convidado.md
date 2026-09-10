@@ -25,15 +25,29 @@ O mesmo defeito apareceu duas vezes, em telas independentes:
   Supabase. A tela abria **completamente vazia** para convidado.
 
 Duas ocorrências independentes do mesmo erro significam que a estrutura convida
-ao erro. Presuma que há mais.
+ao erro. Presuma que há mais — e havia: depois deste PR, `mediaApi.getPhotos`
+quebrava a mesma tela de Evolução por um caminho diferente (corrigido no #67),
+e `workoutApi.getWorkoutEditorData` (criar/editar ficha) e o fluxo "adicionar
+da Biblioteca ao meu treino" seguem quebrados para convidado, ainda sem PR.
 
 ## O que torna esse bug invisível
 
-Uma consulta ao Supabase filtrando `user_id = 'guest-user-id'` **não dá erro**.
-Devolve lista vazia, com sucesso. A tela renderiza seu estado vazio, o console
-fica limpo, o teste que só cobre usuário autenticado passa. Nada grita.
+O sintoma na tela é sempre o mesmo — vazio ou zerado, sem crash — mas o
+mecanismo depende do tipo da coluna:
 
-Por isso a revisão precisa ser ativa: não espere um erro aparecer.
+- Coluna `text`: a consulta `user_id = 'guest-user-id'` **não dá erro**.
+  Devolve lista vazia, com sucesso, console limpo. Nada grita.
+- Coluna `uuid` (a maioria das tabelas deste projeto): o Postgres rejeita o
+  literal com `22P02 invalid input syntax for type uuid`. Isso **aparece** no
+  console — mas só ajuda se alguém estiver chamando a função de dentro de um
+  `try/catch` que não devora o erro antes de revelar o sintoma. Em
+  `ProgressIntelligence`, o `catch` externo só logava e seguia: a tela
+  renderizava vazia do mesmo jeito, e o erro ficava enterrado entre dezenas de
+  outras linhas de console.
+
+Por isso a revisão precisa ser ativa: um console "limpo" não prova nada, e um
+console com erro também não — confira se a função tem ramo para o convidado,
+não espere o sintoma se anunciar sozinho.
 
 ## Onde os dados de cada um vivem
 
