@@ -827,6 +827,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
     showSuccess(`Adicionado: ${ex.name}`);
     setExerciseSelectorMode(null);
+    setShowExercisesList(false);
     setSearchQuery('');
     playSensoryTone('success');
     playHapticFeedback('success');
@@ -898,6 +899,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         : 'O exercício já estava na ficha e trocou de posição sem duplicar dados.',
     );
     setExerciseSelectorMode(null);
+    setShowExercisesList(false);
     setReplaceIndex(null);
     setSearchQuery('');
     playSensoryTone('success');
