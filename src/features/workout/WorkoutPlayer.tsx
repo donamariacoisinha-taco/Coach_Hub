@@ -355,7 +355,7 @@ const SetCard = ({
       </div>
 
       {/* BEGINNER HELPER TEXT */}
-      {isBeginner && isCurrent && (
+      {isBeginner && isCurrent && !isCompleted && (
         <motion.p 
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
@@ -808,7 +808,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
     const updatedExercises = [...exercises, newEx];
     useWorkoutStore.setState({ exercises: updatedExercises } as any);
-    
+    if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updatedExercises);
+
     // Auto-update live tracker performance map. Performance data is not completion state.
     const nextIdx = updatedExercises.length - 1;
     setWorkoutPerformance(prev => ({
@@ -840,6 +841,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const { exercises: updatedExercises, swappedWithIndex } = replaceOrSwapExercise(exercises, replaceIndex, ex);
 
     useWorkoutStore.setState({ exercises: updatedExercises } as any);
+    if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updatedExercises);
 
     // New replacements must not inherit the removed exercise's state. A swap,
     // however, moves state with each exercise to its new position.
@@ -988,6 +990,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       weight: newWeight
     };
     useWorkoutStore.setState({ exercises: updatedExercises } as any);
+    if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updatedExercises);
 
     // If adjusting current exercise, synchronize active performance loads state
     if (index === currentIndex) {
@@ -1030,6 +1033,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     };
 
     useWorkoutStore.setState({ exercises: updatedExercises } as any);
+    if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updatedExercises);
 
     if (index === currentIndex) {
       let nextActive: any[] = [];
@@ -1762,6 +1766,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           };
         });
         useWorkoutStore.setState({ exercises: updatedExercises } as any);
+        if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updatedExercises);
 
         log('[REST_DEFAULT_ADJUSTED]', {
           exerciseId: liveExercise.exercise_id,
@@ -2709,6 +2714,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           sets_json: updatedSetsJson
         };
         useWorkoutStore.setState({ exercises: updatedExercises } as any);
+        if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updatedExercises);
       }
     }
 
@@ -2769,6 +2775,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           sets_json: updatedSetsJson
         };
         useWorkoutStore.setState({ exercises: updatedExercises } as any);
+        if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updatedExercises);
       }
     }
 
@@ -4444,6 +4451,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                         updated[idx] = updated[idx - 1];
                                         updated[idx - 1] = temp;
                                         useWorkoutStore.setState({ exercises: updated } as any);
+                                        if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updated);
                                         playSensoryTone?.('click');
                                         playHapticFeedback?.('light');
                                       }
@@ -4466,6 +4474,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                         updated[idx] = updated[idx + 1];
                                         updated[idx + 1] = temp;
                                         useWorkoutStore.setState({ exercises: updated } as any);
+                                        if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updated);
                                         playSensoryTone?.('click');
                                         playHapticFeedback?.('light');
                                       }

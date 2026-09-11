@@ -287,6 +287,34 @@ describe('guest lifecycle persistence', () => {
     expect(fresh).toMatchObject({ workoutId, currentIndex: 0, currentSet: 1 });
   });
 
+  it('does not treat an in-session exercise substitution as a corrupted session', () => {
+    // A ficha base (workout.exercises) nunca reflete uma substituição feita
+    // durante a sessão — só workout_session_temp_ reflete isso. Reproduz o
+    // bug real: convidado substitui um exercício, fecha o app no meio do
+    // treino, reabre — a sessão inteira (posição, séries concluídas, a
+    // própria substituição) era descartada por "incompatibilidade", porque
+    // exercise_id da ficha base (original) não batia com o gravado na
+    // continuidade (o substituto).
+    const dashboard = saveGuestPlan({ workouts: [{
+      name: 'Ficha', exercises: [{ exercise_name: 'Supino reto', exercise_id: 'ex-original', sets: 3 }],
+    }] }, {});
+    const workoutId = dashboard.workouts[0].id;
+    const session = getOrCreateGuestWorkoutSession(workoutId);
+
+    const substituted = [{ ...dashboard.workouts[0].exercises[0], exercise_id: 'ex-substituto', exercise_name_snapshot: 'Crucifixo reto' }];
+    saveGuestWorkoutTemp(workoutId, substituted);
+    localStorage.setItem(`workout_continuity_state_${session.historyId}`, JSON.stringify({
+      workoutId,
+      exerciseIds: ['ex-substituto'],
+      currentIndex: 0,
+      completedSetsByExercise: { 0: [0, 1] },
+    }));
+
+    expect(validateGuestWorkoutSession(workoutId)).toEqual({ valid: true, reset: false });
+    expect(readGuestWorkoutTemp(workoutId)?.[0].exercise_name_snapshot).toBe('Crucifixo reto');
+    expect(localStorage.getItem(`guest_workout_session_${workoutId}`)).not.toBeNull();
+  });
+
   it('clears every legacy global workout source before opening another guest workout', () => {
     const legacyExercise = [{ exercise_id: 'prancha', weight: 240 }];
     localStorage.setItem('workout-storage', JSON.stringify({ state: {
@@ -440,6 +468,63 @@ describe('guest lifecycle persistence', () => {
     expect(localStorage.getItem('startTime')).toBeNull();
     expect(getGuestProfile().name).toBe('Perfil mantido');
     expect(migrateGuestStorage().applied).toBe(false);
+  });
+
+  it('preserves a legitimate full-body workout that does not match any push/pull/legs pattern', () => {
+    // Nome genérico e exercícios de grupos musculares misturados: nada aqui
+    // bate com os regex de push/pull/legs, mas os dados são reais e
+    // estruturalmente corretos (category_id de cada exercício aponta para a
+    // própria ficha). Reproduz o caso visto ao vivo: um convidado cria um
+    // treino full-body pelo Editor manual ou pela Biblioteca, e a migração
+    // de integridade o substituía por exercícios fabricados na primeira
+    // sessão, mesmo sem nenhuma corrupção real.
+    saveGuestPlan({
+      name: 'Plano QA', workouts: [{
+        name: 'Treino QA',
+        exercises: [
+          { exercise_name: 'Supino reto', weight: 40 },
+          { exercise_name: 'Agachamento livre', weight: 50 },
+          { exercise_name: 'Remada baixa', weight: 30 },
+          { exercise_name: 'Rosca direta', weight: 15 },
+        ],
+      }],
+    }, { name: 'Atleta QA' });
+    localStorage.setItem(GUEST_STORAGE_VERSION_KEY, '0');
+
+    const result = migrateGuestStorage();
+
+    expect(result.applied).toBe(true);
+    expect(result.repairedWorkoutIds).toEqual([]);
+    const workout = getGuestDashboard().workouts[0];
+    expect(workout.exercises.map((exercise: any) => exercise.exercise_name_snapshot)).toEqual([
+      'Supino reto', 'Agachamento livre', 'Remada baixa', 'Rosca direta',
+    ]);
+    expect(workout.exercises.map((exercise: any) => exercise.weight)).toEqual([40, 50, 30, 15]);
+  });
+
+  it('preserves an in-session exercise substitution across a migration run', () => {
+    // workout_session_temp_ guarda a substituição de exercício feita durante
+    // uma sessão (ver WorkoutPreparation.handleStartWorkout: "deixamos essa
+    // chave persistida de propósito, o WorkoutPlayer vai lê-la"). Uma
+    // limpeza cega por prefixo na migração apagava isso, fazendo o app
+    // esquecer a substituição assim que a migração rodasse de verdade —
+    // por exemplo, no primeiro carregamento após o navegador ser limpo.
+    const dashboard = saveGuestPlan({ name: 'Plano', workouts: [
+      { name: 'Treino', exercises: [{ exercise_name: 'Supino reto', weight: 40 }] },
+    ] }, { name: 'Atleta' });
+    const workoutId = dashboard.workouts[0].id;
+    const substituted = [{
+      ...dashboard.workouts[0].exercises[0],
+      exercise_id: 'exercicio-real-uuid',
+      exercise_name_snapshot: 'Crucifixo reto',
+    }];
+    saveGuestWorkoutTemp(workoutId, substituted);
+    localStorage.setItem(GUEST_STORAGE_VERSION_KEY, '0');
+
+    const result = migrateGuestStorage();
+
+    expect(result.applied).toBe(true);
+    expect(readGuestWorkoutTemp(workoutId)?.[0].exercise_name_snapshot).toBe('Crucifixo reto');
   });
 
   it('claims the recovery notice only once per browser session while it remains persisted', () => {

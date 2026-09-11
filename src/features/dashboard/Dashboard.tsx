@@ -296,6 +296,20 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     });
   };
 
+  // Zerar a store ao entrar num treino DIFERENTE do que já estava ativo é
+  // correto — descarta estado de sessão obsoleto. Zerar incondicionalmente
+  // (como este componente fazia antes) apaga historyId/currentIndex/
+  // currentSet de uma sessão em andamento sempre que o usuário volta a este
+  // mesmo treino — inclusive ao reabrir o app depois de fechá-lo no meio de
+  // uma série — fazendo o WorkoutPlayer tratar a sessão como nova e perder
+  // todo o progresso.
+  const startWorkoutSession = (workoutId: string) => {
+    if (useWorkoutStore.getState().currentWorkoutId !== workoutId) {
+      useWorkoutStore.getState().resetWorkout();
+    }
+    navigate('preparation', { id: workoutId });
+  };
+
   const handleDeleteWorkout = async (id: string) => {
     setDeleteConfirm(null);
     setIsPerformingAction(true);
@@ -462,8 +476,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           'Protocolo criado com sucesso',
           `• Número de exercícios: ${numExercises}\n• Grupos musculares: ${musclesInvolved}\n• Duração estimada: ${estDuration} min\n• Origem: Todos os exercícios utilizados foram selecionados da biblioteca ativa KYRON.`
         );
-        useWorkoutStore.getState().resetWorkout();
-        navigate('preparation', { id: category.id });
+        startWorkoutSession(category.id);
     } catch (err: any) {
         showError(err);
     } finally {
@@ -723,10 +736,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
                     {nextAction.suggestedWorkoutId && (
                       <motion.button 
-                        onClick={() => {
-                          useWorkoutStore.getState().resetWorkout();
-                          navigate('preparation', { id: nextAction.suggestedWorkoutId });
-                        }}
+                        onClick={() => startWorkoutSession(nextAction.suggestedWorkoutId!)}
                         onMouseEnter={() => handlePrefetchWorkout(nextAction.suggestedWorkoutId!)}
                         whileHover={{ scale: 1.04 }}
                         whileTap={{ scale: 0.98 }}
@@ -1087,8 +1097,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                                 setIsPerformingAction(false);
                               }
                             } else if (!isOptimistic) {
-                              useWorkoutStore.getState().resetWorkout();
-                              navigate('preparation', { id: workout.id });
+                              startWorkoutSession(workout.id);
                             }
                           }}
                           onMouseEnter={() => !isOptimistic && !workout.is_public_admin && handlePrefetchWorkout(workout.id)}
@@ -1169,8 +1178,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                                 <button 
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    useWorkoutStore.getState().resetWorkout();
-                                    navigate('preparation', { id: workout.id });
+                                    startWorkoutSession(workout.id);
                                   }}
                                   className="flex items-center gap-1.5 text-[9.5px] font-black text-[#7BA7FF] uppercase tracking-widest bg-[#7BA7FF]/8 hover:bg-[#7BA7FF]/15 px-3 py-1.5 rounded-full transition-all"
                                 >
@@ -1213,11 +1221,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                               onClick={(e) => e.stopPropagation()}
                               className="absolute right-4 top-14 z-[110] bg-white rounded-2xl shadow-2xl border border-slate-100 p-3 min-w-[170px] space-y-1"
                             >
-                              <button 
-                                onClick={() => {
-                                  useWorkoutStore.getState().resetWorkout();
-                                  navigate('preparation', { id: workout.id });
-                                }}
+                              <button
+                                onClick={() => startWorkoutSession(workout.id)}
                                 className="w-full flex items-center gap-3 p-2.5 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
                               >
                                 <Play size={13} className="text-slate-400" /> Iniciar
