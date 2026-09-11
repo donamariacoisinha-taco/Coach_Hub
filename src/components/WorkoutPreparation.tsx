@@ -1004,8 +1004,14 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   const handleStartWorkout = async () => {
     setLoading(true);
     try {
-      // 1. Ensure any stale sessions in WorkoutPlayer has been cleaned
-      useWorkoutStore.getState().resetWorkout();
+      // 1. Clear stale sessions from a DIFFERENT workout only. Resetting
+      // unconditionally here wiped historyId/currentWorkoutId every time this
+      // screen was reopened for the SAME workout — including right after
+      // closing and reopening the app mid-session — which made WorkoutPlayer
+      // treat an in-progress session as brand new and lose all progress.
+      if (useWorkoutStore.getState().currentWorkoutId !== workoutId) {
+        useWorkoutStore.getState().resetWorkout();
+      }
 
       // Clear cached data so the player is forced to fetch the freshly ordered DB data
       cacheStore.clear(`workout_init_${workoutId}`);

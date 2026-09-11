@@ -357,7 +357,13 @@ export const validateGuestWorkoutSession = (workoutId: string) => {
   if (!session) return { valid: true, reset: false };
   const continuityKey = `workout_continuity_state_${session.historyId}`;
   const continuity = readJson<any>(continuityKey);
-  const exerciseIds = (workout?.exercises || []).map((exercise: any) => exercise.exercise_id);
+  // A ficha base (workout.exercises) nunca muda quando o usuário substitui um
+  // exercício durante a sessão — só workout_session_temp_ reflete isso. Sem
+  // usar essa fonte aqui, toda substituição em sessão parecia "corrupção"
+  // (exercise_id divergente da ficha base) e a sessão inteira era descartada
+  // no próximo carregamento, junto com a própria substituição.
+  const activeExercises = readGuestWorkoutTemp(workoutId) || workout?.exercises || [];
+  const exerciseIds = activeExercises.map((exercise: any) => exercise.exercise_id);
   const storedIds = continuity?.exerciseIds;
   const continuityWorkoutMatches = !continuity?.workoutId || continuity.workoutId === workoutId;
   const idsMatch = !storedIds || (
@@ -371,7 +377,7 @@ export const validateGuestWorkoutSession = (workoutId: string) => {
   );
   const completedValid = !continuity?.completedSetsByExercise || Object.entries(continuity.completedSetsByExercise)
     .every(([exerciseIndex, completed]: [string, any]) => {
-      const exercise = workout?.exercises?.[Number(exerciseIndex)];
+      const exercise = activeExercises[Number(exerciseIndex)];
       const setCount = exercise?.sets_json?.length || exercise?.sets || 0;
       return Boolean(exercise) && Array.isArray(completed)
         && completed.every((setIndex: number) => setIndex >= 0 && setIndex < setCount);
@@ -445,21 +451,16 @@ const getWorkoutRole = (workout: any, index: number): 'push' | 'pull' | 'legs' =
   return index % 3 === 0 ? 'push' : index % 3 === 1 ? 'pull' : 'legs';
 };
 
-const exerciseMatchesRole = (exercise: any, role: 'push' | 'pull' | 'legs') => {
-  const text = `${exercise?.exercise_name_snapshot || exercise?.exercise_name || ''} ${exercise?.muscle_group || ''}`.toLowerCase();
-  const patterns = {
-    push: /supino|peito|tríceps|desenvolvimento|elevação lateral|flexão/,
-    pull: /puxada|remada|costas|bíceps|rosca|crucifixo inverso/,
-    legs: /agachamento|leg press|quadríceps|posterior|flexora|glúte|panturrilha|prancha|abdô/,
-  };
-  return patterns[role].test(text);
-};
-
+/**
+ * Só repara corrupção estrutural real: exercício cujo `category_id` aponta
+ * para outra ficha (dado vazado entre workouts). NÃO julga o conteúdo do
+ * treino — um treino full-body legítimo, ou qualquer nome/combinação de
+ * exercícios que não se pareça com um split push/pull/legs, é dado real do
+ * usuário e nunca deve ser substituído por um fallback genérico.
+ */
 const repairGuestWorkoutIntegrity = () => {
   const dashboard = readJson<GuestDashboard>(GUEST_DASHBOARD_KEY);
   if (!dashboard?.workouts?.length) return [] as string[];
-  const signatures = dashboard.workouts.map((workout: any) => (workout.exercises || [])
-    .map((exercise: any) => exercise.exercise_id || exercise.exercise_name_snapshot).join('|'));
   const repairedWorkoutIds: string[] = [];
   let normalizedRuntimePayload = false;
   dashboard.workouts = dashboard.workouts.map((workout: any, workoutIndex: number) => {
@@ -467,12 +468,7 @@ const repairGuestWorkoutIntegrity = () => {
     const exercises = Array.isArray(workout.exercises) ? workout.exercises : [];
     const categoryValid = exercises.length > 0 && exercises.every((exercise: any) =>
       !exercise.category_id || exercise.category_id === workout.id);
-    const roleMatchCount = exercises.filter((exercise: any) => exerciseMatchesRole(exercise, role)).length;
-    const roleValid = roleMatchCount >= Math.min(2, exercises.length);
-    const duplicatedAcrossRoles = signatures.some((signature, otherIndex) =>
-      otherIndex !== workoutIndex && signature && signature === signatures[workoutIndex]
-      && getWorkoutRole(dashboard.workouts[otherIndex], otherIndex) !== role);
-    if (categoryValid && roleValid && (!duplicatedAcrossRoles || roleMatchCount === exercises.length)) {
+    if (categoryValid) {
       const normalizedExercises = exercises.map((exercise: any) => {
         const normalized = normalizeGuestExerciseSets(exercise);
         if (exercise.sets !== normalized.sets || exercise.set_count !== normalized.set_count
@@ -541,7 +537,12 @@ export const migrateGuestStorage = (): GuestStorageMigrationResult => {
     'guest_workout_session_',
     'workout_rest_start_',
     'workout_rest_time_left_',
-    'workout_session_temp_',
+    // workout_session_temp_ NÃO entra aqui: é como uma substituição de
+    // exercício em sessão sobrevive a um fechar/reabrir do app (ver
+    // WorkoutPreparation.handleStartWorkout). readGuestWorkoutTemp já valida
+    // schemaVersion/workoutId/folderId/category_id na leitura — dado de
+    // schema antigo é descartado ali, com mais precisão do que uma limpeza
+    // cega por prefixo, sem apagar uma substituição legítima e atual.
     'rubi_partial_session_',
     'workout_partial_session_',
     'currentExercise_',
