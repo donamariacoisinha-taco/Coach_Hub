@@ -622,6 +622,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [previousSet, setPreviousSet] = useState<LastSetData | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [memoryLoadSuggestion, setMemoryLoadSuggestion] = useState<any>(null);
+  const [hintDismissed, setHintDismissed] = useState(false);
 
   // Linear sets navigation helpers
   const getSetsCountForExercise = (idx: number) => {
@@ -3234,6 +3235,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       targetReps: parseInt(currentEx.sets_json?.[currentSet - 1]?.reps as string) || 10
     });
   }, [currentEx, currentSet, lastSet, isAdvanced]);
+
+  // Dispensar a dica vale só para a série atual — a próxima série ou
+  // exercício deve poder mostrar a sua própria dica normalmente.
+  useEffect(() => {
+    setHintDismissed(false);
+  }, [currentIndex, currentSet]);
+
   const dockClearance = footerHeight + 48;
 
   return (
@@ -3683,18 +3691,25 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
               {/* FEEDBACK INTELIGENTE (IA) */}
               <AnimatePresence mode="wait">
-                {(feedback || memoryLoadSuggestion?.message || preHint) && !isAdvanced && (
-                  <motion.div 
+                {(feedback || memoryLoadSuggestion?.message || preHint) && !isAdvanced && !hintDismissed && (
+                  <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     className="px-4 mb-4"
                   >
-                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] flex items-start gap-4 shadow-xl">
-                      <Zap size={20} className="text-[#7BA7FF] fill-[#7BA7FF]/35 mt-1 flex-shrink-0" />
-                      <p className="text-sm font-bold text-slate-100 leading-relaxed">
+                    <div className="bg-slate-50 border border-slate-100 px-4 py-3 rounded-2xl flex items-center gap-2.5 shadow-sm">
+                      <Zap size={14} className="text-[#7BA7FF] flex-shrink-0" />
+                      <p className="text-xs font-semibold text-slate-500 leading-snug flex-1">
                         {feedback || memoryLoadSuggestion?.message || preHint}
                       </p>
+                      <button
+                        onClick={() => setHintDismissed(true)}
+                        className="text-slate-300 hover:text-slate-500 transition-colors p-1 -m-1 flex-shrink-0"
+                        aria-label="Dispensar dica"
+                      >
+                        <X size={14} />
+                      </button>
                     </div>
                   </motion.div>
                 )}
