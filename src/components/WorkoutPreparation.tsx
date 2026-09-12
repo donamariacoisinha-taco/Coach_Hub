@@ -34,8 +34,8 @@ import {
   X, 
   Clock, 
   Dumbbell, 
-  Zap, 
-  Sparkles,
+  Zap,
+  Edit2,
   Award,
   Copy,
   ChevronUp,
@@ -1084,9 +1084,14 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
               </span>
             </div>
 
-            <div className="w-10 h-10 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400">
-              <Sparkles size={16} className="text-blue-500" />
-            </div>
+            <button
+              onClick={() => navigate('editor', { id: workoutId })}
+              className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-600 hover:text-slate-900 shadow-sm active:scale-95 transition-all"
+              title="Editar ficha"
+              aria-label="Editar ficha"
+            >
+              <Edit2 size={16} className="text-blue-500" />
+            </button>
           </div>
 
           {/* Premium Hero Section */}
