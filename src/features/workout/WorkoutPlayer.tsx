@@ -1420,6 +1420,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const isAdvancingRef = useRef(false);
   const hasTriggeredRef = useRef(false);
   const [isWorkoutComplete, setIsWorkoutComplete] = useState(false);
+  const [partialShortcutDismissed, setPartialShortcutDismissed] = useState(false);
   const [streak, setStreak] = useState(0);
   const [fatigueDetected, setFatigueDetected] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
@@ -3309,14 +3310,24 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         />
       )}
 
-      {!isFinished && !showExitModal && incompleteSummary.completedSets > 0 && !incompleteSummary.complete && (
-        <button
-          type="button"
-          onClick={() => setShowExitModal(true)}
-          className="fixed z-[1200] left-1/2 -translate-x-1/2 bottom-24 min-h-11 px-5 py-3.5 rounded-2xl bg-white border border-amber-200 text-amber-700 shadow-lg font-black text-[11px] uppercase tracking-wide"
-        >
-          Finalizar sessão parcial
-        </button>
+      {!isFinished && !showExitModal && incompleteSummary.completedSets > 0 && !incompleteSummary.complete && !partialShortcutDismissed && (
+        <div className="fixed z-[1200] left-1/2 -translate-x-1/2 bottom-24 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowExitModal(true)}
+            className="min-h-11 px-5 py-3.5 rounded-2xl bg-white border border-amber-200 text-amber-700 shadow-lg font-black text-[11px] uppercase tracking-wide"
+          >
+            Finalizar sessão parcial
+          </button>
+          <button
+            type="button"
+            onClick={() => setPartialShortcutDismissed(true)}
+            aria-label="Dispensar atalho"
+            className="w-8 h-8 rounded-full bg-white border border-amber-200 text-amber-400 hover:text-amber-600 shadow-lg flex items-center justify-center shrink-0 transition-colors"
+          >
+            <X size={13} />
+          </button>
+        </div>
       )}
 
       <ScreenState
