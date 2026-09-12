@@ -52,7 +52,7 @@ import { getNextSetDecision, getPreSetHint } from "../../domain/progression/prog
 import { getEmotionalFeedback } from "../../domain/feedback/feedbackEngine";
 import { VictoryScreen } from "../../components/VictoryScreen";
 import { workoutEngine } from "../../domain/workout/workoutEngine";
-import { resolveResumeSetNumber, shouldConfirmPartialBeforeTerminalSet, computeSessionExerciseDiff } from "../../domain/workout/workoutReliability";
+import { resolveResumeSetNumber, shouldConfirmPartialBeforeTerminalSet, computeSessionExerciseDiff, computeWorkoutCompletionSummary } from "../../domain/workout/workoutReliability";
 import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
@@ -1420,7 +1420,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const isAdvancingRef = useRef(false);
   const hasTriggeredRef = useRef(false);
   const [isWorkoutComplete, setIsWorkoutComplete] = useState(false);
-  const [partialShortcutDismissed, setPartialShortcutDismissed] = useState(false);
   const [streak, setStreak] = useState(0);
   const [fatigueDetected, setFatigueDetected] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
@@ -2093,30 +2092,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   );
 
   const incompleteSummary = useMemo(() => {
-    const requiredSets = exercises.reduce((sum, exercise) =>
-      sum + (exercise.sets_json?.length || exercise.sets || 0), 0);
     const completedMap: Record<number, Set<number>> = { ...completedSetsByExercise, [currentIndex]: completedSetIndices };
-    const completedSets = Object.values(completedMap).reduce((sum: number, sets: Set<number>) => sum + sets.size, 0);
-    const incompleteExercises = exercises.filter((exercise, index) => {
-      const required = exercise.sets_json?.length || exercise.sets || 0;
-      return (completedMap[index]?.size || 0) < required;
-    }).length;
-    const details = exercises.map((exercise, index) => {
-      const required = exercise.sets_json?.length || exercise.sets || 0;
-      const completed = completedMap[index]?.size || 0;
-      return {
-        name: exercise.exercise_name_snapshot || exercise.exercise_name || `Exercício ${index + 1}`,
-        remainingSets: Math.max(0, required - completed),
-      };
-    }).filter(item => item.remainingSets > 0);
-    return {
-      requiredSets,
-      completedSets,
-      remainingSets: Math.max(0, requiredSets - completedSets),
-      incompleteExercises,
-      details,
-      complete: requiredSets > 0 && completedSets >= requiredSets,
-    };
+    return computeWorkoutCompletionSummary(exercises, completedMap);
   }, [exercises, completedSetsByExercise, currentIndex, completedSetIndices]);
 
   // Failsafe & Consistency Guard
@@ -3310,25 +3287,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         />
       )}
 
-      {!isFinished && !showExitModal && incompleteSummary.completedSets > 0 && !incompleteSummary.complete && !partialShortcutDismissed && (
-        <div className="fixed z-[1200] left-1/2 -translate-x-1/2 bottom-24 flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setShowExitModal(true)}
-            className="min-h-11 px-5 py-3.5 rounded-2xl bg-white border border-amber-200 text-amber-700 shadow-lg font-black text-[11px] uppercase tracking-wide"
-          >
-            Finalizar sessão parcial
-          </button>
-          <button
-            type="button"
-            onClick={() => setPartialShortcutDismissed(true)}
-            aria-label="Dispensar atalho"
-            className="w-8 h-8 rounded-full bg-white border border-amber-200 text-amber-400 hover:text-amber-600 shadow-lg flex items-center justify-center shrink-0 transition-colors"
-          >
-            <X size={13} />
-          </button>
-        </div>
-      )}
 
       <ScreenState
         status={queryStatus}

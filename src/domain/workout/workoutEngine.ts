@@ -75,6 +75,7 @@ export const workoutEngine = {
       sets_json: exercise.sets_json,
       sort_order: index + 1,
       superset_id: exercise.superset_id,
+      is_optional: exercise.is_optional || false,
     }));
   },
 };
