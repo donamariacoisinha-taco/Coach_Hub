@@ -135,7 +135,12 @@ const ExerciseLibrary: React.FC = () => {
       }
 
       return matchesSearch && matchesSide && isParentMatch && matchesStatus;
-    }).sort((a, b) => favoriteExerciseIds.has(b.id) ? -1 : 1);
+    }).sort((a, b) => {
+      const aFav = favoriteExerciseIds.has(a.id);
+      const bFav = favoriteExerciseIds.has(b.id);
+      if (aFav === bFav) return 0;
+      return aFav ? -1 : 1;
+    });
   }, [exercises, searchQuery, selectedMuscle, selectedSide, favoriteExerciseIds, isAdmin, adminActiveFilter]);
 
   const parentMuscleGroups = useMemo(() => {

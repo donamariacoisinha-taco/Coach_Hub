@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixtures = vi.hoisted(() => ({
   comFoto: {
@@ -11,6 +11,10 @@ const fixtures = vi.hoisted(() => ({
   semFoto: {
     id: 'ex-sem-foto', name: 'Terra romeno', muscle_group: 'Pernas', is_active: true,
     image_url: null, static_frame_url: null,
+  },
+  favoritado: {
+    id: 'ex-favoritado', name: 'Agachamento livre', muscle_group: 'Pernas', is_active: true,
+    image_url: 'https://cdn.example.com/agachamento.jpg',
   },
 }));
 
@@ -28,7 +32,7 @@ vi.mock('../lib/api/authApi', async () => {
 vi.mock('../lib/api/workoutApi', () => ({ workoutApi: {} }));
 vi.mock('../lib/api/exerciseApi', () => ({
   exerciseApi: {
-    getExercises: vi.fn().mockResolvedValue([fixtures.comFoto, fixtures.semFoto]),
+    getExercises: vi.fn().mockResolvedValue([fixtures.comFoto, fixtures.semFoto, fixtures.favoritado]),
     getMuscleGroups: vi.fn().mockResolvedValue([]),
     getFavorites: vi.fn().mockResolvedValue([]),
     isAdmin: vi.fn().mockResolvedValue(false),
@@ -36,10 +40,13 @@ vi.mock('../lib/api/exerciseApi', () => ({
 }));
 
 import ExerciseLibrary from './ExerciseLibrary';
+import { exerciseApi } from '../lib/api/exerciseApi';
+import { cacheStore } from '../lib/cache/cacheStore';
 
 const renderLibrary = () => render(<ExerciseLibrary />);
 
 describe('Biblioteca de Exercícios: imagem ausente e busca sem resultado', () => {
+  beforeEach(() => cacheStore.clear());
   afterEach(cleanup);
 
   it('mostra um ícone neutro (não uma foto genérica) quando o exercício não tem imagem', async () => {
@@ -66,5 +73,14 @@ describe('Biblioteca de Exercícios: imagem ausente e busca sem resultado', () =
 
     await waitFor(() => expect(screen.getByText('Nenhum resultado')).toBeTruthy());
     expect(screen.queryByText('Supino reto')).toBeNull();
+  });
+
+  it('mostra o exercício favoritado no topo da lista', async () => {
+    (exerciseApi.getFavorites as any).mockResolvedValueOnce(['ex-favoritado']);
+    renderLibrary();
+    await screen.findByText('Agachamento livre');
+
+    const nomes = screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent);
+    expect(nomes[0]).toBe('Agachamento livre');
   });
 });
