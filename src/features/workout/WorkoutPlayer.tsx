@@ -699,6 +699,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   }, [exercises, currentIndex, userLevel, isGuestWorkout]);
 
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showPartialFinishShortcut, setShowPartialFinishShortcut] = useState(false);
   const [showEvolutionModal, setShowEvolutionModal] = useState(false);
   const [savePrompt, setSavePrompt] = useState<{
     exObj: any;
@@ -2214,6 +2215,22 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     };
   }, [exercises, completedSetsByExercise, currentIndex, completedSetIndices]);
 
+  const hasPartialWorkout = incompleteSummary.completedSets > 0 && !incompleteSummary.complete;
+
+  useEffect(() => {
+    if (!hasPartialWorkout) {
+      setShowPartialFinishShortcut(false);
+      return;
+    }
+
+    setShowPartialFinishShortcut(true);
+    const timeoutId = window.setTimeout(() => {
+      setShowPartialFinishShortcut(false);
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [hasPartialWorkout]);
+
   // Failsafe & Consistency Guard
   useEffect(() => {
     if (!exercises || exercises.length === 0) return;
@@ -3398,7 +3415,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         />
       )}
 
-      {!isFinished && !showExitModal && incompleteSummary.completedSets > 0 && !incompleteSummary.complete && (
+      {!isFinished && !showExitModal && showPartialFinishShortcut && hasPartialWorkout && (
         <button
           type="button"
           onClick={() => setShowExitModal(true)}
