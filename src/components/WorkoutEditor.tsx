@@ -748,10 +748,15 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
         }
         cacheStore.clear('editor_init_new');
 
-        await workoutApi.deleteExercisesByCategory(currentId!);
         if (exercises.length > 0) {
+          // Insere a nova lista ANTES de apagar a antiga: se o insert falhar, a
+          // ficha existente no banco continua intacta em vez de ficar vazia.
           const exercisesPayload = workoutEngine.prepareSavePayload(exercises, currentId!);
-          await workoutApi.insertWorkoutExercises(exercisesPayload);
+          const insertedIds = await workoutApi.insertWorkoutExercises(exercisesPayload);
+          await workoutApi.deleteExercisesByCategoryExcept(currentId!, insertedIds);
+        } else {
+          // Lista vazia é intencional (usuário removeu todos os exercícios da ficha)
+          await workoutApi.deleteExercisesByCategory(currentId!);
         }
 
         showSuccess('Treino salvo', 'Tudo pronto! Seu treino foi atualizado com sucesso.');
