@@ -39,7 +39,8 @@ import {
   Award,
   Copy,
   ChevronUp,
-  ChevronDown 
+  ChevronDown,
+  Star
 } from 'lucide-react';
 import { useNavigation } from '../App';
 import { useExercisePreview } from '../context/ExercisePreviewContext';
@@ -126,6 +127,7 @@ interface SortablePrepExerciseCardProps {
   onRemove: (idx: number) => void;
   onDuplicate: (idx: number) => void;
   onAddBelow: (idx: number) => void;
+  onToggleOptional: (idx: number) => void;
   onMoveUp: (idx: number) => void;
   onMoveDown: (idx: number) => void;
   isOverlay?: boolean;
@@ -147,6 +149,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
   onRemove,
   onDuplicate,
   onAddBelow,
+  onToggleOptional,
   onMoveUp,
   onMoveDown,
   isOverlay = false,
@@ -332,6 +335,11 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
             >
               {ex.exercise_name}
             </h4>
+            {ex.is_optional && (
+              <span className="px-1.5 py-0.5 bg-amber-50 rounded text-[8px] font-black text-amber-600 uppercase tracking-widest shrink-0">
+                Bônus
+              </span>
+            )}
           </div>
 
           {/* Metadata: subtle separation without heavy badges */}
@@ -443,6 +451,16 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
                 className="w-full flex items-center gap-2.5 p-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition"
               >
                 <Copy size={13} className="text-slate-500" /> Duplicar
+              </button>
+
+              <button
+                onClick={() => {
+                  onToggleOptional(idx);
+                  setActiveMenuId(null);
+                }}
+                className="w-full flex items-center gap-2.5 p-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition"
+              >
+                <Star size={13} className="text-amber-500" /> {ex.is_optional ? 'Remover marcação de bônus' : 'Marcar como bônus'}
               </button>
 
               <button
@@ -828,6 +846,13 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
     showSuccess('Exercício duplicado', 'O exercício foi duplicado com sucesso.');
   }, [updateAndSaveExercises, showSuccess]);
 
+  const handleToggleOptional = useCallback((idx: number) => {
+    updateAndSaveExercises(prev => prev.map((item, i) => (
+      i === idx ? { ...item, is_optional: !item.is_optional } : item
+    )));
+    if ('vibrate' in navigator) navigator.vibrate(5);
+  }, [updateAndSaveExercises]);
+
   // Substitute finalized selection or append/insert new exercise
   const handleSelectSubstitute = useCallback((exercise: Exercise | Exercise[]) => {
     if (replacingIndex !== null) {
@@ -1170,6 +1195,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
                         onReplace={handleOpenReplace}
                         onRemove={handleRemoveExercise}
                         onDuplicate={handleDuplicateExercise}
+                        onToggleOptional={handleToggleOptional}
                         onAddBelow={handleOpenAddBelow}
                         onMoveUp={handleMoveUp}
                         onMoveDown={handleMoveDown}
@@ -1200,6 +1226,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
                           onReplace={() => {}}
                           onRemove={() => {}}
                           onDuplicate={() => {}}
+                          onToggleOptional={() => {}}
                           onAddBelow={() => {}}
                           onMoveUp={() => {}}
                           onMoveDown={() => {}}
