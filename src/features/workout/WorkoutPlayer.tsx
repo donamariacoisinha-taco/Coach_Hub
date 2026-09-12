@@ -52,7 +52,7 @@ import { getNextSetDecision, getPreSetHint } from "../../domain/progression/prog
 import { getEmotionalFeedback } from "../../domain/feedback/feedbackEngine";
 import { VictoryScreen } from "../../components/VictoryScreen";
 import { workoutEngine } from "../../domain/workout/workoutEngine";
-import { resolveResumeSetNumber, shouldConfirmPartialBeforeTerminalSet } from "../../domain/workout/workoutReliability";
+import { resolveResumeSetNumber, shouldConfirmPartialBeforeTerminalSet, computeSessionExerciseDiff } from "../../domain/workout/workoutReliability";
 import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
@@ -2079,113 +2079,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     };
   }, [workoutPerformance]);
 
-  const sessionDiff = useMemo(() => {
-    if (!originalExercises || originalExercises.length === 0 || !exercises || exercises.length === 0) {
-      return { hasChanges: false, isConsistent: true, diffs: [] as string[] };
-    }
-
-    const diffsList: string[] = [];
-    let changed = false;
-
-    // 1. Order changed?
-    const origIds = originalExercises.map(ex => ex.exercise_id);
-    const activeIds = exercises.map(ex => ex.exercise_id);
-    const isSameSet = origIds.length === activeIds.length && 
-                      origIds.every(id => activeIds.includes(id));
-    const orderChanged = isSameSet && origIds.some((id, idx) => id !== activeIds[idx]);
-    
-    if (orderChanged) {
-      diffsList.push("Ordem dos exercícios alterada");
-      changed = true;
-    }
-
-    // 2. Exercise substitutions / added / removed
-    const substitutedNames: string[] = [];
-    exercises.forEach((ex) => {
-      if (ex.id) {
-        const orig = originalExercises.find(o => o.id === ex.id);
-        if (orig && orig.exercise_id !== ex.exercise_id) {
-          substitutedNames.push(ex.exercise_name);
-        }
-      }
-    });
-
-    if (substitutedNames.length > 0) {
-      diffsList.push(`Substituição de exercício realizada (${substitutedNames.join(', ')})`);
-      changed = true;
-    }
-
-    const addedCount = exercises.filter(ex => !ex.id || ex.id.startsWith('ex-live-')).length;
-    if (addedCount > 0) {
-      diffsList.push(`${addedCount} novos exercícios adicionados`);
-      changed = true;
-    }
-
-    const activeIdsSet = new Set(exercises.map(ex => ex.id).filter(id => !!id && !id.startsWith('ex-live-')));
-    const sharedIdsCount = originalExercises.filter(ex => ex.id && activeIdsSet.has(ex.id)).length;
-    const isConsistent = sharedIdsCount > 0 || originalExercises.length === 0;
-    const removedCount = originalExercises.filter(ex => ex.id && !activeIdsSet.has(ex.id)).length;
-    if (removedCount > 0) {
-      diffsList.push(`${removedCount} exercícios removidos da ficha`);
-      changed = true;
-    }
-
-    // 3. Weight/Carga adjustments
-    const weightChanges: string[] = [];
-    exercises.forEach((ex) => {
-      if (ex.id) {
-        const orig = originalExercises.find(o => o.id === ex.id);
-        if (orig && orig.weight !== ex.weight) {
-          weightChanges.push(`${ex.exercise_name} para ${ex.weight}kg`);
-        }
-      }
-    });
-    if (weightChanges.length > 0) {
-      diffsList.push(`Carga base ajustada (${weightChanges.join(', ')})`);
-      changed = true;
-    }
-
-    // 4. Rest adjustments
-    const restChanges: string[] = [];
-    exercises.forEach((ex) => {
-      if (ex.id) {
-        const orig = originalExercises.find(o => o.id === ex.id);
-        if (orig && orig.rest_time !== ex.rest_time) {
-          restChanges.push(`${ex.exercise_name} para ${ex.rest_time}s`);
-        }
-      }
-    });
-    if (restChanges.length > 0) {
-      diffsList.push(`Tempo de descanso alterado (${restChanges.join(', ')})`);
-      changed = true;
-    }
-
-    // 5. Granular set/reps/load/RPE target adjustments
-    const targetChanges: string[] = [];
-    exercises.forEach((ex) => {
-      if (ex.id) {
-        const orig = originalExercises.find(o => o.id === ex.id);
-        const originalSets = orig ? (orig.sets_json?.length || orig.sets || 3) : 3;
-        const activeSets = ex.sets_json?.length || ex.sets || 3;
-        const originalRpe = Number(orig?.default_rpe ?? orig?.sets_json?.[0]?.rpe ?? 8);
-        const activeRpe = Number(ex.default_rpe ?? ex.sets_json?.[0]?.rpe ?? 8);
-        const granularSetsChanged = !!orig && JSON.stringify(orig.sets_json || []) !== JSON.stringify(ex.sets_json || []);
-        if (orig && (orig.reps !== ex.reps || originalSets !== activeSets || originalRpe !== activeRpe || granularSetsChanged)) {
-          targetChanges.push(ex.exercise_name);
-        }
-      }
-    });
-    if (targetChanges.length > 0) {
-      diffsList.push(`Séries, reps, carga ou esforço de ${targetChanges.join(', ')}`);
-      changed = true;
-    }
-
-    return {
-      hasChanges: changed,
-      isConsistent,
-      diffs: diffsList
-    };
-  }, [originalExercises, exercises]);
+  const sessionDiff = useMemo(
+    () => computeSessionExerciseDiff(originalExercises, exercises),
+    [originalExercises, exercises],
+  );
 
   const incompleteSummary = useMemo(() => {
     const requiredSets = exercises.reduce((sum, exercise) =>
@@ -3164,7 +3061,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     setSaving(true);
     try {
       if (!sessionDiff.isConsistent) {
-        throw new Error('As alterações não correspondem à ficha completa. Reabra o treino antes de atualizar o plano.');
+        throw new Error('Nenhum exercício da ficha original continua nesta sessão, então não há o que atualizar nela. Toque em "Manter apenas hoje" para salvar o treino sem alterar o padrão da ficha.');
       }
       if (isGuestWorkout) {
         updateGuestWorkoutExercises(workoutId, exercises);

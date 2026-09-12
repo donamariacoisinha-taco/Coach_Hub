@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SetType } from '../../types';
 import {
+  computeSessionExerciseDiff,
   createContinuitySnapshot,
   decideWorkoutAdvance,
   decideWorkoutPrevious,
@@ -221,5 +222,85 @@ describe('workout reliability engine', () => {
       currentIndex: 1,
       currentSetIndex: 2,
     })).toBe(false);
+  });
+});
+
+const workoutEx = (overrides: Partial<Record<string, any>>): any => ({
+  id: 'row-x', category_id: 'w', exercise_id: 'cat-x', exercise_name: 'Exercício X',
+  sets: 3, reps: '10', weight: 40, rest_time: 60, order: 0,
+  ...overrides,
+});
+
+describe('computeSessionExerciseDiff', () => {
+  it('sem mudanças: consistente e sem diffs', () => {
+    const original = [workoutEx({ id: 'r1', exercise_id: 'a' }), workoutEx({ id: 'r2', exercise_id: 'b' })];
+    const current = [workoutEx({ id: 'r1', exercise_id: 'a' }), workoutEx({ id: 'r2', exercise_id: 'b' })];
+    expect(computeSessionExerciseDiff(original, current)).toEqual({ hasChanges: false, isConsistent: true, diffs: [] });
+  });
+
+  it('detecta reordenação mantendo o mesmo conjunto de exercícios', () => {
+    const original = [workoutEx({ id: 'r1', exercise_id: 'a' }), workoutEx({ id: 'r2', exercise_id: 'b' })];
+    const current = [workoutEx({ id: 'r2', exercise_id: 'b' }), workoutEx({ id: 'r1', exercise_id: 'a' })];
+    const diff = computeSessionExerciseDiff(original, current);
+    expect(diff.isConsistent).toBe(true);
+    expect(diff.diffs).toContain('Ordem dos exercícios alterada');
+  });
+
+  it('remover-e-readicionar o mesmo exercício não conta como removido nem quebra a consistência', () => {
+    // Regressão: handleAddExerciseToSession sempre gera uma linha nova
+    // (ex-live-...) mesmo quando o exercício é o mesmo que acabou de ser
+    // removido. A verificação de consistência não pode depender só do id de
+    // linha, senão a ficha inteira parece "substituída" sem ter mudado de
+    // conteúdo, e o usuário fica travado com um erro que reabrir o treino
+    // não resolve.
+    const original = [
+      workoutEx({ id: 'r1', exercise_id: 'a', exercise_name: 'Supino reto' }),
+      workoutEx({ id: 'r2', exercise_id: 'b', exercise_name: 'Agachamento livre' }),
+    ];
+    // "Agachamento livre" foi removido e adicionado de volta: mesmo
+    // exercise_id ('b'), linha nova ('ex-live-...').
+    const current = [
+      workoutEx({ id: 'r1', exercise_id: 'a', exercise_name: 'Supino reto' }),
+      workoutEx({ id: 'ex-live-999', exercise_id: 'b', exercise_name: 'Agachamento livre' }),
+    ];
+    const diff = computeSessionExerciseDiff(original, current);
+    expect(diff.isConsistent).toBe(true);
+    expect(diff.diffs.join(' ')).not.toMatch(/removid/i);
+  });
+
+  it('exercício de fato ausente (nem linha nem exercise_id sobrevivem) conta como removido', () => {
+    const original = [
+      workoutEx({ id: 'r1', exercise_id: 'a', exercise_name: 'Supino reto' }),
+      workoutEx({ id: 'r2', exercise_id: 'b', exercise_name: 'Agachamento livre' }),
+    ];
+    const current = [
+      workoutEx({ id: 'r1', exercise_id: 'a', exercise_name: 'Supino reto' }),
+      workoutEx({ id: 'ex-live-999', exercise_id: 'c', exercise_name: 'Puxada frontal' }),
+    ];
+    const diff = computeSessionExerciseDiff(original, current);
+    expect(diff.isConsistent).toBe(true); // Supino reto (r1) ainda sobrevive
+    expect(diff.diffs).toContain('1 exercícios removidos da ficha');
+  });
+
+  it('fica inconsistente só quando nenhum exercício original sobrevive (linha nem exercise_id)', () => {
+    const original = [workoutEx({ id: 'r1', exercise_id: 'a', exercise_name: 'Supino reto' })];
+    const current = [workoutEx({ id: 'ex-live-1', exercise_id: 'z', exercise_name: 'Outro exercício' })];
+    const diff = computeSessionExerciseDiff(original, current);
+    expect(diff.isConsistent).toBe(false);
+  });
+
+  it('detecta substituição de exercício (mesma linha, exercise_id diferente)', () => {
+    const original = [workoutEx({ id: 'r1', exercise_id: 'a', exercise_name: 'Supino reto' })];
+    const current = [workoutEx({ id: 'r1', exercise_id: 'z', exercise_name: 'Supino inclinado' })];
+    const diff = computeSessionExerciseDiff(original, current);
+    expect(diff.isConsistent).toBe(true);
+    expect(diff.diffs.some((d) => d.includes('Substituição de exercício'))).toBe(true);
+  });
+
+  it('detecta ajuste de carga base por exercício', () => {
+    const original = [workoutEx({ id: 'r1', exercise_id: 'a', weight: 40 })];
+    const current = [workoutEx({ id: 'r1', exercise_id: 'a', weight: 45 })];
+    const diff = computeSessionExerciseDiff(original, current);
+    expect(diff.diffs.some((d) => d.includes('Carga base ajustada'))).toBe(true);
   });
 });

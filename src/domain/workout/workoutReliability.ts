@@ -317,6 +317,137 @@ export const reconcileWorkoutProgress = ({
   };
 };
 
+export interface SessionExerciseDiff {
+  hasChanges: boolean;
+  isConsistent: boolean;
+  diffs: string[];
+}
+
+/**
+ * Compara a ficha original (início da sessão) com os exercícios atuais, para
+ * decidir se as edições feitas durante o treino podem virar o novo padrão da
+ * ficha ao final ("Atualizar ficha").
+ *
+ * `isConsistent` não pode depender só do id de linha (`id`): remover um
+ * exercício e adicioná-lo de volta pelo seletor sempre gera uma linha nova
+ * (`ex-live-...`), sem relação com a linha original — mesmo que o exercício em
+ * si (`exercise_id`) continue o mesmo. Contar só a linha fazia a ficha inteira
+ * parecer "substituída" mesmo quando o conteúdo real não mudou, bloqueando o
+ * salvamento com um erro que "reabrir o treino" não resolve (o problema é
+ * estrutural — os ids não coincidem mais — não uma tela desatualizada).
+ */
+export const computeSessionExerciseDiff = (
+  originalExercises: WorkoutExercise[] | null | undefined,
+  exercises: WorkoutExercise[] | null | undefined,
+): SessionExerciseDiff => {
+  if (!originalExercises?.length || !exercises?.length) {
+    return { hasChanges: false, isConsistent: true, diffs: [] };
+  }
+
+  const diffs: string[] = [];
+  let changed = false;
+
+  // 1. Ordem mudou?
+  const origIds = originalExercises.map((ex) => ex.exercise_id);
+  const activeIds = exercises.map((ex) => ex.exercise_id);
+  const isSameSet = origIds.length === activeIds.length && origIds.every((id) => activeIds.includes(id));
+  const orderChanged = isSameSet && origIds.some((id, idx) => id !== activeIds[idx]);
+  if (orderChanged) {
+    diffs.push('Ordem dos exercícios alterada');
+    changed = true;
+  }
+
+  // 2. Substituições (mesma linha, exercise_id diferente)
+  const substitutedNames: string[] = [];
+  exercises.forEach((ex) => {
+    if (ex.id) {
+      const orig = originalExercises.find((o) => o.id === ex.id);
+      if (orig && orig.exercise_id !== ex.exercise_id) {
+        substitutedNames.push(ex.exercise_name);
+      }
+    }
+  });
+  if (substitutedNames.length > 0) {
+    diffs.push(`Substituição de exercício realizada (${substitutedNames.join(', ')})`);
+    changed = true;
+  }
+
+  // 3. Adicionados
+  const addedCount = exercises.filter((ex) => !ex.id || ex.id.startsWith('ex-live-')).length;
+  if (addedCount > 0) {
+    diffs.push(`${addedCount} novos exercícios adicionados`);
+    changed = true;
+  }
+
+  // 4. Consistência e removidos: um exercício original só conta como
+  // removido se nem a linha (id) nem o próprio exercício (exercise_id)
+  // sobrevivem em algum lugar da sessão atual.
+  const activeRowIds = new Set(exercises.map((ex) => ex.id).filter((id) => !!id && !id.startsWith('ex-live-')));
+  const activeExerciseIds = new Set(exercises.map((ex) => ex.exercise_id).filter(Boolean));
+  const survives = (orig: WorkoutExercise) => (
+    (!!orig.id && activeRowIds.has(orig.id)) || (!!orig.exercise_id && activeExerciseIds.has(orig.exercise_id))
+  );
+  const sharedCount = originalExercises.filter(survives).length;
+  const isConsistent = sharedCount > 0;
+  const removedCount = originalExercises.filter((ex) => !survives(ex)).length;
+  if (removedCount > 0) {
+    diffs.push(`${removedCount} exercícios removidos da ficha`);
+    changed = true;
+  }
+
+  // 5. Carga base
+  const weightChanges: string[] = [];
+  exercises.forEach((ex) => {
+    if (ex.id) {
+      const orig = originalExercises.find((o) => o.id === ex.id);
+      if (orig && orig.weight !== ex.weight) {
+        weightChanges.push(`${ex.exercise_name} para ${ex.weight}kg`);
+      }
+    }
+  });
+  if (weightChanges.length > 0) {
+    diffs.push(`Carga base ajustada (${weightChanges.join(', ')})`);
+    changed = true;
+  }
+
+  // 6. Descanso
+  const restChanges: string[] = [];
+  exercises.forEach((ex) => {
+    if (ex.id) {
+      const orig = originalExercises.find((o) => o.id === ex.id);
+      if (orig && orig.rest_time !== ex.rest_time) {
+        restChanges.push(`${ex.exercise_name} para ${ex.rest_time}s`);
+      }
+    }
+  });
+  if (restChanges.length > 0) {
+    diffs.push(`Tempo de descanso alterado (${restChanges.join(', ')})`);
+    changed = true;
+  }
+
+  // 7. Séries, reps, carga ou esforço-alvo
+  const targetChanges: string[] = [];
+  exercises.forEach((ex) => {
+    if (ex.id) {
+      const orig = originalExercises.find((o) => o.id === ex.id);
+      const originalSets = orig ? (orig.sets_json?.length || orig.sets || 3) : 3;
+      const activeSets = ex.sets_json?.length || ex.sets || 3;
+      const originalRpe = Number(orig?.default_rpe ?? orig?.sets_json?.[0]?.rpe ?? 8);
+      const activeRpe = Number(ex.default_rpe ?? ex.sets_json?.[0]?.rpe ?? 8);
+      const granularSetsChanged = !!orig && JSON.stringify(orig.sets_json || []) !== JSON.stringify(ex.sets_json || []);
+      if (orig && (orig.reps !== ex.reps || originalSets !== activeSets || originalRpe !== activeRpe || granularSetsChanged)) {
+        targetChanges.push(ex.exercise_name);
+      }
+    }
+  });
+  if (targetChanges.length > 0) {
+    diffs.push(`Séries, reps, carga ou esforço de ${targetChanges.join(', ')}`);
+    changed = true;
+  }
+
+  return { hasChanges: changed, isConsistent, diffs };
+};
+
 export const createContinuitySnapshot = ({
   position,
   activeSetsData,
