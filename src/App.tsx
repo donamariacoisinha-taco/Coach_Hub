@@ -434,10 +434,10 @@ const App: React.FC = () => {
                     })}
                   />
                   
-                  <NavItem 
+                  <NavItem
                     id="library"
                     icon={Dumbbell}
-                    label="Protocols"
+                    label="Library"
                     showLabel={true}
                     isActive={navState.view === 'library'}
                     onClick={() => navigate('library')}
