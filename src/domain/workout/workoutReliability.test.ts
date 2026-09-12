@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SetType } from '../../types';
 import {
   computeSessionExerciseDiff,
+  computeWorkoutCompletionSummary,
   createContinuitySnapshot,
   decideWorkoutAdvance,
   decideWorkoutPrevious,
@@ -302,5 +303,57 @@ describe('computeSessionExerciseDiff', () => {
     const current = [workoutEx({ id: 'r1', exercise_id: 'a', weight: 45 })];
     const diff = computeSessionExerciseDiff(original, current);
     expect(diff.diffs.some((d) => d.includes('Carga base ajustada'))).toBe(true);
+  });
+});
+
+describe('computeWorkoutCompletionSummary', () => {
+  const twoSets = [{ reps: '10' }, { reps: '10' }];
+
+  it('sem exercício opcional: precisa terminar tudo, igual ao comportamento original', () => {
+    const exs = [
+      workoutEx({ sets_json: twoSets }),
+      workoutEx({ sets_json: twoSets }),
+    ];
+    const complete = computeWorkoutCompletionSummary(exs, { 0: new Set([0, 1]), 1: new Set([0, 1]) });
+    expect(complete.complete).toBe(true);
+
+    const partial = computeWorkoutCompletionSummary(exs, { 0: new Set([0, 1]), 1: new Set([0]) });
+    expect(partial.complete).toBe(false);
+  });
+
+  it('exercício marcado como bônus não impede o treino de contar como completo', () => {
+    // Regressão: um treino com um exercício condicional ("bônus", só feito se
+    // a academia permitir) deve poder ser marcado como completo assim que os
+    // exercícios obrigatórios acabarem, mesmo com o bônus pendente.
+    const exs = [
+      workoutEx({ sets_json: twoSets }), // obrigatório
+      workoutEx({ sets_json: twoSets, is_optional: true }), // bônus
+    ];
+    const summary = computeWorkoutCompletionSummary(exs, { 0: new Set([0, 1]), 1: new Set() });
+    expect(summary.complete).toBe(true);
+    expect(summary.remainingSets).toBe(0);
+    // O bônus pendente continua visível no resumo, só não bloqueia a conclusão.
+    expect(summary.details.some((d) => d.remainingSets === 2)).toBe(true);
+  });
+
+  it('exercício obrigatório pendente ainda bloqueia a conclusão mesmo com bônus em dia', () => {
+    const exs = [
+      workoutEx({ sets_json: twoSets }),
+      workoutEx({ sets_json: twoSets, is_optional: true }),
+    ];
+    const summary = computeWorkoutCompletionSummary(exs, { 0: new Set([0]), 1: new Set([0, 1]) });
+    expect(summary.complete).toBe(false);
+  });
+
+  it('se a ficha inteira estiver marcada como bônus, tudo volta a contar (nunca fica completa de graça)', () => {
+    const exs = [
+      workoutEx({ sets_json: twoSets, is_optional: true }),
+      workoutEx({ sets_json: twoSets, is_optional: true }),
+    ];
+    const nothingDone = computeWorkoutCompletionSummary(exs, {});
+    expect(nothingDone.complete).toBe(false);
+
+    const everythingDone = computeWorkoutCompletionSummary(exs, { 0: new Set([0, 1]), 1: new Set([0, 1]) });
+    expect(everythingDone.complete).toBe(true);
   });
 });

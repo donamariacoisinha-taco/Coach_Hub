@@ -200,6 +200,11 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
                   Base
                 </div>
               )}
+              {ex.is_optional && (
+                <div className="px-1.5 py-0.5 bg-amber-50 rounded text-[7px] font-black text-amber-600 uppercase tracking-widest shrink-0">
+                  Bônus
+                </div>
+              )}
             </div>
             
             {/* Metadata with subtle separation dots */}
@@ -258,11 +263,20 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
             >
               <Copy size={14} className="text-blue-400" /> Duplicar Papel
             </button>
-            <button 
+            <button
               onClick={() => { setReplacingIndex(idx); setShowExerciseSelector(true); setActiveMenuId(null); }}
               className="w-full flex items-center gap-3 p-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-2xl transition"
             >
               <Replace size={14} className="text-amber-500" /> Substituir
+            </button>
+            <button
+              onClick={() => {
+                setExercises(prev => prev.map(e => e.tempId === ex.tempId ? { ...e, is_optional: !e.is_optional } : e));
+                setActiveMenuId(null);
+              }}
+              className="w-full flex items-center gap-3 p-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-2xl transition"
+            >
+              <Star size={14} className="text-amber-500" /> {ex.is_optional ? 'Remover marcação de bônus' : 'Marcar como bônus'}
             </button>
             <div className="h-px bg-slate-50 mx-2 my-1" />
             <button 

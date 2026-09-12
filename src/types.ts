@@ -335,6 +335,8 @@ export interface WorkoutExercise {
   notes?: string;
   instructions?: string;
   superset_id?: string | null;
+  /** Exercício condicional (ex.: só feito se a academia estiver livre). Não conta para a sessão ser marcada como completa. */
+  is_optional?: boolean;
 }
 
 export interface WorkoutHistory {

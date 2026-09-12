@@ -448,6 +448,77 @@ export const computeSessionExerciseDiff = (
   return { hasChanges: changed, isConsistent, diffs };
 };
 
+export interface WorkoutCompletionDetail {
+  name: string;
+  remainingSets: number;
+}
+
+export interface WorkoutCompletionSummary {
+  requiredSets: number;
+  completedSets: number;
+  remainingSets: number;
+  incompleteExercises: number;
+  details: WorkoutCompletionDetail[];
+  complete: boolean;
+}
+
+type CompletionExercise = Pick<WorkoutExercise, 'sets_json' | 'sets' | 'exercise_name' | 'exercise_name_snapshot' | 'is_optional'>;
+
+/**
+ * Resumo de conclusão da sessão: quanto falta, e se o treino conta como
+ * completo (vira `partial: false` no histórico — afeta streak, calendário e
+ * a tela de "Missão Cumprida").
+ *
+ * Exercícios marcados `is_optional` (bônus condicionais, ex.: só feitos se a
+ * academia estiver livre) não entram na conta de "completo" — mas só quando
+ * a ficha também tem pelo menos um exercício não-opcional. Se a ficha inteira
+ * estiver marcada como bônus (nada obrigatório sobrando), todos voltam a
+ * contar — do contrário o treino ficaria "completo" com zero séries feitas.
+ */
+export const computeWorkoutCompletionSummary = (
+  exercises: CompletionExercise[],
+  completedMap: Record<number, Set<number> | number[]>,
+): WorkoutCompletionSummary => {
+  const hasRequiredExercise = exercises.some((exercise) => !exercise.is_optional);
+  const countsTowardRequired = (exercise: CompletionExercise) => !hasRequiredExercise || !exercise.is_optional;
+  const completedCountAt = (index: number): number => {
+    const value = completedMap[index];
+    if (!value) return 0;
+    return value instanceof Set ? value.size : value.length;
+  };
+
+  const requiredSets = exercises.reduce((sum, exercise) => (
+    countsTowardRequired(exercise) ? sum + (exercise.sets_json?.length || exercise.sets || 0) : sum
+  ), 0);
+
+  const completedSets = exercises.reduce((sum, _exercise, index) => sum + completedCountAt(index), 0);
+  const completedRequiredSets = exercises.reduce((sum, exercise, index) => (
+    countsTowardRequired(exercise) ? sum + completedCountAt(index) : sum
+  ), 0);
+
+  const incompleteExercises = exercises.filter((exercise, index) => {
+    const required = exercise.sets_json?.length || exercise.sets || 0;
+    return completedCountAt(index) < required;
+  }).length;
+
+  const details = exercises.map((exercise, index) => {
+    const required = exercise.sets_json?.length || exercise.sets || 0;
+    return {
+      name: exercise.exercise_name_snapshot || exercise.exercise_name || `Exercício ${index + 1}`,
+      remainingSets: Math.max(0, required - completedCountAt(index)),
+    };
+  }).filter((item) => item.remainingSets > 0);
+
+  return {
+    requiredSets,
+    completedSets,
+    remainingSets: Math.max(0, requiredSets - completedRequiredSets),
+    incompleteExercises,
+    details,
+    complete: requiredSets > 0 && completedRequiredSets >= requiredSets,
+  };
+};
+
 export const createContinuitySnapshot = ({
   position,
   activeSetsData,
