@@ -788,14 +788,24 @@ export const workoutApi = {
     if (error) throw error;
   },
 
-  async insertWorkoutExercises(exercises: any[]) {
+  // Apaga só as linhas antigas da ficha, preservando as recém-inseridas (por id).
+  // Usado depois de um insert bem-sucedido, para nunca haver uma janela em que a
+  // ficha fica sem nenhuma linha no banco caso o insert tivesse falhado.
+  async deleteExercisesByCategoryExcept(categoryId: string, keepIds: string[]) {
+    let query = supabase.from('workout_exercises').delete().eq('category_id', categoryId);
+    if (keepIds.length > 0) query = query.not('id', 'in', `(${keepIds.join(',')})`);
+    const { error } = await query;
+    if (error) throw error;
+  },
+
+  async insertWorkoutExercises(exercises: any[]): Promise<string[]> {
     let currentExercises = [...exercises];
-    
+
     while (true) {
       try {
-        const { error } = await supabase.from('workout_exercises').insert(currentExercises);
+        const { data, error } = await supabase.from('workout_exercises').insert(currentExercises).select('id');
         if (error) throw error;
-        return;
+        return (data || []).map((row: any) => row.id);
       } catch (err: any) {
         const errorMsg = err.message || '';
         console.warn(`[insertWorkoutExercises] Failed to insert workout exercises:`, errorMsg);

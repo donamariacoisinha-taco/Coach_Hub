@@ -553,8 +553,10 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
 
   // Unified callback to save modifications to state, localStorage fallback, and permanently to database
   const updateAndSaveExercises = useCallback(async (getNewExercises: (prev: WorkoutExercise[]) => WorkoutExercise[]) => {
+    let prevList: WorkoutExercise[] = [];
     let nextList: WorkoutExercise[] = [];
     setExercises(prev => {
+      prevList = prev;
       nextList = getNewExercises(prev);
       if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, nextList);
       else localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(nextList));
@@ -567,11 +569,10 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
         updateGuestWorkoutExercises(workoutId, nextList);
         return;
       }
-      // Delete existing exercises from database template
-      await workoutApi.deleteExercisesByCategory(workoutId);
-      
-      // Save new list to database
+
       if (nextList.length > 0) {
+        // Insere a nova lista ANTES de apagar a antiga: se o insert falhar, a
+        // ficha existente no banco continua intacta em vez de ficar vazia.
         const preparedPayload = nextList.map((ex, i) => ({
           category_id: workoutId,
           exercise_id: ex.exercise_id,
@@ -586,19 +587,29 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
           sort_order: i + 1,
           superset_id: ex.superset_id || null
         }));
-        await workoutApi.insertWorkoutExercises(preparedPayload);
+        const insertedIds = await workoutApi.insertWorkoutExercises(preparedPayload);
+        await workoutApi.deleteExercisesByCategoryExcept(workoutId, insertedIds);
+      } else {
+        // Lista vazia é intencional (usuário removeu todos os exercícios da ficha)
+        await workoutApi.deleteExercisesByCategory(workoutId);
       }
-      
+
       // Clear cache systems
       cacheStore.clear(`workout_init_${workoutId}`);
       cacheStore.clear(`editor_init_${workoutId}`);
       cacheStore.clear('dashboard_data');
     } catch (err) {
       console.error('[WorkoutPreparation] Error persisting exercises to database:', err);
+      // Reverte o estado otimista: a gravação falhou e a ficha no banco não foi
+      // tocada, então a tela não deve continuar mostrando uma mudança não salva.
+      setExercises(prevList);
+      if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, prevList);
+      else localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(prevList));
+      showError(err);
     } finally {
       setSavingToDb(false);
     }
-  }, [workoutId, isGuestWorkout]);
+  }, [workoutId, isGuestWorkout, showError]);
 
   // Load database workout & favorites
   useEffect(() => {
