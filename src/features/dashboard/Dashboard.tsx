@@ -31,6 +31,7 @@ import { Crown, Sliders } from 'lucide-react';
 import { isAdmin } from '../../lib/utils/auth';
 import { playHapticFeedback } from '../../services/athleteMemoryEngine';
 import { buildCalendarDays, buildEmotionalGuidance } from './dashboardDayState';
+import { getWorkoutCardAvgDuration, getWorkoutCardEvolutionInsight } from './workoutCardInsights';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
   const { navigate } = useNavigation();
@@ -1026,12 +1027,12 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         </button>
                       </div>
                     </div>
-                  ) : filteredWorkouts.map((workout, idx) => {
+                  ) : filteredWorkouts.map((workout) => {
                     const isOptimistic = typeof workout.id === 'string' && workout.id.startsWith('temp-');
-                    
+
                     const workoutHistory = history.filter(h => h.category_id === workout.id && h.completed_at);
                     const exercisesCount = workout.exercises_count ?? 0;
-                    const estDuration = idx % 2 === 0 ? 45 : 60;
+                    const avgDurationMinutes = getWorkoutCardAvgDuration(workoutHistory);
 
                     const getLastExecutionText = () => {
                       if (workout.is_public_admin) {
@@ -1057,27 +1058,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                       }
                     };
 
-                    const getEvolutionInsight = () => {
-                      if (workout.is_public_admin) {
-                        return '✓ Ficha pública oficial';
-                      }
-                      if (workoutHistory.length === 0) {
-                        const isNew = workout.created_at && (new Date().getTime() - new Date(workout.created_at).getTime() < 3 * 24 * 60 * 60 * 1000);
-                        return isNew ? 'Treino recém-adicionado' : 'Primeira execução';
-                      }
-                      
-                      const hash = workout.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                      const choice = hash % 3;
-                      
-                      if (choice === 0) {
-                        const pct = 5 + (hash % 11);
-                        return `\u2191 +${pct}% evolução desde a última sessão`;
-                      } else if (choice === 1) {
-                        return '\u2191 Nova melhor marca';
-                      } else {
-                        return workoutHistory.length >= 2 ? 'Consistência elevada' : 'Treino recém-adicionado';
-                      }
-                    };
+                    const getEvolutionInsight = () => getWorkoutCardEvolutionInsight(workoutHistory, {
+                      isPublicAdmin: workout.is_public_admin,
+                      createdAt: workout.created_at,
+                    });
 
                     return (
                       <div key={workout.id} className={`relative group mb-6 ${activeMenuId === workout.id ? 'z-[100]' : 'z-[1]'} ${isOptimistic ? 'opacity-65 grayscale-[0.2]' : ''}`}>
@@ -1130,7 +1114,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
                             {/* Contextual Micro Data */}
                             <p className="text-xs font-semibold text-slate-500 mt-1 leading-none select-none">
-                              {exercisesCount} {exercisesCount === 1 ? 'exercício' : 'exercícios'} • {estDuration} min estimados
+                              {exercisesCount} {exercisesCount === 1 ? 'exercício' : 'exercícios'} • {avgDurationMinutes !== null ? `${avgDurationMinutes} min em média` : '— min'}
                             </p>
 
                             {/* Execution History & Evolution Insight */}
