@@ -1443,6 +1443,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }, 3600);
   };
 
+  const dismissDockInsight = () => {
+    if (dockInsightTimerRef.current !== null) window.clearTimeout(dockInsightTimerRef.current);
+    dockInsightTimerRef.current = null;
+    setIsDockInsightVisible(false);
+  };
+
   // Keep fatigue/anomaly state available to the progression engine, but present
   // each dock insight briefly so it never becomes a permanent obstruction.
   useEffect(() => {
@@ -3802,39 +3808,47 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               {/* PR / FEEDBACK / SUGGESTION OVERLAY */}
               <AnimatePresence>
                 {isDockInsightVisible && (feedback || suggestion || anomalyDetected || fatigueDetected || hasRestOvertimeInsight) && activeDockMode !== 'expanded' && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-[90%] max-w-[320px] pointer-events-none z-55"
+                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-[85%] max-w-[280px] pointer-events-none z-55"
                   >
-                    <div className="bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex flex-col gap-2 border border-slate-800 backdrop-blur-md bg-opacity-95 items-center text-center">
+                    <div className="relative bg-slate-800/95 text-white pl-3 pr-7 py-2 rounded-2xl shadow-lg flex flex-col gap-1 border border-slate-700/60 backdrop-blur-md items-center text-center">
+                      <button
+                        onClick={dismissDockInsight}
+                        aria-label="Dispensar orientação"
+                        className="pointer-events-auto absolute right-1.5 top-1.5 text-slate-400 hover:text-slate-200 transition-colors p-1"
+                      >
+                        <X size={11} />
+                      </button>
+
                       {suggestion && (
-                         <div className="flex items-center gap-2 text-[#7BA7FF] font-black text-[10px] uppercase tracking-widest">
-                           <Target size={12} /> {suggestion}
+                         <div className="flex items-center gap-1.5 text-[#7BA7FF] font-bold text-[9px] uppercase tracking-wider">
+                           <Target size={10} /> {suggestion}
                          </div>
                       )}
-                      
+
                       {feedback && (
-                        <p className="text-xs font-black uppercase tracking-tight leading-snug">
+                        <p className="text-[11px] font-bold uppercase tracking-tight leading-snug text-slate-100">
                           {feedback}
                         </p>
                       )}
 
                       {anomalyDetected && (
-                         <div className="flex items-center gap-2 text-yellow-400 font-bold text-[10px] uppercase tracking-widest">
+                         <div className="flex items-center gap-1.5 text-yellow-400/90 font-semibold text-[9px] uppercase tracking-wider">
                            Progressão incomum detectada
                          </div>
                       )}
 
                       {hasRestOvertimeInsight && (
-                         <div className="flex items-center gap-2 text-[#7BA7FF] animate-pulse font-bold text-[10px] uppercase tracking-widest">
+                         <div className="flex items-center gap-1.5 text-[#7BA7FF] animate-pulse font-semibold text-[9px] uppercase tracking-wider">
                            Vamos para a próxima?
                          </div>
                       )}
 
                       {fatigueDetected && (
-                         <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest">
+                         <div className="flex items-center gap-1.5 text-slate-400 font-semibold text-[9px] uppercase tracking-wider">
                            Fadiga detectada
                          </div>
                       )}
