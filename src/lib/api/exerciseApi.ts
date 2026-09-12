@@ -3,6 +3,8 @@ import { supabase } from './supabase';
 import { Exercise, MuscleGroup, normalizeMuscleGroup, getVirtualAnatomicalCut } from '../../types';
 import { fetchWithRetry } from '../utils';
 import { fallbackExercises } from './fallbackExercises';
+import { GUEST_USER_ID } from './authApi';
+import { getGuestFavoriteExerciseIds, toggleGuestFavoriteExercise } from '../guest/guestPersistence';
 import {
   buildExerciseFilterGroups,
   exerciseMatchesMuscleFilter,
@@ -218,6 +220,7 @@ export const exerciseApi = {
   },
 
   async getFavorites(userId: string) {
+    if (userId === GUEST_USER_ID) return getGuestFavoriteExerciseIds();
     try {
       const { data, error } = await supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', userId);
       if (error) throw error;
@@ -237,6 +240,10 @@ export const exerciseApi = {
   },
 
   async toggleFavorite(userId: string, exerciseId: string, isFavorite: boolean) {
+    if (userId === GUEST_USER_ID) {
+      toggleGuestFavoriteExercise(exerciseId, isFavorite);
+      return;
+    }
     if (isFavorite) {
       const { error } = await supabase.from('user_favorite_exercises').delete().eq('user_id', userId).eq('exercise_id', exerciseId);
       if (error) throw error;

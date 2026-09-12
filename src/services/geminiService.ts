@@ -1,11 +1,20 @@
 
 import { Exercise } from "../types";
+import { authApi, isGuestSession } from "../lib/api/authApi";
 
 export const geminiService = {
   async callAI(params: { prompt: string, systemInstruction?: string, responseSchema?: any, model?: string }) {
+    const session = await authApi.getSession();
+    if (!session?.access_token || isGuestSession(session)) {
+      throw new Error("Recurso de IA indisponível: é preciso estar autenticado.");
+    }
+
     const response = await fetch("/api/intelligence/proxy", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+      },
       body: JSON.stringify(params)
     });
 
