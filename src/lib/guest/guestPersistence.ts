@@ -7,6 +7,7 @@ export const GUEST_STORAGE_SCHEMA_VERSION = 5;
 export const GUEST_STORAGE_VERSION_KEY = 'kyron_guest_storage_schema_version';
 const GUEST_STORAGE_MIGRATION_NOTICE_KEY = 'kyron_guest_storage_migration_notice_v2';
 const GUEST_STORAGE_MIGRATION_DISPLAY_PREFIX = 'kyron_guest_storage_migration_displayed_';
+const GUEST_FAVORITE_EXERCISES_KEY = 'kyron_guest_favorite_exercises_v1';
 
 export type GuestDashboard = {
   profile: UserProfile & Record<string, any>;
@@ -83,6 +84,19 @@ const readJson = <T>(key: string): T | null => {
 export const getGuestProfile = (): UserProfile & Record<string, any> => (
   readJson<UserProfile & Record<string, any>>(GUEST_PROFILE_KEY) || createDefaultGuestProfile()
 );
+
+export const getGuestFavoriteExerciseIds = (): string[] => (
+  readJson<string[]>(GUEST_FAVORITE_EXERCISES_KEY) || []
+);
+
+export const toggleGuestFavoriteExercise = (exerciseId: string, isFavorite: boolean): string[] => {
+  const current = getGuestFavoriteExerciseIds();
+  const next = isFavorite
+    ? current.filter((id) => id !== exerciseId)
+    : [...current, exerciseId];
+  localStorage.setItem(GUEST_FAVORITE_EXERCISES_KEY, JSON.stringify(next));
+  return next;
+};
 
 export const saveGuestProfile = (changes: Record<string, any>): UserProfile & Record<string, any> => {
   const profile: UserProfile & Record<string, any> = {
