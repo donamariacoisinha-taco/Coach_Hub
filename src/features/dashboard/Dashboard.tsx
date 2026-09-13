@@ -883,6 +883,156 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         ) : activeTab === 'protocols' ? (
           <>
 
+            {/* SECONDARY GUIDANCE METRICS (Moved to the top of the Protocols tab per user request) */}
+            <div className="pb-8 space-y-6">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none flex items-center gap-1.5 ml-1">
+                  <Calendar size={12} className="text-slate-400" />
+                  Métricas & Calendário
+                </h4>
+                <p className="text-[9.5px] font-black text-slate-400 uppercase tracking-wider mr-1">
+                  Sessão Ativa
+                </p>
+              </div>
+
+              {/* EDITORIAL CALENDAR STRIP PILLS */}
+              <div className="flex items-center justify-between gap-2.5 bg-white/70 backdrop-blur-xl p-2 rounded-[2rem] border border-white/50 overflow-x-auto no-scrollbar">
+                {calendarDays.map((day) => {
+                  let cellClass = "bg-white/40 border-transparent text-slate-400 hover:bg-white/90";
+                  let indicatorLabel = null;
+                  let cellTitle = '';
+
+                  if (day.state === 'completed') {
+                    cellClass = "bg-gradient-to-tr from-[#7BA7FF] to-[#A5C8FF] border-[#7BA7FF]/30 text-white shadow-lg shadow-[#7BA7FF]/25 font-black";
+                    indicatorLabel = <span className="absolute bottom-1 text-[8px] tracking-[0.2em] font-extrabold text-white/90 animate-pulse">✓</span>;
+                    cellTitle = 'Treino concluído';
+                  } else if (day.state === 'partial') {
+                    // Sessão parcial: nunca recebe o check de treino completo.
+                    cellClass = "bg-amber-50 border-2 border-amber-300 text-amber-700 font-black";
+                    indicatorLabel = <span className="absolute bottom-1 text-[8px] font-[1000] text-amber-600">◑</span>;
+                    cellTitle = 'Sessão parcial';
+                  } else if (day.state === 'missed') {
+                    cellClass = "bg-slate-50/50 border-2 border-dashed border-[#C4B5FD]/70 text-[#8B5CF6]/85 hover:bg-slate-50";
+                    indicatorLabel = <span className="absolute bottom-0.5 text-[7.5px] scale-90 font-[1000] text-[#8B5CF6]/70 uppercase tracking-widest">•</span>;
+                  } else if (day.state === 'future') {
+                    cellClass = "bg-white/90 border-2 border-dotted border-[#7BA7FF]/40 text-[#7BA7FF]/90 hover:border-[#7BA7FF] shadow-sm";
+                    indicatorLabel = <span className="absolute bottom-0.5 text-[7px] animate-pulse uppercase font-extrabold tracking-widest">…</span>;
+                  } else {
+                    // Rest day
+                    cellClass = "bg-slate-100/40 border border-slate-100 text-slate-400 hover:bg-slate-50";
+                    indicatorLabel = <span className="absolute bottom-1 text-[8px]">☕</span>;
+                    cellTitle = 'Dia de descanso';
+                  }
+
+                  return (
+                    <motion.div 
+                      key={day.id} 
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.93 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                      onClick={() => {
+                        if ('vibrate' in navigator) navigator.vibrate(5);
+                      }}
+                      title={cellTitle}
+                      aria-label={`${day.dayName} ${day.dayNum}${cellTitle ? ` — ${cellTitle}` : ''}`}
+                      className={`flex-1 flex flex-col items-center py-3 rounded-2xl border relative transition-all min-w-[43px] cursor-pointer ${cellClass}`}
+                    >
+                      <span className="text-[7.5px] font-[1000] tracking-widest leading-none mb-2 uppercase">{day.dayName}</span>
+                      <span className="text-sm font-black tracking-tighter leading-none mb-1">{day.dayNum}</span>
+                      {indicatorLabel}
+                      {day.isToday && (
+                        <span className="absolute -top-1 right-1 w-2 h-2 rounded-full bg-indigo-500 shadow-md ring-2 ring-white" />
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {calendarDays.some(day => day.state === 'partial') && (
+                <div className="flex items-center gap-2 -mt-3 ml-1">
+                  <span className="text-[11px] font-[1000] text-amber-600 leading-none">◑</span>
+                  <p className="text-[11px] font-bold text-amber-700 tracking-tight">
+                    Parcial — sessão registrada em parte, sem contar como treino completo.
+                  </p>
+                </div>
+              )}
+
+              {/* EMOTIONAL CALENDAR STRIP GUIDANCE */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`p-4 rounded-3xl border text-xs font-bold leading-relaxed flex items-center gap-3 shadow-sm transition-all ${emotionalGuidance.color}`}
+              >
+                <span className="text-xl select-none shrink-0">{emotionalGuidance.emoji}</span>
+                <p className="flex-1 text-[11px] font-bold tracking-tight">{emotionalGuidance.text}</p>
+              </motion.div>
+
+              {/* SOFT RECOVERY BLOCK FOR BROKEN STREAKS */}
+              {profile?.workout_streak === 0 && (profile?.preferred_training_days?.length || 0) > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-[#EEF4FF] border border-blue-150 rounded-[1.8rem] p-5 flex items-start gap-4 shadow-sm"
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#7BA7FF]/15 text-[#7BA7FF] flex items-center justify-center text-lg shrink-0 shadow-inner">
+                    🤝
+                  </div>
+                  <div className="space-y-1">
+                    <h5 className="text-[11px] font-black text-blue-600 uppercase tracking-widest leading-none">Reinício de Aço • KYRON OS</h5>
+                    <p className="text-[11.5px] font-bold leading-relaxed text-slate-700">
+                      Sem pressão. Reiniciar é parte natural do processo biológico de adaptação. O seu próximo treino é o único passo que importa agora.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* QUICK READINESS & CONSISTENCY CARDS */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/70 backdrop-blur-xl rounded-[1.8rem] p-4 border border-white/40 shadow-[0_10px_40px_rgba(15,23,42,0.04)] flex flex-col justify-between min-h-[104px] hover:shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all">
+                  <div>
+                    <span className="block text-[8px] font-black text-slate-450 uppercase tracking-[0.2em] mb-1">Score Prontidão</span>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-black tracking-tight text-[#7BA7FF] tabular-nums">{readinessValue}%</span>
+                      <span className="text-[9px] font-semibold text-[#7BA7FF] uppercase select-none">neuro</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-slate-100/50 h-1 rounded-full overflow-hidden mt-2">
+                    <div className="h-full bg-gradient-to-r from-[#7BA7FF] to-[#A5C8FF] rounded-full" style={{ width: `${readinessValue}%` }} />
+                  </div>
+                </div>
+
+                <div className="bg-white/70 backdrop-blur-xl rounded-[1.8rem] p-4 border border-white/40 shadow-[0_10px_40px_rgba(15,23,42,0.04)] flex flex-col justify-between min-h-[104px] hover:shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all">
+                  <div>
+                    <span className="block text-[8px] font-black text-slate-450 uppercase tracking-[0.2em] mb-1">Consistência</span>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      {profile?.workout_streak && profile.workout_streak > 0 ? (
+                        <span className="text-base font-black tracking-tight text-[#818CF8]">
+                          🔥 {profile.workout_streak} {profile.workout_streak === 1 ? 'dia' : 'dias'}
+                        </span>
+                      ) : (
+                        <span className="text-[14px] font-black tracking-tight text-slate-650">
+                          {(() => {
+                            const daysOfWeekEn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                            const todayWdEn = daysOfWeekEn[new Date().getDay()];
+                            const isTodayPref = profile?.preferred_training_days?.includes(todayWdEn);
+                            if (isTodayPref) return "⚡ Ativo Hoje";
+                            return "💤 Em recuperação";
+                          })()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <div className={`w-2 h-2 rounded-full ${profile?.workout_streak ? 'bg-emerald-400 animate-pulse' : 'bg-[#7BA7FF]/60'}`} />
+                    <span className="text-[8.5px] font-[1000] text-slate-500 uppercase tracking-wider truncate">
+                      {profile?.workout_streak && profile.workout_streak > 0 ? "Foco Ativo" : "Estratégia Rubi"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* PROTOCOLS SECTIONS */}
             <section className="space-y-4">
               <div className="flex items-center justify-between px-1">
@@ -1306,156 +1456,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 </ScreenState>
               </div>
             </section>
-
-            {/* SECONDARY GUIDANCE METRICS (At the bottom of Protocols tab to prevent above-the-fold distraction) */}
-            <div className="border-t border-slate-100 my-8 pt-8 space-y-6">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none flex items-center gap-1.5 ml-1">
-                  <Calendar size={12} className="text-slate-400" />
-                  Métricas & Calendário
-                </h4>
-                <p className="text-[9.5px] font-black text-slate-400 uppercase tracking-wider mr-1">
-                  Sessão Ativa
-                </p>
-              </div>
-
-              {/* EDITORIAL CALENDAR STRIP PILLS */}
-              <div className="flex items-center justify-between gap-2.5 bg-white/70 backdrop-blur-xl p-2 rounded-[2rem] border border-white/50 overflow-x-auto no-scrollbar">
-                {calendarDays.map((day) => {
-                  let cellClass = "bg-white/40 border-transparent text-slate-400 hover:bg-white/90";
-                  let indicatorLabel = null;
-                  let cellTitle = '';
-
-                  if (day.state === 'completed') {
-                    cellClass = "bg-gradient-to-tr from-[#7BA7FF] to-[#A5C8FF] border-[#7BA7FF]/30 text-white shadow-lg shadow-[#7BA7FF]/25 font-black";
-                    indicatorLabel = <span className="absolute bottom-1 text-[8px] tracking-[0.2em] font-extrabold text-white/90 animate-pulse">✓</span>;
-                    cellTitle = 'Treino concluído';
-                  } else if (day.state === 'partial') {
-                    // Sessão parcial: nunca recebe o check de treino completo.
-                    cellClass = "bg-amber-50 border-2 border-amber-300 text-amber-700 font-black";
-                    indicatorLabel = <span className="absolute bottom-1 text-[8px] font-[1000] text-amber-600">◑</span>;
-                    cellTitle = 'Sessão parcial';
-                  } else if (day.state === 'missed') {
-                    cellClass = "bg-slate-50/50 border-2 border-dashed border-[#C4B5FD]/70 text-[#8B5CF6]/85 hover:bg-slate-50";
-                    indicatorLabel = <span className="absolute bottom-0.5 text-[7.5px] scale-90 font-[1000] text-[#8B5CF6]/70 uppercase tracking-widest">•</span>;
-                  } else if (day.state === 'future') {
-                    cellClass = "bg-white/90 border-2 border-dotted border-[#7BA7FF]/40 text-[#7BA7FF]/90 hover:border-[#7BA7FF] shadow-sm";
-                    indicatorLabel = <span className="absolute bottom-0.5 text-[7px] animate-pulse uppercase font-extrabold tracking-widest">…</span>;
-                  } else {
-                    // Rest day
-                    cellClass = "bg-slate-100/40 border border-slate-100 text-slate-400 hover:bg-slate-50";
-                    indicatorLabel = <span className="absolute bottom-1 text-[8px]">☕</span>;
-                    cellTitle = 'Dia de descanso';
-                  }
-
-                  return (
-                    <motion.div 
-                      key={day.id} 
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.93 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                      onClick={() => {
-                        if ('vibrate' in navigator) navigator.vibrate(5);
-                      }}
-                      title={cellTitle}
-                      aria-label={`${day.dayName} ${day.dayNum}${cellTitle ? ` — ${cellTitle}` : ''}`}
-                      className={`flex-1 flex flex-col items-center py-3 rounded-2xl border relative transition-all min-w-[43px] cursor-pointer ${cellClass}`}
-                    >
-                      <span className="text-[7.5px] font-[1000] tracking-widest leading-none mb-2 uppercase">{day.dayName}</span>
-                      <span className="text-sm font-black tracking-tighter leading-none mb-1">{day.dayNum}</span>
-                      {indicatorLabel}
-                      {day.isToday && (
-                        <span className="absolute -top-1 right-1 w-2 h-2 rounded-full bg-indigo-500 shadow-md ring-2 ring-white" />
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </div>
-
-              {calendarDays.some(day => day.state === 'partial') && (
-                <div className="flex items-center gap-2 -mt-3 ml-1">
-                  <span className="text-[11px] font-[1000] text-amber-600 leading-none">◑</span>
-                  <p className="text-[11px] font-bold text-amber-700 tracking-tight">
-                    Parcial — sessão registrada em parte, sem contar como treino completo.
-                  </p>
-                </div>
-              )}
-
-              {/* EMOTIONAL CALENDAR STRIP GUIDANCE */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`p-4 rounded-3xl border text-xs font-bold leading-relaxed flex items-center gap-3 shadow-sm transition-all ${emotionalGuidance.color}`}
-              >
-                <span className="text-xl select-none shrink-0">{emotionalGuidance.emoji}</span>
-                <p className="flex-1 text-[11px] font-bold tracking-tight">{emotionalGuidance.text}</p>
-              </motion.div>
-
-              {/* SOFT RECOVERY BLOCK FOR BROKEN STREAKS */}
-              {profile?.workout_streak === 0 && (profile?.preferred_training_days?.length || 0) > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-[#EEF4FF] border border-blue-150 rounded-[1.8rem] p-5 flex items-start gap-4 shadow-sm"
-                >
-                  <div className="w-10 h-10 rounded-full bg-[#7BA7FF]/15 text-[#7BA7FF] flex items-center justify-center text-lg shrink-0 shadow-inner">
-                    🤝
-                  </div>
-                  <div className="space-y-1">
-                    <h5 className="text-[11px] font-black text-blue-600 uppercase tracking-widest leading-none">Reinício de Aço • KYRON OS</h5>
-                    <p className="text-[11.5px] font-bold leading-relaxed text-slate-700">
-                      Sem pressão. Reiniciar é parte natural do processo biológico de adaptação. O seu próximo treino é o único passo que importa agora.
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* QUICK READINESS & CONSISTENCY CARDS */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/70 backdrop-blur-xl rounded-[1.8rem] p-4 border border-white/40 shadow-[0_10px_40px_rgba(15,23,42,0.04)] flex flex-col justify-between min-h-[104px] hover:shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all">
-                  <div>
-                    <span className="block text-[8px] font-black text-slate-450 uppercase tracking-[0.2em] mb-1">Score Prontidão</span>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black tracking-tight text-[#7BA7FF] tabular-nums">{readinessValue}%</span>
-                      <span className="text-[9px] font-semibold text-[#7BA7FF] uppercase select-none">neuro</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-slate-100/50 h-1 rounded-full overflow-hidden mt-2">
-                    <div className="h-full bg-gradient-to-r from-[#7BA7FF] to-[#A5C8FF] rounded-full" style={{ width: `${readinessValue}%` }} />
-                  </div>
-                </div>
-
-                <div className="bg-white/70 backdrop-blur-xl rounded-[1.8rem] p-4 border border-white/40 shadow-[0_10px_40px_rgba(15,23,42,0.04)] flex flex-col justify-between min-h-[104px] hover:shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all">
-                  <div>
-                    <span className="block text-[8px] font-black text-slate-450 uppercase tracking-[0.2em] mb-1">Consistência</span>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      {profile?.workout_streak && profile.workout_streak > 0 ? (
-                        <span className="text-base font-black tracking-tight text-[#818CF8]">
-                          🔥 {profile.workout_streak} {profile.workout_streak === 1 ? 'dia' : 'dias'}
-                        </span>
-                      ) : (
-                        <span className="text-[14px] font-black tracking-tight text-slate-650">
-                          {(() => {
-                            const daysOfWeekEn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-                            const todayWdEn = daysOfWeekEn[new Date().getDay()];
-                            const isTodayPref = profile?.preferred_training_days?.includes(todayWdEn);
-                            if (isTodayPref) return "⚡ Ativo Hoje";
-                            return "💤 Em recuperação";
-                          })()}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <div className={`w-2 h-2 rounded-full ${profile?.workout_streak ? 'bg-emerald-400 animate-pulse' : 'bg-[#7BA7FF]/60'}`} />
-                    <span className="text-[8.5px] font-[1000] text-slate-500 uppercase tracking-wider truncate">
-                      {profile?.workout_streak && profile.workout_streak > 0 ? "Foco Ativo" : "Estratégia Rubi"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </>
         ) : (
           <div className="space-y-8">
