@@ -776,7 +776,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                   <div className="w-full mt-4 pt-4 border-t border-slate-100 relative z-10">
                     {nextAction.suggestedWorkoutName && (
                       <p className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest mb-2 truncate">
-                        Referente à ficha: <span className="text-slate-600">{nextAction.suggestedWorkoutName}</span>
+                        Sugestão de treino: <span className="text-slate-600">{nextAction.suggestedWorkoutName}</span>
                       </p>
                     )}
                     <div className="w-full flex items-center justify-between gap-2 sm:gap-4">
