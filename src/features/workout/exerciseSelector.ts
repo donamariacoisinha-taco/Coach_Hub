@@ -1,6 +1,7 @@
 import { Exercise } from '../../types';
 import {
   buildExerciseSearchText,
+  exerciseMatchesEquipmentFilter,
   exerciseMatchesMuscleFilter,
   normalizeExerciseFilterText,
 } from '../../lib/exercises/exerciseFilters';
@@ -20,11 +21,13 @@ export const filterExerciseSelectorCandidates = <T extends ExerciseCandidate>(
   exercises: T[],
   searchQuery: string,
   selectedMuscleGroup: string,
+  selectedEquipment: string = 'Todos',
 ): T[] => exercises.filter(exercise => {
   if (exercise.is_active === false) return false;
   const searchText = buildExerciseSelectorSearchText(exercise);
   return matchesSearch(searchText, searchQuery)
-    && exerciseMatchesMuscleFilter(exercise as unknown as Exercise, selectedMuscleGroup);
+    && exerciseMatchesMuscleFilter(exercise as unknown as Exercise, selectedMuscleGroup)
+    && exerciseMatchesEquipmentFilter(exercise as unknown as Exercise, selectedEquipment);
 });
 
 export type ReplaceOrSwapResult<T> = {

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { fallbackExercises } from '../api/fallbackExercises';
 import {
+  buildExerciseEquipmentOptions,
   buildExerciseFilterGroups,
   buildExerciseSearchText,
+  exerciseMatchesEquipmentFilter,
   exerciseMatchesMuscleFilter,
   getExerciseFilterGroup,
   getExerciseFilterSide,
@@ -135,5 +137,28 @@ describe('exercise muscle filter taxonomy', () => {
     expect(getExerciseFilterSide(posteriorShoulder)).toBe('back');
     expect(getExerciseFilterSide(triceps)).toBe('back');
     expect(getExerciseFilterSide(hamstrings)).toBe('back');
+  });
+});
+
+describe('exercise equipment filter', () => {
+  const exercises = [
+    { id: 'a', name: 'Supino reto', muscle_group: 'Peito', equipment: 'Barra', is_active: true },
+    { id: 'b', name: 'Supino inclinado', muscle_group: 'Peito', equipment: 'Halteres', is_active: true },
+    { id: 'c', name: 'Crucifixo no cabo', muscle_group: 'Peito', equipment: 'barra', is_active: true },
+    { id: 'd', name: 'Exercício inativo', muscle_group: 'Peito', equipment: 'Barra', is_active: false },
+  ] as any;
+
+  it('agrupa equipamentos ignorando acentos/caixa e conta apenas ativos', () => {
+    const options = buildExerciseEquipmentOptions(exercises);
+    expect(options).toEqual([
+      { name: 'Barra', count: 2 },
+      { name: 'Halteres', count: 1 },
+    ]);
+  });
+
+  it('"Todos" não filtra e o nome do equipamento casa ignorando acentos/caixa', () => {
+    expect(exerciseMatchesEquipmentFilter(exercises[0], 'Todos')).toBe(true);
+    expect(exerciseMatchesEquipmentFilter(exercises[0], 'barra')).toBe(true);
+    expect(exerciseMatchesEquipmentFilter(exercises[0], 'Halteres')).toBe(false);
   });
 });

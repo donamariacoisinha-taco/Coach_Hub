@@ -269,6 +269,35 @@ export const exerciseMatchesMuscleFilter = (exercise: Exercise, filter: string):
   return primaryExerciseTerms(exercise).some((term) => matchesAlias(term, [filter]));
 };
 
+export const buildExerciseEquipmentOptions = (
+  exercises: Exercise[],
+  options: { includeInactive?: boolean } = {},
+): ExerciseFilterOption[] => {
+  const activeExercises = options.includeInactive
+    ? exercises
+    : exercises.filter((exercise) => exercise.is_active !== false);
+
+  const byKey = new Map<string, ExerciseFilterOption>();
+  for (const exercise of activeExercises) {
+    const raw = (exercise.equipment || '').trim();
+    if (!raw) continue;
+    const key = fold(raw);
+    const existing = byKey.get(key);
+    if (existing) existing.count += 1;
+    else byKey.set(key, { name: raw, count: 1 });
+  }
+
+  return Array.from(byKey.values()).sort((a, b) => (
+    b.count - a.count || a.name.localeCompare(b.name, 'pt-BR')
+  ));
+};
+
+export const exerciseMatchesEquipmentFilter = (exercise: Exercise, filter: string): boolean => {
+  const normalizedFilter = fold(filter);
+  if (!normalizedFilter || normalizedFilter === 'todos') return true;
+  return fold(exercise.equipment || '') === normalizedFilter;
+};
+
 export const buildExerciseFilterGroups = (
   exercises: Exercise[],
   options: { includeInactive?: boolean } = {},
