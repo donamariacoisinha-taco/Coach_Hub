@@ -75,6 +75,26 @@ export const getContext = (
   };
 };
 
+/**
+ * Próximo treino da sequência (ex.: A, B, C, D), baseado no último feito pelo
+ * usuário — não apenas "qualquer ficha diferente da última". Segue a ordem em
+ * que as fichas aparecem para o usuário (mesma ordem de `workouts`), avançando
+ * uma posição a partir da última concluída e voltando ao início ao chegar no
+ * fim. Sem histórico ou ficha não encontrada na lista atual, cai na primeira.
+ */
+export const getNextWorkoutInSequence = (
+  workouts: WorkoutCategory[],
+  lastCategoryId?: string
+): WorkoutCategory | null => {
+  if (!workouts || workouts.length === 0) return null;
+  if (!lastCategoryId) return workouts[0];
+
+  const lastIndex = workouts.findIndex(w => w.id === lastCategoryId);
+  if (lastIndex === -1) return workouts[0];
+
+  return workouts[(lastIndex + 1) % workouts.length];
+};
+
 export const getNextBestAction = (
   context: UserContext,
   workouts: WorkoutCategory[]
@@ -103,7 +123,7 @@ export const getNextBestAction = (
   }
 
   if (isTrainingDay) {
-    const suggested = (workouts && workouts.length > 0) ? (workouts.find(w => w.id !== lastWorkout?.category_id) || workouts[0]) : null;
+    const suggested = getNextWorkoutInSequence(workouts, lastWorkout?.category_id);
     let timeMsg = 'Hora de esmagar!';
     if (timeOfDay === 'morning') timeMsg = 'Bom dia! Que tal começar com energia?';
     if (timeOfDay === 'evening') timeMsg = 'Fim de dia produtivo? Vamos ao treino!';
@@ -119,7 +139,7 @@ export const getNextBestAction = (
   }
 
   if (daysSinceLastWorkout >= 2) {
-    const suggested = (workouts && workouts.length > 0) ? workouts[0] : null;
+    const suggested = getNextWorkoutInSequence(workouts, lastWorkout?.category_id);
     return {
       type: 'motivation',
       title: 'Sentimos sua falta!',

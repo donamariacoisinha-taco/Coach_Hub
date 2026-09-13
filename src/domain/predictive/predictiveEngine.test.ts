@@ -1,9 +1,15 @@
-import { describe, expect, it } from 'vitest';
-import { getContext, getNextBestAction } from './predictiveEngine';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getContext, getNextBestAction, getNextWorkoutInSequence } from './predictiveEngine';
 import { UserProfile, WorkoutCategory, WorkoutHistory } from '../../types';
 
 const profile = { id: 'u1', days_per_week: 3, workout_streak: 0 } as unknown as UserProfile;
 const workouts = [{ id: 'w1', name: 'Treino A' }] as unknown as WorkoutCategory[];
+const sequence = [
+  { id: 'a', name: 'Treino A' },
+  { id: 'b', name: 'Treino B' },
+  { id: 'c', name: 'Treino C' },
+  { id: 'd', name: 'Treino D' },
+] as unknown as WorkoutCategory[];
 
 const session = (overrides: Partial<WorkoutHistory> & { completed_at: string }): WorkoutHistory => ({
   id: `h-${Math.random()}`,
@@ -60,5 +66,65 @@ describe('sessões parciais no motor preditivo', () => {
     const action = actionFor([session({ completed_at: daysAgo(5) })]);
     expect(['Hoje para você: Treino A', 'Sentimos sua falta!', 'Dia de Descanso']).toContain(action.title);
     expect(action.title).not.toBe('Missão Cumprida!');
+  });
+});
+
+describe('getNextWorkoutInSequence', () => {
+  it('sugere o próximo da sequência após o último feito (A → B)', () => {
+    expect(getNextWorkoutInSequence(sequence, 'a')?.id).toBe('b');
+  });
+
+  it('sugere o próximo da sequência (C → D)', () => {
+    expect(getNextWorkoutInSequence(sequence, 'c')?.id).toBe('d');
+  });
+
+  it('volta ao início ao terminar a sequência (D → A)', () => {
+    expect(getNextWorkoutInSequence(sequence, 'd')?.id).toBe('a');
+  });
+
+  it('sem histórico, sugere a primeira da lista', () => {
+    expect(getNextWorkoutInSequence(sequence, undefined)?.id).toBe('a');
+  });
+
+  it('ficha do último treino não existe mais na lista: cai na primeira', () => {
+    expect(getNextWorkoutInSequence(sequence, 'ficha-excluida')?.id).toBe('a');
+  });
+
+  it('lista vazia: não sugere nada', () => {
+    expect(getNextWorkoutInSequence([], 'a')).toBeNull();
+  });
+});
+
+describe('rotação de sequência aplicada ao motor preditivo', () => {
+  // Datas fixas (não a data real do teste) porque isTrainingDay depende do dia da
+  // semana: sem isso, estes testes ficariam instáveis dependendo de quando rodam.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('em dia de treino, sugere o próximo da sequência após o último feito, não só "qualquer outro"', () => {
+    // 2026-01-05 é uma segunda-feira: com days_per_week=3, isTrainingDay é sempre true nesse dia.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-05T10:00:00'));
+
+    const action = getNextBestAction(
+      getContext(profile, [session({ completed_at: daysAgo(1), category_id: 'b', category_name: 'Treino B' })]),
+      sequence
+    );
+    expect(action.type).toBe('start_workout');
+    expect(action.suggestedWorkoutId).toBe('c');
+  });
+
+  it('mesmo após vários dias sem treinar, retoma a partir da última ficha feita (não sempre a primeira)', () => {
+    // 2026-01-04 é um domingo: com days_per_week=3, isTrainingDay é sempre false nesse dia.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-04T10:00:00'));
+
+    const action = getNextBestAction(
+      getContext(profile, [session({ completed_at: daysAgo(5), category_id: 'c', category_name: 'Treino C' })]),
+      sequence
+    );
+    expect(action.type).toBe('motivation');
+    expect(action.suggestedWorkoutId).toBe('d');
   });
 });
