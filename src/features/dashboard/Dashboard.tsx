@@ -223,6 +223,18 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
   const { nextAction } = usePredictive(profile || null, history, workouts);
 
+  // Dados reais do treino sugerido no card principal (nunca valores fixos/fictícios).
+  const suggestedWorkout = useMemo(
+    () => (nextAction?.suggestedWorkoutId ? workouts.find(w => w.id === nextAction.suggestedWorkoutId) : undefined),
+    [nextAction?.suggestedWorkoutId, workouts]
+  );
+  const suggestedWorkoutAvgDuration = useMemo(() => {
+    if (!suggestedWorkout) return null;
+    const suggestedWorkoutHistory = history.filter(h => h.category_id === suggestedWorkout.id && h.completed_at);
+    return getWorkoutCardAvgDuration(suggestedWorkoutHistory);
+  }, [suggestedWorkout, history]);
+  const suggestedWorkoutExercisesCount = suggestedWorkout?.exercises_count ?? null;
+
   // Check which user folders contain outdated protocols compared to templates published globally
   useEffect(() => {
     async function checkUpdates() {
@@ -679,21 +691,28 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               className="mb-6 font-sans"
             >
               {nextAction.type === 'start_workout' || nextAction.type === 'resume' || nextAction.type === 'motivation' || nextAction.type === 'partial' ? (
-                <div className="w-full bg-[#0F172A] bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#1E293B] text-white rounded-[2rem] px-5 sm:pl-6 sm:pr-10 py-6 shadow-xl relative overflow-hidden border border-slate-800 flex flex-col justify-between min-h-[140px]">
-                  <motion.div 
-                    animate={{ 
-                      scale: [1, 1.15, 1], 
-                      x: [0, 8, 0], 
-                      y: [0, -8, 0] 
-                    }} 
-                    transition={{ 
-                      repeat: Infinity, 
-                      duration: 12, 
-                      ease: "easeInOut" 
+                <div className="w-full bg-white text-slate-900 rounded-[2rem] px-5 sm:pl-6 sm:pr-10 py-6 shadow-sm relative overflow-hidden border border-slate-200/40 flex flex-col justify-between min-h-[140px]">
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.15, 1],
+                      x: [0, 8, 0],
+                      y: [0, -8, 0]
                     }}
-                    className="absolute top-0 right-0 w-36 h-36 bg-indigo-500/[0.12] rounded-full blur-[35px] pointer-events-none" 
+                    transition={{
+                      repeat: Infinity,
+                      duration: 12,
+                      ease: "easeInOut"
+                    }}
+                    className="absolute top-0 right-0 w-36 h-36 bg-[#7BA7FF]/[0.06] rounded-full blur-[35px] pointer-events-none"
                   />
-                  
+
+                  {profile?.workout_streak ? (
+                    <div className="absolute top-5 right-5 sm:right-8 z-10 flex items-center gap-1 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-full">
+                      <span className="text-[11px] leading-none">🔥</span>
+                      <span className="text-[10px] font-black text-orange-600 leading-none">{profile.workout_streak}</span>
+                    </div>
+                  ) : null}
+
                   <div className="relative z-10 w-full text-left space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="text-[7.5px] font-black uppercase tracking-[0.2em] text-[#7BA7FF] bg-[#7BA7FF]/10 border border-[#7BA7FF]/20 px-2.5 py-1 rounded-full shrink-0">
@@ -710,28 +729,32 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                         ) : 'Rubi Active'}
                       </span>
                     </div>
-                    
-                    <h3 className="text-xl font-[1000] text-white tracking-tight leading-[1.1] uppercase max-w-[90%] text-left">
+
+                    <h3 className="text-xl font-[1000] text-slate-900 tracking-tight leading-[1.1] uppercase max-w-[90%] text-left">
                        {nextAction.title}
                     </h3>
-                    
+
                     {nextAction.description && (
-                      <p className="text-[11.5px] leading-relaxed text-slate-300 max-w-[95%] text-left font-semibold">
+                      <p className="text-[11.5px] leading-relaxed text-slate-500 max-w-[95%] text-left font-semibold">
                         {nextAction.description}
                       </p>
                     )}
                   </div>
 
-                  <div className="w-full flex items-center justify-between gap-2 sm:gap-4 mt-5 pt-4 border-t border-slate-800 relative z-10">
+                  <div className="w-full flex items-center justify-between gap-2 sm:gap-4 mt-5 pt-4 border-t border-slate-100 relative z-10">
                     <div className="flex items-center gap-2 sm:gap-3.5 text-left pr-2">
                       <div className="flex flex-col text-left">
-                        <span className="text-[7.5px] font-extrabold text-slate-500 uppercase tracking-widest mb-0.5">Duração</span>
-                        <span className="text-xs font-bold text-slate-200 leading-none">45 min</span>
+                        <span className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Duração média</span>
+                        <span className="text-xs font-bold text-slate-700 leading-none">
+                          {suggestedWorkoutAvgDuration ? `${suggestedWorkoutAvgDuration} min` : '—'}
+                        </span>
                       </div>
-                      <div className="w-px h-5 bg-slate-800" />
+                      <div className="w-px h-5 bg-slate-100" />
                       <div className="flex flex-col text-left">
-                        <span className="text-[7.5px] font-extrabold text-slate-500 uppercase tracking-widest mb-0.5">Foco</span>
-                        <span className="text-xs font-bold text-indigo-400 leading-none">Intensidade</span>
+                        <span className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Exercícios</span>
+                        <span className="text-xs font-bold text-[#7BA7FF] leading-none">
+                          {suggestedWorkoutExercisesCount !== null ? suggestedWorkoutExercisesCount : '—'}
+                        </span>
                       </div>
                     </div>
 
