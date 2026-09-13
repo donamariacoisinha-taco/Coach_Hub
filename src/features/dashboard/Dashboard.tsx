@@ -706,13 +706,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     className="absolute top-0 right-0 w-36 h-36 bg-[#7BA7FF]/[0.06] rounded-full blur-[35px] pointer-events-none"
                   />
 
-                  {profile?.workout_streak ? (
-                    <div className="absolute top-5 right-5 sm:right-8 z-10 flex items-center gap-1 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-full">
-                      <span className="text-[11px] leading-none">🔥</span>
-                      <span className="text-[10px] font-black text-orange-600 leading-none">{profile.workout_streak}</span>
-                    </div>
-                  ) : null}
-
                   <div className="relative z-10 w-full text-left space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="text-[7.5px] font-black uppercase tracking-[0.2em] text-[#7BA7FF] bg-[#7BA7FF]/10 border border-[#7BA7FF]/20 px-2.5 py-1 rounded-full shrink-0">
@@ -741,36 +734,82 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     )}
                   </div>
 
-                  <div className="w-full flex items-center justify-between gap-2 sm:gap-4 mt-5 pt-4 border-t border-slate-100 relative z-10">
-                    <div className="flex items-center gap-2 sm:gap-3.5 text-left pr-2">
-                      <div className="flex flex-col text-left">
-                        <span className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Duração média</span>
-                        <span className="text-xs font-bold text-slate-700 leading-none">
-                          {suggestedWorkoutAvgDuration ? `${suggestedWorkoutAvgDuration} min` : '—'}
-                        </span>
+                  {/* SCORE & CONSISTÊNCIA (movidos do bloco Métricas & Calendário para cá) */}
+                  <div className="grid grid-cols-2 gap-3 mt-4 relative z-10">
+                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Score Prontidão</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-black tracking-tight text-[#7BA7FF] tabular-nums">{readinessValue}%</span>
+                        <span className="text-[8px] font-semibold text-[#7BA7FF] uppercase select-none">neuro</span>
                       </div>
-                      <div className="w-px h-5 bg-slate-100" />
-                      <div className="flex flex-col text-left">
-                        <span className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Exercícios</span>
-                        <span className="text-xs font-bold text-[#7BA7FF] leading-none">
-                          {suggestedWorkoutExercisesCount !== null ? suggestedWorkoutExercisesCount : '—'}
-                        </span>
+                      <div className="w-full bg-slate-200/60 h-1 rounded-full overflow-hidden mt-1.5">
+                        <div className="h-full bg-gradient-to-r from-[#7BA7FF] to-[#A5C8FF] rounded-full" style={{ width: `${readinessValue}%` }} />
                       </div>
                     </div>
 
-                    {nextAction.suggestedWorkoutId && (
-                      <motion.button 
-                        onClick={() => startWorkoutSession(nextAction.suggestedWorkoutId!)}
-                        onMouseEnter={() => handlePrefetchWorkout(nextAction.suggestedWorkoutId!)}
-                        whileHover={{ scale: 1.04 }}
-                        whileTap={{ scale: 0.98 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                        className="px-3 sm:px-5 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10.5px] font-black uppercase text-center tracking-[0.1em] bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white hover:opacity-95 shadow-md shadow-[#7BA7FF]/15 cursor-pointer flex items-center gap-1.5 sm:gap-2 shrink-0 border-none"
-                      >
-                        <Play size={10} fill="#ffffff" className="text-white relative z-10" />
-                        <span>{nextAction.type === 'partial' ? 'Retomar Treino' : 'Iniciar Treino'}</span>
-                      </motion.button>
+                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Consistência</span>
+                      {profile?.workout_streak && profile.workout_streak > 0 ? (
+                        <span className="text-sm font-black tracking-tight text-[#818CF8]">
+                          🔥 {profile.workout_streak} {profile.workout_streak === 1 ? 'dia' : 'dias'}
+                        </span>
+                      ) : (
+                        <span className="text-[12.5px] font-black tracking-tight text-slate-600">
+                          {(() => {
+                            const daysOfWeekEn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                            const todayWdEn = daysOfWeekEn[new Date().getDay()];
+                            const isTodayPref = profile?.preferred_training_days?.includes(todayWdEn);
+                            if (isTodayPref) return "⚡ Ativo Hoje";
+                            return "💤 Em recuperação";
+                          })()}
+                        </span>
+                      )}
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <div className={`w-2 h-2 rounded-full ${profile?.workout_streak ? 'bg-emerald-400 animate-pulse' : 'bg-[#7BA7FF]/60'}`} />
+                        <span className="text-[8px] font-[1000] text-slate-500 uppercase tracking-wider truncate">
+                          {profile?.workout_streak && profile.workout_streak > 0 ? "Foco Ativo" : "Estratégia Rubi"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="w-full mt-4 pt-4 border-t border-slate-100 relative z-10">
+                    {nextAction.suggestedWorkoutName && (
+                      <p className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest mb-2 truncate">
+                        Referente à ficha: <span className="text-slate-600">{nextAction.suggestedWorkoutName}</span>
+                      </p>
                     )}
+                    <div className="w-full flex items-center justify-between gap-2 sm:gap-4">
+                      <div className="flex items-center gap-2 sm:gap-3.5 text-left pr-2">
+                        <div className="flex flex-col text-left">
+                          <span className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Duração média</span>
+                          <span className="text-xs font-bold text-slate-700 leading-none">
+                            {suggestedWorkoutAvgDuration ? `${suggestedWorkoutAvgDuration} min` : '—'}
+                          </span>
+                        </div>
+                        <div className="w-px h-5 bg-slate-100" />
+                        <div className="flex flex-col text-left">
+                          <span className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Exercícios</span>
+                          <span className="text-xs font-bold text-[#7BA7FF] leading-none">
+                            {suggestedWorkoutExercisesCount !== null ? suggestedWorkoutExercisesCount : '—'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {nextAction.suggestedWorkoutId && (
+                        <motion.button
+                          onClick={() => startWorkoutSession(nextAction.suggestedWorkoutId!)}
+                          onMouseEnter={() => handlePrefetchWorkout(nextAction.suggestedWorkoutId!)}
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                          className="px-3 sm:px-5 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10.5px] font-black uppercase text-center tracking-[0.1em] bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white hover:opacity-95 shadow-md shadow-[#7BA7FF]/15 cursor-pointer flex items-center gap-1.5 sm:gap-2 shrink-0 border-none"
+                        >
+                          <Play size={10} fill="#ffffff" className="text-white relative z-10" />
+                          <span>{nextAction.type === 'partial' ? 'Retomar Treino' : 'Iniciar Treino'}</span>
+                        </motion.button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1008,52 +1047,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                   </div>
                 </motion.div>
               )}
-
-              {/* QUICK READINESS & CONSISTENCY CARDS */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/70 backdrop-blur-xl rounded-[1.8rem] p-4 border border-white/40 shadow-[0_10px_40px_rgba(15,23,42,0.04)] flex flex-col justify-between min-h-[104px] hover:shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all">
-                  <div>
-                    <span className="block text-[8px] font-black text-slate-450 uppercase tracking-[0.2em] mb-1">Score Prontidão</span>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black tracking-tight text-[#7BA7FF] tabular-nums">{readinessValue}%</span>
-                      <span className="text-[9px] font-semibold text-[#7BA7FF] uppercase select-none">neuro</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-slate-100/50 h-1 rounded-full overflow-hidden mt-2">
-                    <div className="h-full bg-gradient-to-r from-[#7BA7FF] to-[#A5C8FF] rounded-full" style={{ width: `${readinessValue}%` }} />
-                  </div>
-                </div>
-
-                <div className="bg-white/70 backdrop-blur-xl rounded-[1.8rem] p-4 border border-white/40 shadow-[0_10px_40px_rgba(15,23,42,0.04)] flex flex-col justify-between min-h-[104px] hover:shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all">
-                  <div>
-                    <span className="block text-[8px] font-black text-slate-450 uppercase tracking-[0.2em] mb-1">Consistência</span>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      {profile?.workout_streak && profile.workout_streak > 0 ? (
-                        <span className="text-base font-black tracking-tight text-[#818CF8]">
-                          🔥 {profile.workout_streak} {profile.workout_streak === 1 ? 'dia' : 'dias'}
-                        </span>
-                      ) : (
-                        <span className="text-[14px] font-black tracking-tight text-slate-650">
-                          {(() => {
-                            const daysOfWeekEn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-                            const todayWdEn = daysOfWeekEn[new Date().getDay()];
-                            const isTodayPref = profile?.preferred_training_days?.includes(todayWdEn);
-                            if (isTodayPref) return "⚡ Ativo Hoje";
-                            return "💤 Em recuperação";
-                          })()}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <div className={`w-2 h-2 rounded-full ${profile?.workout_streak ? 'bg-emerald-400 animate-pulse' : 'bg-[#7BA7FF]/60'}`} />
-                    <span className="text-[8.5px] font-[1000] text-slate-500 uppercase tracking-wider truncate">
-                      {profile?.workout_streak && profile.workout_streak > 0 ? "Foco Ativo" : "Estratégia Rubi"}
-                    </span>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* PROTOCOLS SECTIONS */}
