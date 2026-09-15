@@ -64,7 +64,6 @@ import { useNavigation } from '../../App';
 
 // Import our enhanced modular panels which we will style continuously below 
 import { WeeklyCheckIn } from './components/WeeklyCheckIn';
-import { ReadinessScore } from './components/ReadinessScore';
 import { EvolutionTimeline } from './components/EvolutionTimeline';
 import { BodyRecompositionVisualizer } from './components/BodyRecompositionVisualizer';
 import { ProgressPhotoSystem } from './components/ProgressPhotoSystem';
@@ -172,46 +171,35 @@ export default function ProfileViewV2() {
     }
   };
 
-  // Let's have a fallback profile in case the server is offline or slow
+  // Honest placeholder used only while the real profile hasn't loaded yet (or
+  // couldn't be determined). Never invents identity, body or achievement
+  // data — falls back to the last cached real profile for this id when one
+  // exists, otherwise to an empty shell. The UI renders "-"/empty states for
+  // missing fields instead of showing fabricated numbers as if real.
+  const EMPTY_PROFILE_SHELL = {
+    name: '',
+    full_name: '',
+    goal: '',
+    frequency: '',
+    gender: '',
+    age: null,
+    weight: null,
+    height: null,
+    target_weight: null,
+    onboarding_completed: true,
+    workout_streak: 0,
+    workouts_completed: 0,
+    avatar_url: ''
+  };
+
   const getFallbackProfile = (): any => {
     const cached = localStorage.getItem(`rubi_cached_profile_${userIdRef}`);
     if (cached) {
       try {
-        return {
-          id: userIdRef,
-          name: 'Atleta Rubi',
-          full_name: 'Atleta Rubi',
-          goal: 'Hipertrofia',
-          frequency: '3',
-          gender: 'Masculino',
-          age: 25,
-          weight: 75,
-          height: 175,
-          target_weight: 72,
-          onboarding_completed: true,
-          workout_streak: 3,
-          workouts_completed: 6,
-          avatar_url: '',
-          ...JSON.parse(cached)
-        };
+        return { id: userIdRef, ...EMPTY_PROFILE_SHELL, ...JSON.parse(cached) };
       } catch (e) {}
     }
-    return {
-      id: userIdRef,
-      name: 'Atleta Rubi',
-      full_name: 'Atleta Rubi',
-      goal: 'Hipertrofia',
-      frequency: '3',
-      gender: 'Masculino',
-      age: 25,
-      weight: 75,
-      height: 175,
-      target_weight: 72,
-      onboarding_completed: true,
-      workout_streak: 3,
-      workouts_completed: 6,
-      avatar_url: ''
-    };
+    return { id: userIdRef, ...EMPTY_PROFILE_SHELL };
   };
 
   const profile = storeProfile || getFallbackProfile();
@@ -230,23 +218,10 @@ export default function ProfileViewV2() {
             // Cache it locally
             localStorage.setItem(`rubi_cached_profile_${user.id}`, JSON.stringify(profileData));
           } else {
-            // Profile doesn't exist in DB under this userId, so set fallback under user.id
-            const fallback = {
-              id: user.id,
-              name: 'Atleta Rubi',
-              full_name: 'Atleta Rubi',
-              goal: 'Hipertrofia',
-              frequency: '3',
-              gender: 'Masculino',
-              age: 25,
-              weight: 75,
-              height: 175,
-              target_weight: 72,
-              onboarding_completed: true,
-              workout_streak: 0,
-              workouts_completed: 0,
-              avatar_url: ''
-            };
+            // Profile doesn't exist in DB under this userId yet (brand new
+            // account) — start from an honest empty shell, never invented
+            // identity/body numbers, so the person fills in their own data.
+            const fallback = { id: user.id, ...EMPTY_PROFILE_SHELL };
             setProfile(fallback);
             localStorage.setItem(`rubi_cached_profile_${user.id}`, JSON.stringify(fallback));
           }
@@ -425,12 +400,14 @@ export default function ProfileViewV2() {
   };
   const imc = calculatedIMC();
 
-  // Real-time Water Intake (35ml per kg)
-  const waterTarget = numWeight ? parseFloat(((numWeight * 35) / 1000).toFixed(1)) : 2.5;
+  // Real-time Water Intake (35ml per kg) — null (not a guessed baseline)
+  // until the person has entered their real weight.
+  const waterTarget = numWeight ? parseFloat(((numWeight * 35) / 1000).toFixed(1)) : null;
 
-  // Real-time Basal Metabolism (Harris-Benedict formula)
+  // Real-time Basal Metabolism (Harris-Benedict formula) — null until
+  // weight/height/age are real, rather than a fabricated 1600kcal baseline.
   const calculatedTMB = () => {
-    if (!numWeight || !numHeight || !numAge) return 1600;
+    if (!numWeight || !numHeight || !numAge) return null;
     const isFemale = gender?.toLowerCase() === 'feminino';
     if (isFemale) {
       return Math.round(447.593 + (9.247 * numWeight) + (3.098 * numHeight) - (4.330 * numAge));
@@ -439,8 +416,9 @@ export default function ProfileViewV2() {
   };
   const tmb = calculatedTMB();
 
-  // Caloric Recommendation based on objective
-  const getCaloricRecommendation = () => {
+  // Caloric Recommendation based on objective — depends on a real TMB.
+  const getCaloricRecommendation = (): { val: number | null; label: string; color: string } => {
+    if (tmb === null) return { val: null, label: 'Dados pendentes', color: 'text-slate-400' };
     // Basic daily movement scale multiplier (avg 1.375)
     const baseline = Math.round(tmb * 1.375);
     if (goal.includes('Hipertrofia') || goal.includes('Força')) {
@@ -467,28 +445,25 @@ export default function ProfileViewV2() {
   const athleteTitle = getAthleteTitle();
 
   // --- Dynamic Readiness Assessment ---
-  const estimateReadiness = (): number => {
-    let result = 75; // baseline midpoints
-    const streak = profile.workout_streak || 0;
-    result += Math.min(streak * 2.5, 12);
-    
+  // Only reflects a real weekly check-in — no arbitrary baseline guess.
+  // Returns null when there's no check-in yet, so the UI can show "Dados
+  // insuficientes" instead of a fabricated percentage.
+  const estimateReadiness = (): number | null => {
     const storedHistory = localStorage.getItem(`rubi_history_${profile.id}`);
-    if (storedHistory) {
-      const logs: CheckInLog[] = JSON.parse(storedHistory);
-      if (logs.length > 0) {
-        logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        const latest = logs[0];
-        const checkAvg = (latest.energy + latest.sleep + latest.recovery) / 3;
-        result = Math.round(35 + (checkAvg - 1) * 15 + (latest.hydration ? 5 : 0));
-      }
-    }
+    if (!storedHistory) return null;
+    const logs: CheckInLog[] = JSON.parse(storedHistory);
+    if (logs.length === 0) return null;
+    logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const latest = logs[0];
+    const checkAvg = (latest.energy + latest.sleep + latest.recovery) / 3;
+    const result = Math.round(35 + (checkAvg - 1) * 15 + (latest.hydration ? 5 : 0));
     return Math.max(20, Math.min(100, result));
   };
   const readiness = estimateReadiness();
 
   // Living UI Adaptation indicators based on readiness state
-  const isHighPerformance = readiness >= 78;
-  const isFatigueDetected = readiness < 55;
+  const isHighPerformance = readiness !== null && readiness >= 78;
+  const isFatigueDetected = readiness !== null && readiness < 55;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-40 transition-colors duration-500 relative">
@@ -834,18 +809,20 @@ export default function ProfileViewV2() {
                 <Activity size={10} className="text-blue-500" />
                 Neural Readiness State
               </span>
-              <span className="text-slate-800">{readiness}%</span>
+              <span className="text-slate-800">{readiness !== null ? `${readiness}%` : '—'}</span>
             </div>
             <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 rounded-full transition-all duration-700"
-                style={{ width: `${readiness}%` }}
+                style={{ width: `${readiness ?? 0}%` }}
               />
             </div>
             <p className="text-[9.5px] text-left text-slate-500 leading-snug font-medium">
-              {isHighPerformance 
+              {readiness === null
+                ? "💡 Dados insuficientes. Faça seu check-in semanal para calcular sua prontidão."
+                : isHighPerformance
                 ? "💡 Prontidão máxima. O ritmo neural convida a treinos agressivos e quebras de recordes hoje."
-                : isFatigueDetected 
+                : isFatigueDetected
                 ? "💡 Sinais de fadiga detectados. Considere reestruturar os descansos ou treinos leves de oxigenação."
                 : "💡 Estado ótimo de prontidão. Ideal para acumular volume e técnica uniforme nas tabelas."
               }
@@ -1072,10 +1049,12 @@ export default function ProfileViewV2() {
                 <div>
                   <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Água Mínima</span>
                   <p className="text-xl font-black text-blue-500 leading-tight mt-1">
-                    {waterTarget} <span className="text-xs font-bold text-slate-400">Liters</span>
+                    {waterTarget !== null ? waterTarget : '--'} <span className="text-xs font-bold text-slate-400">Liters</span>
                   </p>
                 </div>
-                <p className="text-[9px] font-bold text-slate-500 mt-2 leading-tight">35ml por quilo / dia</p>
+                <p className="text-[9px] font-bold text-slate-500 mt-2 leading-tight">
+                  {waterTarget !== null ? '35ml por quilo / dia' : 'Informe seu peso'}
+                </p>
               </div>
 
               {/* Basal TMB */}
@@ -1083,10 +1062,12 @@ export default function ProfileViewV2() {
                 <div>
                   <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Basal (TMB)</span>
                   <p className="text-xl font-black text-slate-800 leading-tight mt-1">
-                    {tmb} <span className="text-xs font-bold text-slate-400">kcal</span>
+                    {tmb !== null ? tmb : '--'} <span className="text-xs font-bold text-slate-400">kcal</span>
                   </p>
                 </div>
-                <p className="text-[9px] font-bold text-slate-400 mt-2 leading-none">Mínimo em repouso absoluto</p>
+                <p className="text-[9px] font-bold text-slate-400 mt-2 leading-none">
+                  {tmb !== null ? 'Mínimo em repouso absoluto' : 'Informe peso, altura e idade'}
+                </p>
               </div>
 
               {/* Caloric balance suggestion */}
@@ -1094,7 +1075,7 @@ export default function ProfileViewV2() {
                 <div>
                   <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Alvo Estimado</span>
                   <p className="text-xl font-black text-indigo-600 leading-tight mt-1">
-                    {calories.val} <span className="text-[10px] font-bold">kcal</span>
+                    {calories.val !== null ? calories.val : '--'} <span className="text-[10px] font-bold">kcal</span>
                   </p>
                 </div>
                 <p className={`text-[9.5px] font-black ${calories.color} mt-2 uppercase tracking-wide leading-none`}>
