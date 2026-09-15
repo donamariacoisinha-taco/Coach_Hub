@@ -69,15 +69,8 @@ import { BodyRecompositionVisualizer } from './components/BodyRecompositionVisua
 import { ProgressPhotoSystem } from './components/ProgressPhotoSystem';
 import { ProfileActions } from './components/ProfileActions';
 import { getGuestProfile, saveGuestProfile } from '../../lib/guest/guestPersistence';
-
-interface CheckInLog {
-  date: string;
-  weight: number;
-  energy: number;
-  recovery: number;
-  sleep: number;
-  hydration: boolean;
-}
+import { getCheckInLogs } from '../../lib/checkin/checkInStore';
+import { computeReadinessScore } from '../../domain/checkin/weightCheckInHistory';
 
 export default function ProfileViewV2() {
   const { profile: storeProfile, setProfile, updateProfile, loading: storeLoading } = useUserStore();
@@ -446,20 +439,18 @@ export default function ProfileViewV2() {
 
   // --- Dynamic Readiness Assessment ---
   // Only reflects a real weekly check-in — no arbitrary baseline guess.
-  // Returns null when there's no check-in yet, so the UI can show "Dados
-  // insuficientes" instead of a fabricated percentage.
-  const estimateReadiness = (): number | null => {
-    const storedHistory = localStorage.getItem(`rubi_history_${profile.id}`);
-    if (!storedHistory) return null;
-    const logs: CheckInLog[] = JSON.parse(storedHistory);
-    if (logs.length === 0) return null;
-    logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const latest = logs[0];
-    const checkAvg = (latest.energy + latest.sleep + latest.recovery) / 3;
-    const result = Math.round(35 + (checkAvg - 1) * 15 + (latest.hydration ? 5 : 0));
-    return Math.max(20, Math.min(100, result));
-  };
-  const readiness = estimateReadiness();
+  // null when there's no check-in yet, so the UI can show "Dados
+  // insuficientes" instead of a fabricated percentage. Reads via
+  // checkInStore (Supabase for autenticado, local para convidado) instead
+  // of a raw localStorage key, so it stays correct on any device.
+  const [readiness, setReadiness] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getCheckInLogs(profile.id, isGuestMode).then((logs) => {
+      if (!cancelled) setReadiness(computeReadinessScore(logs));
+    });
+    return () => { cancelled = true; };
+  }, [profile.id, isGuestMode]);
 
   // Living UI Adaptation indicators based on readiness state
   const isHighPerformance = readiness !== null && readiness >= 78;

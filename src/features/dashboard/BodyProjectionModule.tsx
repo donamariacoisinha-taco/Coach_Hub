@@ -16,10 +16,11 @@ import {
 } from 'lucide-react';
 import { UserProfile, WorkoutHistory } from '../../types';
 import { useNutritionStore } from '../../store/nutritionStore';
+import { GUEST_USER_ID } from '../../lib/api/authApi';
+import { getCheckInLogs } from '../../lib/checkin/checkInStore';
 import {
   computeWeightDelta,
   formatWeightDeltaSentence,
-  parseWeightCheckInLogs,
   WeightDelta,
 } from '../../domain/checkin/weightCheckInHistory';
 
@@ -45,8 +46,9 @@ export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
     }
   }, [profile, syncFromUserProfile]);
 
-  // Check-ins reais de peso, gravados pelo WeeklyCheckIn em localStorage.
-  // Nenhuma variação é mostrada sem pelo menos dois check-ins para comparar.
+  // Check-ins reais de peso (Supabase para autenticado, local para
+  // convidado). Nenhuma variação é mostrada sem pelo menos dois check-ins
+  // para comparar.
   const [weightDelta, setWeightDelta] = useState<WeightDelta | null>(null);
   const [weightCheckInCount, setWeightCheckInCount] = useState(0);
   useEffect(() => {
@@ -55,10 +57,13 @@ export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
       setWeightCheckInCount(0);
       return;
     }
-    const raw = localStorage.getItem(`rubi_history_${profile.id}`);
-    const logs = parseWeightCheckInLogs(raw);
-    setWeightCheckInCount(logs.length);
-    setWeightDelta(computeWeightDelta(logs));
+    let cancelled = false;
+    getCheckInLogs(profile.id, profile.id === GUEST_USER_ID).then((logs) => {
+      if (cancelled) return;
+      setWeightCheckInCount(logs.length);
+      setWeightDelta(computeWeightDelta(logs));
+    });
+    return () => { cancelled = true; };
   }, [profile?.id]);
 
   // Retrieve current demographics with safe defaults

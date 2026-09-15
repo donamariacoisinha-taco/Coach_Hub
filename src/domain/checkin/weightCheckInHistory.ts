@@ -61,6 +61,20 @@ export const computeWeightDelta = (logs: WeightCheckInLog[]): WeightDelta | null
   };
 };
 
+/**
+ * Prontidão estimada a partir do check-in real mais recente (energia, sono,
+ * recuperação, hidratação). `null` sem nenhum check-in — nunca um baseline
+ * arbitrário; a interface deve mostrar "Dados insuficientes" nesse caso.
+ */
+export const computeReadinessScore = (logs: WeightCheckInLog[]): number | null => {
+  const sorted = sortWeightCheckInLogsDesc(logs);
+  const latest = sorted[0];
+  if (!latest || latest.energy == null || latest.sleep == null || latest.recovery == null) return null;
+  const checkAvg = (latest.energy + latest.sleep + latest.recovery) / 3;
+  const result = Math.round(35 + (checkAvg - 1) * 15 + (latest.hydration ? 5 : 0));
+  return Math.max(20, Math.min(100, result));
+};
+
 export const formatWeightDeltaSentence = (delta: WeightDelta): string => {
   const magnitude = Math.abs(delta.deltaKg).toFixed(1).replace('.', ',');
   const periodo = delta.days === 1 ? 'no último dia' : `nos últimos ${delta.days} dias`;
