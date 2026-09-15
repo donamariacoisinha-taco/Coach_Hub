@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Gerado em build a partir de public/academia-sem-medo/assets/*.b64
+# (scripts/buildAcademiaSemMedoAssets.mjs) — não é fonte.
+public/academia-sem-medo/assets/*.webp
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,21 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useUserStore } from '../../../store/userStore';
 import { profileApi } from '../../../lib/api/profileApi';
+import { GUEST_USER_ID } from '../../../lib/api/authApi';
+import { saveGuestProfile } from '../../../lib/guest/guestPersistence';
+import { getCheckInLogs, submitCheckInLog } from '../../../lib/checkin/checkInStore';
+import { WeightCheckInLog } from '../../../domain/checkin/weightCheckInHistory';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Calendar, ChevronRight, Scale, Smile, Moon, Flame, Heart, Check, Droplet } from 'lucide-react';
 
-interface CheckInLog {
-  date: string;
-  weight: number;
-  energy: number; // 1-5
-  recovery: number; // 1-5
-  sleep: number; // 1-5
-  hydration: boolean;
-}
-
 export function WeeklyCheckIn() {
   const { profile, updateProfile } = useUserStore();
-  
+  const isGuest = profile?.id === GUEST_USER_ID;
+
   // Local active index for progressive step flow
   const [step, setStep] = useState<number>(0);
   const [weightInput, setWeightInput] = useState<string>('');
@@ -30,19 +26,17 @@ export function WeeklyCheckIn() {
 
   // Load state and past history
   useEffect(() => {
-    if (profile) {
-      setWeightInput(profile.weight?.toString() || '');
-      
-      // Check if already checked in today (localStorage)
-      const storedHistory = localStorage.getItem(`rubi_history_${profile.id}`);
-      if (storedHistory) {
-        const logs: CheckInLog[] = JSON.parse(storedHistory);
-        const todayStr = new Date().toISOString().split('T')[0];
-        const checkedToday = logs.some(log => log.date === todayStr);
-        setHasCheckedInToday(checkedToday);
-      }
-    }
-  }, [profile]);
+    if (!profile) return;
+    setWeightInput(profile.weight?.toString() || '');
+
+    let cancelled = false;
+    getCheckInLogs(profile.id, isGuest).then((logs) => {
+      if (cancelled) return;
+      const todayStr = new Date().toISOString().split('T')[0];
+      setHasCheckedInToday(logs.some((log) => log.date === todayStr));
+    });
+    return () => { cancelled = true; };
+  }, [profile, isGuest]);
 
   if (!profile) return null;
 
@@ -62,12 +56,15 @@ export function WeeklyCheckIn() {
 
       // Update core profile weight
       if (numericWeight > 0) {
-        await profileApi.updateProfile(profile.id, { weight: numericWeight });
+        if (isGuest) {
+          saveGuestProfile({ weight: numericWeight });
+        } else {
+          await profileApi.updateProfile(profile.id, { weight: numericWeight });
+        }
         updateProfile({ weight: numericWeight });
       }
 
-      // Add to localStorage timeline
-      const newLog: CheckInLog = {
+      const newLog: WeightCheckInLog = {
         date: todayStr,
         weight: numericWeight,
         energy,
@@ -75,16 +72,8 @@ export function WeeklyCheckIn() {
         sleep,
         hydration: hydrationChecked
       };
+      await submitCheckInLog(profile.id, isGuest, newLog);
 
-      const storedHistory = localStorage.getItem(`rubi_history_${profile.id}`);
-      let currentLogs: CheckInLog[] = storedHistory ? JSON.parse(storedHistory) : [];
-      
-      // Filter out duplicate dates to allow correction
-      currentLogs = currentLogs.filter(log => log.date !== todayStr);
-      currentLogs.push(newLog);
-      
-      localStorage.setItem(`rubi_history_${profile.id}`, JSON.stringify(currentLogs));
-      
       // Trigger update on readiness score (custom event or state sync)
       window.dispatchEvent(new Event('rubi_checkin_updated'));
 

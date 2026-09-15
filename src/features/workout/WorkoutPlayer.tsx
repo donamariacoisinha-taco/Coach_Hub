@@ -61,7 +61,7 @@ import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../
 import { claimGuestStorageMigrationNoticeDisplay, consumeGuestStorageMigrationNotice, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, migrateGuestStorage, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
 import { filterExerciseSelectorCandidates, remapIndexedExerciseState, replaceOrSwapExercise } from "./exerciseSelector";
 import { shouldCloseSheetFromDrag } from "../../lib/ui/sheetGestures";
-import { buildExerciseFilterGroups } from "../../lib/exercises/exerciseFilters";
+import { buildExerciseEquipmentOptions, buildExerciseFilterGroups } from "../../lib/exercises/exerciseFilters";
 
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -1273,8 +1273,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const filteredSelectorExercises = useMemo(() => {
     if (!allAvailableExercises) return [];
-    return filterExerciseSelectorCandidates(allAvailableExercises, searchQuery, selectedMuscleGroup);
-  }, [allAvailableExercises, searchQuery, selectedMuscleGroup]);
+    return filterExerciseSelectorCandidates(allAvailableExercises, searchQuery, selectedMuscleGroup, selectedEquipment);
+  }, [allAvailableExercises, searchQuery, selectedMuscleGroup, selectedEquipment]);
 
   const selectorFilterGroups = useMemo(
     () => buildExerciseFilterGroups(allAvailableExercises),
@@ -1287,6 +1287,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     )) || null
   ), [selectorFilterGroups, selectedMuscleGroup]);
 
+  const selectorEquipmentOptions = useMemo(
+    () => buildExerciseEquipmentOptions(allAvailableExercises),
+    [allAvailableExercises],
+  );
+
   useEffect(() => {
     if (selectedMuscleGroup === 'Tudo') return;
     const stillAvailable = selectorFilterGroups.some((group) => (
@@ -1295,6 +1300,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     ));
     if (!stillAvailable) setSelectedMuscleGroup('Tudo');
   }, [selectorFilterGroups, selectedMuscleGroup]);
+
+  useEffect(() => {
+    if (selectedEquipment === 'Todos') return;
+    const stillAvailable = selectorEquipmentOptions.some((option) => option.name === selectedEquipment);
+    if (!stillAvailable) setSelectedEquipment('Todos');
+  }, [selectorEquipmentOptions, selectedEquipment]);
+
+  // Cada nova abertura do seletor (adicionar/substituir) começa em Tudo/Todos,
+  // sem herdar o filtro deixado por uma substituição anterior.
+  useEffect(() => {
+    if (!exerciseSelectorMode) return;
+    setSearchQuery('');
+    setSelectedMuscleGroup('Tudo');
+    setSelectedEquipment('Todos');
+  }, [exerciseSelectorMode]);
 
   const [finishing, setFinishing] = useState(false);
   const [pendingSetToComplete, setPendingSetToComplete] = useState<number | null>(null);
@@ -4584,7 +4604,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                   {/* Canonical category/subcategory filters derived from available exercises. */}
                   <div className="space-y-2 pb-3 mb-4 shrink-0">
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    <div className="grid grid-cols-3 gap-2">
                       {['Tudo', ...selectorFilterGroups.map((group) => group.name)].map((cat) => {
                         const isActive = cat === 'Tudo'
                           ? selectedMuscleGroup === 'Tudo'
@@ -4596,7 +4616,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                               setSelectedMuscleGroup(cat);
                               playHapticFeedback('light');
                             }}
-                            className={`px-3 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap border ${
+                            className={`px-2 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all truncate text-center border ${
                               isActive
                                 ? "bg-slate-900 text-white border-slate-950"
                                 : "bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100"
@@ -4609,7 +4629,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     </div>
 
                     {activeSelectorFilterGroup && activeSelectorFilterGroup.subgroups.length > 0 && (
-                      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1" aria-label={`Subcategorias de ${activeSelectorFilterGroup.name}`}>
+                      <div className="flex flex-wrap gap-2" aria-label={`Subcategorias de ${activeSelectorFilterGroup.name}`}>
                         {activeSelectorFilterGroup.subgroups.map((subgroup) => (
                           <button
                             key={subgroup.name}
@@ -4626,6 +4646,28 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             {subgroup.name} · {subgroup.count}
                           </button>
                         ))}
+                      </div>
+                    )}
+
+                    {selectorEquipmentOptions.length > 0 && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <label htmlFor="workout-selector-equipment" className="text-[9px] font-black uppercase tracking-wider text-slate-400 shrink-0">
+                          Equipamento
+                        </label>
+                        <select
+                          id="workout-selector-equipment"
+                          value={selectedEquipment}
+                          onChange={(e) => {
+                            setSelectedEquipment(e.target.value);
+                            playHapticFeedback('light');
+                          }}
+                          className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-slate-100 bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7BA7FF]/30 focus:border-[#7BA7FF]"
+                        >
+                          <option value="Todos">Todos os equipamentos</option>
+                          {selectorEquipmentOptions.map((option) => (
+                            <option key={option.name} value={option.name}>{option.name} · {option.count}</option>
+                          ))}
+                        </select>
                       </div>
                     )}
                   </div>

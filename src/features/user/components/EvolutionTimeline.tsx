@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useUserStore } from '../../../store/userStore';
 import { motion } from 'motion/react';
 import { CheckCircle2, Trophy, Flame, TrendingUp, Sparkles, Scale } from 'lucide-react';
+import { GUEST_USER_ID } from '../../../lib/api/authApi';
+import { getCheckInLogs } from '../../../lib/checkin/checkInStore';
+import { sortWeightCheckInLogsDesc } from '../../../domain/checkin/weightCheckInHistory';
 
 interface TimelineEvent {
   id: string;
@@ -19,19 +22,17 @@ export function EvolutionTimeline() {
 
   useEffect(() => {
     if (!profile) return;
+    let cancelled = false;
+    const isGuest = profile.id === GUEST_USER_ID;
 
-    const list: TimelineEvent[] = [];
-    const todayStr = 'Hoje';
+    (async () => {
+      const list: TimelineEvent[] = [];
+      const todayStr = 'Hoje';
 
-    // 1. Dynamic Check-in item
-    const storedHistory = localStorage.getItem(`rubi_history_${profile.id}`);
-    if (storedHistory) {
-      const logs = JSON.parse(storedHistory);
+      // 1. Dynamic Check-in item
+      const logs = sortWeightCheckInLogsDesc(await getCheckInLogs(profile.id, isGuest));
       if (logs.length > 0) {
-        // Sort descending
-        logs.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
         const lastLog = logs[0];
-        
         list.push({
           id: 'checkin',
           title: `Check-in de Peso (${lastLog.weight} kg)`,
@@ -42,58 +43,60 @@ export function EvolutionTimeline() {
           bg: 'bg-blue-50'
         });
       }
-    }
 
-    // 2. Completed workout milestones
-    const completed = profile.workouts_completed || 0;
-    if (completed > 0) {
+      // 2. Completed workout milestones
+      const completed = profile.workouts_completed || 0;
+      if (completed > 0) {
+        list.push({
+          id: 'milestone-workouts',
+          title: `${completed} Treinos Realizados`,
+          desc: 'Sua densidade e volume total acumulados crescem consistentemente.',
+          date: 'Esta Semana',
+          icon: Trophy,
+          color: 'text-emerald-500',
+          bg: 'bg-emerald-50'
+        });
+      }
+
+      // 3. Streak Milestones
+      const streak = profile.workout_streak || 0;
+      if (streak > 0) {
+        list.push({
+          id: 'milestone-streak',
+          title: `${streak} Dias Seguidos`,
+          desc: 'Mantendo o ritmo ativo sob disciplina exemplar.',
+          date: 'Ativo',
+          icon: Flame,
+          color: 'text-[#818CF8]',
+          bg: 'bg-[#818CF8]/10'
+        });
+      }
+
+      // Default milestones to enrich the timeline
       list.push({
-        id: 'milestone-workouts',
-        title: `${completed} Treinos Realizados`,
-        desc: 'Sua densidade e volume total acumulados crescem consistentemente.',
-        date: 'Esta Semana',
-        icon: Trophy,
-        color: 'text-emerald-500',
-        bg: 'bg-emerald-50'
+        id: 'dna-type',
+        title: 'Ajuste de Célula Biológica',
+        desc: `Perfil de treino configurado focado em ${profile.goal || 'Performance'}.`,
+        date: 'Recente',
+        icon: TrendingUp,
+        color: 'text-indigo-500',
+        bg: 'bg-indigo-50'
       });
-    }
 
-    // 3. Streak Milestones
-    const streak = profile.workout_streak || 0;
-    if (streak > 0) {
       list.push({
-        id: 'milestone-streak',
-        title: `${streak} Dias Seguidos`,
-        desc: 'Mantendo o ritmo ativo sob disciplina exemplar.',
-        date: 'Ativo',
-        icon: Flame,
-        color: 'text-[#818CF8]',
-        bg: 'bg-[#818CF8]/10'
+        id: 'welcome',
+        title: 'Início da Jornada Rubi',
+        desc: 'Primeiro login integrado – cadastro do core de dados.',
+        date: 'Inicial',
+        icon: Sparkles,
+        color: 'text-violet-500',
+        bg: 'bg-violet-50'
       });
-    }
 
-    // Default milestones to enrich the timeline
-    list.push({
-      id: 'dna-type',
-      title: 'Ajuste de Célula Biológica',
-      desc: `Perfil de treino configurado focado em ${profile.goal || 'Performance'}.`,
-      date: 'Recente',
-      icon: TrendingUp,
-      color: 'text-indigo-500',
-      bg: 'bg-indigo-50'
-    });
+      if (!cancelled) setEvents(list);
+    })();
 
-    list.push({
-      id: 'welcome',
-      title: 'Início da Jornada Rubi',
-      desc: 'Primeiro login integrado – cadastro do core de dados.',
-      date: 'Inicial',
-      icon: Sparkles,
-      color: 'text-violet-500',
-      bg: 'bg-violet-50'
-    });
-
-    setEvents(list);
+    return () => { cancelled = true; };
   }, [profile]);
 
   if (!profile) return null;

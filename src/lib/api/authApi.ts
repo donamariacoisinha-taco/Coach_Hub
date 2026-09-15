@@ -166,6 +166,20 @@ export const authApi = {
 
   async signOut() {
     localStorage.removeItem('kyron_guest_session');
+    // GUEST_USER_ID is a single constant shared by every anonymous session
+    // on this device — there is no per-guest identity. Leaving these caches
+    // behind means the next person who picks "Testar sem conta" on the same
+    // device inherits the previous guest's weight/age/goal/check-in history.
+    // This does NOT touch the versioned guest plan/history store
+    // (guestPersistence.ts / kyron_guest_dashboard_v1) — only incidental UI
+    // caches and the profile-page readiness history.
+    localStorage.removeItem('coach_rubi_user_id');
+    localStorage.removeItem(`rubi_history_${GUEST_USER_ID}`);
+    localStorage.removeItem(`rubi_cached_profile_${GUEST_USER_ID}`);
+    localStorage.removeItem(`rubi_dashboard_cache_${GUEST_USER_ID}`);
+    localStorage.removeItem('rubi_avatar_size');
+    localStorage.removeItem('rubi_avatar_pos_x');
+    localStorage.removeItem('rubi_avatar_pos_y');
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {

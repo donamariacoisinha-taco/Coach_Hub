@@ -41,6 +41,18 @@ describe('filterExerciseSelectorCandidates', () => {
     expect(filterExerciseSelectorCandidates(candidates, 'triceps unilateral', 'Tudo').map(item => item.id))
       .toEqual(['cable-triceps']);
   });
+
+  it('filtra também por equipamento selecionado', () => {
+    const withEquipment = [
+      { id: 'cable-row', name: 'Remada no cabo', muscle_group: 'Costas', equipment: 'Polia', is_active: true },
+      { id: 'barbell-row', name: 'Remada curvada', muscle_group: 'Costas', equipment: 'Barra', is_active: true },
+    ];
+
+    expect(filterExerciseSelectorCandidates(withEquipment, '', 'Tudo', 'Polia').map(item => item.id))
+      .toEqual(['cable-row']);
+    expect(filterExerciseSelectorCandidates(withEquipment, '', 'Tudo', 'Todos').map(item => item.id))
+      .toEqual(['cable-row', 'barbell-row']);
+  });
 });
 
 describe('replaceOrSwapExercise', () => {

@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { UserProfile, BodyMeasurement } from '../../types';
 import { fetchWithRetry } from '../utils';
+import { WeightCheckInLog } from '../../domain/checkin/weightCheckInHistory';
 
 type AccessRole = 'admin' | 'coach' | 'user';
 type AccessPlan = 'free' | 'premium';
@@ -274,6 +275,43 @@ export const profileApi = {
 
   async upsertBodyMeasurement(payload: unknown) {
     const { error } = await supabase.from('body_measurements').upsert(payload as any);
+    if (error) throw error;
+  },
+
+  // Check-in diário (peso/energia/sono/recuperação/hidratação) de usuário
+  // autenticado. Convidado nunca chama isto — não existe auth.uid() real
+  // pra sessão de convidado, então RLS bloquearia; guestPersistence.ts é o
+  // caminho dele. Lança quando a tabela ainda não existe (checkin_logs é
+  // criada por SQL manual) para o chamador decidir o fallback.
+  async getCheckIns(userId: string): Promise<WeightCheckInLog[]> {
+    const { data, error } = await supabase
+      .from('checkin_logs')
+      .select('checkin_date, weight, energy, recovery, sleep, hydration')
+      .eq('user_id', userId)
+      .order('checkin_date', { ascending: false });
+    if (error) throw error;
+    return (data || []).map((row: any) => ({
+      date: row.checkin_date,
+      weight: row.weight,
+      energy: row.energy ?? undefined,
+      recovery: row.recovery ?? undefined,
+      sleep: row.sleep ?? undefined,
+      hydration: row.hydration ?? undefined,
+    }));
+  },
+
+  async upsertCheckIn(userId: string, log: WeightCheckInLog) {
+    const { error } = await supabase
+      .from('checkin_logs')
+      .upsert({
+        user_id: userId,
+        checkin_date: log.date,
+        weight: log.weight,
+        energy: log.energy,
+        recovery: log.recovery,
+        sleep: log.sleep,
+        hydration: log.hydration,
+      }, { onConflict: 'user_id,checkin_date' });
     if (error) throw error;
   },
 

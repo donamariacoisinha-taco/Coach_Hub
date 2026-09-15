@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  computeReadinessScore,
   computeWeightDelta,
   formatWeightDeltaSentence,
   parseWeightCheckInLogs,
@@ -7,6 +8,9 @@ import {
 } from './weightCheckInHistory';
 
 const log = (date: string, weight: number) => ({ date, weight });
+const checkin = (date: string, overrides: Partial<{ energy: number; sleep: number; recovery: number; hydration: boolean }>) => ({
+  date, weight: 80, energy: 3, sleep: 3, recovery: 3, hydration: true, ...overrides,
+});
 
 describe('leitura do histórico de check-in de peso', () => {
   it('tolera ausência e JSON inválido sem lançar', () => {
@@ -86,5 +90,30 @@ describe('texto da variação de peso', () => {
   it('usa singular para intervalo de 1 dia', () => {
     const delta = computeWeightDelta([log('2026-08-23', 80.5), log('2026-08-24', 80)])!;
     expect(formatWeightDeltaSentence(delta)).toContain('no último dia');
+  });
+});
+
+describe('prontidão a partir do check-in real', () => {
+  it('não afirma prontidão sem nenhum check-in', () => {
+    expect(computeReadinessScore([])).toBeNull();
+  });
+
+  it('não afirma prontidão quando o log mais recente não tem os três sinais', () => {
+    expect(computeReadinessScore([{ date: '2026-08-24', weight: 80, energy: 4 }])).toBeNull();
+  });
+
+  it('usa somente o check-in mais recente, ignorando o resto do histórico', () => {
+    const logs = [
+      checkin('2026-08-17', { energy: 1, sleep: 1, recovery: 1, hydration: false }),
+      checkin('2026-08-24', { energy: 5, sleep: 5, recovery: 5, hydration: true }),
+    ];
+    expect(computeReadinessScore(logs)).toBe(100);
+  });
+
+  it('fica dentro da faixa 20-100', () => {
+    const baixo = computeReadinessScore([checkin('2026-08-24', { energy: 1, sleep: 1, recovery: 1, hydration: false })]);
+    expect(baixo).toBeGreaterThanOrEqual(20);
+    const alto = computeReadinessScore([checkin('2026-08-24', { energy: 5, sleep: 5, recovery: 5, hydration: true })]);
+    expect(alto).toBeLessThanOrEqual(100);
   });
 });

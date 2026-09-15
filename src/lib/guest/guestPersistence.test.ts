@@ -7,18 +7,21 @@ import {
   finishGuestWorkout,
   claimGuestStorageMigrationNoticeDisplay,
   clearLegacyGuestWorkoutState,
+  getGuestCheckIns,
   getGuestDashboard,
   getGuestProfile,
   getGuestWorkout,
   getOrCreateGuestWorkoutSession,
   migrateGuestStorage,
   readGuestWorkoutTemp,
+  saveGuestCheckIn,
   saveGuestWorkoutTemp,
   saveGuestPlan,
   saveGuestProfile,
   updateGuestWorkoutExercises,
   validateGuestWorkoutSession,
 } from './guestPersistence';
+import { GUEST_USER_ID } from '../api/authApi';
 
 const createStorage = () => {
   const values = new Map<string, string>();
@@ -533,5 +536,51 @@ describe('guest lifecycle persistence', () => {
     expect(claimGuestStorageMigrationNoticeDisplay(notice)).toBe(false);
     sessionStorage.clear();
     expect(claimGuestStorageMigrationNoticeDisplay(notice)).toBe(true);
+  });
+});
+
+describe('check-in de convidado', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
+  });
+
+  it('não tem check-in nenhum até o primeiro salvo', () => {
+    expect(getGuestCheckIns()).toEqual([]);
+  });
+
+  it('grava e relê um check-in, sem duplicar a mesma data', () => {
+    saveGuestCheckIn({ date: '2026-09-14', weight: 80, energy: 3, sleep: 3, recovery: 3, hydration: true });
+    saveGuestCheckIn({ date: '2026-09-15', weight: 79.5, energy: 4, sleep: 4, recovery: 4, hydration: true });
+    saveGuestCheckIn({ date: '2026-09-14', weight: 80.2, energy: 2, sleep: 2, recovery: 2, hydration: false });
+
+    const logs = getGuestCheckIns();
+    expect(logs).toHaveLength(2);
+    expect(logs.find((log) => log.date === '2026-09-14')).toMatchObject({ weight: 80.2, energy: 2 });
+  });
+
+  it('migra o histórico da chave antiga rubi_history_<guest> na primeira leitura', () => {
+    localStorage.setItem(`rubi_history_${GUEST_USER_ID}`, JSON.stringify([
+      { date: '2026-09-01', weight: 82, energy: 3, sleep: 3, recovery: 3, hydration: true },
+    ]));
+
+    const logs = getGuestCheckIns();
+    expect(logs).toEqual([
+      { date: '2026-09-01', weight: 82, energy: 3, sleep: 3, recovery: 3, hydration: true },
+    ]);
+    // Migrado pro armazenamento oficial — uma segunda leitura não depende
+    // mais da chave antiga.
+    expect(getGuestDashboard().checkIns).toHaveLength(1);
+  });
+
+  it('não deixa a migração da chave antiga sobrescrever check-ins já oficiais', () => {
+    saveGuestCheckIn({ date: '2026-09-15', weight: 79, energy: 5, sleep: 5, recovery: 5, hydration: true });
+    localStorage.setItem(`rubi_history_${GUEST_USER_ID}`, JSON.stringify([
+      { date: '2026-01-01', weight: 90, energy: 1, sleep: 1, recovery: 1, hydration: false },
+    ]));
+
+    expect(getGuestCheckIns()).toEqual([
+      { date: '2026-09-15', weight: 79, energy: 5, sleep: 5, recovery: 5, hydration: true },
+    ]);
   });
 });

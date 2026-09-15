@@ -1,5 +1,6 @@
 import { GUEST_USER_ID } from '../api/authApi';
 import { UserProfile } from '../../types';
+import { parseWeightCheckInLogs, WeightCheckInLog } from '../../domain/checkin/weightCheckInHistory';
 
 export const GUEST_PROFILE_KEY = 'kyron_guest_profile_v1';
 export const GUEST_DASHBOARD_KEY = 'kyron_guest_dashboard_v1';
@@ -15,6 +16,13 @@ export type GuestDashboard = {
   workouts: any[];
   history: any[];
   stats: { sessions: number };
+  /**
+   * Check-ins reais do convidado (peso/energia/sono/recuperação/hidratação).
+   * Campo aditivo — dashboards salvos antes dele simplesmente não o têm;
+   * todo leitor trata ausência como lista vazia, sem precisar de migração
+   * de versão de schema.
+   */
+  checkIns?: WeightCheckInLog[];
 };
 
 /**
@@ -113,11 +121,37 @@ export const createEmptyGuestDashboard = (): GuestDashboard => ({
   workouts: [] as any[],
   history: [] as any[],
   stats: { sessions: 0 },
+  checkIns: [],
 });
 
 export const getGuestDashboard = (): GuestDashboard => {
   const dashboard = readJson<GuestDashboard>(GUEST_DASHBOARD_KEY);
   return dashboard ? { ...dashboard, profile: getGuestProfile() } : createEmptyGuestDashboard();
+};
+
+/**
+ * Histórico real de check-in do convidado. `WeeklyCheckIn` gravava antes em
+ * `rubi_history_<GUEST_USER_ID>`, uma chave solta fora deste armazenamento
+ * oficial — na primeira leitura, migra esse dado antigo pra dentro do
+ * dashboard do convidado em vez de descartá-lo.
+ */
+export const getGuestCheckIns = (): WeightCheckInLog[] => {
+  const dashboard = getGuestDashboard();
+  if (dashboard.checkIns && dashboard.checkIns.length > 0) return dashboard.checkIns;
+
+  const legacy = parseWeightCheckInLogs(localStorage.getItem(`rubi_history_${GUEST_USER_ID}`));
+  if (legacy.length === 0) return dashboard.checkIns || [];
+
+  localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify({ ...dashboard, checkIns: legacy }));
+  return legacy;
+};
+
+export const saveGuestCheckIn = (log: WeightCheckInLog): WeightCheckInLog[] => {
+  const current = getGuestCheckIns().filter((entry) => entry.date !== log.date);
+  current.push(log);
+  const dashboard = getGuestDashboard();
+  localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify({ ...dashboard, checkIns: current }));
+  return current;
 };
 
 export const saveGuestPlan = (protocol: any, formData: Record<string, any>) => {
