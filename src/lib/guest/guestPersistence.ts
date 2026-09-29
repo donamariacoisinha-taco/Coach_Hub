@@ -637,3 +637,27 @@ export const finishGuestWorkout = (workoutId: string, result: Record<string, any
   localStorage.removeItem(`guest_workout_session_${workoutId}`);
   return dashboard;
 };
+
+/**
+ * Corrige uma série já registrada numa sessão concluída do convidado (permite
+ * editar peso/reps/RPE depois do fato, ex.: corrigir um valor digitado errado).
+ * Localiza a série por (exercise_id, set_number) — o convidado não grava um
+ * id próprio por série.
+ */
+export const updateGuestSessionSet = (
+  historyId: string,
+  exerciseId: string,
+  setNumber: number,
+  updates: Partial<{ weight_achieved: number; reps_achieved: number; rpe: number }>,
+) => {
+  const dashboard = getGuestDashboard();
+  const entry = (dashboard.history || []).find((item: any) => item.id === historyId);
+  if (!entry) return;
+  const logs = entry.workout_sets_logs || [];
+  const idx = logs.findIndex((log: any) => log.exercise_id === exerciseId && log.set_number === setNumber);
+  if (idx === -1) return;
+  logs[idx] = { ...logs[idx], ...updates };
+  entry.workout_sets_logs = logs;
+  localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(dashboard));
+  localStorage.setItem(`rubi_dashboard_cache_${GUEST_USER_ID}`, JSON.stringify(dashboard));
+};

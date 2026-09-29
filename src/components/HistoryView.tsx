@@ -20,23 +20,24 @@ import BioReport from './BioReport';
 import ShareCard from './ShareCard';
 import { ExerciseProgress } from './ExerciseProgress';
 import { 
-  MoreVertical, 
-  Share2, 
-  Trash2, 
-  ChevronDown, 
-  ChevronUp, 
-  History, 
-  TrendingUp, 
-  Check, 
-  Flame, 
-  ArrowRight, 
-  RefreshCw, 
-  GitMerge, 
-  Zap, 
-  CornerDownRight, 
+  MoreVertical,
+  Share2,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  History,
+  TrendingUp,
+  Check,
+  Flame,
+  ArrowRight,
+  RefreshCw,
+  GitMerge,
+  Zap,
+  CornerDownRight,
   CheckCircle2,
   Calendar,
-  Award
+  Award,
+  Pencil
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ConfirmModal } from './ui/ConfirmModal';
@@ -64,7 +65,7 @@ const formatDateObj = (dateString: string) => {
 };
 
 const HistoryView: React.FC = () => {
-  const { showError } = useErrorHandler();
+  const { showError, showSuccess } = useErrorHandler();
   const { current, navigate } = useNavigation();
   const [activeTab, setActiveTab] = useState<TabType>(current.params?.tab || 'journey');
 
@@ -94,6 +95,9 @@ const HistoryView: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, { weight: string; reps: string; rpe: string }>>({});
+  const [savingEdits, setSavingEdits] = useState(false);
 
   // Journeys Stats
   const [profile, setProfile] = useState<any>(null);
@@ -561,6 +565,72 @@ const HistoryView: React.FC = () => {
       showError(err);
     } finally {
       setIsDeleting(null);
+    }
+  };
+
+  // Inicializa os campos editáveis a partir dos logs já carregados, sempre que
+  // a sessão em edição terminar de expandir/carregar seus detalhes.
+  useEffect(() => {
+    if (!editingHistoryId || selectedWorkout !== editingHistoryId) return;
+    const initial: Record<string, { weight: string; reps: string; rpe: string }> = {};
+    workoutLogs.forEach(([, sets]: [string, any[]]) => {
+      sets.forEach((set) => {
+        const key = `${set.exercise_id}__${set.set_number}`;
+        initial[key] = {
+          weight: set.weight_achieved ? String(set.weight_achieved) : '',
+          reps: set.reps_achieved ? String(set.reps_achieved) : '',
+          rpe: Number(set.rpe) > 0 ? String(set.rpe) : '',
+        };
+      });
+    });
+    setEditValues(initial);
+  }, [editingHistoryId, selectedWorkout, workoutLogs]);
+
+  const handleStartEdit = (e: React.MouseEvent, item: WorkoutHistory) => {
+    e.stopPropagation();
+    setActiveMenuId(null);
+    setEditingHistoryId(item.id);
+    if (selectedWorkout !== item.id) {
+      fetchWorkoutDetails(item);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingHistoryId(null);
+    setEditValues({});
+  };
+
+  const handleSaveEdits = async (item: WorkoutHistory) => {
+    setSavingEdits(true);
+    try {
+      const updates: Promise<any>[] = [];
+      workoutLogs.forEach(([, sets]: [string, any[]]) => {
+        sets.forEach((set) => {
+          const key = `${set.exercise_id}__${set.set_number}`;
+          const edited = editValues[key];
+          if (!edited) return;
+          const weight = edited.weight === '' ? 0 : Number(edited.weight);
+          const reps = edited.reps === '' ? 0 : Number(edited.reps);
+          const rpe = edited.rpe === '' ? 0 : Number(edited.rpe);
+          const unchanged = weight === Number(set.weight_achieved || 0)
+            && reps === Number(set.reps_achieved || 0)
+            && rpe === Number(set.rpe || 0);
+          if (unchanged) return;
+          updates.push(workoutApi.updateWorkoutSetLog(
+            { id: set.id, history_id: item.id, exercise_id: set.exercise_id, set_number: set.set_number },
+            { weight_achieved: weight, reps_achieved: reps, rpe },
+          ));
+        });
+      });
+      await Promise.all(updates);
+      await fetchWorkoutDetails(item);
+      setEditingHistoryId(null);
+      setEditValues({});
+      showSuccess('Sessão atualizada', 'As séries dessa sessão foram atualizadas.');
+    } catch (err) {
+      showError(err);
+    } finally {
+      setSavingEdits(false);
     }
   };
 
@@ -1207,7 +1277,13 @@ const HistoryView: React.FC = () => {
                           exit={{ opacity: 0, y: 10 }}
                           className="absolute right-0 top-16 z-50 bg-white rounded-2xl shadow-2xl border border-slate-50 p-4 min-w-[160px] space-y-2"
                         >
-                          <button 
+                          <button
+                            onClick={(e) => handleStartEdit(e, item)}
+                            className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
+                          >
+                            <Pencil size={14} /> Editar
+                          </button>
+                          <button
                             onClick={(e) => handleShareHistory(e, item)}
                             className="w-full flex items-center gap-3 p-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 rounded-xl transition"
                           >
@@ -1264,19 +1340,84 @@ const HistoryView: React.FC = () => {
                             {workoutLogs.map(([exName, sets]: [string, any[]]) => (
                               <div key={exName} className="space-y-6">
                                  <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">{exName}</h5>
-                                 <div className="grid grid-cols-3 gap-6">
-                                    {sets.map((set, sIdx) => (
-                                      <div key={sIdx} className="space-y-1">
-                                         <p className="text-[15px] font-black text-slate-900 tracking-tight tabular-nums">{formatSetWeight(set)}</p>
-                                         <p className="text-[11px] font-black text-blue-600 uppercase tracking-wider">{set.reps_achieved} reps</p>
-                                         {Number(set.rpe) > 0 && (
-                                           <p className="text-[11px] font-bold text-slate-400">RPE {Number(set.rpe).toFixed(1)}</p>
-                                         )}
-                                      </div>
-                                    ))}
+                                 <div className={editingHistoryId === item.id ? "grid grid-cols-2 gap-4" : "grid grid-cols-3 gap-6"}>
+                                    {sets.map((set, sIdx) => {
+                                      if (editingHistoryId !== item.id) {
+                                        return (
+                                          <div key={sIdx} className="space-y-1">
+                                             <p className="text-[15px] font-black text-slate-900 tracking-tight tabular-nums">{formatSetWeight(set)}</p>
+                                             <p className="text-[11px] font-black text-blue-600 uppercase tracking-wider">{set.reps_achieved} reps</p>
+                                             {Number(set.rpe) > 0 && (
+                                               <p className="text-[11px] font-bold text-slate-400">RPE {Number(set.rpe).toFixed(1)}</p>
+                                             )}
+                                          </div>
+                                        );
+                                      }
+                                      const key = `${set.exercise_id}__${set.set_number}`;
+                                      const values = editValues[key] || { weight: '', reps: '', rpe: '' };
+                                      return (
+                                        <div key={sIdx} className="space-y-1.5 bg-slate-50 border border-slate-100 rounded-2xl p-3">
+                                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Série {set.set_number}</span>
+                                          <div className="grid grid-cols-3 gap-1.5 pt-1">
+                                            <div>
+                                              <label className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Kg</label>
+                                              <input
+                                                type="number"
+                                                inputMode="decimal"
+                                                value={values.weight}
+                                                onChange={(e) => setEditValues(prev => ({ ...prev, [key]: { ...values, weight: e.target.value } }))}
+                                                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Reps</label>
+                                              <input
+                                                type="number"
+                                                inputMode="numeric"
+                                                value={values.reps}
+                                                onChange={(e) => setEditValues(prev => ({ ...prev, [key]: { ...values, reps: e.target.value } }))}
+                                                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">RPE</label>
+                                              <input
+                                                type="number"
+                                                inputMode="decimal"
+                                                step="0.5"
+                                                min="0"
+                                                max="10"
+                                                value={values.rpe}
+                                                onChange={(e) => setEditValues(prev => ({ ...prev, [key]: { ...values, rpe: e.target.value } }))}
+                                                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                  </div>
                               </div>
                             ))}
+
+                            {editingHistoryId === item.id && (
+                              <div className="flex gap-3 pt-2 sticky bottom-4">
+                                <button
+                                  onClick={() => handleSaveEdits(item)}
+                                  disabled={savingEdits}
+                                  className="flex-1 py-3.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl active:scale-95 transition disabled:opacity-50 cursor-pointer"
+                                >
+                                  {savingEdits ? 'Salvando...' : 'Salvar alterações'}
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  disabled={savingEdits}
+                                  className="px-6 py-3.5 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-2xl active:scale-95 transition cursor-pointer"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            )}
                           </>
                          )}
                       </div>
