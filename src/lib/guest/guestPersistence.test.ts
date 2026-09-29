@@ -16,6 +16,7 @@ import {
   saveGuestWorkoutTemp,
   saveGuestPlan,
   saveGuestProfile,
+  updateGuestSessionSet,
   updateGuestWorkoutExercises,
   validateGuestWorkoutSession,
 } from './guestPersistence';
@@ -533,5 +534,38 @@ describe('guest lifecycle persistence', () => {
     expect(claimGuestStorageMigrationNoticeDisplay(notice)).toBe(false);
     sessionStorage.clear();
     expect(claimGuestStorageMigrationNoticeDisplay(notice)).toBe(true);
+  });
+});
+
+describe('edição de séries de sessões concluídas (Evolução → Sessões)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
+  });
+
+  it('corrige peso, reps e RPE de uma série já registrada', () => {
+    const dashboard = saveGuestPlan({
+      workouts: [{ name: 'Treino A', exercises: [{ exercise_name: 'Supino', weight: 20, reps: '10' }] }],
+    }, {});
+    const workoutId = dashboard.workouts[0].id;
+    const exerciseId = getGuestWorkout(workoutId).exercises[0].exercise_id;
+
+    finishGuestWorkout(workoutId, {
+      duration_minutes: 30,
+      performance: { 0: [{ weight: 20, reps: 10, rpe: 7 }] },
+    });
+    const historyId = getGuestDashboard().history[0].id;
+
+    updateGuestSessionSet(historyId, exerciseId, 1, { weight_achieved: 22.5, reps_achieved: 8, rpe: 9 });
+
+    expect(getGuestDashboard().history[0].workout_sets_logs[0]).toMatchObject({
+      weight_achieved: 22.5,
+      reps_achieved: 8,
+      rpe: 9,
+    });
+  });
+
+  it('não altera nada quando a sessão ou a série não existem', () => {
+    expect(() => updateGuestSessionSet('sessao-inexistente', 'ex-1', 1, { weight_achieved: 10 })).not.toThrow();
   });
 });

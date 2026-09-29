@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { WorkoutCategory, WorkoutExercise, WorkoutFolder, WorkoutHistory, UserProfile, MuscleGroup, Exercise, SetConfig, normalizeMuscleGroup } from '../../types';
 import { fetchWithRetry } from '../utils';
 import { exerciseApi } from './exerciseApi';
-import { getGuestDashboard, getGuestWorkout, deleteGuestWorkout } from '../guest/guestPersistence';
+import { getGuestDashboard, getGuestWorkout, deleteGuestWorkout, updateGuestSessionSet } from '../guest/guestPersistence';
 import { GUEST_USER_ID } from './authApi';
 
 export const workoutApi = {
@@ -618,6 +618,25 @@ export const workoutApi = {
       }
     }
     return data;
+  },
+
+  /**
+   * Corrige peso/reps/RPE de uma série já registrada numa sessão concluída
+   * (Evolução → Sessões). Localiza a série pelo id quando disponível
+   * (autenticado); no convidado, que não grava id por série, usa
+   * exercise_id + set_number.
+   */
+  async updateWorkoutSetLog(
+    set: { id?: string; history_id: string; exercise_id: string; set_number: number },
+    updates: Partial<{ weight_achieved: number; reps_achieved: number; rpe: number }>,
+  ) {
+    if (String(set.history_id).startsWith('guest-')) {
+      updateGuestSessionSet(set.history_id, set.exercise_id, set.set_number, updates);
+      return;
+    }
+    if (!set.id) throw new Error('Não foi possível identificar a série para editar.');
+    const { error } = await supabase.from('workout_sets_log').update(updates).eq('id', set.id);
+    if (error) throw error;
   },
 
   async getAchievements(userId: string) {
