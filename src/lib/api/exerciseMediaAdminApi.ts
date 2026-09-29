@@ -81,6 +81,15 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
     },
   });
 
+  // Um ambiente sem o servidor de API (ex.: preview estático que só serve o
+  // SPA) devolve o próprio index.html com status 200 para qualquer rota não
+  // reconhecida. Tratar isso como payload vazio esconderia o problema real —
+  // melhor avisar explicitamente que a API de mídia não está disponível aqui.
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error('A API de automação de mídia não respondeu com JSON neste ambiente — provavelmente o servidor de backend não está disponível aqui.');
+  }
+
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(payload?.error || `Falha HTTP ${response.status}`);
