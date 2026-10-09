@@ -3,6 +3,7 @@ import { Plus, Search } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
 import { buildExerciseSearchText, normalizeExerciseFilterText, exerciseMatchesMuscleFilter, buildExerciseFilterGroups } from '../../../lib/exercises/exerciseFilters';
 
+import { downloadLibraryCsv } from '../utils/libraryCsv';
 import { getLibraryReviewIssues, archiveLibrarySelection } from '../utils/libraryQuality';
 
 const control = 'min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-800';
@@ -34,6 +35,10 @@ export default function LibraryOSV25() {
   const currentPage = Math.min(page, pages);
   const change = (setter: (value: string) => void, value: string) => { setter(value); setPage(1); setSelected([]); setReviewing(false); };
   const clear = () => { setQuery(''); setMuscle(''); setEquipment(''); setStatus(''); setPage(1); setSelected([]); setReviewing(false); };
+  const exportCsv = (selection: typeof exercises) => {
+    try { downloadLibraryCsv(selection); setFeedback(`CSV preparado com ${selection.length} exercícios.`); }
+    catch { setFeedback('Não foi possível gerar o CSV. Tente novamente.'); }
+  };
   const archive = async (id: string, name: string) => {
     if (!window.confirm(`Arquivar “${name}”? O exercício ficará oculto no catálogo, preservando fichas e históricos.`)) return;
     setBusy(id); setFeedback('');
@@ -65,10 +70,10 @@ export default function LibraryOSV25() {
         <label className="space-y-1"><span className="block text-sm font-medium">Equipamento</span><select className={`${control} w-full`} disabled={!!busy} value={equipment} onChange={e => change(setEquipment,e.target.value)}><option value="">Todos os equipamentos</option>{Object.entries(equipmentNames).map(([key,name]) => <option key={key} value={key}>{name}</option>)}</select></label>
         <label className="space-y-1"><span className="block text-sm font-medium">Situação</span><select className={`${control} w-full`} disabled={!!busy} value={status} onChange={e => change(setStatus,e.target.value)}><option value="">Todos os exercícios</option><option value="published">Publicados</option><option value="hidden">Ocultos / rascunhos</option><option value="missing">Sem imagem</option><option value="instructions">Sem instruções</option><option value="duplicates">Nomes repetidos</option><option value="review">Precisa de revisão</option></select></label>
       </div>
-      <div className="flex justify-between items-center gap-3"><p aria-live="polite" className="text-sm text-slate-600">{results.length} exercícios encontrados</p><button className={`${control} text-sm`} disabled={!!busy} onClick={clear}>Limpar filtros</button></div>
+      <div className="flex justify-between items-center gap-3"><p aria-live="polite" className="text-sm text-slate-600">{results.length} exercícios encontrados</p><div className="flex flex-wrap gap-2"><button className={`${control} text-sm`} disabled={!!busy || !results.length} onClick={() => exportCsv(results)}>Exportar resultados ({results.length})</button><button className={`${control} text-sm`} disabled={!!busy} onClick={clear}>Limpar filtros</button></div></div>
     </div>
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4"><p>{needsReview} exercícios com pendências de cadastro</p><button disabled={batchBusy} className={control} onClick={() => change(setStatus,'review')}>Revisar pendências</button></div>
-    {selectedExercises.length > 0 && <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4" aria-label="Ações dos exercícios selecionados"><p className="font-medium">{selectedExercises.length} exercícios selecionados · {publishedSelection.length} publicados</p><div className="flex flex-wrap gap-3"><button disabled={!!busy || !publishedSelection.length} className={control} onClick={() => setReviewing(true)}>Revisar arquivamento</button><button disabled={!!busy} className={control} onClick={() => {setSelected([]);setReviewing(false);}}>Limpar seleção</button></div>
+    {selectedExercises.length > 0 && <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4" aria-label="Ações dos exercícios selecionados"><p className="font-medium">{selectedExercises.length} exercícios selecionados · {publishedSelection.length} publicados</p><div className="flex flex-wrap gap-3"><button disabled={!!busy || !publishedSelection.length} className={control} onClick={() => setReviewing(true)}>Revisar arquivamento</button><button disabled={!!busy} className={control} onClick={() => exportCsv(selectedExercises)}>Exportar seleção ({selectedExercises.length})</button><button disabled={!!busy} className={control} onClick={() => {setSelected([]);setReviewing(false);}}>Limpar seleção</button></div>
       {reviewing && <div className="space-y-3"><p>Estes exercícios ficarão ocultos no catálogo. Fichas e históricos serão preservados.</p><ul className="max-h-48 overflow-y-auto list-disc pl-5">{publishedSelection.map(ex => <li key={ex.id}>{ex.name}</li>)}</ul><div className="flex gap-3"><button disabled={!!busy} className={control} onClick={() => setReviewing(false)}>Cancelar arquivamento</button><button disabled={!!busy} className="min-h-11 rounded-xl bg-blue-600 px-4 text-white disabled:opacity-50" onClick={() => void archiveBatch()}>{batchBusy ? 'Arquivando…' : `Confirmar arquivamento de ${publishedSelection.length}`}</button></div></div>}
     </div>}
     {!!results.length && !loading && <label className="flex items-center gap-3"><input disabled={!!busy} type="checkbox" className="h-5 w-5" checked={allVisibleSelected} onChange={togglePage}/>Selecionar os {visibleExercises.length} exercícios desta página</label>}
