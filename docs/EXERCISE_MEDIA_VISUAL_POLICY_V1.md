@@ -1,7 +1,7 @@
 # KYRON OS — Política Visual de Exercícios v1
 
 Data de aprovação: 2026-07-28  
-Status: aprovada para lote piloto
+Status: referência histórica do lote piloto. Para novas criações, usar a [Política Visual v2](EXERCISE_MEDIA_VISUAL_POLICY_V2.md), aprovada em 2026-10-09. As regras visuais abaixo foram substituídas pela v2.
 
 ## Objetivo
 
