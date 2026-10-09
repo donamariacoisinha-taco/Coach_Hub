@@ -1,549 +1,111 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, 
-  Save, 
-  Sparkles, 
-  Zap, 
-  Layers, 
-  Play, 
-  ImageIcon, 
-  Trash2, 
-  History, 
-  Search, 
-  Globe,
-  Plus,
-  ChevronRight,
-  Eye,
-  EyeOff,
-  Wand2,
-  Brain,
-  Hash,
-  Activity,
-  Dumbbell
-} from 'lucide-react';
-import { useAdminStore } from '../../../store/adminStore';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Save } from 'lucide-react';
 import { Exercise } from '../../../types';
-import { VisibilityBadge, VisibilityToggle } from './VisibilityBadge';
-import { AssetMediaHub } from './media/AssetMediaHub';
-import { useErrorHandler } from '../../../hooks/useErrorHandler';
+import { useAdminStore } from '../../../store/adminStore';
 import { getMuscleGroupClusters, getMuscleGroupSelectionUpdate } from '../utils/exerciseMuscleGroups';
+import { cloudinaryService } from '../../../services/cloudinaryService';
 
-const ExerciseEditorV2: React.FC = () => {
-  const { isEditorOpen, closeEditor, selectedExercise, updateExercise, createExercise, muscleGroups, loading: storeLoading } = useAdminStore();
-  const { showSuccess, showError } = useErrorHandler();
-  const [activeTab, setActiveTab] = useState<'basic' | 'technique' | 'media'>('basic');
-  const [form, setForm] = useState<Partial<Exercise>>({});
-  const [saving, setSaving] = useState(false);
-  const [subgroupInput, setSubgroupInput] = useState('');
-  const muscleGroupClusters = getMuscleGroupClusters(muscleGroups);
-
+const control = 'w-full min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:outline-blue-600';
+const equipmentNames: Record<string,string> = { free_weight: 'Peso livre', machine: 'Máquina', bodyweight: 'Peso corporal', cable: 'Cabo / polia', band: 'Elástico', other: 'Outro' };
+const editableFields = ['name','commercial_alias','muscle_group','muscle_group_id','type','equipment','difficulty_level','secondary_muscles','description','instructions','technical_tips','movement_pattern','is_active','image_url','static_frame_url','video_url','thumbnail_url'] as const;
+function initialForm(ex: Exercise | null): Partial<Exercise> {
+  if (!ex) return { name: '', commercial_alias: '', muscle_group: '', type: 'free_weight', difficulty_level: 'beginner', is_active: false };
+  return Object.fromEntries(editableFields.map(key => [key,ex[key]])) as Partial<Exercise>;
+}
+export default function ExerciseEditorV2() {
+  const { isEditorOpen, selectedExercise, closeEditor, muscleGroups, updateExercise, createExercise } = useAdminStore();
+  const [form,setForm] = useState<Partial<Exercise>>({});
+  const [baseline,setBaseline] = useState('');
+  const [tab,setTab] = useState('basic');
+  const [saving,setSaving] = useState(false);
+  const [uploading,setUploading] = useState(false);
+  const [progress,setProgress] = useState(0);
+  const [error,setError] = useState('');
+  const [discard,setDiscard] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  const dirty = JSON.stringify(form) !== baseline;
   useEffect(() => {
-    if (selectedExercise) {
-      setForm(selectedExercise);
-    } else {
-      setForm({
-        name: '',
-        muscle_group: '',
-        type: 'free_weight',
-        difficulty_level: 'beginner',
-        is_active: true
-      });
-    }
-    setActiveTab('basic');
-  }, [selectedExercise, isEditorOpen]);
-
-  const handleMediaUpdate = (updatedExercise: Exercise) => {
-    console.log('[LOCAL_SYNC] Syncing media updates with form and store', updatedExercise);
-    setForm(updatedExercise);
-    
-    // Atualizamos o store localmente para que o grid reflita as mudanças
-    // mas evitamos chamar o database de novo (double-write prevention)
-    const { exercises, setExercises } = useAdminStore.getState();
-    const newExercises = exercises.map(ex => 
-      ex.id === updatedExercise.id ? updatedExercise : ex
-    );
-    setExercises(newExercises);
-  };
-
+    if (!isEditorOpen) return;
+    const draft = initialForm(selectedExercise);
+    setForm(draft); setBaseline(JSON.stringify(draft)); setTab('basic'); setError(''); setDiscard(false);
+  },[isEditorOpen,selectedExercise]);
+  useEffect(() => {
+    if (!isEditorOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    panel.current?.querySelector<HTMLElement>('button')?.focus();
+    return () => { document.body.style.overflow = overflow; previous?.focus(); };
+  },[isEditorOpen]);
+  useEffect(() => {
+    if (!isEditorOpen || !dirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload',warn);
+    return () => window.removeEventListener('beforeunload',warn);
+  },[isEditorOpen,dirty]);
   if (!isEditorOpen) return null;
-
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      if (form.id) {
-        await updateExercise(form.id, form);
-        showSuccess('Arquitetura Atualizada', 'As alterações foram sincronizadas e gravadas com sucesso.');
-      } else {
-        await createExercise(form);
-        showSuccess('Nova Entidade Criada', 'O novo exercício foi publicado na biblioteca.');
-      }
-      closeEditor();
-    } catch (err: any) {
-      showError(err);
-    } finally {
-      setSaving(false);
+  const busy = saving || uploading;
+  const requestClose = () => { if (busy) return; if (dirty) setDiscard(true); else closeEditor(); };
+  const change = (key: keyof Exercise,value: unknown) => setForm(previous => ({...previous,[key]:value}));
+  const save = async () => {
+    setError('');
+    if (!form.name?.trim()) { setError('Informe o nome do exercício.'); setTab('basic'); return; }
+    if (form.is_active && (!form.muscle_group?.trim() || !form.instructions?.trim())) { setError('Para publicar, informe o grupo muscular e as instruções de execução.'); return; }
+    for (const field of ['image_url','video_url','thumbnail_url'] as const) {
+      if (form[field]) { try { const url = new URL(form[field]!); if (!['https:','http:'].includes(url.protocol)) throw new Error(); } catch { setError('Use um endereço válido de imagem ou vídeo (https://…).'); setTab('media'); return; } }
     }
+    setSaving(true);
+    try {
+      const payload = {...form,name:form.name.trim()};
+      if (selectedExercise) await updateExercise(selectedExercise.id,payload); else await createExercise(payload);
+      closeEditor();
+    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível salvar. Suas alterações continuam neste formulário.'); }
+    finally { setSaving(false); }
   };
-
-  const tabs = [
-    { id: 'basic', label: 'Básico', icon: Layers },
-    { id: 'technique', label: 'Técnica', icon: Activity },
-    { id: 'media', label: 'Conteúdo', icon: ImageIcon },
-  ] as const;
-
-  return (
-    <div className="fixed inset-0 z-[60] flex justify-end pointer-events-none">
-       {/* Backdrop */}
-       <motion.div 
-         initial={{ opacity: 0 }}
-         animate={{ opacity: 1 }}
-         exit={{ opacity: 0 }}
-         onClick={closeEditor}
-         className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm pointer-events-auto"
-       />
-
-       {/* Editor Panel - Elite Drawer */}
-       <motion.div 
-         initial={{ x: '100%', y: 0 }}
-         animate={{ x: 0, y: 0 }}
-         exit={{ x: '100%', y: 0 }}
-         transition={{ type: 'spring', damping: 30, stiffness: 300, mass: 0.8 }}
-         className="relative w-full lg:max-w-6xl bg-[#F7F8FA] h-full sm:h-full shadow-[-30px_0_100px_rgba(0,0,0,0.4)] pointer-events-auto flex flex-col md:rounded-l-[3rem] overflow-hidden"
-       >
-          {/* Header */}
-          <header className="bg-white border-b border-slate-200 px-6 sm:px-10 py-6 sm:py-8 flex items-center justify-between z-10">
-             <div className="flex items-center gap-4 sm:gap-6">
-                <button onClick={closeEditor} className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-all active:scale-95 text-slate-400 hover:text-slate-950">
-                   <X size={20} />
-                </button>
-                <div>
-                   <div className="flex items-center gap-3">
-                      <h2 className="text-lg sm:text-xl font-black tracking-tight uppercase leading-none">
-                         {selectedExercise ? 'Edit Architecture' : 'Forge New Asset'}
-                      </h2>
-                      {form.id && <VisibilityBadge isPublished={!!form.is_active} />}
-                   </div>
-                   <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 hidden sm:flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                      Auto-save enabled • {form.is_active ? 'Publicado' : 'Oculto'}
-                   </p>
-                </div>
-             </div>
-
-             <div className="flex items-center gap-3 sm:gap-4">
-                <button className="hidden sm:flex items-center gap-2 px-6 h-14 rounded-2xl bg-white border border-slate-200 text-slate-900 font-black text-[10px] uppercase tracking-widest hover:border-slate-400 transition-all">
-                   <Eye size={18} className="text-slate-400" />
-                   Preview
-                </button>
-                <button 
-                  onClick={handleSave}
-                  disabled={storeLoading || saving}
-                  className="px-6 sm:px-8 h-12 sm:h-14 bg-slate-950 text-white rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-950/30 flex items-center gap-3 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                >
-                   {(storeLoading || saving) ? <Sparkles size={18} className="animate-pulse" /> : <Save size={18} />}
-                   {selectedExercise ? 'Commit' : 'Publish'}
-                </button>
-             </div>
-          </header>
-
-          <div className="flex-1 flex flex-col sm:flex-row overflow-hidden">
-             {/* Sidebar Navigation */}
-             <aside className="w-full sm:w-72 bg-white border-r border-slate-200 flex flex-row sm:flex-col p-4 sm:p-6 gap-2 overflow-x-auto sm:overflow-y-auto no-scrollbar">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex-shrink-0 flex items-center gap-4 px-4 py-3 sm:py-4 rounded-2xl transition-all duration-300 group ${
-                        isActive 
-                          ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/30' 
-                          : 'text-slate-400 hover:text-slate-950 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Icon size={18} className={isActive ? 'text-white' : 'text-slate-300 group-hover:text-blue-600'} />
-                      <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest whitespace-nowrap">{tab.label}</span>
-                      {isActive && <ChevronRight size={14} className="ml-auto text-white/50 hidden sm:block" />}
-                    </button>
-                  );
-                })}
-             </aside>
-
-             {/* Content Area */}
-             <main className="flex-1 overflow-y-auto no-scrollbar p-6 sm:p-10 lg:p-14">
-                <div className="max-w-3xl mx-auto">
-                   <AnimatePresence mode="wait">
-                      {activeTab === 'basic' && (
-                         <motion.div 
-                           key="basic"
-                           initial={{ opacity: 0, y: 10 }}
-                           animate={{ opacity: 1, y: 0 }}
-                           exit={{ opacity: 0, y: -10 }}
-                           className="space-y-10 sm:space-y-12"
-                         >
-                            <SectionHeader title="Identidade & Core" desc="Definições fundamentais e enquadramento estrutural." />
-                             
-                             <div className="bg-slate-50 rounded-[2rem] border border-slate-100 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
-                                <div className="flex items-center gap-4">
-                                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${form.is_active ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-200 text-slate-400'}`}>
-                                      {form.is_active ? <Eye size={20} /> : <EyeOff size={20} />}
-                                   </div>
-                                   <div>
-                                      <h4 className="text-[13px] font-black uppercase tracking-widest text-slate-900 leading-none mb-1.5 flex items-center gap-2">
-                                         Status de Publicação
-                                         <VisibilityBadge isPublished={!!form.is_active} compact />
-                                      </h4>
-                                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Controlar visibilidade para alunos da plataforma</p>
-                                   </div>
-                                </div>
-                                <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
-                                   <VisibilityToggle 
-                                     isPublished={!!form.is_active} 
-                                     onToggle={(e: any) => {
-                                       e?.stopPropagation();
-                                       setForm({...form, is_active: !form.is_active});
-                                     }} 
-                                     variant="button" 
-                                   />
-                                </div>
-                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-                               <Input label="Asset Performance Name" value={form.name} onChange={(val) => setForm({...form, name: val})} placeholder="Ex: Supino Reto Barra" />
-                               <Input
-                                 label="Commercial Alias"
-                                 value={form.commercial_alias ?? form.alt_name}
-                                 onChange={(val) => setForm({ ...form, commercial_alias: val })}
-                                 placeholder="Ex: Supino reto na barra"
-                               />
-                               
-                               
-                               <div className="space-y-3">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Primary Muscle Cluster</label>
-                                  <select 
-                                    value={form.muscle_group_id || ''}
-                                    onChange={(e) => setForm({
-                                      ...form,
-                                      ...getMuscleGroupSelectionUpdate(e.target.value, muscleGroups),
-                                    })}
-                                    className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all appearance-none"
-                                  >
-                                     <option value="">Selecione o cluster</option>
-                                     {muscleGroupClusters.map(({ parent, clusters }) => (
-                                       clusters.length > 0 ? (
-                                         <optgroup key={parent.id} label={parent.name}>
-                                           {clusters.map((cluster) => (
-                                             <option key={cluster.id} value={cluster.id}>{cluster.name}</option>
-                                           ))}
-                                         </optgroup>
-                                       ) : (
-                                         <option key={parent.id} value={parent.id}>{parent.name}</option>
-                                       )
-                                     ))}
-                                  </select>
-                               </div>
-
-                               <div className="space-y-3">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Experience Level Tier</label>
-                                  <div className="flex bg-white rounded-2xl border border-slate-200 p-1.5 gap-1 shadow-sm">
-                                     {['beginner', 'intermediate', 'advanced'].map(lvl => (
-                                        <button 
-                                          key={lvl}
-                                          onClick={() => setForm({...form, difficulty_level: lvl as any})}
-                                          className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
-                                            form.difficulty_level === lvl ? 'bg-slate-950 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'
-                                          }`}
-                                        >
-                                           {lvl}
-                                        </button>
-                                     ))}
-                                  </div>
-                               </div>
-                            </div>
-
-                             {/* BIOMECHANICAL SUBGROUPS (SECONDARY MUSCLES) SECTION */}
-                             <div className="bg-white rounded-[2rem] border border-slate-200/60 p-6 sm:p-8 space-y-6 shadow-xs my-6">
-                                <div className="space-y-1">
-                                   <label className="text-[10px] font-black uppercase tracking-widest text-[#7BA7FF] font-mono block">Biomecânica Humana</label>
-                                   <h4 className="text-base font-black text-slate-900 uppercase tracking-tight">Subgrupos do Corpo Humano</h4>
-                                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Adicione subdivisões musculares e sinergistas para calibração anatômica refinada.</p>
-                                </div>
-
-                                {/* Active Subgroups / Tags */}
-                                <div className="space-y-2">
-                                   <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Subgrupos Selecionados (Músculos Secundários)</label>
-                                   <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-2xl border border-slate-100/80 min-h-12">
-                                      {(!form.secondary_muscles || form.secondary_muscles.length === 0) ? (
-                                         <span className="text-xs text-slate-400 font-medium italic select-none">Nenhum subgrupo ativado para esta arquitetura. Escolha abaixo ou digite novos.</span>
-                                      ) : (
-                                         form.secondary_muscles.map((muscle) => (
-                                            <span 
-                                               key={muscle}
-                                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold border border-blue-100/50"
-                                            >
-                                               {muscle}
-                                               <button 
-                                                  type="button" 
-                                                  onClick={() => {
-                                                     const updated = (form.secondary_muscles || []).filter(m => m !== muscle);
-                                                     setForm({ ...form, secondary_muscles: updated });
-                                                  }}
-                                                  className="text-blue-400 hover:text-blue-600 transition-colors cursor-pointer"
-                                               >
-                                                  <X size={12} strokeWidth={2.5} />
-                                               </button>
-                                            </span>
-                                         ))
-                                      )}
-                                   </div>
-                                </div>
-
-                                {/* Fast selection suggestions - Contextual based on primary cluster */}
-                                <div className="space-y-2">
-                                   <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">
-                                      {form.muscle_group 
-                                         ? `Sugestões para ${form.muscle_group}`
-                                         : 'Sugestões de Subgrupos Gerais'
-                                      }
-                                   </label>
-                                   <div className="flex flex-wrap gap-1.5">
-                                      {(() => {
-                                         let cluster = form.muscle_group || '';
-                                         if (cluster === 'Perna') cluster = 'Pernas';
-                                         if (cluster === 'Ombro') cluster = 'Ombros';
-                                         if (cluster === 'Abdômen' || cluster === 'Oblíquos' || cluster === 'Abdominais') cluster = 'Abdominais';
-                                         if (cluster === 'Panturrilha' || cluster === 'Panturrilhas') cluster = 'Panturrilha';
-                                         const subSuggestions: Record<string, string[]> = {
-                                            'Peito': ['Peitoral Maior', 'Peitoral Menor', 'Porção Superior (Inclinado)', 'Porção Inferior (Declinado)', 'Deltoide Anterior', 'Tríceps (Auxiliar)'],
-                                            'Costas': ['Latíssimo do Dorso', 'Asas / Dorsais', 'Trapézio', 'Romboides', 'Redondo Maior', 'Eretores da Espinha', 'Bíceps (Auxiliar)'],
-                                            'Ombros': ['Deltoide Anterior', 'Deltoide Lateral', 'Deltoide Posterior', 'Manguito Rotador', 'Trapézio Superior'],
-                                            'Pernas': ['Quadríceps', 'Isquiotibiais (Posterior)', 'Glúteo Máximo', 'Glúteo Médio', 'Sóleo', 'Gastrocnêmio (Panturrilha)', 'Adutores', 'Abdutores'],
-                                            'Bíceps': ['Bíceps Braquial', 'Braquial', 'Braquiorradial', 'Flexores do Antebraço'],
-                                            'Tríceps': ['Tríceps (Cabeça Longa)', 'Tríceps (Cabeça Lateral)', 'Tríceps (Cabeça Medial)', 'Ancôneo'],
-                                            'Abdominais': ['Reto Abdominal', 'Oblíquos', 'Transverso Abdominal', 'Lombar'],
-                                            'Quadríceps': ['Reto Femoral', 'Vasto Lateral', 'Vasto Medial', 'Vasto Intermédio', 'Sartório'],
-                                            'Posterior': ['Bíceps Femoral', 'Semitendíneo', 'Semimembranáceo', 'Glúteo Máximo'],
-                                            'Glúteos': ['Glúteo Máximo', 'Glúteo Médio', 'Glúteo Mínimo', 'Piriforme'],
-                                            'Panturrilha': ['Gastrocnêmio Lateral', 'Gastrocnêmio Medial', 'Sóleo', 'Tibial Anterior'],
-                                            'Full Body': ['Core Estabilizador', 'Cadeia Posterior', 'Cadeia Anterior', 'Estabilizadores Escapulares'],
-                                            'Cardio': ['Resistência Cardiovascular', 'Capacidade Aeróbica', 'Frequência Cardíaca Elevada'],
-                                            'Mobilidade': ['Alongamento Ativo', 'Estabilidade Articular', 'Flexibilidade Miofascial']
-                                         };
-                                         const list = subSuggestions[cluster] || ['Core', 'Estabilizadores', 'Manguito Rotador', 'Deltoide Anterior', 'Peitoral Maior', 'Trapézio', 'Antebraço'];
-                                         return list.map(item => {
-                                            const isActive = (form.secondary_muscles || []).includes(item);
-                                            return (
-                                               <button
-                                                  type="button"
-                                                  key={item}
-                                                  onClick={() => {
-                                                     const current = form.secondary_muscles || [];
-                                                     const updated = current.includes(item) 
-                                                        ? current.filter(m => m !== item) 
-                                                        : [...current, item];
-                                                     setForm({ ...form, secondary_muscles: updated });
-                                                  }}
-                                                  className={`px-3 py-1.5 rounded-xl text-[10.5px] font-bold transition-all border cursor-pointer ${
-                                                     isActive 
-                                                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-600/20' 
-                                                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                                                  }`}
-                                               >
-                                                  {isActive ? '✓ ' : '+ '} {item}
-                                               </button>
-                                            );
-                                         });
-                                      })()}
-                                   </div>
-                                </div>
-
-                                {/* Custom subgroup typing */}
-                                <div className="flex gap-2">
-                                   <input 
-                                      type="text"
-                                      value={subgroupInput}
-                                      onChange={(e) => setSubgroupInput(e.target.value)}
-                                      onKeyDown={(e) => {
-                                         if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            if (subgroupInput.trim()) {
-                                               const val = subgroupInput.trim();
-                                               const current = form.secondary_muscles || [];
-                                               if (!current.includes(val)) {
-                                                  setForm({ ...form, secondary_muscles: [...current, val] });
-                                               }
-                                               setSubgroupInput('');
-                                            }
-                                         }
-                                      }}
-                                      placeholder="Ex: Porção Esternocostal, Deltoide Anterior, etc."
-                                      className="flex-1 h-12 bg-white border border-slate-200 rounded-xl px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all placeholder:text-slate-400 shadow-xs"
-                                   />
-                                   <button
-                                      type="button"
-                                      onClick={() => {
-                                         if (subgroupInput.trim()) {
-                                            const val = subgroupInput.trim();
-                                            const current = form.secondary_muscles || [];
-                                            if (!current.includes(val)) {
-                                               setForm({ ...form, secondary_muscles: [...current, val] });
-                                            }
-                                            setSubgroupInput('');
-                                         }
-                                      }}
-                                      className="px-5 h-12 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
-                                   >
-                                      Inserir
-                                   </button>
-                                </div>
-                             </div>
-
-                             <div className="space-y-3">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Operational Description</label>
-                               <textarea 
-                                  value={form.description || ''}
-                                  onChange={(e) => setForm({...form, description: e.target.value})}
-                                  placeholder="Centro de gravidade, pontos de contato e objetivo principal..."
-                                  className="w-full h-44 bg-white border border-slate-200 rounded-3xl p-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all resize-none leading-relaxed"
-                               />
-                            </div>
-                         </motion.div>
-                      )}
-
-                      {activeTab === 'technique' && (
-                         <motion.div 
-                           key="technique"
-                           initial={{ opacity: 0 }}
-                           animate={{ opacity: 1 }}
-                           className="space-y-12"
-                         >
-                            <SectionHeader title="Biomechanics & Execution" desc="Instruções de elite para performance de altíssimo nível." />
-                            <div className="space-y-8">
-                               <Textarea label="Execution Step-by-Step" value={form.instructions} onChange={(val) => setForm({...form, instructions: val})} />
-                               <Textarea label="Technical Pro Tips (Advanced)" value={form.technical_tips} onChange={(val) => setForm({...form, technical_tips: val})} />
-                               <div className="grid grid-cols-2 gap-8">
-                                   <div className="space-y-3">
-                                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Primary Equipment Type</label>
-                                      <select 
-                                        value={form.type || ''}
-                                        onChange={(e) => setForm({...form, type: e.target.value})}
-                                        className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all appearance-none"
-                                      >
-                                         <option value="free_weight">Peso Livre (Free Weight)</option>
-                                         <option value="machine">Máquina (Machine)</option>
-                                         <option value="bodyweight">Peso Corporal (Bodyweight)</option>
-                                         <option value="cable">Cabo / Polia (Cable)</option>
-                                         <option value="band">Elástico (Band)</option>
-                                         <option value="other">Outro (Other)</option>
-                                      </select>
-                                   </div>
-                                   <Input label="Motor Pattern" value={form.movement_pattern} onChange={(val: any) => setForm({...form, movement_pattern: val})} />
-                               </div>
-                            </div>
-                         </motion.div>
-                      )}
-
-                      {activeTab === 'media' && (
-                         <motion.div key="media" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 h-full flex flex-col">
-                            <SectionHeader title="Asset Media Hub" desc="Management of visual performance guides and biomechanical cuts." />
-                            
-                            {form.id ? (
-                               <div className="flex-1 min-h-0">
-                                  <AssetMediaHub 
-                                     exercise={form as Exercise} 
-                                     onUpdate={(updated) => setForm(updated)}
-                                  />
-                               </div>
-                            ) : (
-                               <div className="py-24 flex flex-col items-center justify-center text-center bg-white rounded-[3rem] border border-dashed border-slate-200">
-                                  <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-6">
-                                     <ImageIcon size={32} />
-                                  </div>
-                                  <h4 className="text-lg font-black uppercase tracking-tight">Identity Required</h4>
-                                  <p className="max-w-xs mx-auto text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
-                                     Salve o exercício pela primeira vez para habilitar o Asset Media Hub e gerenciar mídias avançadas.
-                                  </p>
-                                  <button 
-                                     onClick={handleSave}
-                                     className="mt-8 px-8 py-4 bg-slate-950 text-white rounded-full font-black text-[10px] uppercase tracking-widest"
-                                  >
-                                     Salvar & Habilitar Mídia
-                                  </button>
-                               </div>
-                            )}
-                         </motion.div>
-                      )}
-                      
-
-                   </AnimatePresence>
-                </div>
-             </main>
-          </div>
-       </motion.div>
+  const upload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]; event.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 5*1024*1024) { setError('Use imagem JPG, PNG ou WEBP de até 5 MB.'); return; }
+    setUploading(true); setProgress(0); setError('');
+    try { const url = await cloudinaryService.uploadStaticFrame(file,setProgress); setForm(previous => ({...previous,image_url:url,static_frame_url:url})); }
+    catch { setError('Não foi possível enviar a imagem. Tente novamente ou informe o endereço da imagem.'); }
+    finally { setUploading(false); }
+  };
+  const trap = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape') { event.stopPropagation(); requestClose(); }
+    if (event.key !== 'Tab') return;
+    const elements = panel.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href]');
+    if (!elements?.length) return;
+    const first = elements[0], last = elements[elements.length-1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  };
+  return <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/40 p-2 sm:p-6" onClick={requestClose}>
+    <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="exercise-editor-title" onClick={event => event.stopPropagation()} onKeyDown={trap} className="flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+      <header className="flex items-center justify-between gap-4 border-b border-slate-200 p-5"><div><h2 id="exercise-editor-title" className="text-xl font-semibold">{selectedExercise ? 'Editar exercício' : 'Novo exercício'}</h2><p className="mt-1 text-sm text-slate-600">{dirty ? 'Alterações ainda não salvas' : 'As alterações são gravadas ao salvar.'}</p></div><button aria-label="Fechar editor" disabled={busy} className="min-h-11 min-w-11 rounded-xl border border-slate-200" onClick={requestClose}><X className="mx-auto" size={20}/></button></header>
+      <nav aria-label="Seções do cadastro" className="flex gap-2 overflow-x-auto border-b p-3">{[['basic','Informações'],['technique','Como executar'],['media','Imagem e vídeo']].map(([key,label]) => <button key={key} onClick={() => setTab(key)} aria-current={tab === key ? 'page' : undefined} className={`min-h-11 shrink-0 rounded-xl px-4 text-sm font-medium ${tab === key ? 'bg-blue-50 text-blue-700' : 'text-slate-600'}`}>{label}</button>)}</nav>
+      <div className="overflow-y-auto p-5 sm:p-6 space-y-5">
+        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-red-800">{error}</p>}
+        {discard && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4"><p>Descartar as alterações não salvas?</p><div className="mt-3 flex gap-3"><button className="min-h-11 rounded-xl border bg-white px-3" onClick={() => setDiscard(false)}>Continuar editando</button><button className="min-h-11 rounded-xl bg-red-600 px-3 text-white" onClick={closeEditor}>Descartar e sair</button></div></div>}
+        <fieldset disabled={busy} className="space-y-5 disabled:opacity-60">
+        {tab === 'basic' && <>
+          <Field label="Nome do exercício *" value={form.name} onChange={value => change('name',value)}/>
+          <Field label="Outro nome / sinônimo" value={form.commercial_alias} onChange={value => change('commercial_alias',value)}/>
+          <label className="block space-y-2"><span className="text-sm font-medium">Grupo muscular</span><select className={control} value={form.muscle_group_id || ''} onChange={event => setForm(previous => ({...previous,...getMuscleGroupSelectionUpdate(event.target.value,muscleGroups)}))}><option value="">{form.muscle_group || 'Selecione o grupo muscular'}</option>{getMuscleGroupClusters(muscleGroups).map(({parent,clusters}) => <optgroup key={parent.id} label={parent.name}><option value={parent.id}>{parent.name}</option>{clusters.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}</optgroup>)}</select></label>
+          <div className="grid gap-5 sm:grid-cols-2"><label className="block space-y-2"><span className="text-sm font-medium">Tipo de equipamento</span><select className={control} value={form.type || 'other'} onChange={event => change('type',event.target.value)}>{Object.entries(equipmentNames).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label><Field label="Equipamento específico" value={form.equipment} onChange={value => change('equipment',value)}/></div>
+          <label className="block space-y-2"><span className="text-sm font-medium">Nível</span><select className={control} value={form.difficulty_level || 'beginner'} onChange={event => change('difficulty_level',event.target.value)}><option value="beginner">Iniciante</option><option value="intermediate">Intermediário</option><option value="advanced">Avançado</option></select></label>
+          <Field label="Descrição" multiline value={form.description} onChange={value => change('description',value)}/>
+          <label className="flex items-start gap-3 rounded-xl bg-slate-50 p-4"><input className="mt-1 h-5 w-5" type="checkbox" checked={!!form.is_active} onChange={event => change('is_active',event.target.checked)}/><span><span className="block font-medium">Publicado no catálogo</span><span className="text-sm text-slate-600">Desmarcado: fica oculto para os alunos, como rascunho. Treinos e históricos existentes são preservados.</span></span></label>
+        </>}
+        {tab === 'technique' && <><Field label="Como executar, passo a passo" multiline value={form.instructions} onChange={value => change('instructions',value)}/><details className="rounded-xl border p-4"><summary className="cursor-pointer font-medium">Informações técnicas opcionais</summary><div className="mt-4 space-y-4"><Field label="Dicas técnicas" multiline value={form.technical_tips} onChange={value => change('technical_tips',value)}/><Field label="Padrão de movimento" value={form.movement_pattern} onChange={value => change('movement_pattern',value)}/><Field label="Músculos secundários (separados por vírgula)" value={(form.secondary_muscles || []).join(', ')} onChange={value => change('secondary_muscles',value.split(',').map(item => item.trim()))}/></div></details></>}
+        {tab === 'media' && <><p className="text-slate-600">Adicione a imagem e o vídeo aqui. Os vínculos com o exercício serão gravados ao salvar.</p><label className="block space-y-2"><span className="text-sm font-medium">Enviar imagem (até 5 MB)</span><input type="file" accept="image/jpeg,image/png,image/webp" className={control} onChange={event => void upload(event)}/></label><Field label="Endereço da imagem" value={form.image_url || form.static_frame_url} onChange={value => setForm(previous => ({...previous,image_url:value,static_frame_url:value}))}/>{(form.image_url || form.static_frame_url) && <img src={form.image_url || form.static_frame_url} alt="Prévia do exercício" className="max-h-64 rounded-xl object-contain"/>}<Field label="Endereço do vídeo" value={form.video_url} onChange={value => change('video_url',value)}/><Field label="Endereço da miniatura" value={form.thumbnail_url} onChange={value => change('thumbnail_url',value)}/></>}
+        </fieldset>
+        {uploading && <p role="status">Enviando imagem… {progress}%</p>}
+      </div>
+      <footer className="flex justify-end gap-3 border-t bg-slate-50 p-4"><button disabled={busy} onClick={requestClose} className="min-h-11 rounded-xl border border-slate-300 px-4">Cancelar</button><button disabled={busy} onClick={() => void save()} className="flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 font-medium text-white disabled:opacity-50"><Save size={18}/>{saving ? 'Salvando…' : form.is_active ? 'Salvar e publicar' : 'Salvar rascunho'}</button></footer>
     </div>
-  );
-};
-
-function Input({ label, value, onChange, placeholder }: { label: string, value: any, onChange: (val: string) => void, placeholder?: string }) {
-  return (
-    <div className="space-y-3">
-       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">{label}</label>
-       <input 
-          type="text"
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all shadow-sm"
-       />
-    </div>
-  );
+  </div>;
 }
-
-function Textarea({ label, value, onChange }: { label: string, value: any, onChange: (val: string) => void }) {
-  return (
-    <div className="space-y-3">
-       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">{label}</label>
-       <textarea 
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full h-32 bg-white border border-slate-200 rounded-3xl p-6 font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all resize-none shadow-sm"
-       />
-    </div>
-  );
+function Field({label,value,onChange,multiline=false}: {label:string;value?:string;onChange:(value:string)=>void;multiline?:boolean}) {
+  return <label className="block space-y-2"><span className="text-sm font-medium">{label}</span>{multiline ? <textarea className={`${control} min-h-32`} value={value || ''} onChange={event => onChange(event.target.value)}/> : <input className={control} value={value || ''} onChange={event => onChange(event.target.value)}/>}</label>;
 }
-
-function SectionHeader({ title, desc }: { title: string, desc: string }) {
-  return (
-    <div className="pb-8 border-b border-slate-200">
-       <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900">{title}</h3>
-       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{desc}</p>
-    </div>
-  );
-}
-
-function AIAction({ icon, label }: { icon: React.ReactNode, label: string }) {
-  return (
-    <button className="w-full flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-white group">
-       <div className="flex items-center gap-4">
-          <div className="text-blue-400 group-hover:scale-110 transition-transform">{icon}</div>
-          <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
-       </div>
-       <ChevronRight size={14} className="text-white/20" />
-    </button>
-  );
-}
-
-function ModuleProgress({ tab }: { tab: string }) {
-  return (
-    <div className="py-24 flex flex-col items-center justify-center text-center">
-       <div className="w-20 h-20 bg-white rounded-3xl border border-slate-200 flex items-center justify-center text-slate-200 mb-8">
-          <Dumbbell size={32} />
-       </div>
-       <h4 className="text-xl font-black uppercase tracking-tight">{tab}</h4>
-       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Architecture under construction.</p>
-    </div>
-  );
-}
-
-export default ExerciseEditorV2;
