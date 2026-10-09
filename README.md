@@ -21,4 +21,6 @@ View your app in AI Studio: https://ai.studio/apps/942cb6b6-9f94-4980-aa21-84094
 
 ## Exercise media credits
 
+Padrão obrigatório para futuras criações: [Política de imagens de exercícios v2](docs/EXERCISE_MEDIA_VISUAL_POLICY_V2.md).
+
 [Exercise data by RepDB (repdb.co)](https://repdb.co). Selected flat illustrations are used inside the application under the [RepDB Free Tier License](https://github.com/RepDB/exercise-dataset/blob/main/LICENSE-DATA.md). Original Kyron illustrations supplement movements without a matching asset.
