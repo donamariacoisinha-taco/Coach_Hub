@@ -36,11 +36,12 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({ data }) => {
         <LineChart data={chartData}>
           <XAxis 
             dataKey="displayDate" 
-            hide 
+            tick={{ fontSize: 11 }}
           />
           <YAxis 
-            hide 
-            domain={['dataMin - 5', 'dataMax + 5']} 
+            tick={{ fontSize: 11 }}
+            width={45}
+            domain={[0, 'auto']}
           />
           <Tooltip 
             contentStyle={{ 
@@ -51,7 +52,7 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({ data }) => {
               fontWeight: 'bold',
               textTransform: 'uppercase'
             }}
-            labelStyle={{ display: 'none' }}
+            formatter={(value) => [`${value} kg`, 'Carga máxima']}
           />
           <Line
             type="monotone"

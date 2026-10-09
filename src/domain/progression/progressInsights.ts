@@ -8,13 +8,13 @@ export function getProgressInsights(data: any[]) {
   const weightDiff = last.max_weight - prev.max_weight;
   const volumeDiff = last.volume - prev.volume;
 
-  let message = "Consistência mantida";
+  let message = "Carga e volume sem aumento";
   if (weightDiff > 0) {
-    message = "🔥 Mais forte que o último treino";
+    message = "Carga maior que no último treino";
   } else if (volumeDiff > 0) {
-    message = "📈 Mais volume total";
+    message = "Volume maior que no último treino";
   } else if (weightDiff < 0) {
-    message = "⚖️ Foco na técnica hoje";
+    message = "Carga menor que no último treino";
   }
 
   return {
