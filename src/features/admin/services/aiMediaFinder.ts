@@ -6,13 +6,14 @@ Analise o nome do exercício, equipamento e biomecânica.
 
 Fontes recomendadas (use links reais se possível via busca, ou links de alta qualidade de bancos conhecidos):
 - YouTube (para vídeos demonstrativos)
-- Unsplash / Pexels (para imagens premium de fitness)
+- Imagens específicas que demonstrem exatamente o exercício e o equipamento; nunca fotos genéricas de academia ou alimentos.
 - Wikimedia Commons (para diagramas anatômicos)
 
 Critérios de Qualidade:
 - Alta resolução
 - Fundo limpo
 - Foco educacional
+- Não invente URLs, notas de qualidade ou correspondência biomecânica. Se não houver mídia verificada, retorne listas vazias.
 - Branding compatível com KYRON OS (Minimalista, Premium, Profissional)
 `;
 
@@ -51,26 +52,9 @@ export const aiMediaFinder = {
     }
   },
 
-  getFallbackSuggestions(exercise: Exercise): any {
-    const term = encodeURIComponent(exercise.name);
-    return {
-      main_images: [
-        { 
-          url: `https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1000&auto=format&fit=crop`, 
-          title: `${exercise.name} Hero`, 
-          quality_score: 85,
-          source: 'Unsplash' 
-        }
-      ],
-      videos: [
-        { 
-          url: `https://www.youtube.com/results?search_query=${term}+execution`, 
-          title: `Demonstração: ${exercise.name}`, 
-          quality_score: 90,
-          source: 'YouTube' 
-        }
-      ],
-      guides: []
-    };
+  getFallbackSuggestions(_exercise: Exercise): any {
+    // A failed lookup provides no evidence of a matching exercise image or video.
+    // Generic stock photos and search-result URLs are not exercise media.
+    return { main_images: [], videos: [], guides: [] };
   }
 };
