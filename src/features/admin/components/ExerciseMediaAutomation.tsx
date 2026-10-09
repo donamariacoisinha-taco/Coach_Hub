@@ -71,7 +71,7 @@ const ExerciseMediaAutomation: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    void refresh().catch(() => {});
   }, [refresh]);
 
   const summary = dashboard?.summary || [];
@@ -208,7 +208,7 @@ const ExerciseMediaAutomation: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => void refresh()}
+          onClick={() => void refresh().catch(() => {})}
           disabled={loading || Boolean(runningAction)}
           className="inline-flex h-11 items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 text-[10px] font-black uppercase tracking-widest text-slate-600 transition hover:border-slate-300 disabled:opacity-50"
         >

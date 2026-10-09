@@ -36,8 +36,8 @@ import RubiIntelligenceModal from './components/RubiIntelligenceModal';
 import { GlobalTemplatesManager } from './components/GlobalTemplatesManager';
 import { ProtocolBuilder40 } from './components/ProtocolBuilder40';
 import { UserManagement } from './components/UserManagement';
-import ExerciseMediaAutomation from './components/ExerciseMediaAutomation';
-import ExerciseQualityDashboard from './components/ExerciseQualityDashboard';
+
+
 
 interface AdminPanelV2Props {
   onBack: () => void;
@@ -198,15 +198,15 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
                </button>
             </div>
 
-            <button 
+            {activeTab !== 'library' && <button
               onClick={() => openEditor()}
               className="px-8 h-14 bg-slate-950 text-white rounded-full font-black text-[11px] uppercase tracking-[0.2em] flex items-center gap-3 shadow-2xl shadow-slate-950/40 active:scale-95 transition-all group"
             >
               <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center group-hover:rotate-90 transition-transform">
                  <Plus size={16} />
               </div>
-              <span className="hidden sm:inline">Add Exercise</span>
-            </button>
+              <span className="hidden sm:inline">Novo exercício</span>
+            </button>}
           </div>
         </header>
 
@@ -223,11 +223,7 @@ const AdminPanelV2: React.FC<AdminPanelV2Props> = ({ onBack }) => {
               >
                   {activeTab === 'dashboard' && <ExecutiveDashboard />}
                   {activeTab === 'library' && (
-                    <div className="space-y-8">
-                      <ExerciseQualityDashboard />
-                      <ExerciseMediaAutomation />
-                      <LibraryOSV25 />
-                    </div>
+                    <LibraryOSV25 />
                   )}
                   {activeTab === 'protocols' && <ProtocolBuilder40 />}
                   {activeTab === 'users' && <UserManagement />}

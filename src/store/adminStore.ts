@@ -57,7 +57,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   setExercises: (exercises) => set({ exercises }),
   
   fetchData: async () => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
       const [adminData, qualityStats] = await Promise.all([
         adminApi.getAdminData(),
@@ -127,7 +127,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   createExercise: async (payload) => {
     try {
       await adminApi.createExercise(payload as any);
-      get().fetchData(); // Refresh to get the new id and data
+      await get().fetchData(); // Refresh to get the new id and data
     } catch (err: any) {
       throw err;
     }

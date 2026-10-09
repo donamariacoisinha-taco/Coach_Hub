@@ -1,284 +1,88 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  LayoutGrid, 
-  List, 
-  Columns, 
-  Keyboard, 
-  ChevronDown,
-  Sparkles,
-  Command,
-  ArrowRight,
-  Database,
-  AlertCircle,
-  Skull,
-  TrendingUp
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Plus, Search } from 'lucide-react';
 import { useAdminStore } from '../../../store/adminStore';
-import { useLibraryStore } from '../store/libraryStore';
-import { useIntelligenceStore } from '../store/intelligenceStore';
-import SmartGrid from './SmartGrid';
-import BulkActionBar from './BulkActionBar';
-import SavedViews from './SavedViews';
-import ColumnsManager from './ColumnsManager';
-import { useKeyboardShortcuts } from '../utils/KeyboardShortcuts';
-import { buildExerciseFilterGroups } from '../../../lib/exercises/exerciseFilters';
+import { buildExerciseSearchText, normalizeExerciseFilterText, exerciseMatchesMuscleFilter, buildExerciseFilterGroups } from '../../../lib/exercises/exerciseFilters';
 
-const LibraryOSV25: React.FC = () => {
-  const { exercises, searchQuery, setSearchQuery, openEditor, selectedMuscleFilter, setMuscleFilter } = useAdminStore();
-  const { 
-    viewMode, 
-    setViewMode, 
-    visibleColumns, 
-    activeViewId,
-    setActiveView,
-    savedViews,
-    isKeyboardModeActive,
-    toggleKeyboardMode
-  } = useLibraryStore();
-  const { openModal } = useIntelligenceStore();
+import { getLibraryReviewIssues, archiveLibrarySelection } from '../utils/libraryQuality';
 
-  const [isColumnsManagerOpen, setColumnsManagerOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  
-  // Keyboard Shortcuts (Memoized to prevent listener thrashing)
-  const shortcuts = React.useMemo(() => [
-    { key: '/', action: () => document.getElementById('universal-search')?.focus() },
-    { key: 'n', action: () => openEditor() },
-    { key: 'v', action: () => setViewMode(viewMode === 'table' ? 'grid' : 'table') },
-    { key: 'k', meta: true, action: () => {} }, // Command palette handled elsewhere but good to reserve
-    { key: 'escape', action: () => setSelectedIds([]) }
-  ], [openEditor, setViewMode, viewMode]);
-
-  useKeyboardShortcuts(shortcuts);
-
-  const muscleFilterGroups = useMemo(
-    () => buildExerciseFilterGroups(exercises, { includeInactive: true }),
-    [exercises],
-  );
-  const activeMuscleGroup = useMemo(() => muscleFilterGroups.find((group) => (
-    group.name === selectedMuscleFilter
-    || group.subgroups.some((subgroup) => subgroup.name === selectedMuscleFilter)
-  )) || null, [muscleFilterGroups, selectedMuscleFilter]);
-
-  return (
-    <div className="space-y-10 pb-32">
-      {/* Universal Search & Toolbar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div className="flex-1 max-w-2xl flex items-center gap-4">
-           <div className="flex-1 bg-white rounded-[2rem] border border-slate-200 px-6 py-1 flex items-center shadow-sm group focus-within:ring-4 focus-within:ring-blue-500/5 focus-within:border-blue-400 transition-all">
-              <Search size={20} className="text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-              <input 
-                id="universal-search"
-                type="text" 
-                placeholder="Pesquisar em tudo... (/)" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent border-none py-5 px-4 font-bold text-sm outline-none placeholder:text-slate-400 text-slate-900"
-              />
-              <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                 <Command size={10} /> /
-              </div>
-           </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <SavedViews />
-          
-          <div className="w-px h-8 bg-slate-200 mx-2" />
-
-          <div className="flex bg-white rounded-2xl border border-slate-200 p-1.5 shadow-sm">
-             <button 
-               onClick={() => setViewMode('table')}
-               className={`p-3 rounded-xl transition-all ${viewMode === 'table' ? 'bg-slate-950 text-white shadow-xl' : 'text-slate-300 hover:text-slate-900'}`}
-             >
-                <List size={18} />
-             </button>
-             <button 
-               onClick={() => setViewMode('grid')}
-               className={`p-3 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-slate-950 text-white shadow-xl' : 'text-slate-300 hover:text-slate-900'}`}
-             >
-                <LayoutGrid size={18} />
-             </button>
-          </div>
-
-          <button 
-            onClick={() => setColumnsManagerOpen(true)}
-            className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-950 transition-all shadow-sm group"
-          >
-             <Columns size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-          </button>
-
-          <button 
-            onClick={openEditor}
-            className="px-8 h-14 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 shadow-xl shadow-blue-200 hover:scale-105 active:scale-95 transition-all"
-          >
-             <Plus size={18} />
-             Novo Exercício
-          </button>
-        </div>
+const control = 'min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-800';
+const equipmentNames: Record<string, string> = { free_weight: 'Peso livre', machine: 'Máquina', bodyweight: 'Peso corporal', cable: 'Cabo / polia', band: 'Elástico', other: 'Outro' };
+export default function LibraryOSV25() {
+  const { exercises, loading, error, fetchData, openEditor, updateExerciseStatus } = useAdminStore();
+  const [query, setQuery] = useState('');
+  const [muscle, setMuscle] = useState('');
+  const [equipment, setEquipment] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
+  const [reviewing, setReviewing] = useState(false);
+  const issues = useMemo(() => getLibraryReviewIssues(exercises), [exercises]);
+  const selectedExercises = exercises.filter(ex => selected.includes(ex.id));
+  const publishedSelection = selectedExercises.filter(ex => ex.is_active);
+  const needsReview = exercises.filter(ex => (issues.get(ex.id)?.length || 0) > 0).length;
+  const batchBusy = busy === 'batch';
+  const groups = useMemo(() => buildExerciseFilterGroups(exercises, { includeInactive: true }), [exercises]);
+  const results = useMemo(() => exercises.filter(ex =>
+    buildExerciseSearchText(ex).includes(normalizeExerciseFilterText(query)) &&
+    (!muscle || exerciseMatchesMuscleFilter(ex, muscle)) &&
+    (!equipment || ex.type === equipment) &&
+    (!status || (status === 'published' ? !!ex.is_active : status === 'hidden' ? !ex.is_active : status === 'review' ? !!issues.get(ex.id)?.length : status === 'instructions' ? !ex.instructions?.trim() : status === 'duplicates' ? issues.get(ex.id)?.includes('Nome repetido — conferir') : !ex.image_url?.trim() && !ex.static_frame_url?.trim()))
+  ).sort((a,b) => a.name.localeCompare(b.name, 'pt-BR')), [exercises, query, muscle, equipment, status, issues]);
+  const pages = Math.max(1, Math.ceil(results.length / 25));
+  const currentPage = Math.min(page, pages);
+  const change = (setter: (value: string) => void, value: string) => { setter(value); setPage(1); setSelected([]); setReviewing(false); };
+  const clear = () => { setQuery(''); setMuscle(''); setEquipment(''); setStatus(''); setPage(1); setSelected([]); setReviewing(false); };
+  const archive = async (id: string, name: string) => {
+    if (!window.confirm(`Arquivar “${name}”? O exercício ficará oculto no catálogo, preservando fichas e históricos.`)) return;
+    setBusy(id); setFeedback('');
+    try { await updateExerciseStatus(id, false); setFeedback('Exercício arquivado.'); }
+    catch { setFeedback('Não foi possível arquivar. Tente novamente.'); }
+    finally { setBusy(null); }
+  };
+  const visibleExercises = results.slice((currentPage-1)*25,currentPage*25);
+  const allVisibleSelected = visibleExercises.length > 0 && visibleExercises.every(ex => selected.includes(ex.id));
+  const togglePage = () => setSelected(previous => allVisibleSelected
+    ? previous.filter(id => !visibleExercises.some(ex => ex.id === id))
+    : [...new Set([...previous,...visibleExercises.map(ex => ex.id)])]);
+  const archiveBatch = async () => {
+    if (batchBusy || !publishedSelection.length) return;
+    setBusy('batch'); setFeedback('');
+    const outcome = await archiveLibrarySelection(publishedSelection.map(ex => ex.id), id => updateExerciseStatus(id,false));
+    setFeedback(`${outcome.completed.length} exercícios arquivados.${outcome.failed.length ? ` Não foi possível arquivar: ${selectedExercises.filter(ex => outcome.failed.includes(ex.id)).map(ex => ex.name).join(', ')}. Você pode tentar novamente.` : ''}`);
+    setSelected(outcome.failed); setReviewing(false); setBusy(null);
+  };
+  return <section className="space-y-5 pb-24 text-slate-900" aria-label="Gerenciar biblioteca">
+    <header className="flex flex-wrap items-center justify-between gap-4">
+      <div><h2 className="text-2xl font-semibold">Biblioteca de exercícios</h2><p className="mt-1 text-base text-slate-600">Encontre, revise e organize os exercícios do Kyron.</p></div>
+      <button disabled={!!busy} onClick={() => openEditor()} className="flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 font-medium text-white"><Plus size={18}/>Novo exercício</button>
+    </header>
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+      <label className="flex items-center gap-3"><Search size={20} aria-hidden="true"/><span className="sr-only">Buscar exercícios</span><input className={`${control} w-full`} disabled={!!busy} value={query} onChange={e => change(setQuery,e.target.value)} placeholder="Buscar nome, músculo ou equipamento"/></label>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="space-y-1"><span className="block text-sm font-medium">Grupo muscular</span><select className={`${control} w-full`} disabled={!!busy} value={muscle} onChange={e => change(setMuscle,e.target.value)}><option value="">Todos os músculos</option>{groups.map(g => <optgroup key={g.name} label={g.name}><option value={g.name}>{g.name}</option>{g.subgroups.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}</optgroup>)}</select></label>
+        <label className="space-y-1"><span className="block text-sm font-medium">Equipamento</span><select className={`${control} w-full`} disabled={!!busy} value={equipment} onChange={e => change(setEquipment,e.target.value)}><option value="">Todos os equipamentos</option>{Object.entries(equipmentNames).map(([key,name]) => <option key={key} value={key}>{name}</option>)}</select></label>
+        <label className="space-y-1"><span className="block text-sm font-medium">Situação</span><select className={`${control} w-full`} disabled={!!busy} value={status} onChange={e => change(setStatus,e.target.value)}><option value="">Todos os exercícios</option><option value="published">Publicados</option><option value="hidden">Ocultos / rascunhos</option><option value="missing">Sem imagem</option><option value="instructions">Sem instruções</option><option value="duplicates">Nomes repetidos</option><option value="review">Precisa de revisão</option></select></label>
       </div>
-
-      {/* Muscle Filter Pills */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mask-fade-right">
-        {['Todos', ...muscleFilterGroups.map((group) => group.name)].map((muscle) => (
-          <button
-            key={muscle}
-            onClick={() => setMuscleFilter(muscle)}
-            className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${
-              (muscle === 'Todos' ? selectedMuscleFilter === 'Todos' : activeMuscleGroup?.name === muscle)
-                ? 'bg-slate-950 border-slate-950 text-white shadow-lg'
-                : 'bg-white border-slate-200 text-slate-400 hover:border-slate-400 hover:text-slate-900'
-            }`}
-          >
-            {muscle}
-          </button>
-        ))}
-        </div>
-        {activeMuscleGroup && activeMuscleGroup.subgroups.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2" aria-label={`Subcategorias de ${activeMuscleGroup.name}`}>
-            {activeMuscleGroup.subgroups.map((subgroup) => (
-              <button
-                key={subgroup.name}
-                onClick={() => setMuscleFilter(subgroup.name)}
-                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${
-                  selectedMuscleFilter === subgroup.name
-                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
-                    : 'bg-indigo-50/50 border-indigo-100 text-indigo-500 hover:bg-indigo-50'
-                }`}
-              >
-                {subgroup.name} · {subgroup.count}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex flex-col gap-10">
-        {/* Smart Grid Section - Now taking full 100% width */}
-        <div className="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden min-h-[700px] flex flex-col">
-           <SmartGrid 
-              selectedIds={selectedIds}
-              onSelectChange={setSelectedIds}
-           />
-        </div>
-
-        {/* Smart Insights & Keyboard Hints moved below the list */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-           {/* Smart Insights Panel - Spanning 2 columns on large screens */}
-           <div className="lg:col-span-2 bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
-              <div className="flex items-center gap-4 mb-8">
-                 <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-                    <Sparkles size={20} />
-                 </div>
-                 <div>
-                    <h4 className="text-[13px] font-black text-slate-900 uppercase tracking-tight">Smart Insights</h4>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Analítica Realtime</p>
-                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <InsightCard 
-                    icon={<AlertCircle className="text-red-500" />} 
-                    label="Críticos Hoje" 
-                    value={exercises.filter(ex => (ex.quality_score_v3 || 0) < 40).length} 
-                    desc="Necessitam revisão imediata"
-                    onClick={() => openModal('fix')}
-                 />
-                 <InsightCard 
-                    icon={<Skull className="text-slate-400" />} 
-                    label="Prováveis Duplicados" 
-                    value="4" 
-                    desc="Nomes similares detectados"
-                    onClick={() => openModal('audit')}
-                 />
-                 <InsightCard 
-                    icon={<TrendingUp className="text-emerald-500" />} 
-                    label="Rising Stars" 
-                    value={exercises.filter(ex => ex.ranking_status === 'rising').length} 
-                    desc="Engajamento em alta"
-                    onClick={() => openModal('scores')}
-                 />
-                 <InsightCard 
-                    icon={<Database className="text-blue-500" />} 
-                    label="Sem Midia" 
-                    value={exercises.filter(ex => !ex.image_url && !ex.static_frame_url).length} 
-                    desc="Impacto visual baixo"
-                    onClick={() => openModal('audit')}
-                 />
-              </div>
-
-              <button className="w-full mt-10 py-5 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-all flex items-center justify-center gap-3">
-                 Relatório Completo
-                 <ArrowRight size={14} />
-              </button>
-           </div>
-
-           {/* Keyboard Hint - Spanning 1 column */}
-           <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white flex flex-col justify-between">
-              <div>
-                 <div className="flex items-center gap-3 mb-6">
-                    <Keyboard size={18} className="text-indigo-400" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Atalhos Pro</span>
-                 </div>
-                 <div className="space-y-4">
-                    <ShortcutHint keys={['/']} label="Universal Search" />
-                    <ShortcutHint keys={['N']} label="Novo Exercício" />
-                    <ShortcutHint keys={['V']} label="Toggle Lista/Grid" />
-                    <ShortcutHint keys={['ESC']} label="Limpar Seleção" />
-                 </div>
-              </div>
-           </div>
-        </div>
-      </div>
-
-      <BulkActionBar 
-        selectedIds={selectedIds} 
-        onClear={() => setSelectedIds([])} 
-      />
-
-      <ColumnsManager 
-        isOpen={isColumnsManagerOpen} 
-        onClose={() => setColumnsManagerOpen(false)} 
-      />
+      <div className="flex justify-between items-center gap-3"><p aria-live="polite" className="text-sm text-slate-600">{results.length} exercícios encontrados</p><button className={`${control} text-sm`} disabled={!!busy} onClick={clear}>Limpar filtros</button></div>
     </div>
-  );
-};
-
-export default LibraryOSV25;
-
-function InsightCard({ icon, label, value, desc, onClick }: { icon: React.ReactNode, label: string, value: string | number, desc: string, onClick?: () => void }) {
-  return (
-    <div 
-      onClick={onClick}
-      className={`flex items-start gap-4 p-4 rounded-2xl border border-slate-50 transition-all group ${onClick ? 'cursor-pointer hover:bg-slate-50 hover:border-slate-200' : 'cursor-default'}`}
-    >
-       <div className="mt-1 translate-y-1">{icon}</div>
-       <div className="flex-1">
-          <div className="flex items-center justify-between mb-1">
-             <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight">{label}</span>
-             <span className="text-xs font-black text-slate-950">{value}</span>
-          </div>
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{desc}</p>
-       </div>
-    </div>
-  );
-}
-
-function ShortcutHint({ keys, label }: { keys: string[], label: string }) {
-  return (
-    <div className="flex items-center justify-between">
-       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</span>
-       <div className="flex gap-1">
-          {keys.map(k => (
-            <kbd key={k} className="px-2 py-1 bg-white/10 rounded-md text-[9px] font-black text-slate-200">{k}</kbd>
-          ))}
-       </div>
-    </div>
-  );
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4"><p>{needsReview} exercícios com pendências de cadastro</p><button disabled={batchBusy} className={control} onClick={() => change(setStatus,'review')}>Revisar pendências</button></div>
+    {selectedExercises.length > 0 && <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4" aria-label="Ações dos exercícios selecionados"><p className="font-medium">{selectedExercises.length} exercícios selecionados · {publishedSelection.length} publicados</p><div className="flex flex-wrap gap-3"><button disabled={!!busy || !publishedSelection.length} className={control} onClick={() => setReviewing(true)}>Revisar arquivamento</button><button disabled={!!busy} className={control} onClick={() => {setSelected([]);setReviewing(false);}}>Limpar seleção</button></div>
+      {reviewing && <div className="space-y-3"><p>Estes exercícios ficarão ocultos no catálogo. Fichas e históricos serão preservados.</p><ul className="max-h-48 overflow-y-auto list-disc pl-5">{publishedSelection.map(ex => <li key={ex.id}>{ex.name}</li>)}</ul><div className="flex gap-3"><button disabled={!!busy} className={control} onClick={() => setReviewing(false)}>Cancelar arquivamento</button><button disabled={!!busy} className="min-h-11 rounded-xl bg-blue-600 px-4 text-white disabled:opacity-50" onClick={() => void archiveBatch()}>{batchBusy ? 'Arquivando…' : `Confirmar arquivamento de ${publishedSelection.length}`}</button></div></div>}
+    </div>}
+    {!!results.length && !loading && <label className="flex items-center gap-3"><input disabled={!!busy} type="checkbox" className="h-5 w-5" checked={allVisibleSelected} onChange={togglePage}/>Selecionar os {visibleExercises.length} exercícios desta página</label>}
+    {feedback && <p role="status" className="rounded-xl bg-blue-50 p-3">{feedback}</p>}
+    {error && <div role="alert" className="rounded-xl bg-red-50 p-4">Não foi possível carregar a biblioteca. <button className="underline" onClick={() => void fetchData()}>Tentar novamente</button></div>}
+    {loading ? <p role="status">Carregando exercícios…</p> : !results.length ? <div className="rounded-2xl border bg-white p-8 text-center"><h3 className="font-semibold">Nenhum exercício encontrado</h3><p className="mt-2 text-slate-600">Ajuste os filtros ou cadastre um novo exercício.</p></div> : <ul className="divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white overflow-hidden">{visibleExercises.map(ex => <li key={ex.id} className="flex flex-wrap items-center gap-4 p-4">
+      <input type="checkbox" aria-label={`Selecionar ${ex.name}`} disabled={!!busy} className="h-5 w-5" checked={selected.includes(ex.id)} onChange={() => {setReviewing(false);setSelected(previous => previous.includes(ex.id) ? previous.filter(id => id !== ex.id) : [...previous,ex.id]);}}/>
+      <button disabled={!!busy} onClick={() => openEditor(ex)} className="flex min-w-0 flex-1 items-center gap-4 text-left rounded-lg focus-visible:outline-blue-600">
+        {ex.image_url || ex.static_frame_url ? <img src={ex.image_url || ex.static_frame_url} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-xl object-cover"/> : <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-500">Sem imagem</span>}
+        <span><span className="block text-base font-semibold">{ex.name}</span><span className="block text-sm text-slate-600">{ex.muscle_group || 'Músculo não informado'} · {ex.equipment || equipmentNames[ex.type || ''] || 'Equipamento não informado'}</span><span className={`mt-1 inline-block text-sm ${ex.is_active ? 'text-emerald-700' : 'text-slate-600'}`}>{ex.is_active ? 'Publicado' : 'Oculto / rascunho'}</span><span className="mt-1 block text-sm text-amber-800">{issues.get(ex.id)?.join(' · ')}</span></span>
+      </button>
+      <div className="flex items-center gap-2"><button className={control} disabled={!!busy} onClick={() => openEditor(ex)}>Editar</button>{ex.is_active && <button disabled={!!busy} className={`${control} disabled:opacity-50`} onClick={() => void archive(ex.id,ex.name)}>{busy === ex.id ? 'Arquivando…' : 'Arquivar'}</button>}</div>
+      <details className="w-full rounded-xl border border-slate-200 p-3"><summary className="cursor-pointer text-sm font-medium">Ver instruções</summary><div className="mt-3 space-y-2"><p className="whitespace-pre-line text-slate-700">{ex.instructions?.trim() || 'Este exercício ainda não possui instruções de execução.'}</p>{ex.description && <p className="whitespace-pre-line text-sm text-slate-600">{ex.description}</p>}</div></details>
+    </li>)}</ul>}
+    {results.length > 25 && <nav aria-label="Páginas da biblioteca" className="flex flex-wrap items-center justify-center gap-4"><button className={control} disabled={!!busy || currentPage === 1} onClick={() => setPage(currentPage-1)}>Anterior</button><span>Página {currentPage} de {pages}</span><button className={control} disabled={!!busy || currentPage === pages} onClick={() => setPage(currentPage+1)}>Próxima</button></nav>}
+  </section>;
 }
