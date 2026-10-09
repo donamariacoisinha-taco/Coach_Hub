@@ -4,7 +4,7 @@ import { WorkoutCategory, WorkoutExercise, WorkoutFolder, WorkoutHistory, UserPr
 import { fetchWithRetry } from '../utils';
 import { exerciseApi } from './exerciseApi';
 import { getGuestDashboard, getGuestWorkout, deleteGuestWorkout, updateGuestSessionSet } from '../guest/guestPersistence';
-import { GUEST_USER_ID } from './authApi';
+import { authApi, GUEST_USER_ID } from './authApi';
 
 export const workoutApi = {
   getGuestDashboardData() {
@@ -553,16 +553,51 @@ export const workoutApi = {
     }
 
     return fetchWithRetry(async () => {
-      const { data, error } = await supabase
-        .from('workout_history')
-        .select('*')
-        .eq('user_id', userId)
-        .not('completed_at', 'is', null)
-        .gt('exercises_count', 0) // Only show workouts that actually had exercises recorded
-        .order('completed_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
+      const rows: WorkoutHistory[] = [];
+      const pageSize = 500;
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase.from('workout_history').select('*')
+          .eq('user_id', userId).not('completed_at', 'is', null).gt('exercises_count', 0)
+          .order('completed_at', { ascending: false }).order('id', { ascending: false })
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        rows.push(...(data || []));
+        if ((data || []).length < pageSize) break;
+      }
+      return rows;
     });
+  },
+
+  /** Complete, user-scoped data for Evolution. Failures must remain visible. */
+  async getEvolutionLogs(history: WorkoutHistory[]) {
+    const user = await authApi.getUser();
+    if (!user) throw new Error('Sessão indisponível. Entre novamente.');
+    if (user.id === GUEST_USER_ID) {
+      return (getGuestDashboard().history || []).flatMap((entry: any) =>
+        (entry.workout_sets_logs || []).map((log: any) => ({ ...log,
+          history_id: entry.id, exercise_name_snapshot: log.exercise_name || log.exercise_name_snapshot,
+        })));
+    }
+    const rows: any[] = [];
+    const pageSize = 500;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase.from('workout_sets_log').select('*')
+        .eq('user_id', user.id).order('created_at', { ascending: true }).order('id', { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      rows.push(...(data || []));
+      if ((data || []).length < pageSize) break;
+    }
+    const visible = new Set(history.filter(h => h.user_id === user.id).map(h => h.id));
+    const logs = rows.filter(log => visible.has(log.history_id));
+    // Names are descriptive metadata only; a catalog failure must not replace real data.
+    try {
+      const catalog = await exerciseApi.getExercises();
+      const names = new Map(catalog.map(ex => [ex.id, ex.name]));
+      return logs.map(log => ({ ...log, exercise_name_snapshot: log.exercise_name_snapshot || names.get(log.exercise_id) }));
+    } catch {
+      return logs;
+    }
   },
 
   async getExerciseList() {

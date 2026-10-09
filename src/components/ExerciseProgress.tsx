@@ -13,26 +13,36 @@ interface ExerciseProgressProps {
 
 export const ExerciseProgress: React.FC<ExerciseProgressProps> = ({ exerciseId, name }) => {
   const [data, setData] = useState<any[]>([]);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       setLoading(true);
+      setError(false);
+      setData([]);
       try {
         const result = await exerciseApi.getExerciseProgress(exerciseId);
-        setData(result || []);
+        if (!cancelled) setData(result || []);
       } catch (err) {
-        console.error(err);
+        if (!cancelled) setError(true);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     load();
-  }, [exerciseId]);
+    if (error) return <div role="alert" className="py-6"><p>Não foi possível carregar o progresso.</p><button onClick={() => setRetry(n => n + 1)} className="text-blue-600 mt-3">Tentar novamente</button></div>;
+
+  return () => { cancelled = true; };
+  }, [exerciseId, retry]);
 
   const insight = useMemo(() => getProgressInsights(data), [data]);
   const pr = useMemo(() => calculatePR(data), [data]);
+
+  if (error) return <div role="alert" className="py-6"><p>Não foi possível carregar o progresso.</p><button onClick={() => setRetry(n => n + 1)} className="text-blue-600 mt-3">Tentar novamente</button></div>;
 
   return (
     <motion.div 
@@ -42,7 +52,7 @@ export const ExerciseProgress: React.FC<ExerciseProgressProps> = ({ exerciseId, 
     >
       <div className="flex items-baseline justify-between mb-1">
         <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-          Recorde Pessoal
+          Maior carga registrada
         </h2>
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black">
           {name}
@@ -84,7 +94,7 @@ export const ExerciseProgress: React.FC<ExerciseProgressProps> = ({ exerciseId, 
         <div className="p-4 bg-gray-50 rounded-2xl">
           <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Volume Total</p>
           <p className="text-sm font-black tabular-nums">
-            {data.length > 0 ? (data[data.length - 1].volume / 1000).toFixed(1) : 0}t
+            {data.length > 0 ? (data.reduce((sum, row) => sum + Number(row.volume || 0), 0) / 1000).toFixed(1) : 0}t
           </p>
         </div>
         <div className="p-4 bg-gray-50 rounded-2xl">

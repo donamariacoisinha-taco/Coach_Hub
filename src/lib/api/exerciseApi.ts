@@ -3,7 +3,8 @@ import { supabase } from './supabase';
 import { Exercise, MuscleGroup, normalizeMuscleGroup, getVirtualAnatomicalCut } from '../../types';
 import { fetchWithRetry } from '../utils';
 import { fallbackExercises } from './fallbackExercises';
-import { GUEST_USER_ID } from './authApi';
+import { authApi, GUEST_USER_ID } from './authApi';
+import { buildEvolution } from '../../domain/progression/evolutionMetrics';
 import { getGuestFavoriteExerciseIds, toggleGuestFavoriteExercise } from '../guest/guestPersistence';
 import {
   buildExerciseFilterGroups,
@@ -263,17 +264,17 @@ export const exerciseApi = {
   },
 
   async getExerciseProgress(exerciseId: string) {
-    const { data, error } = await supabase
-      .from("exercise_progress")
-      .select("*")
-      .eq("exercise_id", exerciseId)
-      .order("date", { ascending: true });
-
-    if (error) {
-      console.error("Erro ao buscar progresso do exercício:", error);
-      return [];
-    }
-
-    return data || [];
+    // Use the same user-scoped session data as Evolution, including guest records.
+    // The legacy aggregate view has no user_id column and cannot be scoped here.
+    const user = await authApi.getUser();
+    if (!user) throw new Error('Sessão indisponível. Entre novamente.');
+    const { workoutApi } = await import('./workoutApi');
+    const history = await workoutApi.getWorkoutHistory(user.id);
+    const logs = await workoutApi.getEvolutionLogs(history);
+    const exercise = buildEvolution(history, logs).find(ex => ex.id === exerciseId);
+    return (exercise?.points || []).map(point => ({
+      date: point.date, max_weight: point.load ?? 0, max_reps: point.reps ?? 0,
+      volume: point.volume, history_id: point.historyId,
+    }));
   }
 };
