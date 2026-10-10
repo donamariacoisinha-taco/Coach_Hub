@@ -20,7 +20,6 @@ import {
   Zap,
   ArrowRight,
   Target,
-  Flame,
   Award,
   Sparkles,
   Dumbbell,
@@ -1872,7 +1871,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   // Smart Footer Logic
   const [isFooterVisible, setIsFooterVisible] = useState(true);
   const [isInputFocused, setIsInputFocused] = useState(false);
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const lastScrollY = useRef(0);
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1966,14 +1964,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     // Always show if at top or bottom
     if (currentScrollY < 20 || currentScrollY >= maxScroll - 20) {
       setIsFooterVisible(true);
-      setIsHeaderVisible(true);
     } else if (Math.abs(currentScrollY - lastScrollY.current) > 10) {
       if (currentScrollY > lastScrollY.current) {
         setIsFooterVisible(false);
-        setIsHeaderVisible(false);
       } else {
         setIsFooterVisible(true);
-        setIsHeaderVisible(true);
       }
     }
     
@@ -3435,8 +3430,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             <motion.header 
               initial={false}
               animate={{ 
-                y: (isHeaderVisible || isResting) ? 0 : -100,
-                opacity: (isHeaderVisible || isResting) ? 1 : 0
+                y: 0,
+                opacity: 1
               }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className={`sticky top-0 z-50 shrink-0 bg-white transition-all duration-500 overflow-hidden ${
@@ -3482,13 +3477,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </AnimatePresence>
               </div>
 
-              <div className="flex gap-4 items-center">
-                {streak > 0 && !momentum && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 border border-orange-100 rounded-lg shrink-0">
-                    <Flame size={12} className="text-orange-500 fill-orange-500/20 animate-bounce" />
-                    <span className="text-[10px] font-black text-orange-600 tabular-nums">{streak}</span>
-                  </div>
-                )}
+              <div className="flex gap-2 items-center">
+                <div className="flex flex-col items-end text-right shrink-0 select-none" aria-label={`Série ${currentSet} de ${activeSetsData.length}`}>
+                  <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Série</p>
+                  <p className="text-xs font-black tabular-nums text-slate-800 leading-none">{currentSet}<span className="text-[9px] text-slate-400 font-bold">/{activeSetsData.length}</span></p>
+                </div>
                 
                 <div className="flex items-center gap-3">
                   <div className="flex flex-col items-end text-right shrink-0 select-none">
@@ -3527,6 +3520,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               style={{
                 paddingBottom: `calc(${dockClearance}px + env(safe-area-inset-bottom))`,
                 scrollPaddingBottom: `calc(${dockClearance}px + env(safe-area-inset-bottom))`,
+                scrollPaddingTop: momentum ? 0 : 120,
                 overscrollBehaviorY: 'contain',
                 WebkitOverflowScrolling: 'touch',
                 touchAction: 'pan-y',
@@ -3540,9 +3534,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     initial={{ height: "auto", opacity: 1 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0, padding: 0 }}
-                    className={`p-4 flex gap-3 items-center mb-2 overflow-hidden transition-all duration-500 ${
+                    className={`sticky top-0 z-30 p-4 flex gap-3 items-center mb-2 overflow-hidden transition-all duration-500 ${
                       focusMode 
-                        ? 'bg-slate-900/40 border-y border-slate-900/30 text-white' 
+                        ? 'bg-slate-900 border-y border-slate-900/30 text-white'
                         : 'bg-white text-slate-900 border-b border-slate-100'
                     }`}
                   >
@@ -3600,11 +3594,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             {currentEx?.exercise_name}
                           </h1>
                         </div>
-                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-lg tabular-nums shrink-0 ${
-                          focusMode ? 'text-slate-300 bg-slate-800' : 'text-slate-500 bg-slate-100'
-                        }`}>
-                          SÉRIE {currentSet}/{activeSetsData.length}
-                        </span>
+
                       </div>
                       <p className="text-[9px] text-slate-400 font-medium uppercase tracking-wider mt-1 line-clamp-1">
                         {currentEx?.muscle_group} • {currentEx?.equipment || 'Sem equipamento'}
