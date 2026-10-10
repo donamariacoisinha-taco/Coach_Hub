@@ -64,7 +64,7 @@ const ExerciseMediaAutomation: React.FC = () => {
     } catch (err) {
       const text = err instanceof Error ? err.message : String(err);
       setError(text);
-      throw err;
+      return null;
     } finally {
       setLoading(false);
     }
@@ -90,6 +90,31 @@ const ExerciseMediaAutomation: React.FC = () => {
     failedMain: countJobs(summary, 'failed', 'main') + countJobs(summary, 'review', 'main'),
     deferredVariants: countJobs(summary, 'deferred', 'variant'),
   }), [summary]);
+  const pilot = dashboard?.pilot || { required: 6, approved: 0, awaitingApproval: 0, unlocked: false };
+  const hasApprovedPolicy = policy?.status === 'approved';
+  const hasPilotAwaitingReview = pilot.awaitingApproval > 0;
+  const canGeneratePilot = Boolean(
+    hasApprovedPolicy
+    && !pilot.unlocked
+    && !hasPilotAwaitingReview
+    && metrics.pendingGeneration > 0
+    && !runningAction,
+  );
+  const canGenerateBatch = Boolean(
+    pilot.unlocked
+    && pendingCandidates.length === 0
+    && metrics.pendingGeneration > 0
+    && !runningAction,
+  );
+  const pilotStatusText = !hasApprovedPolicy
+    ? 'A geração piloto precisa de uma política visual aprovada.'
+    : hasPilotAwaitingReview
+      ? 'Revise as candidatas piloto pendentes antes de gerar novas imagens.'
+      : metrics.pendingGeneration === 0
+        ? 'Não há imagens pendentes para geração no momento.'
+        : pilot.unlocked
+          ? 'Piloto aprovado. O lote completo está liberado.'
+          : 'Pronto para gerar candidatas piloto sem substituir imagens oficiais.';
 
   const execute = async (key: string, task: () => Promise<unknown>, success: string) => {
     setRunningAction(key);
@@ -291,7 +316,7 @@ const ExerciseMediaAutomation: React.FC = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              {dashboard?.pilot?.unlocked ? (
+              {pilot.unlocked ? (
                 <CheckCircle2 size={18} className="text-emerald-600" />
               ) : (
                 <LockKeyhole size={18} className="text-amber-600" />
@@ -299,7 +324,10 @@ const ExerciseMediaAutomation: React.FC = () => {
               <h4 className="font-black text-slate-950">Lote piloto</h4>
             </div>
             <p className="mt-1 text-xs font-semibold text-slate-500">
-              {dashboard?.pilot?.approved || 0} de {dashboard?.pilot?.required || 6} aprovadas. O lote completo permanece {dashboard?.pilot?.unlocked ? 'liberado' : 'bloqueado'}.
+              {pilot.approved} de {pilot.required} aprovadas. O lote completo permanece {pilot.unlocked ? 'liberado' : 'bloqueado'}.
+            </p>
+            <p className="mt-2 text-[11px] font-bold text-slate-400">
+              {pilotStatusText}
             </p>
           </div>
 
@@ -317,7 +345,7 @@ const ExerciseMediaAutomation: React.FC = () => {
             <button
               type="button"
               onClick={generatePilot}
-              disabled={Boolean(runningAction) || !policy || dashboard?.pilot?.unlocked || (dashboard?.pilot?.awaitingApproval || 0) > 0}
+              disabled={!canGeneratePilot}
               className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {runningAction === 'pilot' ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
@@ -327,7 +355,7 @@ const ExerciseMediaAutomation: React.FC = () => {
             <button
               type="button"
               onClick={generateBatch}
-              disabled={Boolean(runningAction) || !dashboard?.pilot?.unlocked || pendingCandidates.length > 0 || metrics.pendingGeneration === 0}
+              disabled={!canGenerateBatch}
               className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-slate-950/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {runningAction === 'batch' ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
