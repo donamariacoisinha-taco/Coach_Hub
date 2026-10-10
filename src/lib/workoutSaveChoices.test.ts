@@ -7,6 +7,8 @@ describe('workout save choices', () => {
     expect(canReplaceBeforeFirstSet(0, 0, {}, new Set([0]))).toBe(false);
     expect(canReplaceBeforeFirstSet(1, 0, { 1: new Set([0]) }, new Set())).toBe(false);
     expect(canReplaceBeforeFirstSet(1, 0, {}, new Set([0]))).toBe(true);
+    expect(canReplaceBeforeFirstSet(0, 0, {}, new Set(), 0)).toBe(false);
+    expect(canReplaceBeforeFirstSet(1, 0, {}, new Set(), 0)).toBe(true);
   });
   it('saves performed values only for completed sets, preserving separate targets and zero effort', () => {
     const exercise = { sets_json: [

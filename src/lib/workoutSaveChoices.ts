@@ -16,6 +16,6 @@ export function resolveSavedSets(exercise: any, performance: any[], completed: S
 }
 
 export function canReplaceBeforeFirstSet(index: number, currentIndex: number,
-  completedByExercise: Record<number, Set<number>>, currentCompleted: Set<number>) {
-  return !(completedByExercise[index]?.size || (index === currentIndex && currentCompleted.size));
+  completedByExercise: Record<number, Set<number>>, currentCompleted: Set<number>, pendingSet: number | null = null) {
+  return !(completedByExercise[index]?.size || (index === currentIndex && (currentCompleted.size || pendingSet !== null)));
 }
