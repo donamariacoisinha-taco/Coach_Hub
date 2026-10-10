@@ -40,7 +40,8 @@ import {
   Copy,
   ChevronUp,
   ChevronDown,
-  Star
+  Star,
+  Eye
 } from 'lucide-react';
 import { useNavigation } from '../App';
 import { useExercisePreview } from '../context/ExercisePreviewContext';
@@ -281,38 +282,6 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
           </button>
         </div>
 
-        {/* Column 2: Exercise Image */}
-        <div className="flex flex-col items-center shrink-0">
-          <div 
-            onClick={(e) => {
-              e.stopPropagation();
-              openExercisePreview(
-                ex.exercise_name || '',
-                ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop',
-                ex.muscle_group || ''
-              );
-            }}
-            className="w-[91px] h-[61px] bg-slate-100/95 rounded-2xl overflow-hidden relative flex items-center justify-center p-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)] cursor-zoom-in hover:scale-[1.05] active:scale-95 transition-all z-10"
-          >
-            <img
-              src={ex.exercise_image || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=100&h=100&auto=format&fit=crop'}
-              alt={ex.exercise_name}
-              className="w-[80px] h-full object-contain mix-blend-multiply"
-              referrerPolicy="no-referrer"
-            />
-          </div>
-
-          {/* Mini Performance Tags right below the image */}
-          <div className="flex flex-row gap-1 mt-1 justify-center w-full max-w-[91px] overflow-hidden">
-            <span className="text-[9px] scale-[0.95] font-black text-[#7BA7FF] bg-[#7BA7FF]/10 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
-              RPE {ex.rpe || (8 + (idx % 2))}
-            </span>
-            <span className="text-[9px] scale-[0.95] font-black text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
-              +{2 + (idx % 3)}kg
-            </span>
-          </div>
-        </div>
-
         {/* Center column: Exercise Information column */}
         <div 
           className="flex-1 min-w-0 pr-1 cursor-pointer select-none group flex flex-col justify-center py-1"
@@ -325,13 +294,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
           <div className="flex items-center gap-1.5 flex-wrap">
             <h4 
               className="text-lg font-semibold text-slate-900 tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight w-full"
-              style={
-                idx === 0 
-                  ? { width: '162.816px', height: '22.5px', lineHeight: '20.5px', fontSize: '17px' }
-                  : idx === 1 
-                  ? { width: '163.816px', lineHeight: '18.5px' }
-                  : undefined
-              }
+
             >
               {ex.exercise_name}
             </h4>
@@ -343,17 +306,31 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
           </div>
 
           {/* Metadata: subtle separation without heavy badges */}
-          <div className="flex flex-row items-center gap-2 mt-1.5 text-sm text-slate-500 font-semibold">
-            <span>{setsCount} {setsCount === 1 ? 'série' : 'séries'}</span>
+          <div className="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-sm text-slate-500 font-semibold">
+            <span className="whitespace-nowrap">{setsCount} {setsCount === 1 ? 'série' : 'séries'}</span>
             <span className="text-slate-300 font-normal">•</span>
-            <span>{repsPattern} reps</span>
+            <span className="whitespace-nowrap">{repsPattern} reps</span>
             <span className="text-slate-300 font-normal">•</span>
-            <span>{weightPattern}</span>
+            <span className="whitespace-nowrap">{weightPattern}</span>
           </div>
         </div>
 
         {/* Right column: Context menu trigger vertically centered with opacity rules */}
-        <div className="shrink-0 self-center flex items-center justify-center">
+        <div className="shrink-0 self-center flex flex-col items-center justify-center gap-1">
+          <button
+            type="button"
+            aria-label={`Ver imagem de ${ex.exercise_name}`}
+            title={ex.exercise_image ? 'Ver imagem do exercício' : 'Imagem indisponível'}
+            disabled={isOverlay || !ex.exercise_image}
+            onPointerDown={event => event.stopPropagation()}
+            onClick={event => {
+              event.stopPropagation();
+              openExercisePreview(ex.exercise_name || 'Exercício', ex.exercise_image || '', ex.muscle_group || '');
+            }}
+            className="w-9 h-9 flex items-center justify-center rounded-full text-slate-500 hover:text-[#7BA7FF] hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:cursor-default"
+          >
+            <Eye size={18} aria-hidden="true" />
+          </button>
           <button
             onClick={() => setActiveMenuId(activeMenuId === ex.id ? null : ex.id)}
             className={`w-8 h-8 flex items-center justify-center rounded-full transition-all opacity-55 hover:opacity-100 ${
