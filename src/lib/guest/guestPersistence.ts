@@ -606,8 +606,8 @@ export const finishGuestWorkout = (workoutId: string, result: Record<string, any
   const performance = result.performance || {};
   const workoutSetsLogs = Object.entries(performance).flatMap(([exerciseIndex, sets]: [string, any]) =>
     (sets || []).map((set: any, setIndex: number) => ({
-      exercise_id: workout?.exercises?.[Number(exerciseIndex)]?.exercise_id,
-      exercise_name: workout?.exercises?.[Number(exerciseIndex)]?.exercise_name_snapshot,
+      exercise_id: (result.exercises || workout?.exercises)?.[Number(exerciseIndex)]?.exercise_id,
+      exercise_name: (result.exercises || workout?.exercises)?.[Number(exerciseIndex)]?.exercise_name_snapshot,
       set_number: setIndex + 1,
       weight_achieved: Number(set.weight || 0),
       reps_achieved: Number(set.reps || 0),
@@ -615,6 +615,7 @@ export const finishGuestWorkout = (workoutId: string, result: Record<string, any
       rest_time: Number(set.rest_time || 0),
     }))
   );
+  (result.removedExecution || []).forEach(({ exercise, sets }: any) => sets.forEach((set: any) => workoutSetsLogs.push({ exercise_id: exercise.exercise_id, exercise_name: exercise.exercise_name, set_number: set.set_number, weight_achieved: Number(set.weight), reps_achieved: Number(set.reps), rpe: Number(set.rpe), rest_time: Number(set.rest_time || 0) })));
   const totalVolume = workoutSetsLogs.reduce((sum: number, set: any) =>
     sum + set.weight_achieved * set.reps_achieved, 0);
   const durationMinutes = result.duration_seconds !== undefined

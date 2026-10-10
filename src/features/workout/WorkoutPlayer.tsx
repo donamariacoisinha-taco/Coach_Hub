@@ -64,6 +64,8 @@ import { shouldCloseSheetFromDrag } from "../../lib/ui/sheetGestures";
 import { buildExerciseFilterGroups } from "../../lib/exercises/exerciseFilters";
 
 
+import { applyPrescription, loadPrescriptions, savePrescriptions, editAndReplicate } from "../../lib/exercisePrescriptions";
+
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
 // Sub-component for individual set cards to manage local input state
@@ -784,7 +786,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     };
   }, [contextMenuIndex]);
 
-  const handleAddExerciseToSession = (ex: any) => {
+  const handleAddExerciseToSession = async (ex: any) => {
+    setRemovedBackup(null);
+    let prescriptions;
+    try { prescriptions = await loadPrescriptions(isGuestWorkout); } catch (error) { showError(error); return; }
     // Construct a beautiful new WorkoutExercise object conforming to state definitions
     const newEx: WorkoutExercise = {
       id: "ex-live-" + Math.random().toString(36).substring(2, 9),
@@ -807,7 +812,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       exercise_name_snapshot: ex.name
     };
 
-    const updatedExercises = [...exercises, newEx];
+    const configured = prescriptions[ex.id] ? applyPrescription(newEx, prescriptions[ex.id]) : applyPrescription(newEx, [{ weight: 0, reps: "0", rpe: 0, rest_time: 60, type: SetType.NORMAL }]);
+    if (!prescriptions[ex.id]) showSuccess("Sem configuração salva", "Configure as séries deste exercício.");
+    const updatedExercises = [...exercises, configured];
     useWorkoutStore.setState({ exercises: updatedExercises } as any);
     if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updatedExercises);
 
@@ -815,9 +822,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const nextIdx = updatedExercises.length - 1;
     setWorkoutPerformance(prev => ({
       ...prev,
-      [nextIdx]: Array.from({ length: 3 }).map(() => ({
-        weight: 0, reps: 10, rpe: 8
-      }))
+      [nextIdx]: configured.sets_json.map((s: any) => ({ ...s, reps: Number(s.reps) }))
     }));
 
     // A newly added exercise must always start with zero completed sets.
@@ -834,13 +839,25 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     playHapticFeedback('success');
   };
 
-  const handleReplaceExerciseInSession = (ex: any) => {
+  const handleReplaceExerciseInSession = async (ex: any) => {
+    setRemovedBackup(null);
     if (replaceIndex === null) return;
 
     const target = exercises[replaceIndex];
     if (!target) return;
 
+    let prescriptions;
+    try { prescriptions = await loadPrescriptions(isGuestWorkout); } catch (error) { showError(error); return; }
     const { exercises: updatedExercises, swappedWithIndex } = replaceOrSwapExercise(exercises, replaceIndex, ex);
+    if (swappedWithIndex === null) {
+      const completed = new Set([...(completedSetsByExercise[replaceIndex] || []), ...(replaceIndex === currentIndex ? [...completedSetIndices] : [])]);
+      const perf = replaceIndex === currentIndex ? activeSetsData : (workoutPerformance[replaceIndex] || []);
+      const performed = perf.map((set: any, setIndex: number) => ({ ...set, set_number: setIndex + 1 })).filter((_: any, setIndex: number) => completed.has(setIndex));
+      if (performed.length) removedExecution.current.push({ exercise: target, sets: performed });
+      updatedExercises[replaceIndex] = applyPrescription(updatedExercises[replaceIndex], prescriptions[ex.id] || [{ weight: 0, reps: "0", rpe: 0, rest_time: 60, type: SetType.NORMAL }]);
+      if (!prescriptions[ex.id]) showSuccess("Sem configuração salva", "Configure as séries do novo exercício.");
+    }
+    if (swappedWithIndex === null) delete manuallyEditedFields.current[target.id || target.exercise_id];
 
     useWorkoutStore.setState({ exercises: updatedExercises } as any);
     if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updatedExercises);
@@ -861,8 +878,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       const defaultSets = activeExercise.sets_json?.length
         ? activeExercise.sets_json.map((set: any) => ({
             weight: Number(set.weight ?? activeExercise.weight ?? 0),
-            reps: parseInt(String(set.reps ?? activeExercise.reps ?? 10), 10) || 10,
-            rpe: Number(set.rpe ?? 8),
+            reps: Number(set.reps ?? activeExercise.reps ?? 0),
+            rpe: Number(set.rpe ?? 0),
+            rest_time: Number(set.rest_time ?? activeExercise.rest_time ?? 60),
           }))
         : Array.from({ length: numSets }).map(() => ({
             weight: activeExercise.weight || 0,
@@ -907,6 +925,55 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     playHapticFeedback('success');
   };
 
+  const removedExecution = useRef<any[]>([]);
+  const [removedBackup, setRemovedBackup] = useState<any>(null);
+  const [swipeAction, setSwipeAction] = useState<{ index: number; action: 'remove' | 'replace' } | null>(null);
+  const touchOrigin = useRef<{x: number; y: number} | null>(null);
+  const swipeProps = (index: number) => ({
+    onTouchStart: (event: React.TouchEvent) => {
+      if ((event.target as HTMLElement).closest('button,input,select,textarea')) { touchOrigin.current = null; return; }
+      touchOrigin.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+    },
+    onTouchEnd: (event: React.TouchEvent) => {
+      const start = touchOrigin.current;
+      touchOrigin.current = null;
+      if (!start) return;
+      const dx = event.changedTouches[0].clientX - start.x;
+      const dy = event.changedTouches[0].clientY - start.y;
+      if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2) setSwipeAction({ index, action: dx < 0 ? 'remove' : 'replace' });
+    },
+  });
+  const requestRemoval = (index: number) => {
+    const completed = new Set([...(completedSetsByExercise[index] || []), ...(index === currentIndex ? [...completedSetIndices] : [])]);
+    if (completed.size && !confirm('Remover as séries restantes? As séries já realizadas serão preservadas no histórico.')) return;
+    handleRemoveExerciseFromSession(index);
+    setSwipeAction(null);
+  };
+  const renderSwipeAction = (index: number) => swipeAction?.index === index ? (
+    <div className="absolute inset-0 z-30 rounded-2xl bg-white/95 flex items-center justify-end gap-2 p-3">
+      <button type="button" className="px-3 py-2 rounded-xl bg-slate-100" onClick={() => setSwipeAction(null)}>Cancelar</button>
+      <button type="button" className={`px-3 py-2 rounded-xl text-white ${swipeAction.action === 'remove' ? 'bg-red-600' : 'bg-blue-600'}`} onClick={() => {
+        if (swipeAction.action === 'remove') requestRemoval(index);
+        else { setReplaceIndex(index); setExerciseSelectorMode('replace'); setShowExercisesList(true); setSwipeAction(null); }
+      }}>{swipeAction.action === 'remove' ? 'Remover' : 'Substituir'}</button>
+    </div>
+  ) : null;
+  const undoRemoval = () => {
+    if (!removedBackup) return;
+    const { index, exercise, performance, completed, archived } = removedBackup;
+    const updated = [...exercises]; updated.splice(index, 0, exercise);
+    const shift = (map: Record<number, any>, value: any) => Object.fromEntries([...Object.entries(map).map(([k,v]) => [Number(k) >= index ? Number(k) + 1 : Number(k), v]), [index, value]]);
+    setWorkoutPerformance(prev => shift(prev, performance));
+    setCompletedSetsByExercise(prev => shift(prev, completed));
+    removedExecution.current = removedExecution.current.filter(item => item !== archived);
+    removedExerciseIdsRef.current.delete(exercise.id);
+    const nextIndex = currentIndex >= index ? currentIndex + 1 : currentIndex;
+    useWorkoutStore.setState({ exercises: updated, currentIndex: nextIndex });
+    if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updated);
+    setRemovedBackup(null);
+    showSuccess('Exercício restaurado.');
+  };
+
   const handleRemoveExerciseFromSession = (index: number) => {
     if (exercises.length <= 1) {
       showError(new Error("O protocolo exige no mínimo 1 exercício ativo."));
@@ -915,10 +982,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
     const exerciseToRemove = exercises[index];
     const exName = exerciseToRemove?.exercise_name || "Exercício";
+    const completed = new Set([...(completedSetsByExercise[index] || []), ...(index === currentIndex ? [...completedSetIndices] : [])]);
+    const performance = index === currentIndex ? activeSetsData : (workoutPerformance[index] || []);
+    const archived = { exercise: exerciseToRemove, sets: performance.map((set: any, setIndex: number) => ({ ...set, set_number: setIndex + 1 })).filter((_: any, setIndex: number) => completed.has(setIndex)) };
+    if (archived.sets.length) removedExecution.current.push(archived);
+    setRemovedBackup({ index, exercise: exerciseToRemove, performance, completed, archived });
     if (exerciseToRemove?.id && !exerciseToRemove.id.startsWith('ex-live-')) {
       removedExerciseIdsRef.current.add(exerciseToRemove.id);
     }
-    const updatedExercises = exercises.filter((_, i) => i !== index);
+    const updatedExercises = exercises.filter((_, i) => i !== index).map((ex, order) => ({ ...ex, order }));
 
     // Dynamic index adjustment
     let newCurrentIdx = currentIndex;
@@ -955,27 +1027,17 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       return next;
     });
 
-    // As conclusões do exercício que continua ativo são preservadas, então zerar
-    // a posição deixaria a tela numa série já concluída — e travada.
-    const remainingCompleted: Set<number> = (newCurrentIdx === currentIndex
-      ? completedSetIndices
-      : completedSetsByExercise[newCurrentIdx > index ? newCurrentIdx + 1 : newCurrentIdx]) || new Set<number>();
+    const sourceIndex = newCurrentIdx >= index ? newCurrentIdx + 1 : newCurrentIdx;
+    const remainingCompleted = sourceIndex === currentIndex ? completedSetIndices : (completedSetsByExercise[sourceIndex] || new Set<number>());
     const remainingExercise = updatedExercises[newCurrentIdx];
-
-    useWorkoutStore.setState({
-      exercises: updatedExercises,
-      currentIndex: newCurrentIdx,
-      currentSet: resolveResumeSetNumber({
-        completedSetIndices: remainingCompleted,
-        setCount: remainingExercise?.sets_json?.length || Number(remainingExercise?.sets) || 1,
-        storedSetNumber: 1,
-      })
-    } as any);
-
-    if (newCurrentIdx === currentIndex) {
-      const savedCompleted = completedSetsByExercise[newCurrentIdx] || new Set();
-      setCompletedSetIndices(savedCompleted);
-    }
+    const nextPerformance = sourceIndex === currentIndex ? activeSetsData : (workoutPerformance[sourceIndex] || (remainingExercise.sets_json || []).map((set: any) => ({ ...set, reps: Number(set.reps) })));
+    restActualBySetRef.current = {};
+    setActiveSetsData(nextPerformance);
+    setCompletedSetIndices(new Set(remainingCompleted));
+    setIsResting(false); setPendingSetToComplete(null);
+    lastInitializedIdx.current = null;
+    useWorkoutStore.setState({ exercises: updatedExercises, currentIndex: newCurrentIdx, currentSet: resolveResumeSetNumber({ completedSetIndices: remainingCompleted, setCount: nextPerformance.length || 1, storedSetNumber: 1 }) } as any);
+    if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updatedExercises);
 
     showSuccess(`Removido do protocolo: ${exName}`);
     playSensoryTone('warning');
@@ -1349,6 +1411,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   }, [currentIndex, completedSetsByExercise, isHydrating, workoutPerformance]);
 
   const moveExercise = (index: number, direction: 'up' | 'down') => {
+    setRemovedBackup(null);
     const newIndex = direction === 'up' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= exercises.length) return;
 
@@ -1493,6 +1556,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       if (localSaved) {
         try {
           localState = JSON.parse(localSaved);
+          removedExecution.current = localState.removedExecution || [];
+          removedExerciseIdsRef.current = new Set(localState.removedExerciseIds || []);
+          manuallyEditedFields.current = Object.fromEntries(Object.entries(localState.manuallyEditedFields || {}).map(([key, fields]) => [key, new Set(fields as string[])]));
           log("[HYDRATION] Found local continuity state:", localState);
         } catch (e) {
           console.error("[HYDRATION] Failed to parse local continuity state", e);
@@ -1624,6 +1690,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     if (!historyId || isHydrating || !isSessionReady) return;
     try {
       const stateToSave = {
+        removedExecution: removedExecution.current,
+        removedExerciseIds: [...removedExerciseIdsRef.current],
+        manuallyEditedFields: Object.fromEntries(Object.entries(manuallyEditedFields.current).map(([key, fields]) => [key, [...(fields as Set<string>)]])),
         currentIndex,
         currentSet,
         activeSetsData,
@@ -1934,7 +2003,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         exercise_name: exercise.exercise_name || exercise.exercise_name_snapshot,
         order: exercise.sort_order,
       }));
-      let exercisesToUse = baseExercises;
+      const prescriptions = await loadPrescriptions(true);
+      let exercisesToUse = baseExercises.map(ex => prescriptions[ex.exercise_id] ? applyPrescription(ex, prescriptions[ex.exercise_id]) : ex);
       if (Array.isArray(localExercises) && localExercises.length > 0) exercisesToUse = localExercises;
       return {
         exercises: exercisesToUse,
@@ -1959,7 +2029,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       await workoutApi.upsertPartialSession(user.id, workoutId, sessionData.historyId, new Date(sessionData.startTime).toISOString());
     }
 
-    let exercisesToUse = loadedExercises;
+    const prescriptions = await loadPrescriptions(false);
+    let exercisesToUse = partialSession?.history_id ? loadedExercises : loadedExercises.map(ex => prescriptions[ex.exercise_id] ? applyPrescription(ex, prescriptions[ex.exercise_id]) : ex);
     const tempKey = `workout_session_temp_${workoutId}`;
     const localSaved = localStorage.getItem(tempKey);
     if (localSaved) {
@@ -2269,34 +2340,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
     if (isLastSet) {
       const latestExercise = exercisesRef.current[latestCurrentIndex] || currentEx;
-      const hasPersistentRow = !!latestExercise?.id && !latestExercise.id.startsWith('ex-live-');
-      if (hasPersistentRow) {
-        const originalExercise = originalExercises.find(o => o.id === latestExercise.id);
-        const currentRest = Number(latestExercise.rest_time || 60);
-        const originalRest = Number(originalExercise?.rest_time || 60);
-        if (currentRest !== originalRest) {
-          // REST_TEMPLATE_SETS_PERSISTED: keep top-level and per-set defaults aligned.
-          const persistedRestSets = (latestExercise.sets_json || []).map((set: any) => ({
-            ...set,
-            rest_time: currentRest
-          }));
-          const { error: restSaveError } = await supabase.from('workout_exercises')
-            .update({ rest_time: currentRest, sets_json: persistedRestSets })
-            .eq('id', latestExercise.id);
-          if (restSaveError) {
-            console.warn('[REST_DEFAULT_SAVE_WARN]', restSaveError);
-          } else {
-            log('[REST_DEFAULT_SAVED]', { exerciseId: latestExercise.exercise_id, restTime: currentRest });
-          }
-        }
-      }
-
-      // Stage all other exercise settings for the normal template-evolution flow.
-      // Newly added exercises are inserted there with the adjusted rest_time.
-      const normalizedRestSetsData = latestActiveSetsData.map((set: any) => ({
-        ...set,
-        rest_time: Number(latestExercise.rest_time || 60)
-      }));
+      const normalizedRestSetsData = latestActiveSetsData.map((set: any) => ({ ...set, rest_time: set.rest_time ?? latestExercise.rest_time ?? 60 }));
       await promptAndSaveExerciseData(latestExercise, normalizedRestSetsData);
 
       if (latestCurrentIndex < latestExercises.length - 1) {
@@ -2470,9 +2514,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       });
     } else if (currentEx.sets_json && currentEx.sets_json.length > 0) {
       nextSets = currentEx.sets_json.map((s, idx) => {
-        const fallbackRpe = s.rpe || currentEx.default_rpe || 8;
+        const fallbackRpe = s.rpe ?? currentEx.default_rpe ?? 8;
         // Auto-progression Memory: use lastSet for the first set if session is new and s.rpe is not defined
-        if (idx === 0 && lastSet && !s.rpe) {
+        if (idx === 0 && lastSet && s.rpe === undefined) {
           return {
             id: `${currentIndex}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
             weight: lastSet.weight,
@@ -2485,7 +2529,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         return {
           id: `${currentIndex}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
           weight: typeof s.weight === 'number' ? s.weight : 0,
-          reps: parseInt(s.reps as string) || 10,
+          reps: Number(s.reps ?? 0),
           rpe: fallbackRpe,
           type: s.type || SetType.NORMAL,
           rest_time: s.rest_time || currentEx.rest_time || 60
@@ -2536,6 +2580,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   }, [activeSetsData, currentIndex, currentEx?.exercise_id, isHydrating, isTransitioning]);
 
   // Update a single set's data
+  const manuallyEditedFields = useRef<Record<string, Set<string>>>({});
   const updateSetData = (idx: number, field: 'weight' | 'reps' | 'rpe' | 'rest_time' | 'type', value: any) => {
     let finalValue = value;
     if (field === 'weight') {
@@ -2555,28 +2600,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       finalValue = isNaN(numericValue) ? 60 : numericValue;
     }
 
-    // 1. Update activeSetsData
-    let updatedActiveSets: any[] = [];
-    setActiveSetsData(prev => {
-      updatedActiveSets = prev.map((item, i) => {
-        if (i !== idx) return item;
-        return { ...item, [field]: finalValue };
-      });
-      return updatedActiveSets;
-    });
-
-    // 2. Sync to workoutPerformance immediately
-    setWorkoutPerformance(prev => {
-      const existing = prev[currentIndex] || [];
-      const updatedPerf = existing.map((s, i) => {
-        if (i !== idx) return s;
-        return { ...s, [field]: finalValue };
-      });
-      if (updatedPerf.length === 0 && updatedActiveSets.length > 0) {
-        return { ...prev, [currentIndex]: updatedActiveSets };
-      }
-      return { ...prev, [currentIndex]: updatedPerf };
-    });
+    const key = currentEx?.id || currentEx?.exercise_id || String(currentIndex);
+    const manual = manuallyEditedFields.current[key] ||= new Set<string>();
+    const updatedActiveSets = editAndReplicate(activeSetsData, idx, field, finalValue, manual, completedSetIndices);
+    setActiveSetsData(updatedActiveSets);
+    setWorkoutPerformance(prev => ({ ...prev, [currentIndex]: updatedActiveSets }));
 
     // 3. Update the Zustand exercises store
     if (currentEx) {
@@ -2844,6 +2872,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     });
 
+    removedExecution.current.forEach(({ exercise, sets }) => sets.forEach((set: any) => logs.push({ history_id: histId, user_id: userId, exercise_id: exercise.exercise_id, set_number: set.set_number, weight_achieved: Number(set.weight), reps_achieved: Number(set.reps), rpe: set.rpe, rest_time_actual: set.rest_time_actual || null, set_type: set.type || SetType.NORMAL, created_at: new Date().toISOString() })));
     if (logs.length === 0) {
       log("[SAVE_WORKOUT_EMPTY] No sets to save");
       return;
@@ -2920,18 +2949,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               ? sets
               : (sets || []).filter((_: any, setIndex: number) => completed.has(setIndex))];
           }).filter(([, sets]: [string, any]) => sets.length > 0));
-          if (Object.keys(localPerformance).length === 0) {
+          if (Object.keys(localPerformance).length === 0 && !removedExecution.current.length) {
             throw new Error('Conclua ao menos uma série antes de salvar esta sessão.');
           }
           finishGuestWorkout(workoutId, {
             duration_seconds: Math.max(0, Math.round((Date.now() - (currentStartTime || Date.now())) / 1000)),
+            exercises,
+            removedExecution: removedExecution.current,
             performance: localPerformance,
             partial: forcePartial || !incompleteSummary.complete,
           });
           setFinalWasPartial(forcePartial || !incompleteSummary.complete);
           setWorkoutDuration(finalDuration);
           setFinalDurationMinutes(finalDuration);
-          if (sessionDiff.hasChanges) setShowEvolutionModal(true);
+          if (exercises.length) setShowEvolutionModal(true);
           else {
             setIsWorkoutComplete(true);
             setIsFinished(true);
@@ -3005,7 +3036,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           cacheStore.clear(`workout_init_${workoutId}`);
           setWorkoutDuration(finalDuration);
           setFinalDurationMinutes(finalDuration);
-          if (sessionDiff.hasChanges) {
+          if (exercises.length) {
             setShowEvolutionModal(true);
           } else {
             setIsWorkoutComplete(true);
@@ -3046,9 +3077,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     setSaving(true);
     try {
       if (!sessionDiff.isConsistent) {
-        throw new Error('Nenhum exercício da ficha original continua nesta sessão, então não há o que atualizar nela. Toque em "Manter apenas hoje" para salvar o treino sem alterar o padrão da ficha.');
+        if (!exercises.length) throw new Error('A ficha precisa de pelo menos um exercício.');
       }
       if (isGuestWorkout) {
+        await savePrescriptions(true, [
+          ...exercises.filter((ex, index) => (completedSetsByExercise[index]?.size || (index === currentIndex && completedSetIndices.size))).map(ex => ({ exercise_id: ex.exercise_id, sets_json: ex.sets_json || [] })),
+          ...removedExecution.current.map(({ exercise, sets }) => ({ exercise_id: exercise.exercise_id, sets_json: sets.map(({ set_number, ...set }: any) => ({ ...set, reps: String(set.reps), rest_time: set.rest_time ?? exercise.rest_time ?? 60 })) }))
+        ]);
+        cacheStore.clearPrefix("workout_init_");
         updateGuestWorkoutExercises(workoutId, exercises);
         localStorage.removeItem(`workout_session_temp_${workoutId}`);
         setShowEvolutionModal(false);
@@ -3060,13 +3096,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       const u = await authApi.getUser();
       if (!u) throw new Error("Usuário não autenticado");
 
+      const prescriptionRows: { exercise_id: string; sets_json: any[] }[] = [];
       // 1. Process active exercises in their new sequence
       for (let index = 0; index < exercises.length; index++) {
         const ex = exercises[index];
         const numSets = ex.sets_json?.length || ex.sets || 3;
         const targetReps = ex.reps?.toString() || "10";
         const targetWeight = typeof ex.weight === 'string' ? parseFloat(ex.weight) : (ex.weight || 0);
-        const targetRest = ex.rest_time || 60;
+        const targetRest = ex.sets_json?.[0]?.rest_time ?? ex.rest_time ?? 60;
 
         // Resolve individual, non-uniform sets_json. Executed data wins only
         // for sets that were actually completed; untouched sets keep their target.
@@ -3089,6 +3126,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           };
         });
 
+        if (completedForExercise.size) prescriptionRows.push({ exercise_id: ex.exercise_id, sets_json: finalSetsJson });
         const firstSetReps = finalSetsJson[0]?.reps || targetReps;
         const firstSetWeight = finalSetsJson[0]?.weight !== undefined ? Number(finalSetsJson[0].weight) : targetWeight;
         const firstSetRpe = Number(finalSetsJson[0]?.rpe || ex.default_rpe || 8);
@@ -3150,6 +3188,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         }
       }
 
+      removedExecution.current.forEach(({ exercise, sets }) => prescriptionRows.push({ exercise_id: exercise.exercise_id, sets_json: sets.map(({ set_number, ...set }: any) => ({ ...set, reps: String(set.reps), rest_time: set.rest_time ?? exercise.rest_time ?? 60 })) }));
+      await savePrescriptions(false, prescriptionRows);
+      cacheStore.clearPrefix("workout_init_");
       // 2. Remove only exercises explicitly deleted by the user.
       // Missing/transient ids can occur during hydration and must never trigger mass deletion.
       const explicitRemovedIds = Array.from(removedExerciseIdsRef.current);
@@ -4297,13 +4338,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         
                         return (
                           <div 
-                            key={idx} 
+                            key={idx}
+                            {...swipeProps(idx)}
+                            style={{ position: "relative", touchAction: "pan-y" }}
                             className={`flex items-center justify-between p-2.5 rounded-2xl border transition-all ${
                               isCurrent 
                                 ? 'bg-white border-[#7BA7FF]/30 shadow-md ring-2 ring-[#7BA7FF]/5' 
                                 : 'bg-white/40 border-slate-100'
                             }`}
                           >
+                            {renderSwipeAction(idx)}
                             <div className="flex items-center gap-3 min-w-0">
                               <div 
                                 onClick={(e) => {
@@ -4466,9 +4510,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                           e.stopPropagation();
                                           playHapticFeedback('light');
                                           setContextMenuIndex(null);
-                                          if (confirm(`Remover ${ex?.exercise_name} do treino?`)) {
-                                            handleRemoveExerciseFromSession(idx);
-                                          }
+                                          requestRemoval(idx);
                                         }}
                                         className="w-full px-3 py-2 hover:bg-rose-50 text-left text-[11px] font-black uppercase tracking-wider text-rose-500 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
                                       >
@@ -4867,9 +4909,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                         e.stopPropagation();
                                         playHapticFeedback('light');
                                         setContextMenuIndex(null);
-                                        if (confirm(`Remover ${exercises[currentIndex]?.exercise_name} do treino?`)) {
-                                          handleRemoveExerciseFromSession(currentIndex);
-                                        }
+                                        requestRemoval(currentIndex);
                                       }}
                                       className="w-full px-3 py-2 hover:bg-rose-50 text-left text-[11px] font-black uppercase tracking-wider text-rose-500 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
                                     >
@@ -4895,9 +4935,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             return (
                               <motion.div 
                                 key={ex.exercise_id || idx}
+                                {...swipeProps(idx)}
+                                style={{ position: "relative", touchAction: "pan-y" }}
                                 layout
                                 className="bg-white/70 backdrop-blur-md rounded-[1.75rem] border border-white/40 p-5 flex flex-col shadow-[0_10px_30px_rgba(15,23,42,0.05)] transition-all hover:bg-white"
                               >
+                                {renderSwipeAction(idx)}
                                 <div className="flex items-center justify-between w-full">
                                   <div className="flex items-center gap-3 min-w-0">
                                     <span className="text-[10px] font-black w-7 h-7 rounded-full bg-slate-150 text-slate-500 flex items-center justify-center border border-slate-200">
@@ -4989,9 +5032,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                               e.stopPropagation();
                                               playHapticFeedback('light');
                                               setContextMenuIndex(null);
-                                              if (confirm(`Remover ${ex.exercise_name} do treino?`)) {
-                                                handleRemoveExerciseFromSession(idx);
-                                              }
+                                              requestRemoval(idx);
                                             }}
                                             className="w-full px-3 py-2 hover:bg-rose-50 text-left text-[11px] font-black uppercase tracking-wider text-rose-500 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
                                           >
@@ -5160,7 +5201,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </h3>
                 
                 <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-6">
-                  Você ajustou este treino durante a sessão. Deseja transformar essas alterações no novo padrão da ficha?
+                  Deseja salvar esta configuração na ficha e como sua última configuração pessoal de cada exercício, para usar em outras fichas?
                 </p>
 
                 {/* Box de Resumo de Mudanças */}
@@ -5205,6 +5246,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       </AnimatePresence>
 
       {/* MODAL PARA SALVAR PADRÕES DE EXERCÍCIO */}
+      {removedBackup && !isFinished && !showEvolutionModal && <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[250] bg-white shadow-lg rounded-xl p-3 flex gap-3 items-center"><span>Exercício removido</span><button className="text-blue-600 font-bold" onClick={undoRemoval}>Desfazer</button><button aria-label="Fechar aviso" onClick={() => setRemovedBackup(null)}>×</button></div>}
       <AnimatePresence>
         {savePrompt && (
           <div className="fixed inset-0 z-[1500] flex items-center justify-center p-6">
