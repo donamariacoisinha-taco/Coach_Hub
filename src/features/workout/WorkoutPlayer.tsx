@@ -1,6 +1,6 @@
 import { resolveSavedSets, canReplaceBeforeFirstSet } from "../../lib/workoutSaveChoices";
 
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -457,6 +457,31 @@ const PlayerSkeleton = () => (
     </div>
   </div>
 );
+
+// Keep catalogue rows independent of the player's timer ticks.
+const ExerciseSelectorRow = React.memo(function ExerciseSelectorRow({ exercise, favorite, busy, onSelect, onPreview }: {
+  exercise: any; favorite: boolean; busy: boolean;
+  onSelect: (exercise: any) => void;
+  onPreview: (exercise: any) => void;
+}) {
+  return (
+    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 flex items-center gap-3"
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '66px' }}>
+      <button type="button" disabled={!exercise.image_url || busy} aria-label={`Ver imagem de ${exercise.name}`}
+        onClick={() => onPreview(exercise)} className="w-[60px] h-10 rounded-xl bg-slate-100 overflow-hidden shrink-0 disabled:opacity-40">
+        {exercise.image_url ? <img src={exercise.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <Dumbbell size={16} className="mx-auto text-slate-400" />}
+      </button>
+      <button type="button" disabled={busy} onClick={() => onSelect(exercise)}
+        className="flex-1 min-w-0 flex items-center justify-between gap-2 text-left disabled:opacity-50" aria-label={`Selecionar ${exercise.name}`}>
+        <span className="min-w-0">
+          <span className="font-bold text-xs text-slate-800 block leading-snug">{exercise.name}</span>
+          <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wide mt-0.5">{exercise.muscle_group} • {exercise.equipment || 'Livre'}</span>
+        </span>
+        <span className="flex items-center gap-1.5 shrink-0">{favorite && <Heart size={12} className="text-rose-500 fill-rose-500" />}<Plus size={16} className="text-[#7BA7FF]" /></span>
+      </button>
+    </div>
+  );
+});
 
 export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const isGuestWorkout = workoutId.startsWith('guest-workout-');
@@ -937,6 +962,25 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     playSensoryTone('success');
     playHapticFeedback('success');
   };
+
+  const selectorActionRef = useRef<(exercise: any) => Promise<void>>(async () => {});
+  const selectorBusyRef = useRef(false);
+  const [selectorBusy, setSelectorBusy] = useState(false);
+  selectorActionRef.current = async (exercise) => {
+    if (exerciseSelectorMode === 'add') await handleAddExerciseToSession(exercise);
+    else if (exerciseSelectorMode === 'replace') await handleReplaceExerciseInSession(exercise);
+  };
+  const selectCatalogueExercise = useCallback(async (exercise: any) => {
+    if (selectorBusyRef.current) return;
+    selectorBusyRef.current = true;
+    setSelectorBusy(true);
+    try { await selectorActionRef.current(exercise); }
+    catch (error) { showError(error); }
+    finally { selectorBusyRef.current = false; setSelectorBusy(false); }
+  }, []);
+  const previewCatalogueExercise = useCallback((exercise: any) => {
+    openExercisePreview(exercise.name || '', exercise.image_url || '', exercise.muscle_group || '');
+  }, [openExercisePreview]);
 
   const removedExecution = useRef<any[]>([]);
   const [removedBackup, setRemovedBackup] = useState<any>(null);
@@ -4624,7 +4668,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              exit={{ opacity: 0, pointerEvents: "none" }}
               onClick={() => {
                 if (exerciseSelectorMode) {
                   setExerciseSelectorMode(null);
@@ -4633,15 +4677,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   setContextMenuIndex(null);
                 }
               }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+              className="absolute inset-0 bg-slate-900/60"
             />
 
             {/* Float Full-Height Sheet */}
             <motion.div 
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 220 }}
+              exit={{ y: "100%", pointerEvents: "none" }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
               drag="y"
               dragControls={protocolSheetDragControls}
               dragListener={false}
@@ -4651,7 +4695,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               onDragEnd={(_, info) => {
                 if (shouldCloseSheetFromDrag(info.offset.y, info.velocity.y)) closeProtocolSheet();
               }}
-              className="mt-auto bg-white/95 backdrop-blur-3xl rounded-t-[1.5rem] p-6 shadow-2xl relative z-10 max-w-md mx-auto w-full max-h-[92vh] overflow-hidden flex flex-col border border-white/40"
+              className="mt-auto bg-white rounded-t-[1.5rem] p-6 shadow-2xl relative z-10 max-w-md mx-auto w-full max-h-[92vh] overflow-hidden flex flex-col border border-white/40"
             >
               {/* Drag Handle Indicator */}
               <div
@@ -4782,7 +4826,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </div>
 
                   {/* Exercises Selector Results View */}
-                  <div data-workout-scrollable="true" className="flex-1 overflow-y-auto pr-1 space-y-2 select-none no-scrollbar overscroll-contain">
+                  <div data-workout-scrollable="true" style={{ touchAction: "pan-y" }} className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2 select-none no-scrollbar overscroll-contain">
                     {loadingExercisesDetail ? (
                       <div className="flex flex-col items-center justify-center py-10 gap-3">
                         <Loader2 className="w-8 h-8 text-[#7BA7FF] animate-spin" />
@@ -4793,58 +4837,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         <p className="text-xs font-semibold text-slate-400">Nenhum exercício científico correspondente.</p>
                       </div>
                     ) : (
-                      filteredSelectorExercises.map((ex) => {
-                        const isFav = favoritesList.includes(ex.id);
-                        return (
-                          <motion.div 
-                            key={ex.id}
-                            whileHover={{ x: 3 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => {
-                              if (exerciseSelectorMode === 'add') {
-                                handleAddExerciseToSession(ex);
-                              } else if (exerciseSelectorMode === 'replace') {
-                                handleReplaceExerciseInSession(ex);
-                              }
-                            }}
-                            className="bg-slate-50 hover:bg-[#7BA7FF]/5 border border-slate-100 hover:border-[#7BA7FF]/20 rounded-2xl p-3 flex items-center justify-between transition-all cursor-pointer group"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div 
-                                onClick={(e) => {
-                                  if (ex.image_url) {
-                                    e.stopPropagation();
-                                    openExercisePreview(
-                                      ex.name || "",
-                                      ex.image_url || "",
-                                      ex.muscle_group || ""
-                                    );
-                                  }
-                                }}
-                                className="w-[60px] h-10 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 flex items-center justify-center relative cursor-pointer hover:scale-[1.05] active:scale-95 transition-all z-10"
-                              >
-                                {ex.image_url ? (
-                                  <img src={ex.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                ) : (
-                                  <Dumbbell size={16} className="text-slate-400" />
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <span className="font-bold text-xs text-slate-800 block truncate group-hover:text-slate-900 transition-colors">{ex.name}</span>
-                                <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wide mt-0.5">
-                                  {ex.muscle_group} • {ex.equipment || 'Livre'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1.5 pl-2">
-                              {isFav && <Heart size={12} className="text-rose-500 fill-rose-500" />}
-                              <div className="w-6 h-6 rounded-full bg-white/80 border border-slate-150 flex items-center justify-center text-[#7BA7FF] shadow-sm">
-                                <Plus size={12} strokeWidth={3} />
-                              </div>
-                            </div>
-                          </motion.div>
-                        );
-                      })
+                      filteredSelectorExercises.map((ex) => (
+                        <ExerciseSelectorRow key={ex.id} exercise={ex} favorite={favoritesList.includes(ex.id)}
+                          busy={selectorBusy} onSelect={selectCatalogueExercise} onPreview={previewCatalogueExercise} />
+                      ))
                     )}
                   </div>
                 </div>
@@ -4877,7 +4873,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </div>
 
                   {/* Exercises Segment Tracker */}
-                  <div data-workout-scrollable="true" className="flex-1 overflow-y-auto pr-1 space-y-5 no-scrollbar overscroll-contain">
+                  <div data-workout-scrollable="true" style={{ touchAction: "pan-y" }} className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-5 no-scrollbar overscroll-contain">
                     
                     {/* 1. COMPLETED BLOCK */}
                     {exercises.filter((_, idx) => idx < currentIndex).length > 0 && (
