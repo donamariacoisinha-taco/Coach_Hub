@@ -25,7 +25,8 @@ export const ErrorToast: React.FC<ErrorToastProps> = ({ error, onClose, onRetry 
           initial={{ opacity: 0, y: 50, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.9 }}
-          className="fixed bottom-6 left-6 right-6 z-[2000] max-w-md mx-auto"
+          data-app-toast="true"
+          className={`fixed bottom-6 left-6 right-6 z-[2000] max-w-md mx-auto ${error.type === 'success' ? 'pointer-events-none' : ''}`}
         >
           <div className={`
             relative overflow-hidden rounded-[2.5rem] border p-6 shadow-2xl backdrop-blur-xl
@@ -84,7 +85,8 @@ export const ErrorToast: React.FC<ErrorToastProps> = ({ error, onClose, onRetry 
 
               <button
                 onClick={onClose}
-                className="p-2 -mr-2 text-slate-300 hover:text-slate-900 transition-colors"
+                aria-label="Fechar aviso"
+                className="pointer-events-auto p-2 -mr-2 text-slate-300 hover:text-slate-900 transition-colors"
               >
                 <X size={20} />
               </button>
