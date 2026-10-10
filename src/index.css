@@ -200,3 +200,9 @@ body {
   color: #FFFFFF;
 }
 
+
+/* Workout feedback must leave the execution dock accessible. */
+body:has([data-workout-main-scroll="true"]) [data-app-toast="true"] {
+  top: calc(env(safe-area-inset-top) + 1rem);
+  bottom: auto;
+}
