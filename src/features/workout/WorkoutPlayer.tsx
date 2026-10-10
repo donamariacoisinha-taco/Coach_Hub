@@ -172,7 +172,7 @@ const SetCard = ({
           ? (showPR ? 1.02 : (intensity === 'LOW' ? [1, 1.01, 1] : (focusedIdx === idx ? 1.02 : 1))) 
           : isPast && !isCurrent ? 0.96 : 0.98,
         height: "auto",
-        marginTop: (idx === 0 ? 0 : 12),
+        marginTop: 0,
         borderColor: isPending 
           ? '#cbd5e1' 
           : (isCurrent 
@@ -388,28 +388,57 @@ const SetCard = ({
 interface SwipeableSetCardProps {
   idx: number;
   onDeleteRequest: (idx: number) => void;
+  onCompleteRequest: () => void;
+  canComplete: boolean;
   children: React.ReactNode;
 }
 
-const SwipeableSetCard: React.FC<SwipeableSetCardProps> = ({
-  idx,
-  onDeleteRequest,
-  children,
-}) => {
+const SwipeableSetCard: React.FC<SwipeableSetCardProps> = ({ idx, onDeleteRequest, onCompleteRequest, canComplete, children }) => {
+  const [action, setAction] = useState<'delete' | 'complete' | null>(null);
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  const swiped = useRef(false);
   return (
-    <div className="relative rounded-2xl" style={{ touchAction: 'pan-y' }}>
-      {children}
-      <div className="flex justify-end px-1 pt-1">
-        <button
-          type="button"
-          onClick={() => onDeleteRequest(idx)}
-          className="min-h-11 px-3 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition-all flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider"
-          aria-label={`Excluir Série ${idx + 1}`}
-          title={`Excluir Série ${idx + 1}`}
-        >
-          <Trash2 size={13} strokeWidth={2.5} />
-          Excluir Série {idx + 1}
+    <div className="relative rounded-2xl overflow-hidden" style={{ touchAction: 'pan-y' }} tabIndex={0}
+      aria-label={`Série ${idx + 1}. Deslize para a esquerda para excluir${canComplete ? ' ou para a direita para marcar como feita' : ''}.`}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'ArrowLeft') { event.preventDefault(); setAction('delete'); }
+        if (event.key === 'ArrowRight' && canComplete) { event.preventDefault(); setAction('complete'); }
+        if (event.key === 'Escape') setAction(null);
+      }}
+      onPointerDown={(event) => {
+        if ((event.target as HTMLElement).closest('input, button, [role="checkbox"]')) return;
+        origin.current = { x: event.clientX, y: event.clientY };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerCancel={() => { origin.current = null; }}
+      onPointerUp={(event) => {
+        if (!origin.current) return;
+        const dx = event.clientX - origin.current.x;
+        const dy = event.clientY - origin.current.y;
+        origin.current = null;
+        if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          swiped.current = true;
+          setAction(dx < 0 ? 'delete' : canComplete ? 'complete' : null);
+        }
+      }}
+      onClickCapture={(event) => {
+        if (swiped.current && !(event.target as HTMLElement).closest('[data-set-swipe-action]')) {
+          event.preventDefault(); event.stopPropagation();
+        }
+        swiped.current = false;
+      }}>
+      {action && (
+        <button type="button" data-set-swipe-action="true"
+          onClick={() => { setAction(null); if (action === 'delete') onDeleteRequest(idx); else if (canComplete) onCompleteRequest(); }}
+          aria-label={action === 'delete' ? `Excluir Série ${idx + 1}` : `Marcar Série ${idx + 1} como feita`}
+          className={`absolute inset-y-0 w-24 rounded-xl flex flex-col items-center justify-center gap-1 text-xs font-semibold ${action === 'delete' ? 'right-0 bg-rose-50 text-rose-600' : 'left-0 bg-emerald-50 text-emerald-700'}`}>
+          {action === 'delete' ? <Trash2 size={18} /> : <CheckCircle2 size={18} />}
+          {action === 'delete' ? 'Excluir' : 'Marcar como feita'}
         </button>
+      )}
+      <div className="relative transition-transform duration-150" style={{ transform: `translateX(${action === 'delete' ? -100 : action === 'complete' ? 100 : 0}px)` }}>
+        {children}
       </div>
     </div>
   );
@@ -3728,7 +3757,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               )}
 
               {/* SERIES LIST (CORE) */}
-              <div className={`px-4 ${isAdvanced ? 'space-y-2' : 'space-y-3'} pb-8`}>
+              <div className="px-4 space-y-2 pb-8">
                 {activeSetsData.map((setData, idx) => {
                   const isCurrent = idx === currentSet - 1;
                   const isCompleted = completedSetIndices.has(idx);
@@ -3740,9 +3769,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     <SwipeableSetCard
                       key={setData.id || `${currentIndex}_${idx}`}
                       idx={idx}
-                      onDeleteRequest={(index) => {
-                        handleDeleteSet(index);
-                      }}
+                      onDeleteRequest={(index) => { setSetToDelete(index); }}
+                      canComplete={isCurrent && !isCompleted && !isPending && !isResting && !saving && !isTransitioning}
+                      onCompleteRequest={handlePrimarySetAction}
                     >
                       <SetCard 
                         isGuestWorkout={isGuestWorkout}
