@@ -848,7 +848,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const target = exercises[replaceIndex];
     if (!target) return;
     if (!canReplaceBeforeFirstSet(replaceIndex, currentIndex, completedSetsByExercise, completedSetIndices, pendingSetToComplete)) {
-      showError("Só é possível substituir antes de concluir a primeira série do exercício.");
+      showError(new Error("Só é possível substituir antes de concluir a primeira série do exercício."));
       return;
     }
 
@@ -961,7 +961,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       <button type="button" className={`px-3 py-2 rounded-xl text-white ${swipeAction.action === 'remove' ? 'bg-red-600' : 'bg-blue-600'}`} onClick={() => {
         if (swipeAction.action === 'remove') requestRemoval(index);
         else { if (!canReplaceBeforeFirstSet(index, currentIndex, completedSetsByExercise, completedSetIndices, pendingSetToComplete)) {
-                      showError("Só é possível substituir antes de concluir a primeira série do exercício."); return;
+                      showError(new Error("Só é possível substituir antes de concluir a primeira série do exercício.")); return;
                     }
                     setReplaceIndex(index); setExerciseSelectorMode('replace'); setShowExercisesList(true); setSwipeAction(null); }
       }}>{swipeAction.action === 'remove' ? 'Remover' : 'Substituir'}</button>
@@ -3632,7 +3632,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 <button 
                   onClick={() => {
                     if (!canReplaceBeforeFirstSet(currentIndex, currentIndex, completedSetsByExercise, completedSetIndices, pendingSetToComplete)) {
-                      showError("Só é possível substituir antes de concluir a primeira série do exercício."); return;
+                      showError(new Error("Só é possível substituir antes de concluir a primeira série do exercício.")); return;
                     }
                     setReplaceIndex(currentIndex);
                     setExerciseSelectorMode('replace');
@@ -4565,7 +4565,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                         e.stopPropagation();
                                         playHapticFeedback('light');
                                         if (!canReplaceBeforeFirstSet(idx, currentIndex, completedSetsByExercise, completedSetIndices, pendingSetToComplete)) {
-                      showError("Só é possível substituir antes de concluir a primeira série do exercício."); return;
+                      showError(new Error("Só é possível substituir antes de concluir a primeira série do exercício.")); return;
                     }
                     setReplaceIndex(idx);
                                         setExerciseSelectorMode('replace');
@@ -4969,7 +4969,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                         e.stopPropagation();
                                         playHapticFeedback('light');
                                         if (!canReplaceBeforeFirstSet(currentIndex, currentIndex, completedSetsByExercise, completedSetIndices, pendingSetToComplete)) {
-                      showError("Só é possível substituir antes de concluir a primeira série do exercício."); return;
+                      showError(new Error("Só é possível substituir antes de concluir a primeira série do exercício.")); return;
                     }
                     setReplaceIndex(currentIndex);
                                         setExerciseSelectorMode('replace');
@@ -5093,7 +5093,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                               e.stopPropagation();
                                               playHapticFeedback('light');
                                               if (!canReplaceBeforeFirstSet(idx, currentIndex, completedSetsByExercise, completedSetIndices, pendingSetToComplete)) {
-                      showError("Só é possível substituir antes de concluir a primeira série do exercício."); return;
+                      showError(new Error("Só é possível substituir antes de concluir a primeira série do exercício.")); return;
                     }
                     setReplaceIndex(idx);
                                               setExerciseSelectorMode('replace');
