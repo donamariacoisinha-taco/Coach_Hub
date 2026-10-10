@@ -197,7 +197,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
           transform: CSS.Transform.toString(transform),
           transition,
         }}
-        className="border-2 border-dashed border-slate-300 bg-slate-50/70 rounded-[1.75rem] h-[138px] flex flex-col items-center justify-center text-xs font-bold text-slate-400 select-none shadow-[inset_0_2px_8px_rgba(15,23,42,0.02)] gap-1.5 transition-all outline-none"
+        className="border border-dashed border-slate-300 bg-slate-50/70 rounded-lg min-h-[88px] flex flex-col items-center justify-center text-xs font-bold text-slate-400 select-none shadow-[inset_0_2px_8px_rgba(15,23,42,0.02)] gap-1.5 transition-all outline-none"
       >
         <span className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-black">Mover para esta posição</span>
         <span className="text-[9px] text-slate-350 tracking-wider font-extrabold uppercase">{ex.exercise_name} (Posição {idx + 1})</span>
@@ -227,14 +227,9 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
         y: 0,
         scale: isDragging ? 1.015 : 1,
       }}
-      whileTap={isOverlay ? undefined : { scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.7 }}
-      className={`relative pl-3.5 pr-5 py-5 transition-all flex flex-col gap-3 rounded-[1.75rem] ${
-        isOverlay
-          ? 'bg-white border-slate-300 shadow-2xl ring-2 ring-[#7BA7FF]/40'
-          : `bg-white/75 backdrop-blur-xl border border-white/40 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ${
-              isCurrent ? 'ring-2 ring-[#7BA7FF]/30 shadow-[0_15px_40px_rgba(123,167,255,0.15)]' : ''
-            }`
+      className={`relative px-2 py-2 transition-colors flex flex-col gap-2 ${
+        isOverlay ? 'bg-white rounded-xl shadow-lg ring-1 ring-slate-200' : 'bg-transparent hover:bg-slate-50/70'
       }`}
     >
       <div className="flex items-center gap-3 w-full min-h-[96px]">
@@ -249,7 +244,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
               e.stopPropagation();
               onMoveUp(idx);
             }}
-            className="w-7 h-7 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-[#7BA7FF] hover:bg-slate-100 active:scale-90 disabled:opacity-20 disabled:hover:bg-transparent"
+            className="w-6 h-6 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-[#7BA7FF] hover:bg-slate-100 active:scale-90 disabled:opacity-20 disabled:hover:bg-transparent"
             title="Mover para cima"
           >
             <ChevronUp size={14} strokeWidth={3} />
@@ -260,7 +255,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
             {...(isOverlay ? {} : attributes)}
             {...(isOverlay ? {} : listeners)}
             style={{ touchAction: 'none' }}
-            className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-[#7BA7FF] opacity-60 hover:opacity-100 transition-all cursor-grab active:cursor-grabbing hover:scale-110 active:scale-90 group"
+            className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-[#7BA7FF] opacity-60 hover:opacity-100 transition-all cursor-grab active:cursor-grabbing hover:scale-110 active:scale-90 group"
             title="Arraste para reordenar"
           >
             <GripVertical size={20} className="transition-transform group-active:scale-90" />
@@ -275,7 +270,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
               e.stopPropagation();
               onMoveDown(idx);
             }}
-            className="w-7 h-7 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-[#7BA7FF] hover:bg-slate-100 active:scale-90 disabled:opacity-20 disabled:hover:bg-transparent"
+            className="w-6 h-6 flex items-center justify-center rounded-lg transition-all text-slate-400 hover:text-[#7BA7FF] hover:bg-slate-100 active:scale-90 disabled:opacity-20 disabled:hover:bg-transparent"
             title="Mover para baixo"
           >
             <ChevronDown size={14} strokeWidth={3} />
@@ -293,7 +288,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
         >
           <div className="flex items-center gap-1.5 flex-wrap">
             <h4 
-              className="text-lg font-semibold text-slate-900 tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight w-full"
+              className="text-base font-semibold text-slate-900 tracking-tight group-hover:text-[#7BA7FF] transition-colors leading-tight w-full"
 
             >
               {ex.exercise_name}
@@ -306,7 +301,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
           </div>
 
           {/* Metadata: subtle separation without heavy badges */}
-          <div className="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-sm text-slate-500 font-semibold">
+          <div className="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-slate-500 font-semibold">
             <span className="whitespace-nowrap">{setsCount} {setsCount === 1 ? 'série' : 'séries'}</span>
             <span className="text-slate-300 font-normal">•</span>
             <span className="whitespace-nowrap">{repsPattern} reps</span>
@@ -327,11 +322,12 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
               event.stopPropagation();
               openExercisePreview(ex.exercise_name || 'Exercício', ex.exercise_image || '', ex.muscle_group || '');
             }}
-            className="w-9 h-9 flex items-center justify-center rounded-full text-slate-500 hover:text-[#7BA7FF] hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:cursor-default"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-[#7BA7FF] hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:cursor-default"
           >
             <Eye size={18} aria-hidden="true" />
           </button>
           <button
+            aria-label={`Opções de ${ex.exercise_name}`}
             onClick={() => setActiveMenuId(activeMenuId === ex.id ? null : ex.id)}
             className={`w-8 h-8 flex items-center justify-center rounded-full transition-all opacity-55 hover:opacity-100 ${
               activeMenuId === ex.id 
@@ -1176,7 +1172,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
                   items={exercises.map(ex => ex.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <div className="space-y-5">
+                  <div className="divide-y divide-slate-200/70 border-y border-slate-200/70">
                     {exercises.map((ex, idx) => (
                       <SortablePrepExerciseCard
                         key={ex.id}
@@ -1292,18 +1288,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
         className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-2xl border-t border-slate-100 py-4 px-6 pb-8 shadow-[0_-10px_35px_rgba(30,41,59,0.04)]"
         style={{ height: '110.097px' }}
       >
-        <div className="max-w-md mx-auto flex items-center gap-5">
-          <div className="flex flex-col justify-center leading-tight shrink-0">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              DURAÇÃO EST.
-            </span>
-            <div className="flex items-center gap-1.5 mt-1 text-slate-800">
-              <Clock size={15} className="text-[#7BA7FF] shrink-0" />
-              <span className="text-xl font-bold tracking-tight text-slate-900 font-mono">
-                ~{estimatedWorkoutMinutes}min
-              </span>
-            </div>
-          </div>
+        <div className="max-w-md mx-auto flex items-center justify-center">
 
           <button
             onClick={handleStartWorkout}
