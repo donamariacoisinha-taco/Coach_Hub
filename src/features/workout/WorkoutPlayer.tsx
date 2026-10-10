@@ -28,6 +28,7 @@ import {
   History,
   Filter,
   Trash2,
+  Eye,
   MoreVertical,
   GripVertical,
   LayoutList,
@@ -4844,15 +4845,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 /* ================= ADAPTIVE LAYER MANAGER PANEL ================= */
                 <div className="flex-1 flex flex-col min-h-0">
                   {/* Panel Header */}
-                  <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100 shrink-0">
+                  <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100 shrink-0">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-slate-900 text-amber-400 flex items-center justify-center shadow-lg shadow-slate-900/10">
+                      <div className="w-9 h-9 rounded-xl bg-slate-50 text-slate-500 flex items-center justify-center">
                         <Zap size={18} className="fill-current stroke-current" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-[1000] uppercase tracking-wider text-slate-900 leading-none">Protocolo Adaptativo</h3>
-                        <p className="text-[9px] font-black text-[#7BA7FF] uppercase tracking-widest mt-1">
-                          {exercises.length} EXERCÍCIOS ATIVOS
+                        <h3 className="text-base font-semibold text-slate-900 leading-tight">Protocolo Adaptativo</h3>
+                        <p className="text-xs font-medium text-slate-500 mt-0.5">
+                          {exercises.length} exercícios na sessão
                         </p>
                       </div>
                     </div>
@@ -4862,9 +4863,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         setContextMenuIndex(null);
                       }}
                       className="h-9 px-4 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer"
-                      title="Sair"
+                      title="Fechar painel" aria-label="Fechar protocolo adaptativo"
                     >
-                      Sair <X size={12} strokeWidth={3} />
+                      Fechar <X size={12} strokeWidth={3} />
                     </button>
                   </div>
 
@@ -4876,23 +4877,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 px-1">
                           <CheckCircle2 size={12} className="text-emerald-500" strokeWidth={3} />
-                          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Segmento Concluído</h4>
+                          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Exercícios anteriores</h4>
                         </div>
-                        <div className="space-y-4">
+                        <div className="divide-y divide-slate-100">
                           {exercises.map((ex, idx) => {
                             if (idx >= currentIndex) return null;
                             return (
                               <div 
                                 key={ex.exercise_id || idx}
-                                className="bg-white/45 backdrop-blur-md rounded-[1.75rem] border border-white/20 p-5 flex items-center justify-between opacity-60 select-none animate-fadeIn"
+                                className="py-3 flex items-center justify-between gap-2 select-none"
                               >
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <span className="text-[10px] font-black w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-150">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <span className="text-[10px] font-black w-6 h-6 shrink-0 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-150">
                                     {idx + 1}
                                   </span>
                                   <div className="min-w-0">
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{ex.muscle_group || 'Geral'}</p>
-                                    <span className="font-semibold text-base text-slate-500 block truncate line-through mt-0.5">{ex.exercise_name}</span>
+                                    <span className="font-medium text-sm text-slate-500 block leading-snug break-words mt-0.5">{ex.exercise_name}</span>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -4910,25 +4911,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                       <div className="space-y-3 animate-fadeIn">
                         <h4 className="text-[10px] font-bold text-blue-500 uppercase tracking-[0.15em] px-1 flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                          Protocolo em execução
+                          Em execução
                         </h4>
                         <div 
-                          className="bg-white/75 backdrop-blur-xl rounded-[1.75rem] border border-white/45 p-5 relative overflow-visible transition-all duration-300 shadow-[0_15px_40px_rgba(123,167,255,0.15)] ring-2 ring-[#7BA7FF]/30"
+                          className="bg-blue-50/50 rounded-xl border-l-2 border-[#7BA7FF] px-3 py-3 relative overflow-visible"
                         >
-                          {/* Inner soft blue glow overlay */}
-                          <div className="absolute right-0 top-0 w-24 h-24 bg-[#7BA7FF]/5 blur-xl pointer-events-none rounded-full" />
                           
                           <div className="flex items-center justify-between relative z-10">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <span className="text-[10px] font-black w-7 h-7 rounded-full bg-[#7BA7FF] text-white flex items-center justify-center shadow-md shadow-[#7BA7FF]/20">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="text-[10px] font-black w-6 h-6 shrink-0 rounded-full bg-[#7BA7FF] text-white flex items-center justify-center ">
                                 {currentIndex + 1}
                               </span>
                               <div className="min-w-0 flex-1">
-                                <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-bold leading-none mb-1.5">
+                                <p className="text-[10px] uppercase tracking-wide text-slate-400 font-medium leading-none mb-1">
                                   {(exercises[currentIndex]?.muscle_group || 'Geral').toUpperCase()}
                                 </p>
-                                <span className="font-semibold text-lg text-slate-900 block truncate leading-tight tracking-tight">{exercises[currentIndex]?.exercise_name}</span>
-                                <div className="flex flex-row items-center gap-2 mt-1.5 text-sm text-slate-500 font-semibold">
+                                <span className="font-semibold text-sm text-slate-900 block leading-snug break-words">{exercises[currentIndex]?.exercise_name}</span>
+                                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 text-xs text-slate-500 font-medium">
                                   <span>{exercises[currentIndex]?.sets_json?.length || exercises[currentIndex]?.sets || 3} {(exercises[currentIndex]?.sets_json?.length || exercises[currentIndex]?.sets || 3) === 1 ? 'série' : 'séries'}</span>
                                   <span className="text-slate-300 font-normal">•</span>
                                   <span>{exercises[currentIndex]?.weight || 0}kg</span>
@@ -4937,14 +4936,27 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             </div>
                             
                             {/* Actions Group */}
-                            <div className="flex items-center gap-1 relative z-50">
+                            <div className="flex items-center gap-1 shrink-0 ml-2 relative z-50">
+                              <button
+                                type="button"
+                                disabled={!(exercises[currentIndex].exercise_image)}
+                                aria-label={`Ver imagem de ${exercises[currentIndex].exercise_name}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openExercisePreview(exercises[currentIndex].exercise_name || "", exercises[currentIndex].exercise_image || "", exercises[currentIndex].muscle_group || "");
+                                }}
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-25 disabled:cursor-not-allowed"
+                              >
+                                <Eye size={16} />
+                              </button>
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setContextMenuIndex(contextMenuIndex === currentIndex ? null : currentIndex);
                                   playHapticFeedback('light');
                                 }}
-                                className={`p-2 rounded-xl transition-all ${
+                                aria-label={`Opções de ${exercises[currentIndex].exercise_name}`}
+                                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${
                                   contextMenuIndex === currentIndex 
                                     ? "bg-slate-900 text-white" 
                                     : "bg-slate-100 text-slate-500 hover:text-slate-850"
@@ -5004,8 +5016,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     {/* 3. FUTURE/UPCOMING BLOCK */}
                     {exercises.filter((_, idx) => idx > currentIndex).length > 0 && (
                       <div className="space-y-3">
-                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] px-1">Próximos Protocolos</h4>
-                        <div className="space-y-4">
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] px-1">Próximos exercícios</h4>
+                        <div className="divide-y divide-slate-100">
                           {exercises.map((ex, idx) => {
                             if (idx <= currentIndex) return null;
                             const isMenuOpened = contextMenuIndex === idx;
@@ -5015,21 +5027,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                 {...swipeProps(idx)}
                                 style={{ position: "relative", touchAction: "pan-y" }}
                                 layout
-                                className="bg-white/70 backdrop-blur-md rounded-[1.75rem] border border-white/40 p-5 flex flex-col shadow-[0_10px_30px_rgba(15,23,42,0.05)] transition-all hover:bg-white"
+                                className="py-3 flex flex-col transition-colors"
                               >
                                 {renderSwipeAction(idx)}
                                 <div className="flex items-center justify-between w-full">
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <span className="text-[10px] font-black w-7 h-7 rounded-full bg-slate-150 text-slate-500 flex items-center justify-center border border-slate-200">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className="text-[10px] font-black w-6 h-6 shrink-0 rounded-full bg-slate-150 text-slate-500 flex items-center justify-center border border-slate-200">
                                       {idx + 1}
                                     </span>
                                     <div className="min-w-0 flex-1">
-                                      <span className="text-xs uppercase tracking-[0.2em] text-slate-400 font-bold leading-none block mb-1.5">
+                                      <span className="text-[10px] uppercase tracking-wide text-slate-400 font-medium leading-none block mb-1">
                                         {(ex.muscle_group || 'Geral').toUpperCase()}
                                       </span>
-                                      <span className="text-lg font-semibold text-slate-900 tracking-tight block truncate leading-tight">{ex.exercise_name}</span>
+                                      <span className="text-sm font-semibold text-slate-900 block leading-snug break-words">{ex.exercise_name}</span>
                                       
-                                      <div className="flex flex-row items-center gap-2 mt-1.5 text-sm text-slate-500 font-semibold">
+                                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 text-xs text-slate-500 font-medium">
                                         <span>{ex.sets_json?.length || ex.sets || 3} {(ex.sets_json?.length || ex.sets || 3) === 1 ? 'série' : 'séries'}</span>
                                         <span className="text-slate-300 font-normal">•</span>
                                         <span>{ex.weight || 0}kg</span>
@@ -5037,7 +5049,19 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-1 relative z-50">
+                                  <div className="flex items-center gap-1 shrink-0 ml-2 relative z-50">
+                                    <button
+                                      type="button"
+                                      disabled={!(ex.exercise_image)}
+                                      aria-label={`Ver imagem de ${ex.exercise_name}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openExercisePreview(ex.exercise_name || "", ex.exercise_image || "", ex.muscle_group || "");
+                                      }}
+                                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-25 disabled:cursor-not-allowed"
+                                    >
+                                      <Eye size={16} />
+                                    </button>
                                     {/* Action trigger menu */}
                                     <button 
                                       onClick={(e) => {
@@ -5045,7 +5069,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                         setContextMenuIndex(isMenuOpened ? null : idx);
                                         playHapticFeedback('light');
                                       }}
-                                      className={`p-1.5 rounded-lg transition-all ${
+                                      aria-label={`Opções de ${ex.exercise_name}`}
+                                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${
                                         isMenuOpened 
                                           ? "bg-slate-900 text-white" 
                                           : "bg-slate-200/50 text-slate-500 hover:text-slate-800"
@@ -5123,14 +5148,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                     </AnimatePresence>
 
                                     {/* Reorder Buttons */}
-                                    <div className="flex items-center gap-0.5 ml-1 pl-1.5 border-l border-slate-200">
+                                    <div className="flex flex-col items-center gap-0.5 ml-0.5 pl-1 border-l border-slate-100">
                                       <button
                                         disabled={idx === currentIndex + 1}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           moveExercise(idx, 'up');
                                         }}
-                                        className={`p-1 text-slate-400 hover:text-slate-900 transition-colors ${
+                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-900 transition-colors ${
                                           idx === currentIndex + 1 ? "opacity-20 cursor-not-allowed" : ""
                                         }`}
                                         title="Subir na fila"
@@ -5143,7 +5168,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                           e.stopPropagation();
                                           moveExercise(idx, 'down');
                                         }}
-                                        className={`p-1 text-slate-400 hover:text-slate-900 transition-colors ${
+                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-900 transition-colors ${
                                           idx === exercises.length - 1 ? "opacity-20 cursor-not-allowed" : ""
                                         }`}
                                         title="Descer na fila"
@@ -5170,7 +5195,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         setExerciseSelectorMode('add');
                         playHapticFeedback('light');
                       }}
-                      className="w-full h-14 rounded-2xl bg-[#7BA7FF] hover:bg-[#6c9bf0] text-white font-extrabold uppercase text-xs tracking-widest shadow-[0_12px_30px_rgba(123,167,255,0.35)] flex items-center justify-center gap-2 border-none transition-all active:translate-y-0.5 shrink-0"
+                      className="w-full h-11 rounded-xl bg-[#7BA7FF] hover:bg-[#6c9bf0] text-white font-semibold text-sm flex items-center justify-center gap-2 border-none transition-all active:translate-y-0.5 shrink-0"
                     >
                       <Plus size={16} strokeWidth={3} />
                       Adicionar exercício
