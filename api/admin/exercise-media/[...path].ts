@@ -1,5 +1,5 @@
-import { GoogleGenAI } from '@google/genai';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { GoogleGenAI } from '@google/genai';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   assertActiveAdmin,
   clampMediaBatchLimit,
@@ -89,7 +89,7 @@ async function getAdminClient(req: VercelRequestLike): Promise<{
     throw error;
   }
 
-  const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+  const { createClient } = await import('@supabase/supabase-js');\n  const authClient = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data, error } = await authClient.auth.getUser(token);
@@ -103,7 +103,7 @@ async function getAdminClient(req: VercelRequestLike): Promise<{
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  await assertActiveAdmin(client, data.user.id);
+  const { assertActiveAdmin } = await import('../../../src/lib/server/exerciseMediaProcessor');\n  await assertActiveAdmin(client, data.user.id);
   return { client, userId: data.user.id };
 }
 
@@ -112,7 +112,7 @@ function getAI(): GoogleGenAI {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is missing. Configure a variável no ambiente da Vercel.');
   }
-  return new GoogleGenAI({ apiKey });
+  const { GoogleGenAI } = await import('@google/genai');\n  return new GoogleGenAI({ apiKey });
 }
 
 export default async function handler(
@@ -126,7 +126,7 @@ export default async function handler(
     const parts = getPathParts(req);
     const route = parts.join('/');
     const body = getBody(req);
-    const { client, userId } = await getAdminClient(req);
+    const { client, userId } = await getAdminClient(req);\n    const { clampMediaBatchLimit } = await import('../../../src/lib/server/exerciseMediaProcessor');\n    const {\n      generateExerciseMediaCandidates,\n      getExerciseMediaApprovalDashboard,\n      regenerateExerciseMediaCandidate,\n      reviewExerciseMediaCandidate,\n      validateExerciseMediaUrls,\n    } = await import('../../../src/lib/server/exerciseMediaApprovalProcessor');\n    const { retryFailedExerciseMediaApprovalJobs } = await import('../../../src/lib/server/retryExerciseMediaApprovalJobs');
 
     if (method === 'GET' && route === 'status') {
       res.status(200).json(await getExerciseMediaApprovalDashboard(client));
