@@ -65,7 +65,7 @@ import { shouldCloseSheetFromDrag } from "../../lib/ui/sheetGestures";
 import { buildExerciseFilterGroups } from "../../lib/exercises/exerciseFilters";
 
 
-import { applyPrescription, loadPrescriptions, savePrescriptions, editAndReplicate } from "../../lib/exercisePrescriptions";
+import { applyPrescription, loadPrescriptions, savePrescriptions, editAndReplicate, replicateCompletedSet } from "../../lib/exercisePrescriptions";
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
@@ -2611,7 +2611,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
     const key = currentEx?.id || currentEx?.exercise_id || String(currentIndex);
     const manual = manuallyEditedFields.current[key] ||= new Set<string>();
-    const updatedActiveSets = editAndReplicate(activeSetsData, idx, field, finalValue, manual, completedSetIndices);
+    const updatedActiveSets = editAndReplicate(activeSetsData, idx, field, finalValue, manual, new Set([...completedSetIndices, ...(pendingSetToComplete !== null ? [pendingSetToComplete] : [])]));
     setActiveSetsData(updatedActiveSets);
     setWorkoutPerformance(prev => ({ ...prev, [currentIndex]: updatedActiveSets }));
 
@@ -2723,6 +2723,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       return;
     }
 
+    // The completed series becomes the baseline for all still-pending series.
+    const replicatedSets = replicateCompletedSet(activeSetsData, setIdx, completedSetIndices);
+    setActiveSetsData(replicatedSets);
+    setWorkoutPerformance(previous => ({ ...previous, [currentIndex]: replicatedSets }));
+    const updatedExercises = exercises.map((exercise, index) => index === currentIndex ? {
+      ...exercise, sets_json: replicatedSets.map(set => ({ ...set, reps: String(set.reps) })),
+    } : exercise);
+    useWorkoutStore.setState({ exercises: updatedExercises } as any);
+    if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, updatedExercises);
+
     const { weight, reps, rpe } = currentSetData;
     const repsTarget = parseInt(currentEx.sets_json?.[setIdx]?.reps as string) || 10;
     
@@ -2738,7 +2748,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     );
 
     // ADAPTIVE REST TIMER
-    let adaptiveRest = currentEx.rest_time || 90;
+    let adaptiveRest = currentSetData.rest_time ?? currentEx.rest_time ?? 90;
     if (rpe >= 9) adaptiveRest += 15;
     if (previousSet && reps < previousSet.reps) adaptiveRest += 10;
 

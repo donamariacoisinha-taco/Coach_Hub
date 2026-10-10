@@ -33,6 +33,23 @@ export function editAndReplicate(sets: any[], index: number, field: string, valu
   if (!next[index]) return next;
   manual.add(`${index}:${field}`);
   next[index][field] = value;
-  if (field !== 'type' && next[index + 1] && !completed.has(index + 1) && !manual.has(`${index + 1}:${field}`)) next[index + 1][field] = value;
+  if (field !== 'type') {
+    for (let upcoming = index + 1; upcoming < next.length; upcoming++) {
+      if (!completed.has(upcoming)) next[upcoming][field] = value;
+    }
+  }
+  return next;
+}
+
+/** Completing a series establishes the values for every remaining series. */
+export function replicateCompletedSet(sets: any[], index: number, completed: Set<number>) {
+  const next = sets.map(set => ({ ...set }));
+  if (!next[index]) return next;
+  for (let upcoming = index + 1; upcoming < next.length; upcoming++) {
+    if (completed.has(upcoming)) continue;
+    for (const field of ['weight', 'reps', 'rpe', 'rest_time']) {
+      if (next[index][field] !== undefined) next[upcoming][field] = next[index][field];
+    }
+  }
   return next;
 }
