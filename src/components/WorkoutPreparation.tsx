@@ -602,7 +602,13 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
             exercise_name: exercise.exercise_name || exercise.exercise_name_snapshot,
             order: exercise.sort_order,
           }));
-          setExercises(Array.isArray(parsed) && parsed.length > 0 ? parsed : baseExercises);
+          const catalogue = await exerciseApi.getExercises().catch(() => [] as Exercise[]);
+          const sessionExercises = Array.isArray(parsed) && parsed.length > 0 ? parsed : baseExercises;
+          setExercises(sessionExercises.map((exercise: any) => {
+            const match = catalogue.find(item => item.id === exercise.exercise_id) ||
+              catalogue.find(item => item.name?.toLocaleLowerCase() === exercise.exercise_name?.toLocaleLowerCase());
+            return { ...exercise, exercise_image: exercise.exercise_image || match?.image_url || match?.static_frame_url };
+          }));
           setWorkoutName(guestWorkout.name || 'Treino local');
           setCategory({ id: workoutId, name: guestWorkout.name || 'Treino local' } as WorkoutCategory);
           setAvailableExercises(baseExercises.map((exercise: any) => ({
