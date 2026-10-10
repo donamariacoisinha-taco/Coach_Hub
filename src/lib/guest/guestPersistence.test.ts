@@ -569,3 +569,17 @@ describe('edição de séries de sessões concluídas (Evolução → Sessões)'
     expect(() => updateGuestSessionSet('sessao-inexistente', 'ex-1', 1, { weight_achieved: 10 })).not.toThrow();
   });
 });
+
+
+describe('histórico após alterar a lista da sessão', () => {
+  beforeEach(() => { vi.stubGlobal('localStorage', createStorage()); vi.stubGlobal('sessionStorage', createStorage()); });
+  it('usa a identidade atual e preserva séries de exercícios removidos', () => {
+    const dashboard = saveGuestPlan({ id: 'list-test', name: 'Plano', workouts: [{ name: 'A', exercises: [{ exercise_id: 'old', exercise_name: 'Antigo', sets: 2, reps: '10' }] }] }, { name: 'Maria' });
+    const workout = dashboard.workouts[0];
+    finishGuestWorkout(workout.id, { duration_seconds: 600, exercises: [{ exercise_id: 'new', exercise_name_snapshot: 'Novo' }], performance: {0: [{weight:50,reps:8,rpe:7}]}, removedExecution: [{exercise:{exercise_id:'old',exercise_name:'Antigo'},sets:[{set_number:2,weight:30,reps:10,rpe:8,rest_time:90}]}] });
+    const history = getGuestDashboard().history[0];
+    expect(history.workout_sets_logs.map((set: any) => set.exercise_id)).toEqual(['new','old']);
+    expect(history.workout_sets_logs[1].set_number).toBe(2);
+    expect(history.total_volume).toBe(700);
+  });
+});
