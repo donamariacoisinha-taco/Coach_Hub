@@ -728,6 +728,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   
   // Adaptive Protocol Management States
   const [allAvailableExercises, setAllAvailableExercises] = useState<any[]>([]);
+  const getProtocolExerciseImage = (exercise: WorkoutExercise) => {
+    const savedImage = exercise.exercise_image || (exercise as WorkoutExercise & { image_url?: string }).image_url;
+    if (savedImage) return savedImage;
+    const match = allAvailableExercises.find((item) => item.id === exercise.exercise_id)
+      || allAvailableExercises.find((item) => item.name?.trim().toLowerCase() === exercise.exercise_name?.trim().toLowerCase());
+    return match?.image_url || match?.static_frame_url || "";
+  };
   const [loadingExercisesDetail, setLoadingExercisesDetail] = useState(false);
   const [exerciseSelectorMode, setExerciseSelectorMode] = useState<'add' | 'replace' | null>(null);
   const [newWorkoutName, setNewWorkoutName] = useState("Nova ficha do treino");
@@ -4939,11 +4946,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                             <div className="flex items-center gap-1 shrink-0 ml-2 relative z-50">
                               <button
                                 type="button"
-                                disabled={!(exercises[currentIndex].exercise_image)}
+                                disabled={!(getProtocolExerciseImage(exercises[currentIndex]))}
                                 aria-label={`Ver imagem de ${exercises[currentIndex].exercise_name}`}
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  openExercisePreview(exercises[currentIndex].exercise_name || "", exercises[currentIndex].exercise_image || "", exercises[currentIndex].muscle_group || "");
+                                  openExercisePreview(exercises[currentIndex].exercise_name || "", getProtocolExerciseImage(exercises[currentIndex]) || "", exercises[currentIndex].muscle_group || "");
                                 }}
                                 className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-25 disabled:cursor-not-allowed"
                               >
@@ -5052,11 +5059,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                   <div className="flex items-center gap-1 shrink-0 ml-2 relative z-50">
                                     <button
                                       type="button"
-                                      disabled={!(ex.exercise_image)}
+                                      disabled={!(getProtocolExerciseImage(ex))}
                                       aria-label={`Ver imagem de ${ex.exercise_name}`}
                                       onClick={(event) => {
                                         event.stopPropagation();
-                                        openExercisePreview(ex.exercise_name || "", ex.exercise_image || "", ex.muscle_group || "");
+                                        openExercisePreview(ex.exercise_name || "", getProtocolExerciseImage(ex) || "", ex.muscle_group || "");
                                       }}
                                       className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-25 disabled:cursor-not-allowed"
                                     >
