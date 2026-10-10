@@ -583,3 +583,21 @@ describe('histórico após alterar a lista da sessão', () => {
     expect(history.total_volume).toBe(700);
   });
 });
+
+it('cria uma nova ficha mantendo original e histórico local', async () => {
+  vi.stubGlobal('localStorage', createStorage());
+  const { createGuestWorkout } = await import('./guestPersistence');
+  const original = saveGuestPlan({ name: 'Plano', workouts: [{ name: 'Original', exercises: [
+    { exercise_id: 'supino', exercise_name: 'Supino', sets: 1, weight: 30 },
+  ] }] }, { name: 'Maria' }).workouts[0];
+  finishGuestWorkout(original.id, { exercises: original.exercises,
+    performance: { 0: [{ weight: 35, reps: 8 }] }, duration_seconds: 60 });
+  const before = getGuestDashboard();
+  const copy = createGuestWorkout({ name: 'Nova', folder_id: original.folder_id,
+    exercises: [{ exercise_id: 'remada', exercise_name: 'Remada', sets: 1, weight: 40 }] });
+  const after = getGuestDashboard();
+  expect(copy.id).not.toBe(original.id);
+  expect(after.workouts.find((w: any) => w.id === original.id)).toEqual(before.workouts.find((w: any) => w.id === original.id));
+  expect(after.history).toEqual(before.history);
+  expect(after.workouts).toHaveLength(2);
+});

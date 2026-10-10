@@ -1,3 +1,4 @@
+import { resolveSavedSets, canReplaceBeforeFirstSet } from "../../lib/workoutSaveChoices";
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
@@ -58,7 +59,7 @@ import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 import { fetchWithRetry } from "../../lib/utils";
 import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../services/athleteMemoryEngine";
-import { claimGuestStorageMigrationNoticeDisplay, consumeGuestStorageMigrationNotice, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, migrateGuestStorage, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
+import { createGuestWorkout, claimGuestStorageMigrationNoticeDisplay, consumeGuestStorageMigrationNotice, finishGuestWorkout, getGuestWorkout, getOrCreateGuestWorkoutSession, migrateGuestStorage, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises, validateGuestWorkoutSession } from "../../lib/guest/guestPersistence";
 import { filterExerciseSelectorCandidates, remapIndexedExerciseState, replaceOrSwapExercise } from "./exerciseSelector";
 import { shouldCloseSheetFromDrag } from "../../lib/ui/sheetGestures";
 import { buildExerciseFilterGroups } from "../../lib/exercises/exerciseFilters";
@@ -729,6 +730,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [allAvailableExercises, setAllAvailableExercises] = useState<any[]>([]);
   const [loadingExercisesDetail, setLoadingExercisesDetail] = useState(false);
   const [exerciseSelectorMode, setExerciseSelectorMode] = useState<'add' | 'replace' | null>(null);
+  const [newWorkoutName, setNewWorkoutName] = useState("Nova ficha do treino");
   const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string>('Tudo');
@@ -845,6 +847,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
     const target = exercises[replaceIndex];
     if (!target) return;
+    if (!canReplaceBeforeFirstSet(replaceIndex, currentIndex, completedSetsByExercise, completedSetIndices)) {
+      showError("Só é possível substituir antes de concluir a primeira série do exercício.");
+      return;
+    }
 
     let prescriptions;
     try { prescriptions = await loadPrescriptions(isGuestWorkout); } catch (error) { showError(error); return; }
@@ -954,7 +960,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       <button type="button" className="px-3 py-2 rounded-xl bg-slate-100" onClick={() => setSwipeAction(null)}>Cancelar</button>
       <button type="button" className={`px-3 py-2 rounded-xl text-white ${swipeAction.action === 'remove' ? 'bg-red-600' : 'bg-blue-600'}`} onClick={() => {
         if (swipeAction.action === 'remove') requestRemoval(index);
-        else { setReplaceIndex(index); setExerciseSelectorMode('replace'); setShowExercisesList(true); setSwipeAction(null); }
+        else { if (!canReplaceBeforeFirstSet(index, currentIndex, completedSetsByExercise, completedSetIndices)) {
+                      showError("Só é possível substituir antes de concluir a primeira série do exercício."); return;
+                    }
+                    setReplaceIndex(index); setExerciseSelectorMode('replace'); setShowExercisesList(true); setSwipeAction(null); }
       }}>{swipeAction.action === 'remove' ? 'Remover' : 'Substituir'}</button>
     </div>
   ) : null;
@@ -3073,6 +3082,75 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
   };
 
+  const resolveFinalExercises = () => exercises.map((exercise, index) => {
+    const completed = new Set<number>([
+      ...Array.from<number>(completedSetsByExercise[index] || new Set<number>()),
+      ...(index === currentIndex ? Array.from<number>(completedSetIndices) : []),
+    ]);
+    const sets = resolveSavedSets(exercise, workoutPerformance[index] || [], completed);
+    return { ...exercise, sets_json: sets, sets: sets.length,
+      reps: sets[0]?.reps, weight: sets[0]?.weight,
+      rest_time: sets[0]?.rest_time, default_rpe: sets[0]?.rpe };
+  });
+
+  const handleSaveSeparateDestination = async (destination: 'new' | 'data') => {
+    setSaving(true);
+    try {
+      const finalExercises = resolveFinalExercises();
+      if (destination === 'new') {
+        const name = newWorkoutName.trim();
+        if (!name) throw new Error('Informe o nome da nova ficha.');
+        if (!finalExercises.length) throw new Error('A nova ficha precisa de um exercício.');
+        if (isGuestWorkout) {
+          const original = getGuestWorkout(workoutId);
+          createGuestWorkout({ name, folder_id: original?.folder_id,
+            exercises: finalExercises.map(({ id, ...exercise }) => exercise) });
+        } else {
+          const u = await authApi.getUser();
+          if (!u) throw new Error('Usuário não autenticado');
+          const { data: original, error: readError } = await supabase.from('workout_categories')
+            .select('folder_id').eq('id', workoutId).eq('user_id', u.id).single();
+          if (readError) throw readError;
+          const category = await workoutApi.createCategory({ user_id: u.id, name, folder_id: original.folder_id });
+          const rows = finalExercises.map((exercise, index) => ({
+            category_id: category.id, exercise_id: exercise.exercise_id, sort_order: index,
+            exercise_name_snapshot: exercise.exercise_name || exercise.exercise_name_snapshot || 'Exercício',
+            sets: exercise.sets, reps: exercise.reps, weight: exercise.weight,
+            rest_time: exercise.rest_time, default_rpe: exercise.default_rpe,
+            sets_json: exercise.sets_json, superset_id: exercise.superset_id || null,
+          }));
+          const { error } = await supabase.from('workout_exercises').insert(rows);
+          if (error) {
+            await supabase.from('workout_categories').delete().eq('id', category.id).eq('user_id', u.id);
+            throw error;
+          }
+        }
+      } else {
+        const rows = finalExercises.filter((_, index) =>
+          !canReplaceBeforeFirstSet(index, currentIndex, completedSetsByExercise, completedSetIndices))
+          .map(exercise => ({ exercise_id: exercise.exercise_id, sets_json: exercise.sets_json }));
+        removedExecution.current.forEach(({ exercise, sets }) => rows.push({
+          exercise_id: exercise.exercise_id,
+          sets_json: sets.map(({ set_number, ...set }: any) => ({ ...set,
+            reps: String(set.reps), rest_time: set.rest_time ?? exercise.rest_time ?? 60 })),
+        }));
+        await savePrescriptions(isGuestWorkout, rows);
+      }
+      cacheStore.clearPrefix('workout_init_');
+      cacheStore.clearPrefix('dashboard_');
+      cacheStore.clear('guest_dashboard_data');
+      if (!isGuestWorkout) {
+        if (user?.id) localStorage.removeItem(`rubi_dashboard_cache_${user.id}`);
+      }
+      localStorage.removeItem(`workout_session_temp_${workoutId}`);
+      setShowEvolutionModal(false);
+      setIsWorkoutComplete(true);
+      setIsFinished(true);
+      showSuccess(destination === 'new' ? 'Nova ficha criada. A original foi preservada.' : 'Dados dos exercícios salvos. A ficha foi preservada.');
+    } catch (error) { showError(error); }
+    finally { setSaving(false); }
+  };
+
   const handleApplyTemplateEvolution = async () => {
     setSaving(true);
     try {
@@ -3081,11 +3159,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
       if (isGuestWorkout) {
         await savePrescriptions(true, [
-          ...exercises.filter((ex, index) => (completedSetsByExercise[index]?.size || (index === currentIndex && completedSetIndices.size))).map(ex => ({ exercise_id: ex.exercise_id, sets_json: ex.sets_json || [] })),
+          ...resolveFinalExercises().filter((ex, index) => (completedSetsByExercise[index]?.size || (index === currentIndex && completedSetIndices.size))).map(ex => ({ exercise_id: ex.exercise_id, sets_json: ex.sets_json || [] })),
           ...removedExecution.current.map(({ exercise, sets }) => ({ exercise_id: exercise.exercise_id, sets_json: sets.map(({ set_number, ...set }: any) => ({ ...set, reps: String(set.reps), rest_time: set.rest_time ?? exercise.rest_time ?? 60 })) }))
         ]);
         cacheStore.clearPrefix("workout_init_");
-        updateGuestWorkoutExercises(workoutId, exercises);
+        updateGuestWorkoutExercises(workoutId, resolveFinalExercises());
+        cacheStore.clear('guest_dashboard_data');
         localStorage.removeItem(`workout_session_temp_${workoutId}`);
         setShowEvolutionModal(false);
         setIsWorkoutComplete(true);
@@ -3112,19 +3191,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           ...Array.from<number>(completedSetsByExercise[index] || new Set<number>()),
           ...(index === currentIndex ? Array.from<number>(completedSetIndices) : [])
         ]);
-        const finalSetsJson = Array.from({ length: numSets }).map((_, sIdx) => {
-          const existingSet = ex.sets_json?.[sIdx];
-          const performedSet = perfSets?.[sIdx];
-          const usePerformed = completedForExercise.has(sIdx) && !!performedSet;
-          const sourceSet: any = usePerformed ? performedSet : (existingSet || performedSet || {});
-          return {
-            reps: sourceSet.reps !== undefined ? String(sourceSet.reps) : targetReps,
-            weight: sourceSet.weight !== undefined ? Number(sourceSet.weight) : targetWeight,
-            rest_time: Number(sourceSet.rest_time || existingSet?.rest_time || targetRest),
-            rpe: Number(sourceSet.rpe || existingSet?.rpe || ex.default_rpe || 8),
-            type: sourceSet.type || existingSet?.type || SetType.NORMAL
-          };
-        });
+        const finalSetsJson = resolveSavedSets(ex, perfSets, completedForExercise);
 
         if (completedForExercise.size) prescriptionRows.push({ exercise_id: ex.exercise_id, sets_json: finalSetsJson });
         const firstSetReps = finalSetsJson[0]?.reps || targetReps;
@@ -3221,7 +3288,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     setShowEvolutionModal(false);
     setIsWorkoutComplete(true);
     setIsFinished(true);
-    showSuccess("Alterações salvas apenas para hoje!");
+    localStorage.removeItem(`workout_session_temp_${workoutId}`);
+    showSuccess("Treino registrado no histórico, sem alterar fichas ou configurações pessoais.");
   };
 
   const formatTime = (s: number) => {
@@ -3563,6 +3631,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               <div className={`flex gap-2 px-4 transition-all duration-500 ${momentum ? "mb-2 mt-2" : "mb-4"}`}>
                 <button 
                   onClick={() => {
+                    if (!canReplaceBeforeFirstSet(currentIndex, currentIndex, completedSetsByExercise, completedSetIndices)) {
+                      showError("Só é possível substituir antes de concluir a primeira série do exercício."); return;
+                    }
                     setReplaceIndex(currentIndex);
                     setExerciseSelectorMode('replace');
                     setSearchQuery('');
@@ -4493,7 +4564,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         playHapticFeedback('light');
-                                        setReplaceIndex(idx);
+                                        if (!canReplaceBeforeFirstSet(idx, currentIndex, completedSetsByExercise, completedSetIndices)) {
+                      showError("Só é possível substituir antes de concluir a primeira série do exercício."); return;
+                    }
+                    setReplaceIndex(idx);
                                         setExerciseSelectorMode('replace');
                                         setShowExercisesList(true);
                                         setContextMenuIndex(null);
@@ -4894,7 +4968,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         playHapticFeedback('light');
-                                        setReplaceIndex(currentIndex);
+                                        if (!canReplaceBeforeFirstSet(currentIndex, currentIndex, completedSetsByExercise, completedSetIndices)) {
+                      showError("Só é possível substituir antes de concluir a primeira série do exercício."); return;
+                    }
+                    setReplaceIndex(currentIndex);
                                         setExerciseSelectorMode('replace');
                                         setContextMenuIndex(null);
                                       }}
@@ -5015,7 +5092,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               playHapticFeedback('light');
-                                              setReplaceIndex(idx);
+                                              if (!canReplaceBeforeFirstSet(idx, currentIndex, completedSetsByExercise, completedSetIndices)) {
+                      showError("Só é possível substituir antes de concluir a primeira série do exercício."); return;
+                    }
+                    setReplaceIndex(idx);
                                               setExerciseSelectorMode('replace');
                                               setContextMenuIndex(null);
                                             }}
@@ -5179,14 +5259,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }} 
-              onClick={() => handleDiscardTemplateEvolution()} 
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
             />
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }} 
               animate={{ scale: 1, opacity: 1, y: 0 }} 
               exit={{ scale: 0.9, opacity: 0, y: 20 }} 
-              className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl relative z-10 border border-slate-100/50 overflow-hidden"
+              className="w-full max-w-sm bg-white rounded-[2.5rem] p-6 shadow-2xl relative z-10 border border-slate-100/50 max-h-[90dvh] overflow-y-auto"
             >
               <div className="flex flex-col items-center text-center">
                 <div className="w-16 h-16 bg-violet-50 border border-violet-100 rounded-full flex items-center justify-center mb-6 shadow-inner relative">
@@ -5197,11 +5276,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 </div>
                 
                 <h3 className="text-xl font-[1000] text-slate-800 tracking-tight leading-6 mb-2">
-                  Salvar alterações no treino original?
+                  Como deseja salvar as alterações?
                 </h3>
                 
                 <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-6">
-                  Deseja salvar esta configuração na ficha e como sua última configuração pessoal de cada exercício, para usar em outras fichas?
+                  O treino já foi registrado no histórico. Escolha o que deseja manter para os próximos treinos.
                 </p>
 
                 {/* Box de Resumo de Mudanças */}
@@ -5231,12 +5310,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Atualizar ficha"}
                   </button>
-                  <button 
-                    onClick={() => handleDiscardTemplateEvolution()} 
+                  <label className="block text-left text-xs font-semibold text-slate-600">
+                    Nome da nova ficha
+                    <input value={newWorkoutName} onChange={event => setNewWorkoutName(event.target.value)} disabled={saving}
+                      maxLength={100} className="mt-1 w-full rounded-xl border border-slate-200 p-3" />
+                  </label>
+                  <button onClick={() => handleSaveSeparateDestination('new')} disabled={saving || !newWorkoutName.trim()}
+                    className="w-full py-3 rounded-2xl bg-violet-50 text-violet-700 font-bold text-xs">Salvar como nova ficha</button>
+                  <button onClick={() => handleSaveSeparateDestination('data')} disabled={saving}
+                    className="w-full py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs">Salvar apenas dados dos exercícios</button>
+                  <p className="text-[11px] text-slate-500">Somente dados: guarda séries, cargas, repetições, esforço e descanso sem alterar a ficha. Nova ficha: mantém a original.</p>
+                  <button onClick={() => handleDiscardTemplateEvolution()}
                     disabled={saving}
                     className="w-full py-4 bg-white border border-slate-100 hover:bg-slate-50 text-slate-400 hover:text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center"
                   >
-                    Manter apenas hoje
+                    Não salvar alterações
                   </button>
                 </div>
               </div>
