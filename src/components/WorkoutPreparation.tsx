@@ -1113,18 +1113,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
             </div>
           </div>
 
-          {/* Rubi Intelligence Editorial Block */}
-          {exercises.length > 0 && (
-            <div className="bg-[#7BA7FF]/5 border-l-2 border-[#7BA7FF]/60 rounded-r-xl p-3.5 space-y-1">
-              <div className="flex items-center gap-1.5 text-[#7BA7FF]">
-                <Zap size={11} className="fill-current" />
-                <span className="text-[9px] font-black uppercase tracking-wider">Rubi Intelligence</span>
-              </div>
-              <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
-                Este protocolo prioriza {uniqueMuscleGroups.join(', ').toLowerCase() || 'equilíbrio cinético'} e estabilidade escapular. Sugerimos focar no pico de esforço previsto nos exercícios intermediários para maximizar o recrutamento de fibras do tipo IIb.
-              </p>
-            </div>
-          )}
+
         </header>
 
         {/* Exercises List utilizing dnd-kit */}
@@ -1281,6 +1270,18 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
             </p>
           </div>
         )}
+          {/* Rubi Intelligence Editorial Block */}
+          {exercises.length > 0 && (
+            <div className="mt-6 bg-[#7BA7FF]/5 border-l-2 border-[#7BA7FF]/60 rounded-r-xl p-3.5 space-y-1">
+              <div className="flex items-center gap-1.5 text-[#7BA7FF]">
+                <Zap size={11} className="fill-current" />
+                <span className="text-[9px] font-black uppercase tracking-wider">Rubi Intelligence</span>
+              </div>
+              <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                Este protocolo prioriza {uniqueMuscleGroups.join(', ').toLowerCase() || 'equilíbrio cinético'} e estabilidade escapular. Sugerimos focar no pico de esforço previsto nos exercícios intermediários para maximizar o recrutamento de fibras do tipo IIb.
+              </p>
+            </div>
+          )}
       </div>
 
       {/* FOOTER ACTION BUTTONS PANEL */}
