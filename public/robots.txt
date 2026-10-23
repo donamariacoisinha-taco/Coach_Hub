@@ -1,0 +1,15 @@
+User-agent: *
+Disallow: /api/
+Disallow: /auth
+Disallow: /onboarding
+Disallow: /dashboard
+Disallow: /workout
+Disallow: /preparation
+Disallow: /editor
+Disallow: /history
+Disallow: /admin
+Disallow: /profile
+Disallow: /library
+Disallow: /dieta
+
+Sitemap: https://kyron.uno/sitemap.xml
