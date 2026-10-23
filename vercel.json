@@ -9,6 +9,10 @@
     }
   ],
   "routes": [
+    {
+      "src": "/api/admin/exercise-media/(.*)",
+      "dest": "/api/admin/exercise-media/[...path].ts?path=$1"
+    },
     { "handle": "filesystem" },
     { "src": "/academia-sem-medo/?", "dest": "/academia-sem-medo/index.html" },
     { "src": "/.*", "dest": "/" }
