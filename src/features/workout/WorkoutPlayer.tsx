@@ -56,6 +56,7 @@ import { workoutEngine } from "../../domain/workout/workoutEngine";
 import { resolveResumeSetNumber, shouldConfirmPartialBeforeTerminalSet, computeSessionExerciseDiff, computeWorkoutCompletionSummary } from "../../domain/workout/workoutReliability";
 import { imagePrefetcher } from "../../lib/utils/imagePrefetcher";
 import { cacheStore } from "../../lib/cache/cacheStore";
+import { invalidateWorkoutCache } from "../../lib/cache/workoutCache";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 import { fetchWithRetry } from "../../lib/utils";
 import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../services/athleteMemoryEngine";
@@ -2970,33 +2971,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     removedExecution.current.forEach(({ exercise, sets }) => sets.forEach((set: any) => logs.push({ history_id: histId, user_id: userId, exercise_id: exercise.exercise_id, set_number: set.set_number, weight_achieved: Number(set.weight), reps_achieved: Number(set.reps), rpe: set.rpe, rest_time_actual: set.rest_time_actual || null, set_type: set.type || SetType.NORMAL, created_at: new Date().toISOString() })));
     if (logs.length === 0) {
       log("[SAVE_WORKOUT_EMPTY] No sets to save");
-      return;
+      throw new Error('Conclua ao menos uma série antes de salvar esta sessão.');
     }
 
     // 2. Database Write (Batch)
     try {
-      // Clean existing logs for this history to prevent duplicates from incremental saves
-      const { error: deleteError } = await supabase.from('workout_sets_log').delete().eq('history_id', histId);
-      if (deleteError) log("[SAVE_WORKOUT_CLEAN_WARN]", deleteError);
-
-      // Now save the final state
+      // Preserve incremental logs until the final snapshot has been confirmed.
       await workoutApi.saveWorkoutBatch(histId, logs);
 
-      // 3. Single Source of Truth Validation: re-fetch and check
-      const isValid = await workoutApi.validateWorkoutIntegrity(histId, logs.length);
-      if (!isValid) {
-        log("[INTEGRITY_FAIL] Mismatch between saved and expected logs. Retrying...");
-        // One retry attempt
-        await supabase.from('workout_sets_log').delete().eq('history_id', histId);
-        await workoutApi.saveWorkoutBatch(histId, logs);
-      }
-
       // 4. Save to Last Valid State Cache
-      localStorage.setItem('last_valid_workout', JSON.stringify({
+      try { localStorage.setItem('last_valid_workout', JSON.stringify({
         historyId: histId,
         logs,
         timestamp: Date.now()
-      }));
+      })); } catch (error) { log('[WORKOUT_CACHE_WARN]', error); }
 
       setIsSavedSuccessfully(true);
       setTimeout(() => setIsSavedSuccessfully(false), 3000);
@@ -3010,6 +2998,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
 
       log("[SAVE_WORKOUT_SUCCESS]");
+      return new Set(logs.map(row => row.exercise_id)).size;
     } catch (err) {
       log("[SAVE_WORKOUT_ERROR]", err);
       throw err;
@@ -3017,9 +3006,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   };
 
   const finishWorkout = async (isSuccess: boolean, completedNaturally = false, forcePartial = false) => {
-    // Clear temporary workout planning session cache
-    localStorage.removeItem(`workout_session_temp_${workoutId}`);
-
     const currentStore = useWorkoutStore.getState();
     const currentHistoryId = currentStore.historyId;
     const currentStartTime = currentStore.startTime;
@@ -3081,14 +3067,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
       if (isSuccess) {
         // GUARANTEE PERSISTENCE BEFORE COMPLETING
-        await saveWorkoutExecution(currentHistoryId, u.id);
-
-        const finalExCount = Object.keys(workoutPerformance).length;
+        const finalExCount = await saveWorkoutExecution(currentHistoryId, u.id);
         
         // Only mark as finished if there are actually exercises recorded
         if (finalExCount > 0) {
           const wasPartial = forcePartial || !incompleteSummary.complete;
           await workoutApi.finishWorkout(currentHistoryId, finalDuration, finalExCount, wasPartial);
+          localStorage.removeItem(`workout_session_temp_${workoutId}`);
           setFinalWasPartial(wasPartial);
           
           // Learn from Completed Session in Athlete Memory
@@ -3155,6 +3140,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           playSensoryTone('warning');
         } catch (e) {}
         await workoutApi.abandonWorkout(currentHistoryId);
+        localStorage.removeItem(`workout_session_temp_${workoutId}`);
         if (user) await workoutApi.clearPartialSession(user.id);
         cacheStore.clear(`workout_init_${workoutId}`);
         resetWorkout();
@@ -3239,6 +3225,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const handleApplyTemplateEvolution = async () => {
     setSaving(true);
+    if (!isGuestWorkout) invalidateWorkoutCache(workoutId);
     try {
       if (!sessionDiff.isConsistent) {
         if (!exercises.length) throw new Error('A ficha precisa de pelo menos um exercício.');
@@ -3318,8 +3305,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             }
 
             if (Object.keys(patch).length > 0) {
-              const { error } = await supabase.from('workout_exercises').update(patch).eq('id', ex.id);
-              if (error) throw error;
+              await workoutApi.updateWorkoutExercise(ex.id, workoutId, patch);
             }
           }
         } else {
@@ -3336,8 +3322,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             sets_json: finalSetsJson,
             exercise_name_snapshot: ex.exercise_name || 'Exercício'
           };
-          const { error } = await supabase.from('workout_exercises').insert([newRow]);
-          if (error) throw error;
+          await workoutApi.saveNewWorkoutExercise(workoutId, ex.id || `session-index-${index}`, newRow);
         }
       }
 
@@ -3366,6 +3351,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       log("[TEMPLATE_EVOLUTION_ERROR]", err);
       showError(err);
     } finally {
+      if (!isGuestWorkout) invalidateWorkoutCache(workoutId);
       setSaving(false);
     }
   };

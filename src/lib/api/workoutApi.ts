@@ -5,6 +5,8 @@ import { fetchWithRetry } from '../utils';
 import { exerciseApi } from './exerciseApi';
 import { getGuestDashboard, getGuestWorkout, deleteGuestWorkout, updateGuestSessionSet } from '../guest/guestPersistence';
 import { authApi, GUEST_USER_ID } from './authApi';
+import { invalidateWorkoutCache } from '../cache/workoutCache';
+import { v5 as uuidv5 } from 'uuid';
 
 export const workoutApi = {
   getGuestDashboardData() {
@@ -59,7 +61,8 @@ export const workoutApi = {
         };
 
         // Cache the successful result
-        localStorage.setItem(`rubi_dashboard_cache_${userId}`, JSON.stringify(result));
+        try { localStorage.setItem(`rubi_dashboard_cache_${userId}`, JSON.stringify(result)); }
+        catch (error) { console.warn('[workoutApi] Dashboard cache unavailable', error); }
         return result;
       } catch (err: any) {
         console.warn("[workoutApi] Connection failed (Failed to fetch). Activating localStorage cache backup.", err);
@@ -67,64 +70,15 @@ export const workoutApi = {
         try {
           const cached = localStorage.getItem(`rubi_dashboard_cache_${userId}`);
           if (cached) {
-            return JSON.parse(cached);
+            const parsed = JSON.parse(cached);
+            if (parsed.profile?.id === userId && Array.isArray(parsed.workouts)
+              && !parsed.workouts.some((workout: any) => /^classic-/.test(workout.id))) return parsed;
           }
         } catch (e) {
           console.error("Failed to parse cached dashboard data:", e);
         }
 
-        // Return high-quality premium catalog fallback structure if no cache exists
-        return {
-          profile: {
-            id: userId,
-            email: 'convidado@kyron.os',
-            name: 'Atleta Convidado',
-            onboarding_completed: true,
-            workout_streak: 5,
-            biometrics_bmi: 23.8,
-            training_experience: 'Avançado',
-            performance_score: 94,
-            weight: 82,
-            height: 182,
-            created_at: new Date().toISOString()
-          } as any,
-          folders: [
-            { id: 'folder-elite', name: 'Protocolos de Elite' },
-            { id: 'folder-hipertrofia', name: 'Hipertrofia Estética' },
-            { id: 'folder-forca', name: 'Força & Power' }
-          ] as WorkoutFolder[],
-          workouts: [
-            {
-              id: 'classic-a',
-              name: 'Protocolo A — Desenvolvimento Miofibrilar',
-              user_id: userId,
-              folder_id: 'folder-elite',
-              description: 'Ativação biomecânica otimizada para peito e ombros utilizando falha concêntrica.',
-              duration_minutes: 55,
-              created_at: new Date().toISOString()
-            },
-            {
-              id: 'classic-b',
-              name: 'Protocolo B — Ênfase Posterior Chain',
-              user_id: userId,
-              folder_id: 'folder-elite',
-              description: 'Desenho neuromuscular para costas e bíceps focado em tempo sob tensão elevado.',
-              duration_minutes: 60,
-              created_at: new Date().toISOString()
-            },
-            {
-              id: 'classic-c',
-              name: 'Protocolo C — Divisão de Quadríceps & Core',
-              user_id: userId,
-              folder_id: 'folder-hipertrofia',
-              description: 'Recrutamento de unidades motoras do quadríceps com cadência controlada.',
-              duration_minutes: 50,
-              created_at: new Date().toISOString()
-            }
-          ] as unknown as WorkoutCategory[],
-          history: [] as WorkoutHistory[],
-          stats: { sessions: 0 }
-        };
+        throw err;
       }
     });
   },
@@ -208,6 +162,7 @@ export const workoutApi = {
         ]);
 
         if (catRes.error) throw catRes.error;
+        if (partialRes.error) throw partialRes.error;
 
         // Fetch exercises with fallback join
         let exercisesData: any[] = [];
@@ -255,7 +210,8 @@ export const workoutApi = {
         };
 
         // Cache successful workout content
-        localStorage.setItem(`rubi_workout_init_${workoutId}`, JSON.stringify(result));
+        try { localStorage.setItem(`rubi_workout_init_${workoutId}`, JSON.stringify(result)); }
+        catch (error) { console.warn('[workoutApi] Workout cache unavailable', error); }
         return result;
       } catch (err: any) {
         console.warn(`[workoutApi] Failed to init workout ${workoutId} online. Trying local cache fallbacks.`, err);
@@ -263,90 +219,19 @@ export const workoutApi = {
         try {
           const cached = localStorage.getItem(`rubi_workout_init_${workoutId}`);
           if (cached) {
-            return JSON.parse(cached);
+            const parsed = JSON.parse(cached);
+            if (parsed.category?.id === workoutId && parsed.category?.user_id === userId
+              && Array.isArray(parsed.exercises)
+              && !parsed.exercises.some((exercise: any) => String(exercise.id).startsWith('offline-work-ex-'))) {
+              // Session ids in a disk snapshot can refer to already finished sessions.
+              return { ...parsed, partialSession: null };
+            }
           }
         } catch (e) {
           console.error("Failed to parse cached workout data:", e);
         }
 
-        // Search in dashboard cache for the workout details to extract its real name & description
-        let parsedMockName = '';
-        let parsedMockDescription = '';
-        try {
-          const dashCached = localStorage.getItem(`rubi_dashboard_cache_${userId}`);
-          if (dashCached) {
-            const parsedDash = JSON.parse(dashCached);
-            const foundCategory = parsedDash.workouts?.find((w: any) => w.id === workoutId);
-            if (foundCategory) {
-              parsedMockName = foundCategory.name || '';
-              parsedMockDescription = foundCategory.description || '';
-            }
-          }
-        } catch (e) {
-          console.warn('[workoutApi] Failed to find workout name in dashboard cache:', e);
-        }
-
-        const mockCategoryName = parsedMockName || (workoutId === 'classic-b' 
-          ? 'Protocolo B — Ênfase Posterior Chain' 
-          : workoutId === 'classic-c'
-          ? 'Protocolo C — Divisão de Quadríceps & Core'
-          : 'Protocolo A — Desenvolvimento Miofibrilar');
-
-        // Return a beautifully reconstructed interactive offline routine matching the workout ID and training focus
-        const staticExercises = await exerciseApi.getExercises();
-        const workoutNameLower = mockCategoryName.toLowerCase();
-        
-        let matchedExercises = [...staticExercises];
-        
-        if (workoutNameLower.includes('costas') || workoutNameLower.includes('costa') || workoutNameLower.includes('bíceps') || workoutNameLower.includes('biceps') || workoutNameLower.includes('dorsal') || workoutNameLower.includes('pull') || workoutNameLower.includes('trapezi') || workoutNameLower.includes('braço') || workoutNameLower.includes('braco')) {
-          matchedExercises = staticExercises.filter(ex => {
-            const muscle = (ex.muscle_group || '').toLowerCase();
-            return muscle.includes('costa') || muscle.includes('bíceps') || muscle.includes('biceps') || muscle.includes('dorsal') || muscle.includes('antebraço');
-          });
-        } else if (workoutNameLower.includes('leg') || workoutNameLower.includes('perna') || workoutNameLower.includes('quad') || workoutNameLower.includes('glúteo') || workoutNameLower.includes('gluteo') || workoutNameLower.includes('panturrilha') || workoutNameLower.includes('posterior') || workoutNameLower.includes('coxa') || workoutNameLower.includes('membres inferieurs') || workoutNameLower.includes('agachamento')) {
-          matchedExercises = staticExercises.filter(ex => {
-            const muscle = (ex.muscle_group || '').toLowerCase();
-            return muscle.includes('perna') || muscle.includes('quadríceps') || muscle.includes('quadriceps') || muscle.includes('glúteo') || muscle.includes('gluteo') || muscle.includes('panturrilha') || muscle.includes('posterior') || muscle.includes('coxa');
-          });
-        } else if (workoutNameLower.includes('peito') || workoutNameLower.includes('tríceps') || workoutNameLower.includes('triceps') || workoutNameLower.includes('ombro') || workoutNameLower.includes('push') || workoutNameLower.includes('delto')) {
-          matchedExercises = staticExercises.filter(ex => {
-            const muscle = (ex.muscle_group || '').toLowerCase();
-            return muscle.includes('peito') || muscle.includes('tríceps') || muscle.includes('triceps') || muscle.includes('ombro') || muscle.includes('ombros');
-          });
-        }
-
-        if (matchedExercises.length < 3) {
-          matchedExercises = staticExercises;
-        }
-
-        // Grab 4-6 exercises to construct a balanced routine
-        const routineExercises = matchedExercises.slice(0, 6).map((ex, index) => ({
-          id: `offline-work-ex-${ex.id}-${index}`,
-          category_id: workoutId,
-          exercise_id: ex.id,
-          sort_order: index,
-          sets_count: 3,
-          reps_count: 12,
-          weight_kg: 40 + (index * 10),
-          notes: "Foco na cadência excêntrica lenta.",
-          exercise_name: ex.name,
-          muscle_group: ex.muscle_group,
-          exercise_image: ex.image_url,
-          exercises: ex
-        }));
-
-        return {
-          category: {
-            id: workoutId,
-            name: mockCategoryName,
-            user_id: userId,
-            description: parsedMockDescription || 'Rotina de alta performance executada em modo offline resiliente.',
-            duration_minutes: 50,
-            created_at: new Date().toISOString()
-          } as WorkoutCategory,
-          exercises: routineExercises as any[],
-          partialSession: null
-        };
+        throw err;
       }
     });
   },
@@ -474,18 +359,19 @@ export const workoutApi = {
       exercises_count: exercisesCount
     };
 
-    let histError = (await supabase.from('workout_history')
+    let result = await supabase.from('workout_history')
       .update(partial ? { ...basePayload, partial: true } : basePayload)
-      .eq('id', historyId)).error;
+      .eq('id', historyId).select('id').single();
 
     // Bancos que ainda não têm a coluna `partial` rejeitam o update inteiro.
     // Nesse caso a sessão é salva sem o marcador — nunca perdida.
-    if (histError && partial && (histError.code === '42703' || /partial/i.test(histError.message || ''))) {
-      console.warn('[workoutApi] Coluna `partial` ausente em workout_history; sessão salva sem o marcador.', histError);
-      histError = (await supabase.from('workout_history').update(basePayload).eq('id', historyId)).error;
+    if (result.error && partial && (result.error.code === '42703' || /partial/i.test(result.error.message || ''))) {
+      console.warn('[workoutApi] Coluna `partial` ausente em workout_history; sessão salva sem o marcador.', result.error);
+      result = await supabase.from('workout_history').update(basePayload).eq('id', historyId).select('id').single();
     }
 
-    if (histError) throw histError;
+    if (result.error) throw result.error;
+    if (result.data?.id !== historyId) throw new Error('Não foi possível confirmar a conclusão do treino. Tente novamente.');
     
     // EKE Feedback Loop
     try {
@@ -833,11 +719,35 @@ export const workoutApi = {
   },
 
   async updateCategory(id: string, payload: any) {
-    const { error } = await supabase.from('workout_categories').update(payload).eq('id', id);
+    invalidateWorkoutCache(id);
+    const { data, error } = await supabase.from('workout_categories').update(payload).eq('id', id).select('id').single();
     if (error) throw error;
+    if (data?.id !== id) throw new Error('A ficha não foi atualizada. Recarregue e tente novamente.');
+    invalidateWorkoutCache(id);
+  },
+
+  async updateWorkoutExercise(id: string, categoryId: string, payload: any) {
+    invalidateWorkoutCache(categoryId);
+    const { data, error } = await supabase.from('workout_exercises').update(payload)
+      .eq('id', id).eq('category_id', categoryId).select('id').single();
+    if (error) throw error;
+    if (data?.id !== id) throw new Error('O exercício não foi atualizado. Recarregue a ficha e tente novamente.');
+    invalidateWorkoutCache(categoryId);
+  },
+
+  async saveNewWorkoutExercise(categoryId: string, clientKey: string, payload: any) {
+    invalidateWorkoutCache(categoryId);
+    const id = uuidv5(JSON.stringify([categoryId, clientKey]), uuidv5.URL);
+    const { data, error } = await supabase.from('workout_exercises')
+      .upsert({ ...payload, id, category_id: categoryId }, { onConflict: 'id' }).select('id').single();
+    if (error) throw error;
+    if (data?.id !== id) throw new Error('Não foi possível confirmar o novo exercício. Tente novamente.');
+    invalidateWorkoutCache(categoryId);
+    return id;
   },
 
   async deleteExercisesByCategory(categoryId: string) {
+    invalidateWorkoutCache(categoryId);
     const { error } = await supabase.from('workout_exercises').delete().eq('category_id', categoryId);
     if (error) throw error;
   },
@@ -846,6 +756,8 @@ export const workoutApi = {
   // Usado depois de um insert bem-sucedido, para nunca haver uma janela em que a
   // ficha fica sem nenhuma linha no banco caso o insert tivesse falhado.
   async deleteExercisesByCategoryExcept(categoryId: string, keepIds: string[]) {
+    if (!keepIds.length) throw new Error('Nenhum exercício confirmado; a ficha anterior foi preservada.');
+    invalidateWorkoutCache(categoryId);
     let query = supabase.from('workout_exercises').delete().eq('category_id', categoryId);
     if (keepIds.length > 0) query = query.not('id', 'in', `(${keepIds.join(',')})`);
     const { error } = await query;
@@ -853,25 +765,32 @@ export const workoutApi = {
   },
 
   async insertWorkoutExercises(exercises: any[]): Promise<string[]> {
+    exercises.forEach(ex => invalidateWorkoutCache(ex.category_id));
     let currentExercises = [...exercises];
 
     while (true) {
       try {
         const { data, error } = await supabase.from('workout_exercises').insert(currentExercises).select('id');
         if (error) throw error;
+        if (!data || data.length !== currentExercises.length) throw new Error('Não foi possível confirmar os exercícios salvos.');
         return (data || []).map((row: any) => row.id);
       } catch (err: any) {
         const errorMsg = err.message || '';
         console.warn(`[insertWorkoutExercises] Failed to insert workout exercises:`, errorMsg);
 
-        // Resilience pattern: handle missing columns from schema with improved regex matching covering single/double quotes
-        if (errorMsg.toLowerCase().includes('column') || errorMsg.includes('schema cache') || errorMsg.includes('relation')) {
-          const match = errorMsg.match(/column ["']([^"']+)["']/) || 
+        // PostgREST places the column name BEFORE "column" (PGRST204).
+        // Only optional metadata may be dropped; never discard training values.
+        if (errorMsg.toLowerCase().includes('column') || errorMsg.includes('schema cache')) {
+          const match = errorMsg.match(/Could not find the ["']([^"']+)["'] column/i) ||
+                        errorMsg.match(/column ["']([^"']+)["']/) ||
                         errorMsg.match(/column\s+named\s+["']([^"']+)["']/) || 
                         errorMsg.match(/column\s+([a-zA-Z0-9_-]+)/);
                         
           if (match && match[1]) {
             const badColumn = match[1];
+            if (badColumn !== 'is_optional' || !currentExercises.some(ex => Object.hasOwn(ex, badColumn))) {
+              throw err;
+            }
             console.warn(`[WORKOUT] Removing missing column from insert payload: ${badColumn}`);
             
             currentExercises = currentExercises.map(ex => {
@@ -1016,29 +935,27 @@ export const workoutApi = {
   },
 
   async saveWorkoutBatch(historyId: string, logs: any[]) {
-    let currentLogs = [...logs];
-    
-    while (true) {
-      try {
-        const { error } = await supabase.from('workout_sets_log').insert(currentLogs);
-        if (error) throw error;
-        return;
-      } catch (err: any) {
-        if (err.message?.includes('column') && err.message?.includes('schema cache')) {
-          const match = err.message.match(/column '(.*)'/);
-          if (match && match[1]) {
-            const badColumn = match[1];
-            console.warn(`[BATCH] Removing missing column: ${badColumn}`);
-            currentLogs = currentLogs.map(log => {
-              const { [badColumn]: _, ...remaining } = log;
-              return remaining;
-            });
-            if (currentLogs.length > 0 && Object.keys(currentLogs[0]).length === 0) throw err;
-            continue;
-          }
-        }
-        throw err;
-      }
+    if (!historyId || !logs.length || logs.some(log => log.history_id !== historyId || !log.user_id)) {
+      throw new Error('Dados incompletos para salvar a sessão. Os registros anteriores foram preservados.');
+    }
+    // Stable primary keys make retries safe, including a lost response after commit.
+    // The occurrence index preserves repeated exercises in the same session.
+    const rows = logs.map((log, index) => ({ ...log,
+      id: uuidv5(JSON.stringify([historyId, log.user_id, log.exercise_id, log.set_number, index]), uuidv5.URL),
+    }));
+    const { data, error } = await supabase.from('workout_sets_log')
+      .upsert(rows, { onConflict: 'id' }).select('id');
+    if (error) throw error;
+    const confirmed = new Set((data || []).map(row => row.id));
+    if (confirmed.size !== rows.length || rows.some(row => !confirmed.has(row.id))) {
+      throw new Error('Não foi possível confirmar todas as séries. Os registros anteriores foram preservados.');
+    }
+    // Only discard superseded incremental logs AFTER the new snapshot is confirmed.
+    const { error: cleanupError } = await supabase.from('workout_sets_log')
+      .delete().eq('history_id', historyId).not('id', 'in', `(${rows.map(row => row.id).join(',')})`);
+    if (cleanupError) throw cleanupError;
+    if (!await this.validateWorkoutIntegrity(historyId, rows.length)) {
+      throw new Error('A conferência das séries falhou. Tente salvar novamente.');
     }
   }
 };
