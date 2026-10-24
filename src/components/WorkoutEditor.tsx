@@ -733,10 +733,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
           });
         }
 
-        // Navigate immediately
-        navigate('dashboard', { folderId });
-
-        // Background Save
+        // Keep the editable draft visible until the write is confirmed.
         if (!currentId) {
           const data = await workoutApi.createCategory(payload);
           currentId = data.id;
@@ -760,6 +757,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
         }
 
         showSuccess('Treino salvo', 'Tudo pronto! Seu treino foi atualizado com sucesso.');
+        navigate('dashboard', { folderId });
         
         // Revalidate dashboard to get real IDs and data
         // (The mutate in Dashboard will handle this when it mounts)
