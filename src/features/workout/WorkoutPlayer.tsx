@@ -41,6 +41,7 @@ import { useExercisePreview } from "../../context/ExercisePreviewContext";
 import { supabase } from "../../lib/api/supabase";
 import { authApi } from "../../lib/api/authApi";
 import { workoutApi } from "../../lib/api/workoutApi";
+import { saveSessionTemplate } from "../../lib/api/saveSessionTemplate";
 import { useNavigation } from "../../App";
 import { useErrorHandler } from "../../hooks/useErrorHandler";
 import { ScreenState } from "../../components/ui/ScreenState";
@@ -606,6 +607,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   // Local UI State
   const [saving, setSaving] = useState(false);
+  const saveDestinationInFlightRef = useRef(false);
   const [isResting, setIsResting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(90);
   const [restOvertime, setRestOvertime] = useState(0);
@@ -2092,6 +2094,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       let exercisesToUse = baseExercises.map(ex => prescriptions[ex.exercise_id] ? applyPrescription(ex, prescriptions[ex.exercise_id]) : ex);
       if (Array.isArray(localExercises) && localExercises.length > 0) exercisesToUse = localExercises;
       return {
+        category: { id: workout.id, name: workout.name },
         exercises: exercisesToUse,
         originalExercises: baseExercises,
         recoveryReset: validation.reset,
@@ -2130,6 +2133,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
 
     return {
+      category,
       exercises: exercisesToUse,
       originalExercises: loadedExercises,
       ...sessionData
@@ -3017,8 +3021,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   };
 
   const finishWorkout = async (isSuccess: boolean, completedNaturally = false, forcePartial = false) => {
-    // Clear temporary workout planning session cache
-    localStorage.removeItem(`workout_session_temp_${workoutId}`);
+    // Keep the final plan recoverable until its destination is confirmed.
+    if (isSuccess && !isGuestWorkout) {
+      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(resolveFinalExercises()));
+    }
 
     const currentStore = useWorkoutStore.getState();
     const currentHistoryId = currentStore.historyId;
@@ -3180,6 +3186,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   });
 
   const handleSaveSeparateDestination = async (destination: 'new' | 'data') => {
+    if (saveDestinationInFlightRef.current) return;
+    saveDestinationInFlightRef.current = true;
     setSaving(true);
     try {
       const finalExercises = resolveFinalExercises();
@@ -3234,10 +3242,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setIsFinished(true);
       showSuccess(destination === 'new' ? 'Nova ficha criada. A original foi preservada.' : 'Dados dos exercícios salvos. A ficha foi preservada.');
     } catch (error) { showError(error); }
-    finally { setSaving(false); }
+    finally { saveDestinationInFlightRef.current = false; setSaving(false); }
   };
 
   const handleApplyTemplateEvolution = async () => {
+    if (saveDestinationInFlightRef.current) return;
+    saveDestinationInFlightRef.current = true;
     setSaving(true);
     try {
       if (!sessionDiff.isConsistent) {
@@ -3261,104 +3271,32 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       const u = await authApi.getUser();
       if (!u) throw new Error("Usuário não autenticado");
 
-      const prescriptionRows: { exercise_id: string; sets_json: any[] }[] = [];
-      // 1. Process active exercises in their new sequence
-      for (let index = 0; index < exercises.length; index++) {
-        const ex = exercises[index];
-        const numSets = ex.sets_json?.length || ex.sets || 3;
-        const targetReps = ex.reps?.toString() || "10";
-        const targetWeight = typeof ex.weight === 'string' ? parseFloat(ex.weight) : (ex.weight || 0);
-        const targetRest = ex.sets_json?.[0]?.rest_time ?? ex.rest_time ?? 60;
-
-        // Resolve individual, non-uniform sets_json. Executed data wins only
-        // for sets that were actually completed; untouched sets keep their target.
-        const perfSets = workoutPerformance[index] || [];
-        const completedForExercise = new Set<number>([
-          ...Array.from<number>(completedSetsByExercise[index] || new Set<number>()),
-          ...(index === currentIndex ? Array.from<number>(completedSetIndices) : [])
-        ]);
-        const finalSetsJson = resolveSavedSets(ex, perfSets, completedForExercise);
-
-        if (completedForExercise.size) prescriptionRows.push({ exercise_id: ex.exercise_id, sets_json: finalSetsJson });
-        const firstSetReps = finalSetsJson[0]?.reps || targetReps;
-        const firstSetWeight = finalSetsJson[0]?.weight !== undefined ? Number(finalSetsJson[0].weight) : targetWeight;
-        const firstSetRpe = Number(finalSetsJson[0]?.rpe || ex.default_rpe || 8);
-
-        const isNewExercise = !ex.id || ex.id.startsWith('ex-live-');
-        if (!isNewExercise) {
-          // Existed in original template -> Update granularly
-          const orig = originalExercises.find(o => o.id === ex.id);
-          const patch: any = {};
-          if (orig) {
-            if (orig.exercise_id !== ex.exercise_id) {
-              patch.exercise_id = ex.exercise_id;
-              patch.exercise_name_snapshot = ex.exercise_name;
-            }
-            if (orig.sort_order !== index) {
-              patch.sort_order = index;
-            }
-            if (orig.sets !== numSets) {
-              patch.sets = numSets;
-            }
-            if (orig.reps !== firstSetReps) {
-              patch.reps = firstSetReps;
-            }
-            if (orig.weight !== firstSetWeight) {
-              patch.weight = firstSetWeight;
-            }
-            if (orig.rest_time !== targetRest) {
-              patch.rest_time = targetRest;
-            }
-            if (Number(orig.default_rpe ?? 8) !== firstSetRpe) {
-              patch.default_rpe = firstSetRpe;
-            }
-
-            if (JSON.stringify(orig.sets_json) !== JSON.stringify(finalSetsJson)) {
-              patch.sets_json = finalSetsJson;
-            }
-
-            if (Object.keys(patch).length > 0) {
-              const { error } = await supabase.from('workout_exercises').update(patch).eq('id', ex.id);
-              if (error) throw error;
-            }
-          }
-        } else {
-          // Newly added exercise -> Create row
-          const newRow = {
-            category_id: workoutId,
-            exercise_id: ex.exercise_id,
-            sort_order: index,
-            sets: numSets,
-            reps: firstSetReps,
-            weight: firstSetWeight,
-            rest_time: targetRest,
-            default_rpe: firstSetRpe,
-            sets_json: finalSetsJson,
-            exercise_name_snapshot: ex.exercise_name || 'Exercício'
-          };
-          const { error } = await supabase.from('workout_exercises').insert([newRow]);
-          if (error) throw error;
-        }
-      }
-
-      removedExecution.current.forEach(({ exercise, sets }) => prescriptionRows.push({ exercise_id: exercise.exercise_id, sets_json: sets.map(({ set_number, ...set }: any) => ({ ...set, reps: String(set.reps), rest_time: set.rest_time ?? exercise.rest_time ?? 60 })) }));
+      const finalExercises = resolveFinalExercises();
+      localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(finalExercises));
+      const savedExercises = await saveSessionTemplate(supabase, {
+        workoutId, userId: u.id, historyId: useWorkoutStore.getState().historyId,
+        exercises: finalExercises, removedIds: Array.from(removedExerciseIdsRef.current),
+      });
+      // Keep confirmed row IDs for a safe retry if prescription saving fails.
+      useWorkoutStore.setState({ exercises: savedExercises });
+      const prescriptionRows = savedExercises.filter((_, index) =>
+        completedSetsByExercise[index]?.size || (index === currentIndex && completedSetIndices.size))
+        .map(ex => ({ exercise_id: ex.exercise_id, sets_json: ex.sets_json || [] }));
+      removedExecution.current.forEach(({ exercise, sets }) => prescriptionRows.push({
+        exercise_id: exercise.exercise_id,
+        sets_json: sets.map(({ set_number, ...set }: any) => ({ ...set,
+          reps: String(set.reps), rest_time: set.rest_time ?? exercise.rest_time ?? 60 })),
+      }));
       await savePrescriptions(false, prescriptionRows);
-      cacheStore.clearPrefix("workout_init_");
-      // 2. Remove only exercises explicitly deleted by the user.
-      // Missing/transient ids can occur during hydration and must never trigger mass deletion.
-      const explicitRemovedIds = Array.from(removedExerciseIdsRef.current);
-      for (const removedId of explicitRemovedIds) {
-        const { error } = await supabase.from('workout_exercises')
-          .delete()
-          .eq('id', removedId)
-          .eq('category_id', workoutId);
-        if (error) throw error;
-      }
       removedExerciseIdsRef.current.clear();
-
+      cacheStore.clearPrefix('workout_init_');
+      cacheStore.clearPrefix('editor_init_');
+      cacheStore.clearPrefix('dashboard_');
+      localStorage.removeItem(`rubi_dashboard_cache_${u.id}`);
+      localStorage.removeItem(`rubi_workout_init_${workoutId}`);
+      localStorage.removeItem(`workout_session_temp_${workoutId}`);
       showSuccess("Ficha de treino atualizada com sucesso!");
-      cacheStore.clear(`workout_init_${workoutId}`);
-      
+
       setShowEvolutionModal(false);
       setIsWorkoutComplete(true);
       setIsFinished(true);
@@ -3366,6 +3304,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       log("[TEMPLATE_EVOLUTION_ERROR]", err);
       showError(err);
     } finally {
+      saveDestinationInFlightRef.current = false;
       setSaving(false);
     }
   };
@@ -5339,6 +5278,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-6">
                   O treino já foi registrado no histórico. Escolha o que deseja manter para os próximos treinos.
                 </p>
+                {playerQuery.data?.category?.name && (
+                  <p className="text-xs text-slate-700 font-bold mb-4">
+                    Ficha que será atualizada: {playerQuery.data.category.name}
+                  </p>
+                )}
 
                 {/* Box de Resumo de Mudanças */}
                 <div className="w-full bg-slate-50 border border-slate-200/50 rounded-3xl p-4 mb-8 text-left space-y-2.5 max-h-[160px] overflow-y-auto custom-scrollbar">

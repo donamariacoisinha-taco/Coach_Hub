@@ -859,6 +859,9 @@ export const workoutApi = {
       try {
         const { data, error } = await supabase.from('workout_exercises').insert(currentExercises).select('id');
         if (error) throw error;
+        if (data?.length !== currentExercises.length) {
+          throw new Error('O banco não confirmou todos os exercícios. A lista anterior foi preservada.');
+        }
         return (data || []).map((row: any) => row.id);
       } catch (err: any) {
         const errorMsg = err.message || '';
