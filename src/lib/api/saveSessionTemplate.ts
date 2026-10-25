@@ -36,7 +36,7 @@ export async function saveSessionTemplate(client: SupabaseClient, options: {
   const removed = new Set(removedIds);
   const rows = exercises.map((ex, index) => {
     let match = live.find(row => row.id === ex.id && !used.has(row.id));
-    const isNew = !ex.id || ex.id.startsWith('ex-live-');
+    const isNew = !ex.id || ['ex-live-', 'new-ex-', 'dup-ex-'].some(prefix => ex.id.startsWith(prefix));
     // The editor can replace row IDs. Reconcile unchanged exercises by their
     // library ID, but never guess which existing row a substitution replaces.
     if (!match) match = live.find(row => row.exercise_id === ex.exercise_id
