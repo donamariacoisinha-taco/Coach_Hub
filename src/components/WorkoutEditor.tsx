@@ -315,6 +315,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
   const editorState = useAsyncState<boolean>(false);
   const [saving, setSaving] = useState(false);
+  const saveInFlightRef = React.useRef(false);
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
   
   const nameInputRef = React.useRef<HTMLInputElement>(null);
@@ -667,11 +668,13 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   };
 
   const handleSave = async (isPermanent: boolean) => {
+    if (saveInFlightRef.current) return;
     if (!name.trim()) {
       showError({ message: 'validation: Dê um nome ao treino!' });
       return;
     }
     
+    saveInFlightRef.current = true;
     setSaving(true);
     const previousDashboardData = cacheStore.get('dashboard_data') as any;
 
@@ -715,28 +718,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
       const payload = { user_id: user.id, name, description, folder_id: folderId || null };
 
       if (isPermanent) {
-        // Optimistic Dashboard Update
-        if (previousDashboardData) {
-          const optimisticWorkout = {
-            id: currentId || `temp-${Date.now()}`,
-            ...payload,
-            created_at: new Date().toISOString()
-          };
-          
-          const newWorkouts = currentId 
-            ? (previousDashboardData.workouts as any[]).map((w: any) => w.id === currentId ? optimisticWorkout : w)
-            : [optimisticWorkout, ...previousDashboardData.workouts];
-
-          cacheStore.set('dashboard_data', {
-            ...previousDashboardData,
-            workouts: newWorkouts
-          });
-        }
-
-        // Navigate immediately
-        navigate('dashboard', { folderId });
-
-        // Background Save
+        // Stay in the editor until persistence is confirmed.
         if (!currentId) {
           const data = await workoutApi.createCategory(payload);
           currentId = data.id;
@@ -759,10 +741,13 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
           await workoutApi.deleteExercisesByCategory(currentId!);
         }
 
+        cacheStore.clear('dashboard_data');
+        cacheStore.clear(`workout_init_${currentId}`);
+        cacheStore.clear(`editor_init_${currentId}`);
+        localStorage.removeItem(`rubi_dashboard_cache_${user.id}`);
+        localStorage.removeItem(`rubi_workout_init_${currentId}`);
         showSuccess('Treino salvo', 'Tudo pronto! Seu treino foi atualizado com sucesso.');
-        
-        // Revalidate dashboard to get real IDs and data
-        // (The mutate in Dashboard will handle this when it mounts)
+        navigate('dashboard', { folderId });
       } else {
         // Just starting a workout session
         if (!currentId) {
@@ -788,6 +773,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
       }
       showError(err);
     } finally {
+      saveInFlightRef.current = false;
       setSaving(false);
       setShowSaveModal(false);
     }
@@ -1189,8 +1175,8 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                 <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-relaxed max-w-[250px] mx-auto">Deseja tornar essas edições permanentes?</p>
               </div>
               <div className="flex flex-col gap-4">
-                <button onClick={() => handleSave(true)} className="w-full py-6 bg-slate-900 rounded-3xl font-black text-white uppercase text-[10px] tracking-[0.2em] shadow-2xl shadow-slate-900/20 active:scale-95 transition-all">Sim, Permanente</button>
-                <button onClick={() => handleSave(false)} className="w-full py-6 bg-slate-100 rounded-3xl font-black text-slate-600 uppercase text-[10px] tracking-[0.2em] active:bg-slate-200 transition-all">Não, apenas agora</button>
+                <button disabled={saving} onClick={() => handleSave(true)} className="w-full py-6 bg-slate-900 rounded-3xl font-black text-white uppercase text-[10px] tracking-[0.2em] shadow-2xl shadow-slate-900/20 active:scale-95 transition-all">Sim, Permanente</button>
+                <button disabled={saving} onClick={() => handleSave(false)} className="w-full py-6 bg-slate-100 rounded-3xl font-black text-slate-600 uppercase text-[10px] tracking-[0.2em] active:bg-slate-200 transition-all">Não, apenas agora</button>
                 <button onClick={() => setShowSaveModal(false)} className="w-full py-4 text-slate-300 font-black uppercase text-[10px] tracking-[0.2em] active:text-slate-900 transition-colors">Cancelar</button>
               </div>
             </motion.div>

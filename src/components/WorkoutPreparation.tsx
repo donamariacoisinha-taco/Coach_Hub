@@ -53,8 +53,10 @@ import { ExerciseReplaceScreen } from './ExerciseReplaceScreen';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { WorkoutExercise, Exercise, SetType, SetConfig, WorkoutCategory } from '../types';
 import { useWorkoutStore } from '../app/store/workoutStore';
+import { useWorkoutSessionPlan } from '../hooks/useWorkoutSessionPlan';
+import { applyPrescription, loadPrescriptions } from '../lib/exercisePrescriptions';
 import { ScreenState } from './ui/ScreenState';
-import { getGuestWorkout, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises } from '../lib/guest/guestPersistence';
+import { getGuestWorkout, readGuestWorkoutTemp, saveGuestWorkoutTemp } from '../lib/guest/guestPersistence';
 
 // Sortable item wrapper for an exercise card in the preparation screen
 // Sortable muscle mappings and insights helpers
@@ -481,9 +483,8 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   const { showError, showSuccess } = useErrorHandler();
 
   const [loading, setLoading] = useState(true);
-  const [savingToDb, setSavingToDb] = useState(false);
   const [workoutName, setWorkoutName] = useState('Preparando Treino');
-  const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
+  const { exercises, setExercises, stageExercises: updateAndSaveExercises } = useWorkoutSessionPlan(workoutId, isGuestWorkout);
   const [category, setCategory] = useState<WorkoutCategory | null>(null);
 
   // Bottom sheets
@@ -524,66 +525,6 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
     })
   );
 
-  // Unified callback to save modifications to state, localStorage fallback, and permanently to database
-  const updateAndSaveExercises = useCallback(async (getNewExercises: (prev: WorkoutExercise[]) => WorkoutExercise[]) => {
-    let prevList: WorkoutExercise[] = [];
-    let nextList: WorkoutExercise[] = [];
-    setExercises(prev => {
-      prevList = prev;
-      nextList = getNewExercises(prev);
-      if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, nextList);
-      else localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(nextList));
-      return nextList;
-    });
-
-    setSavingToDb(true);
-    try {
-      if (isGuestWorkout) {
-        updateGuestWorkoutExercises(workoutId, nextList);
-        return;
-      }
-
-      if (nextList.length > 0) {
-        // Insere a nova lista ANTES de apagar a antiga: se o insert falhar, a
-        // ficha existente no banco continua intacta em vez de ficar vazia.
-        const preparedPayload = nextList.map((ex, i) => ({
-          category_id: workoutId,
-          exercise_id: ex.exercise_id,
-          exercise_name_snapshot: ex.exercise_name,
-          sets: ex.sets_json?.length || ex.sets || 3,
-          sets_json: ex.sets_json || Array.from({ length: ex.sets || 3 }).map(() => ({
-            reps: ex.reps || '10',
-            weight: ex.weight || 0,
-            rest_time: ex.rest_time || 60,
-            type: SetType.NORMAL
-          })),
-          sort_order: i + 1,
-          superset_id: ex.superset_id || null
-        }));
-        const insertedIds = await workoutApi.insertWorkoutExercises(preparedPayload);
-        await workoutApi.deleteExercisesByCategoryExcept(workoutId, insertedIds);
-      } else {
-        // Lista vazia é intencional (usuário removeu todos os exercícios da ficha)
-        await workoutApi.deleteExercisesByCategory(workoutId);
-      }
-
-      // Clear cache systems
-      cacheStore.clear(`workout_init_${workoutId}`);
-      cacheStore.clear(`editor_init_${workoutId}`);
-      cacheStore.clear('dashboard_data');
-    } catch (err) {
-      console.error('[WorkoutPreparation] Error persisting exercises to database:', err);
-      // Reverte o estado otimista: a gravação falhou e a ficha no banco não foi
-      // tocada, então a tela não deve continuar mostrando uma mudança não salva.
-      setExercises(prevList);
-      if (isGuestWorkout) saveGuestWorkoutTemp(workoutId, prevList);
-      else localStorage.setItem(`workout_session_temp_${workoutId}`, JSON.stringify(prevList));
-      showError(err);
-    } finally {
-      setSavingToDb(false);
-    }
-  }, [workoutId, isGuestWorkout, showError]);
-
   // Load database workout & favorites
   useEffect(() => {
     async function loadData() {
@@ -599,7 +540,9 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
             order: exercise.sort_order,
           }));
           const catalogue = await exerciseApi.getExercises().catch(() => [] as Exercise[]);
-          const sessionExercises = Array.isArray(parsed) && parsed.length > 0 ? parsed : baseExercises;
+          const prescriptions = await loadPrescriptions(true);
+          const defaults = baseExercises.map(ex => applyPrescription(ex, prescriptions[ex.exercise_id] || []));
+          const sessionExercises = Array.isArray(parsed) && parsed.length > 0 ? parsed : defaults;
           setExercises(sessionExercises.map((exercise: any) => {
             const match = catalogue.find(item => item.id === exercise.exercise_id) ||
               catalogue.find(item => item.name?.toLocaleLowerCase() === exercise.exercise_name?.toLocaleLowerCase());
@@ -623,6 +566,8 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
 
         const { category: loadedCategory, exercises: loadedExercises } = await workoutApi.getWorkoutInitData(workoutId, user.id);
         
+        const prescriptions = await loadPrescriptions(false);
+        const defaults = loadedExercises.map(ex => applyPrescription(ex, prescriptions[ex.exercise_id] || []));
         setCategory(loadedCategory);
         setWorkoutName(loadedCategory?.name || 'Treino');
 
@@ -631,10 +576,10 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
           if (parsed && Array.isArray(parsed) && parsed.length > 0) {
             setExercises(parsed);
           } else {
-            setExercises(loadedExercises);
+            setExercises(defaults);
           }
         } else {
-          setExercises(loadedExercises);
+          setExercises(defaults);
         }
 
         // Fetch exercise pool for substitution
@@ -844,21 +789,25 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   }, [updateAndSaveExercises]);
 
   // Substitute finalized selection or append/insert new exercise
-  const handleSelectSubstitute = useCallback((exercise: Exercise | Exercise[]) => {
+  const handleSelectSubstitute = useCallback(async (exercise: Exercise | Exercise[]) => {
+    let prescriptions: Record<string, any[]>;
+    try { prescriptions = await loadPrescriptions(isGuestWorkout); }
+    catch (error) { showError(error); return; }
     if (replacingIndex !== null) {
       if (Array.isArray(exercise)) return; // Should not happen in replacing mode
       updateAndSaveExercises(prev => {
         const next = [...prev];
         const target = next[replacingIndex];
 
-        next[replacingIndex] = {
+        next[replacingIndex] = applyPrescription({
           ...target,
           exercise_id: exercise.id,
           exercise_name: exercise.name,
           exercise_image: exercise.image_url || exercise.static_frame_url,
           muscle_group: exercise.muscle_group,
           type: exercise.type,
-        };
+          exercise_name_snapshot: exercise.name,
+        }, prescriptions[exercise.id] || [{ weight: 0, reps: "0", rpe: 0, rest_time: 60, type: SetType.NORMAL }]);
 
         return next;
       });
@@ -905,9 +854,9 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
 
           if (addAfterIndex !== null) {
             // Insert in sequence
-            next.splice(addAfterIndex + 1 + itemIdx, 0, newWorkoutEx);
+            next.splice(addAfterIndex + 1 + itemIdx, 0, applyPrescription(newWorkoutEx, prescriptions[exItem.id] || []));
           } else {
-            next.push(newWorkoutEx);
+            next.push(applyPrescription(newWorkoutEx, prescriptions[exItem.id] || []));
           }
         });
 
@@ -924,7 +873,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
         : `${exerciseArray[0].name} adicionado ao treino de hoje.`;
       showSuccess(successTitle, successDesc);
     }
-  }, [replacingIndex, addAfterIndex, updateAndSaveExercises, showSuccess, workoutId]);
+  }, [replacingIndex, addAfterIndex, updateAndSaveExercises, showSuccess, workoutId, isGuestWorkout, showError]);
 
   // Delete exercise
   const handleRemoveExercise = useCallback((idx: number) => {

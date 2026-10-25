@@ -474,18 +474,23 @@ export const workoutApi = {
       exercises_count: exercisesCount
     };
 
-    let histError = (await supabase.from('workout_history')
+    let confirmation = await supabase.from('workout_history')
       .update(partial ? { ...basePayload, partial: true } : basePayload)
-      .eq('id', historyId)).error;
+      .eq('id', historyId).select('id,completed_at,exercises_count').single();
 
     // Bancos que ainda não têm a coluna `partial` rejeitam o update inteiro.
     // Nesse caso a sessão é salva sem o marcador — nunca perdida.
-    if (histError && partial && (histError.code === '42703' || /partial/i.test(histError.message || ''))) {
-      console.warn('[workoutApi] Coluna `partial` ausente em workout_history; sessão salva sem o marcador.', histError);
-      histError = (await supabase.from('workout_history').update(basePayload).eq('id', historyId)).error;
+    if (confirmation.error && partial && (confirmation.error.code === '42703' || /partial/i.test(confirmation.error.message || ''))) {
+      console.warn('[workoutApi] Coluna `partial` ausente em workout_history; sessão salva sem o marcador.', confirmation.error);
+      confirmation = await supabase.from('workout_history').update(basePayload).eq('id', historyId)
+        .select('id,completed_at,exercises_count').single();
     }
 
-    if (histError) throw histError;
+    if (confirmation.error) throw confirmation.error;
+    if (confirmation.data?.id !== historyId || !confirmation.data.completed_at
+      || confirmation.data.exercises_count !== exercisesCount) {
+      throw new Error('O banco não confirmou a conclusão do treino. Tente salvar novamente.');
+    }
     
     // EKE Feedback Loop
     try {
@@ -859,6 +864,9 @@ export const workoutApi = {
       try {
         const { data, error } = await supabase.from('workout_exercises').insert(currentExercises).select('id');
         if (error) throw error;
+        if (data?.length !== currentExercises.length) {
+          throw new Error('O banco não confirmou todos os exercícios. A lista anterior foi preservada.');
+        }
         return (data || []).map((row: any) => row.id);
       } catch (err: any) {
         const errorMsg = err.message || '';

@@ -1,7 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { canReplaceBeforeFirstSet, resolveSavedSets } from './workoutSaveChoices';
+import { canReplaceBeforeFirstSet, resolveSavedSets, completedSetsForSave } from './workoutSaveChoices';
 
 describe('workout save choices', () => {
+  it('includes a series already executed while its rest timer is still running', () => {
+    const completed = completedSetsForSave(0, 0, {}, new Set(), 0);
+    const saved = resolveSavedSets({ sets_json: [{ weight: 10, reps: '10' }, { weight: 10, reps: '10' }] },
+      [{ weight: 42, reps: 8, rpe: 7, rest_time: 120 }, { weight: 99, reps: 99 }], completed);
+    expect([...completed]).toEqual([0]);
+    expect(saved[0]).toMatchObject({ weight: 42, reps: '8', rpe: 7, rest_time: 120 });
+    expect(saved[1]).toMatchObject({ weight: 10, reps: '10' });
+  });
+  it('does not mark an unexecuted exercise as complete just because it is displayed', () => {
+    expect(completedSetsForSave(1, 1, { 0: new Set([0]) }, new Set(), null).size).toBe(0);
+    expect([...completedSetsForSave(0, 1, { 0: new Set([0]) }, new Set(), 1)]).toEqual([0]);
+  });
   it('allows an active exercise before completion and blocks after its first completed set', () => {
     expect(canReplaceBeforeFirstSet(0, 0, {}, new Set())).toBe(true);
     expect(canReplaceBeforeFirstSet(0, 0, {}, new Set([0]))).toBe(false);

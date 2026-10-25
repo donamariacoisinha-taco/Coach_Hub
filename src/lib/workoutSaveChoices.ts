@@ -1,4 +1,14 @@
 import { SetType } from '../types';
+
+/** A series is already executed when its rest timer starts. */
+export function completedSetsForSave(index: number, currentIndex: number,
+  completedByExercise: Record<number, Set<number>>, currentCompleted: Set<number>, pendingSet: number | null) {
+  return new Set([
+    ...(completedByExercise[index] || []),
+    ...(index === currentIndex ? currentCompleted : []),
+    ...(index === currentIndex && pendingSet !== null ? [pendingSet] : []),
+  ]);
+}
 /** Preserve per-series targets; only completed performance overrides them. */
 export function resolveSavedSets(exercise: any, performance: any[], completed: Set<number>) {
   const count = exercise.sets_json?.length || exercise.sets || 3;
