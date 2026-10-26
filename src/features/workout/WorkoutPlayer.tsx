@@ -57,6 +57,7 @@ import { cacheStore } from "../../lib/cache/cacheStore";
 import { calculateStreak } from "../../domain/streak/streakEngine";
 import { fetchWithRetry } from "../../lib/utils";
 import { athleteMemoryEngine, playSensoryTone, playHapticFeedback } from "../../services/athleteMemoryEngine";
+import { matchesExerciseMuscleFilter, normalizeExerciseFilterText } from "./exerciseMuscleFilter";
 
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -1210,12 +1211,17 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const filteredSelectorExercises = useMemo(() => {
     if (!allAvailableExercises) return [];
+    const normalizedQuery = normalizeExerciseFilterText(searchQuery);
+
     return allAvailableExercises.filter(ex => {
-      const nameMatches = (ex.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (ex.description && ex.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          (ex.equipment && ex.equipment.toLowerCase().includes(searchQuery.toLowerCase()));
-      
-      const muscleMatches = !selectedMuscleGroup || selectedMuscleGroup === 'Tudo' || ex.muscle_group === selectedMuscleGroup || (selectedMuscleGroup === 'Cardio' && (ex.muscle_group || "").toLowerCase().includes('cardio'));
+      const searchableText = normalizeExerciseFilterText([
+        ex.name,
+        ex.description,
+        ex.equipment,
+        ex.muscle_group,
+      ].filter(Boolean).join(" "));
+      const nameMatches = searchableText.includes(normalizedQuery);
+      const muscleMatches = matchesExerciseMuscleFilter(ex, selectedMuscleGroup);
       
       return nameMatches && muscleMatches;
     });
