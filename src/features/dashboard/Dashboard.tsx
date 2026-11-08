@@ -704,20 +704,20 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         </header>
 
         {/* Approved V1 hierarchy: workout, progress, recommendation, shortcuts. */}
-        <section aria-label="Treino de hoje" className="mb-4 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#178529] via-[#075a24] to-[#06381f] p-5 text-white shadow-xl relative">
-          <div className="absolute -right-12 -top-16 h-48 w-48 rounded-full bg-lime-300/20 blur-3xl pointer-events-none" />
+        <section aria-label="Treino de hoje" className="mb-4 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#f3f8ff] via-[#e9f2ff] to-[#dceaff] border border-[#d7e6fb] p-5 text-slate-900 shadow-sm relative">
+          <div className="absolute -right-12 -top-16 h-48 w-48 rounded-full bg-sky-200/40 blur-3xl pointer-events-none" />
           <div className="relative">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-lime-200">TREINO DE HOJE</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#4b7fbd]">TREINO DE HOJE</p>
             <h2 className="mt-3 text-[27px] font-black leading-tight">{suggestedWorkout?.name || nextAction?.title || 'Seu próximo treino'}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-300">{nextAction?.description || 'Escolha seu próximo treino para continuar evoluindo.'}</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">{nextAction?.description || 'Escolha seu próximo treino para continuar evoluindo.'}</p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
-              {suggestedWorkoutAvgDuration != null && <span className="rounded-xl bg-white/10 px-3 py-2">{suggestedWorkoutAvgDuration} min em média</span>}
-              {suggestedWorkoutExercisesCount != null && <span className="rounded-xl bg-white/10 px-3 py-2">{suggestedWorkoutExercisesCount} exercícios</span>}
+              {suggestedWorkoutAvgDuration != null && <span className="rounded-xl border border-blue-100 bg-white/75 px-3 py-2 text-slate-700">{suggestedWorkoutAvgDuration} min em média</span>}
+              {suggestedWorkoutExercisesCount != null && <span className="rounded-xl border border-blue-100 bg-white/75 px-3 py-2 text-slate-700">{suggestedWorkoutExercisesCount} exercícios</span>}
             </div>
             {suggestedWorkout ? (
-              <button type="button" onClick={() => startWorkoutSession(suggestedWorkout.id)} className="mt-5 w-full rounded-2xl bg-lime-300 px-4 py-4 text-base font-black text-emerald-950 shadow-lg active:scale-[0.98] transition-transform">Iniciar treino</button>
+              <button type="button" onClick={() => startWorkoutSession(suggestedWorkout.id)} className="mt-5 w-full rounded-2xl bg-[#7BA7FF] px-4 py-4 text-base font-black text-white shadow-lg active:scale-[0.98] transition-transform">Iniciar treino</button>
             ) : (
-              <button type="button" onClick={() => setActiveTab('protocols')} className="mt-5 w-full rounded-2xl bg-lime-300 px-4 py-4 text-base font-black text-emerald-950">Escolher treino</button>
+              <button type="button" onClick={() => setActiveTab('protocols')} className="mt-5 w-full rounded-2xl bg-[#7BA7FF] px-4 py-4 text-base font-black text-white">Escolher treino</button>
             )}
           </div>
         </section>
