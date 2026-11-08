@@ -3457,6 +3457,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         <button type="button" aria-pressed={playerVariant === 'classic'} onClick={() => changePlayerVariant('classic')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'classic' ? 'bg-slate-900 text-white' : 'text-slate-600'}`}>Clássico</button>
         <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'new' ? 'bg-orange-500 text-white' : 'text-slate-600'}`}>Novo</button>
       </div>
+      {playerVariant === 'new' && currentEx && (
+        <section aria-label="Resumo do exercício atual" className="shrink-0 bg-slate-950 text-white px-4 pt-12 pb-4 shadow-lg">
+          <div className="mx-auto max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-widest text-orange-300">Em execução · Exercício {currentIndex + 1} de {exercises.length}</p>
+            <h2 className="mt-1 text-2xl font-black leading-tight">{currentEx.name}</h2>
+            <div className="mt-3 flex items-center justify-between gap-4">
+              <span className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Série {currentSet} de {activeSetsData.length}</span>
+              <span className="text-sm font-semibold text-slate-300">Tempo {formatTime(workoutDuration)}</span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-label="Progresso das séries do exercício" aria-valuemin={0} aria-valuemax={activeSetsData.length || 1} aria-valuenow={Math.min(currentSet - 1, activeSetsData.length)}>
+              <div className="h-full rounded-full bg-orange-500 transition-all" style={{ width: `${activeSetsData.length ? Math.max(0, (currentSet - 1) / activeSetsData.length) * 100 : 0}%` }} />
+            </div>
+          </div>
+        </section>
+      )}
       {showRecoveryPrompt && recoverySession && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
