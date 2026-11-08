@@ -688,10 +688,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
-              className="mb-6 font-sans"
+              className="mb-5 font-sans"
             >
               {nextAction.type === 'start_workout' || nextAction.type === 'resume' || nextAction.type === 'motivation' || nextAction.type === 'partial' ? (
-                <div className="w-full bg-white text-slate-900 rounded-[2rem] px-5 sm:pl-6 sm:pr-10 py-6 shadow-sm relative overflow-hidden border border-slate-200/40 flex flex-col justify-between min-h-[140px]">
+                <div className="w-full bg-white text-slate-900 rounded-[2rem] px-5 sm:pl-6 sm:pr-10 py-5 sm:py-6 shadow-sm relative overflow-hidden border border-slate-200/60 flex flex-col justify-between min-h-[140px]">
                   <motion.div
                     animate={{
                       scale: [1, 1.15, 1],
@@ -782,14 +782,14 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     <div className="w-full flex items-center justify-between gap-2 sm:gap-4">
                       <div className="flex items-center gap-2 sm:gap-3.5 text-left pr-2">
                         <div className="flex flex-col text-left">
-                          <span className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Duração média</span>
+                          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Duração média</span>
                           <span className="text-xs font-bold text-slate-700 leading-none">
                             {suggestedWorkoutAvgDuration ? `${suggestedWorkoutAvgDuration} min` : '—'}
                           </span>
                         </div>
                         <div className="w-px h-5 bg-slate-100" />
                         <div className="flex flex-col text-left">
-                          <span className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Exercícios</span>
+                          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Exercícios</span>
                           <span className="text-xs font-bold text-[#7BA7FF] leading-none">
                             {suggestedWorkoutExercisesCount !== null ? suggestedWorkoutExercisesCount : '—'}
                           </span>
@@ -803,7 +803,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                           whileHover={{ scale: 1.04 }}
                           whileTap={{ scale: 0.98 }}
                           transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                          className="px-3 sm:px-5 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-[10.5px] font-black uppercase text-center tracking-[0.1em] bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white hover:opacity-95 shadow-md shadow-[#7BA7FF]/15 cursor-pointer flex items-center gap-1.5 sm:gap-2 shrink-0 border-none"
+                          className="px-4 sm:px-5 py-3 sm:py-3 rounded-2xl min-h-11 text-[12px] sm:text-[13px] font-black uppercase text-center tracking-[0.1em] bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white hover:opacity-95 shadow-md shadow-[#7BA7FF]/15 cursor-pointer flex items-center gap-1.5 sm:gap-2 shrink-0 border-none"
                         >
                           <Play size={10} fill="#ffffff" className="text-white relative z-10" />
                           <span>{nextAction.type === 'partial' ? 'Retomar Treino' : 'Iniciar Treino'}</span>
@@ -871,7 +871,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               <motion.section 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="mb-6 font-sans"
+                className="mb-5 font-sans"
               >
                 <div className="w-full bg-[#0F172A] bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#1E293B] text-white rounded-[2rem] pl-6 pr-10 py-8 shadow-xl relative overflow-hidden border border-slate-800 text-center space-y-4">
                   <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 mx-auto border border-indigo-500/20">
