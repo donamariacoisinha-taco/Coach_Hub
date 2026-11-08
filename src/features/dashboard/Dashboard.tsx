@@ -554,6 +554,11 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
       <div className="max-w-md mx-auto px-6 pt-12 relative z-10">
         
+        <div className="mb-5 flex items-center justify-between border-b border-emerald-100 pb-4" aria-label="Identidade KYRON OS">
+          <span className="text-[28px] font-black italic tracking-[-0.06em] text-[#11612a]">KYRON<span className="ml-1 text-base not-italic tracking-tight">OS</span></span>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-800">Sua evolução</span>
+        </div>
+
         {/* PREMIUM ADAPTIVE HEADER */}
         <header className="mb-6">
           <div className="flex items-center justify-between gap-4">
@@ -566,7 +571,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} className="w-full h-full rounded-full object-cover" alt="Profile" referrerPolicy="no-referrer" />
                 ) : (
-                  <span className="text-lg font-black text-indigo-400">
+                  <span className="text-lg font-black text-emerald-700">
                     {profile?.full_name?.charAt(0) || 'A'}
                   </span>
                 )}
@@ -574,7 +579,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               
               <div className="flex flex-col">
                 <p className="text-[9px] font-black tracking-[0.2em] text-slate-400 uppercase leading-none mb-1">
-                  Atleta de Performance
+                  Bom dia! Vamos evoluir hoje.
                 </p>
                 <div className="flex items-baseline gap-1.5">
                   {(() => {
@@ -584,7 +589,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                       return (
                         <p className="text-lg font-black text-slate-900 flex gap-1.5 leading-none tracking-tight">
                           <span>{parts[0]}</span>
-                          <span className="text-indigo-400 font-extrabold">{parts[1]}</span>
+                          <span className="text-emerald-700 font-extrabold">{parts[1]}</span>
                         </p>
                       );
                     }
