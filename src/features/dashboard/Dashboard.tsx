@@ -524,12 +524,21 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     return Math.min(98, score);
   }, [profile?.workout_streak]);
 
-  const weeklyGoal = Math.max(1, profile?.preferred_training_days?.length || 3);
+  const weeklyGoal = Math.min(7, Math.max(1, profile?.preferred_training_days?.length || 3));
   const weeklyCompleted = useMemo(() => {
     const now = new Date();
     const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-    return history.filter(h => h.completed_at && new Date(h.completed_at).getTime() >= monday.getTime()).length;
+    const nextMonday = new Date(monday);
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    const completedDays = new Set(
+      history.filter(h => {
+        if (!h.completed_at) return false;
+        const completed = new Date(h.completed_at);
+        return !Number.isNaN(completed.getTime()) && completed >= monday && completed < nextMonday && completed <= now;
+      }).map(h => new Date(h.completed_at!).toLocaleDateString('en-CA'))
+    );
+    return completedDays.size;
   }, [history]);
 
   return (
