@@ -7,7 +7,7 @@ import { cloudinaryService } from '../../services/cloudinaryService';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowLeft, Loader2 as Spinner, Camera, Sparkles, Scale, Target, 
-  Droplet, Flame, Trophy, Activity, Compass, Info, LogOut, Check, RefreshCw
+  Droplet, Flame, Trophy, Activity, Compass, Info, LogOut, Check, RefreshCw, Download, Smartphone
 } from 'lucide-react';
 
 const FITNESS_AVATARS = [
@@ -85,6 +85,56 @@ export default function ProfileViewV2() {
   const { logout } = useAuthStore();
   const { goBack, navigate } = useNavigation();
   const isGuestMode = Boolean(localStorage.getItem('kyron_guest_session'));
+
+  // Browser-managed PWA installation is only available when the browser offers it.
+  const installPromptRef = useRef<any>(null);
+  const [canInstall, setCanInstall] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+  useEffect(() => {
+    const checkInstalled = () => setIsInstalled(
+      window.matchMedia('(display-mode: standalone)').matches ||
+      Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
+    );
+    checkInstalled();
+    const onBeforeInstall = (event: Event) => {
+      event.preventDefault();
+      installPromptRef.current = event;
+      setCanInstall(true);
+    };
+    const onInstalled = () => {
+      setIsInstalled(true);
+      setCanInstall(false);
+      setShowInstallHelp(false);
+      installPromptRef.current = null;
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (isInstalled) return;
+    const prompt = installPromptRef.current;
+    if (!prompt) {
+      setShowInstallHelp(true);
+      return;
+    }
+    try {
+      await prompt.prompt();
+      await prompt.userChoice;
+    } catch {
+      setShowInstallHelp(true);
+    } finally {
+      installPromptRef.current = null;
+      setCanInstall(false);
+    }
+  };
 
   // Local safety loader and session indicator
   const [localLoading, setLocalLoading] = useState(true);
@@ -566,6 +616,32 @@ export default function ProfileViewV2() {
             ) : null}
             <span>{saving ? '...' : saveSuccess ? (isGuestMode ? 'Salvo localmente' : 'Salvo!') : 'Salvar'}</span>
           </button>
+        </div>
+      </div>
+
+      {/* Install shortcut within Identity; no misleading installation claims. */}
+      <div className="max-w-md mx-auto px-6 pt-4 relative z-10">
+        <div className="rounded-2xl border border-blue-100 bg-white/90 px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Smartphone size={20} /></span>
+            <div className="min-w-0 flex-1 text-left">
+              <p className="text-sm font-bold text-slate-800">Kyron no seu celular</p>
+              <p className="text-[11px] text-slate-500">{isInstalled ? 'Aplicativo já instalado' : 'Acesse direto pela tela inicial'}</p>
+            </div>
+            {!isInstalled && (
+              <button type="button" onClick={handleInstall} className="flex min-h-10 items-center gap-1.5 rounded-xl bg-blue-600 px-3 text-xs font-bold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500">
+                <Download size={14} /> Instalar
+              </button>
+            )}
+          </div>
+          {showInstallHelp && !isInstalled && (
+            <div className="mt-3 rounded-xl bg-blue-50 p-3 text-left text-xs leading-relaxed text-slate-700" role="status">
+              {isIOS
+                ? 'No Safari, toque em Compartilhar e escolha Adicionar à Tela de Início.'
+                : 'No menu do navegador (⋮), escolha Instalar aplicativo ou Adicionar à tela inicial. Se não aparecer, abra o Kyron no Chrome e tente novamente.'}
+              <button type="button" onClick={() => setShowInstallHelp(false)} className="ml-2 font-bold text-blue-700 underline">Fechar</button>
+            </div>
+          )}
         </div>
       </div>
 
