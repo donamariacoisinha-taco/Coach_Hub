@@ -3508,50 +3508,50 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'new' ? 'bg-orange-500 text-white' : 'text-slate-600'}`}>Novo</button>
       </div>
       {playerVariant === 'new' && currentEx && (
-        <section aria-label="Resumo do exercício atual" className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-slate-950 text-white px-4 pt-20 pb-8 shadow-lg">
+        <section aria-label="Resumo do exercício atual" className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#F3F8FF] via-[#F7FAFF] to-white text-[#14253D] px-4 pt-20 pb-8">
           <div className="mx-auto max-w-3xl">
-            <p className="text-xs font-bold uppercase tracking-widest text-orange-300">Em execução · Exercício {currentIndex + 1} de {exercises.length}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-[#5D8FD6]">Em execução · Exercício {currentIndex + 1} de {exercises.length}</p>
             <h2 className="mt-1 text-2xl font-black leading-tight">{currentEx.exercise_name}</h2>
             <nav aria-label="Navegação das séries e exercícios" className="mt-3 flex items-center gap-2">
-              <button type="button" disabled={!canGoToPreviousSet()} onClick={goToPreviousSet} className="flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-3 text-sm font-extrabold text-white disabled:opacity-30">← Anterior</button>
-              <button type="button" disabled={!canGoToNextSet()} onClick={goToNextSet} className="flex-1 rounded-xl bg-orange-500 px-3 py-3 text-sm font-extrabold text-white disabled:opacity-30">Próxima →</button>
+              <button type="button" disabled={!canGoToPreviousSet()} onClick={goToPreviousSet} className="flex-1 rounded-xl border border-[#DCE6F3] bg-white px-3 py-3 text-sm font-extrabold text-[#14253D] disabled:opacity-30">← Anterior</button>
+              <button type="button" disabled={!canGoToNextSet()} onClick={goToNextSet} className="flex-1 rounded-xl bg-[#7BA7FF] px-3 py-3 text-sm font-extrabold text-white disabled:opacity-30">Próxima →</button>
             </nav>
             <div className="mt-3 flex items-center justify-between gap-4">
-              <span className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Série {currentSet} de {activeSetsData.length}</span>
-              <span className="text-sm font-semibold text-slate-300">Tempo {formatTime(workoutDuration)}</span>
+              <span className="rounded-xl border border-[#DFE9F6] bg-white px-3 py-2 text-sm font-bold">Série {currentSet} de {activeSetsData.length}</span>
+              <span className="text-sm font-semibold text-[#687A91]">Tempo {formatTime(workoutDuration)}</span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3" aria-label="Controles rápidos da série atual">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-300">Carga · kg</p>
+              <div className="rounded-2xl border border-[#DCE6F3] bg-white p-3">
+                <p className="text-[11px] font-black uppercase tracking-widest text-[#687A91]">Carga · kg</p>
                 <div className="mt-2 flex items-center justify-between gap-1">
-                  <button type="button" aria-label="Reduzir carga em 2 kg" title="Diminuir carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Math.max(0, Number(activeSetsData[currentSet - 1]?.weight || 0) - 2))} className="h-11 w-11 rounded-xl bg-white/15 text-xl font-black text-white">−</button>
+                  <button type="button" aria-label="Reduzir carga em 2 kg" title="Diminuir carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Math.max(0, Number(activeSetsData[currentSet - 1]?.weight || 0) - 2))} className="h-11 w-11 rounded-xl bg-[#E9F1FC] text-xl font-black text-[#203753]">−</button>
                   <span className="text-2xl font-black tabular-nums">{activeSetsData[currentSet - 1]?.weight || 0}</span>
-                  <button type="button" aria-label="Aumentar carga em 2 kg" title="Aumentar carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Number(activeSetsData[currentSet - 1]?.weight || 0) + 2)} className="h-11 w-11 rounded-xl bg-orange-500 text-xl font-black text-white">+</button>
+                  <button type="button" aria-label="Aumentar carga em 2 kg" title="Aumentar carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Number(activeSetsData[currentSet - 1]?.weight || 0) + 2)} className="h-11 w-11 rounded-xl bg-[#7BA7FF] text-xl font-black text-white">+</button>
                 </div>
               </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-300">Repetições</p>
+              <div className="rounded-2xl border border-[#DCE6F3] bg-white p-3">
+                <p className="text-[11px] font-black uppercase tracking-widest text-[#687A91]">Repetições</p>
                 <div className="mt-2 flex items-center justify-between gap-1">
-                  <button type="button" aria-label="Reduzir repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Math.max(0, Number(activeSetsData[currentSet - 1]?.reps || 0) - 1))} className="h-11 w-11 rounded-xl bg-white/15 text-xl font-black text-white">−</button>
+                  <button type="button" aria-label="Reduzir repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Math.max(0, Number(activeSetsData[currentSet - 1]?.reps || 0) - 1))} className="h-11 w-11 rounded-xl bg-[#E9F1FC] text-xl font-black text-[#203753]">−</button>
                   <span className="text-2xl font-black tabular-nums">{activeSetsData[currentSet - 1]?.reps || 0}</span>
-                  <button type="button" aria-label="Aumentar repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Number(activeSetsData[currentSet - 1]?.reps || 0) + 1)} className="h-11 w-11 rounded-xl bg-orange-500 text-xl font-black text-white">+</button>
+                  <button type="button" aria-label="Aumentar repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Number(activeSetsData[currentSet - 1]?.reps || 0) + 1)} className="h-11 w-11 rounded-xl bg-[#7BA7FF] text-xl font-black text-white">+</button>
                 </div>
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-white/10 px-3 py-2 text-sm">
-              <span className="font-semibold text-slate-200">Descanso: <strong className="text-white">{isResting ? formatTime(Math.max(0, timeLeft)) : 'Pronto'}</strong></span>
-              <span className="max-w-[52%] truncate text-right text-slate-300">{exercises[currentIndex + 1]?.exercise_name ? `Próximo: ${exercises[currentIndex + 1].exercise_name}` : 'Último exercício'}</span>
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[#DFE9F6] bg-white px-3 py-2 text-sm">
+              <span className="font-semibold text-[#53677F]">Descanso: <strong className="text-[#14253D]">{isResting ? formatTime(Math.max(0, timeLeft)) : 'Pronto'}</strong></span>
+              <span className="max-w-[52%] truncate text-right text-[#687A91]">{exercises[currentIndex + 1]?.exercise_name ? `Próximo: ${exercises[currentIndex + 1].exercise_name}` : 'Último exercício'}</span>
             </div>
-            <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-label="Progresso das séries do exercício" aria-valuemin={0} aria-valuemax={activeSetsData.length || 1} aria-valuenow={Math.min(currentSet - 1, activeSetsData.length)}>
-              <div className="h-full rounded-full bg-orange-500 transition-all" style={{ width: `${activeSetsData.length ? Math.max(0, (currentSet - 1) / activeSetsData.length) * 100 : 0}%` }} />
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#DCE6F3]" role="progressbar" aria-label="Progresso das séries do exercício" aria-valuemin={0} aria-valuemax={activeSetsData.length || 1} aria-valuenow={Math.min(currentSet - 1, activeSetsData.length)}>
+              <div className="h-full rounded-full bg-[#7BA7FF] transition-all" style={{ width: `${activeSetsData.length ? Math.max(0, (currentSet - 1) / activeSetsData.length) * 100 : 0}%` }} />
             </div>
-            <div className="mt-5 rounded-2xl border border-white/15 bg-white/10 p-4" aria-label="Esforço da série atual">
-              <p className="text-[11px] font-black uppercase tracking-widest text-slate-300">Esforço percebido · RPE</p>
+            <div className="mt-5 rounded-2xl border border-[#DCE6F3] bg-white p-4" aria-label="Esforço da série atual">
+              <p className="text-[11px] font-black uppercase tracking-widest text-[#687A91]">Esforço percebido · RPE</p>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {[8, 9, 10].map(value => (
                   <button key={value} type="button" aria-pressed={Number(activeSetsData[currentSet - 1]?.rpe || 8) === value}
                     onClick={() => updateSetData(currentSet - 1, 'rpe', value)}
-                    className={`h-12 rounded-xl text-lg font-black transition-colors ${Number(activeSetsData[currentSet - 1]?.rpe || 8) === value ? 'bg-orange-500 text-white' : 'bg-white/10 text-slate-200'}`}>
+                    className={`h-12 rounded-xl text-lg font-black transition-colors ${Number(activeSetsData[currentSet - 1]?.rpe || 8) === value ? 'bg-[#7BA7FF] text-white' : 'bg-[#E9F1FC] text-[#53677F]'}`}>
                     {value}
                   </button>
                 ))}
@@ -3559,10 +3559,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             </div>
             <button type="button" disabled={saving || isTransitioning}
               onClick={isResting ? () => { if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete); } : handlePrimarySetAction}
-              className="mt-5 w-full min-h-16 rounded-2xl bg-orange-500 px-4 py-4 text-base font-black text-white disabled:opacity-50">
+              className="mt-5 w-full min-h-16 rounded-2xl bg-[#7BA7FF] px-4 py-4 text-base font-black text-white disabled:opacity-50">
               {saving ? 'SALVANDO...' : isResting ? (timeLeft <= 0 ? 'PRÓXIMA SÉRIE' : 'PULAR DESCANSO') : isWorkoutTerminal ? 'FINALIZAR TREINO' : 'CONCLUIR SÉRIE →'}
             </button>
-            <button type="button" onClick={() => setShowExitModal(true)} className="mt-3 w-full rounded-xl border border-white/20 px-4 py-3 text-sm font-semibold text-slate-300">Sair ou encerrar treino</button>
+            <button type="button" onClick={() => setShowExitModal(true)} className="mt-3 w-full rounded-xl border border-[#DCE6F3] px-4 py-3 text-sm font-semibold text-[#687A91]">Sair ou encerrar treino</button>
           </div>
         </section>
       )}
