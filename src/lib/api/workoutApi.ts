@@ -437,6 +437,32 @@ export const workoutApi = {
     return data;
   },
 
+  async getLastThreeExerciseSessions(exerciseId: string, currentHistoryId?: string) {
+    // Preserve previous sessions even when today's prescription is replicated.
+    let query = supabase.from('workout_sets_log')
+      .select('history_id, set_number, weight_achieved, reps_achieved, rpe, created_at')
+      .eq('exercise_id', exerciseId)
+      .order('created_at', { ascending: false })
+      .limit(150);
+    if (currentHistoryId) query = query.neq('history_id', currentHistoryId);
+    const { data, error } = await query;
+    if (error) throw error;
+    const grouped = new Map<string, typeof data>();
+    for (const row of data || []) {
+      if (!row.history_id) continue;
+      if (!grouped.has(row.history_id)) {
+        if (grouped.size >= 3) continue;
+        grouped.set(row.history_id, []);
+      }
+      grouped.get(row.history_id)!.push(row);
+    }
+    return Array.from(grouped.entries()).map(([history_id, sets]) => ({
+      history_id,
+      date: sets[0]?.created_at || '',
+      sets: sets.sort((a, b) => a.set_number - b.set_number)
+    }));
+  },
+
   async getHistoricalSets(exerciseId: string, currentHistoryId?: string) {
     // 1. Get the most recent session (history_id) for this exercise, excluding current if provided
     let query = supabase
