@@ -518,6 +518,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { openExercisePreview } = useExercisePreview();
   const { showError, showSuccess } = useErrorHandler();
   const workoutRootRef = useRef<HTMLDivElement>(null);
+  // Visual preference only: never changes workout session data or progression.
+  const [playerVariant, setPlayerVariant] = useState<'classic' | 'new'>(() => {
+    try { return localStorage.getItem('kyron:workout-player-variant') === 'new' ? 'new' : 'classic'; }
+    catch { return 'classic'; }
+  });
+  const changePlayerVariant = (variant: 'classic' | 'new') => {
+    setPlayerVariant(variant);
+    try { localStorage.setItem('kyron:workout-player-variant', variant); } catch { /* storage unavailable */ }
+  };
+
 
   // A workout is an editing session: contain overscroll so a downward gesture
   // cannot trigger a browser refresh and discard in-progress inputs.
@@ -3427,8 +3437,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     <div
       ref={workoutRootRef}
       data-workout-player="true"
+      data-player-variant={playerVariant}
       className="h-[100dvh] min-h-0 bg-[#F7F8FA] text-slate-900 flex flex-col font-sans overflow-hidden"
     >
+      <div className="absolute top-2 right-3 z-[80] flex items-center gap-1 rounded-xl border border-slate-200 bg-white/95 p-1 shadow-sm" role="group" aria-label="Versão do player">
+        <button type="button" aria-pressed={playerVariant === 'classic'} onClick={() => changePlayerVariant('classic')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'classic' ? 'bg-slate-900 text-white' : 'text-slate-600'}`}>Clássico</button>
+        <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'new' ? 'bg-orange-500 text-white' : 'text-slate-600'}`}>Novo</button>
+      </div>
       {showRecoveryPrompt && recoverySession && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
