@@ -3500,13 +3500,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           [data-workout-player][data-player-variant="new"] .space-y-2 > * { border-radius: 1.5rem; }
         `}</style>
       )}
-      <div data-player-switch className="absolute top-2 right-3 z-[80] flex items-center gap-0.5 rounded-xl p-0.5" role="group" aria-label="Versão do player">
-        <button type="button" aria-pressed={playerVariant === 'classic'} onClick={() => changePlayerVariant('classic')} className={`min-h-9 rounded-lg px-2.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7BA7FF] ${playerVariant === 'classic' ? 'bg-slate-100/70 text-[#536A84]' : 'text-slate-400 hover:text-[#536A84]'}`}>Clássico</button>
-        <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`min-h-9 rounded-lg px-2.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7BA7FF] ${playerVariant === 'new' ? 'bg-slate-100/70 text-[#536A84]' : 'text-slate-400 hover:text-[#536A84]'}`}>Novo</button>
-      </div>
       {playerVariant === 'new' && currentEx && (
         <section aria-label="Resumo do exercício atual" className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#F3F8FF] via-[#F7FAFF] to-white text-[#14253D] px-4 pt-20 pb-8">
           <div className="mx-auto max-w-3xl">
+            <div className="mb-3 flex justify-end">
+              <button type="button" onClick={() => changePlayerVariant('classic')} aria-label="Alternar para o player Clássico" className="min-h-11 rounded-xl border border-[#DCE6F3] bg-white/75 px-4 text-xs font-semibold text-[#536A84] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7BA7FF]">Clássico</button>
+            </div>
             <p className="text-xs font-bold uppercase tracking-widest text-[#5D8FD6]">Em execução · Exercício {currentIndex + 1} de {exercises.length}</p>
             <h2 className="mt-1 text-2xl font-black leading-tight">{currentEx.exercise_name}</h2>
             <nav aria-label="Navegação das séries e exercícios" className="mt-3 flex items-center gap-2">
@@ -3861,18 +3860,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                 >
                   <RefreshCw size={12} /> Substituir
                 </button>
-                <button 
-                  onClick={() => {
-                    setFocusMode(!focusMode);
-                    playSensoryTone(focusMode ? 'click' : 'focus');
-                    if ('vibrate' in navigator) navigator.vibrate(30);
-                  }}
-                  className={`flex-1 rounded-xl py-2.5 shadow-sm text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all h-[44px] ${
-                    focusMode ? 'bg-indigo-950 border border-indigo-900 text-indigo-400 animate-pulse' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <Target size={12} className={focusMode ? "animate-pulse text-[#7BA7FF]" : ""} />
-                  {focusMode ? "Foco Ativo" : "Modo Foco"}
+                <button type="button" onClick={() => changePlayerVariant('new')} aria-label="Alternar para o player Moderno" className="flex-1 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-100 h-[44px]">
+                  Moderno
                 </button>
               </div>
 
