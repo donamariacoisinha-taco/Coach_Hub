@@ -1594,7 +1594,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [threeSessionHistory, setThreeSessionHistory] = useState<Awaited<ReturnType<typeof workoutApi.getLastThreeExerciseSessions>>>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState(false);
-  useEffect(() => { setHistorySetNumber(null); setThreeSessionHistory([]); }, [currentEx?.exercise_id]);
+  useEffect(() => { setHistorySetNumber(null); setThreeSessionHistory([]); }, [exercises?.[currentIndex]?.exercise_id]);
   const openSeriesHistory = async (setNumber: number) => {
     setHistorySetNumber(setNumber);
     setHistoryLoading(true);
