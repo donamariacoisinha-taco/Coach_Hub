@@ -22,7 +22,7 @@ import { ExercisePreviewProvider, useExercisePreview } from './context/ExerciseP
 import { NavItem } from './components/ui/NavItem';
 import { isAdmin } from './lib/utils/auth';
 import { ekeService } from './domain/eke/ekeService';
-import kyronLogo from './assets/images/kyron_official_logo_1781087891387.png';
+const kyronLogo = '/icons/kyron-brand-wordmark.svg';
 import { getGuestProfile } from './lib/guest/guestPersistence';
 
 const loadOnboarding = () => import('./features/onboarding/SmartOnboarding');
