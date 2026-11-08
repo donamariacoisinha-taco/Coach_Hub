@@ -3463,7 +3463,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'new' ? 'bg-orange-500 text-white' : 'text-slate-600'}`}>Novo</button>
       </div>
       {playerVariant === 'new' && currentEx && (
-        <section aria-label="Resumo do exercício atual" className="shrink-0 bg-slate-950 text-white px-4 pt-12 pb-4 shadow-lg">
+        <section aria-label="Resumo do exercício atual" className="shrink-0 max-h-[54dvh] overflow-y-auto overscroll-contain bg-slate-950 text-white px-4 pt-12 pb-4 shadow-lg">
           <div className="mx-auto max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-widest text-orange-300">Em execução · Exercício {currentIndex + 1} de {exercises.length}</p>
             <h2 className="mt-1 text-2xl font-black leading-tight">{currentEx.exercise_name}</h2>
@@ -3475,9 +3475,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
                 <p className="text-[11px] font-black uppercase tracking-widest text-slate-300">Carga · kg</p>
                 <div className="mt-2 flex items-center justify-between gap-1">
-                  <button type="button" aria-label="Reduzir carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Math.max(0, Number(activeSetsData[currentSet - 1]?.weight || 0) - 2))} className="h-11 w-11 rounded-xl bg-white/15 text-xl font-black text-white">−</button>
+                  <button type="button" aria-label="Reduzir carga em 2 kg" title="Diminuir carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Math.max(0, Number(activeSetsData[currentSet - 1]?.weight || 0) - 2))} className="h-11 w-11 rounded-xl bg-white/15 text-xl font-black text-white">−</button>
                   <span className="text-2xl font-black tabular-nums">{activeSetsData[currentSet - 1]?.weight || 0}</span>
-                  <button type="button" aria-label="Aumentar carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Number(activeSetsData[currentSet - 1]?.weight || 0) + 2)} className="h-11 w-11 rounded-xl bg-orange-500 text-xl font-black text-white">+</button>
+                  <button type="button" aria-label="Aumentar carga em 2 kg" title="Aumentar carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Number(activeSetsData[currentSet - 1]?.weight || 0) + 2)} className="h-11 w-11 rounded-xl bg-orange-500 text-xl font-black text-white">+</button>
                 </div>
               </div>
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
