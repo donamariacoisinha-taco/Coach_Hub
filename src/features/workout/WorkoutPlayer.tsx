@@ -1590,6 +1590,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [isDockInsightVisible, setIsDockInsightVisible] = useState(false);
   const dockInsightTimerRef = useRef<number | null>(null);
   const previousDockInsightKeysRef = useRef<Set<string>>(new Set());
+  const [historySetNumber, setHistorySetNumber] = useState<number | null>(null);
+  const [threeSessionHistory, setThreeSessionHistory] = useState<Awaited<ReturnType<typeof workoutApi.getLastThreeExerciseSessions>>>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
+  useEffect(() => { setHistorySetNumber(null); setThreeSessionHistory([]); }, [currentEx?.exercise_id]);
+  const openSeriesHistory = async (setNumber: number) => {
+    setHistorySetNumber(setNumber);
+    setHistoryLoading(true);
+    setHistoryError(false);
+    try {
+      const sessions = await workoutApi.getLastThreeExerciseSessions(currentEx.exercise_id, historyId || undefined);
+      setThreeSessionHistory(sessions);
+    } catch (error) {
+      console.error('Could not load series history', error);
+      setHistoryError(true);
+    } finally { setHistoryLoading(false); }
+  };
   const [historicalSets, setHistoricalSets] = useState<{weight_achieved: number, reps_achieved: number, set_number: number}[]>([]);
   const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
   const [recoverySession, setRecoverySession] = useState<any>(null);
@@ -3440,6 +3457,33 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       data-player-variant={playerVariant}
       className="h-[100dvh] min-h-0 bg-[#F7F8FA] text-slate-900 flex flex-col font-sans overflow-hidden"
     >
+      {historySetNumber !== null && playerVariant === 'classic' && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onClick={() => setHistorySetNumber(null)}>
+          <section role="dialog" aria-modal="true" aria-label={`Histórico da série ${historySetNumber}`} className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl" onClick={event => event.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-black text-slate-900">Série {historySetNumber} · últimos treinos</h2><button type="button" aria-label="Fechar histórico" onClick={() => setHistorySetNumber(null)}><X size={20}/></button></div>
+            <p className="mt-1 text-xs text-slate-500">{currentEx?.exercise_name} · carga, repetições e esforço</p>
+            {historyLoading ? <p className="py-6 text-sm text-slate-500">Carregando histórico...</p> : historyError ? <p className="py-6 text-sm text-red-600">Não foi possível consultar o histórico.</p> : (
+              <div className="mt-4 space-y-2">
+                {threeSessionHistory.length === 0 && <p className="py-4 text-sm text-slate-500">Ainda não há treinos anteriores registrados.</p>}
+                {threeSessionHistory.map((session, index) => {
+                  const recorded = session.sets.find(item => item.set_number === historySetNumber);
+                  return <div key={session.history_id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                    <p className="text-xs font-bold text-slate-500">{index === 0 ? 'Último treino' : `${index + 1}º treino anterior`} · {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : 'Data indisponível'}</p>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-center text-sm font-bold text-slate-900"><span>{recorded?.weight_achieved ?? '—'} kg</span><span>{recorded?.reps_achieved ?? '—'} reps</span><span>RPE {recorded?.rpe ?? '—'}</span></div>
+                  </div>;
+                })}
+                {threeSessionHistory.length >= 2 && (() => {
+                  const latest = threeSessionHistory[0].sets.find(item => item.set_number === historySetNumber);
+                  const oldest = [...threeSessionHistory].reverse().map(session => session.sets.find(item => item.set_number === historySetNumber)).find(Boolean);
+                  if (!latest || !oldest || latest === oldest) return null;
+                  const diff = Number(latest.weight_achieved) - Number(oldest.weight_achieved);
+                  return <p className="pt-2 text-xs font-semibold text-emerald-800">Evolução da carga: {diff > 0 ? '+' : ''}{diff.toLocaleString('pt-BR')} kg em relação ao registro mais antigo exibido.</p>;
+                })()}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
       {/* New visual mode is scoped to the player root; both modes share the same workout state and saving logic. */}
       {playerVariant === 'new' && (
         <style>{`
@@ -3840,6 +3884,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   const delta = getSetDelta(idx, setData.weight, setData.reps);
                   
                   return (
+                    <div key={setData.id || `${currentIndex}_${idx}`} className="relative">
+                      {playerVariant === 'classic' && !isGuestWorkout && (
+                        <button type="button" aria-label={`Ver histórico da série ${idx + 1}`} title="Últimos três treinos" onClick={() => openSeriesHistory(idx + 1)} className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-slate-400 shadow-sm hover:text-emerald-700">
+                          <Info size={15} aria-hidden="true" />
+                        </button>
+                      )}
                     <SwipeableSetCard
                       key={setData.id || `${currentIndex}_${idx}`}
                       idx={idx}
@@ -3871,6 +3921,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         focusMode={focusMode}
                       />
                     </SwipeableSetCard>
+                    </div>
                   );
                 })}
 
