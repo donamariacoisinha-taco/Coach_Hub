@@ -3448,7 +3448,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           [data-workout-player][data-player-variant="new"] .rounded-2xl { border-radius: 1.25rem; }
           [data-workout-player][data-player-variant="new"] .border-slate-100 { border-color: #dbe4ed; }
           [data-workout-player][data-player-variant="new"] .text-slate-400 { color: #64748b; }
-          [data-workout-player][data-player-variant="new"] [data-player-switch] { background: #102338; border-color: #29435c; box-shadow: 0 8px 28px rgba(15, 35, 55, .18); }
+          [data-workout-player][data-player-variant="new"] { background: linear-gradient(160deg, #e7edf5, #f8fafc); }
+          [data-workout-player][data-player-variant="new"] .sticky.top-0 { display: none; }
+          [data-workout-player][data-player-variant="new"] input { font-size: 1.2rem; font-weight: 800; }
+          [data-workout-player][data-player-variant="new"] button { min-height: 40px; }
+          [data-workout-player][data-player-variant="new"] .space-y-2 > * { border-radius: 1.5rem; }
+                    [data-workout-player][data-player-variant="new"] [data-player-switch] { background: #102338; border-color: #29435c; box-shadow: 0 8px 28px rgba(15, 35, 55, .18); }
           [data-workout-player][data-player-variant="new"] [data-player-switch] button[aria-pressed="false"] { color: #e2e8f0; }
           [data-workout-player][data-player-variant="new"] [data-player-switch] button[aria-pressed="true"] { background: #f97316; color: white; }
         `}</style>
@@ -3461,7 +3466,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         <section aria-label="Resumo do exercício atual" className="shrink-0 bg-slate-950 text-white px-4 pt-12 pb-4 shadow-lg">
           <div className="mx-auto max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-widest text-orange-300">Em execução · Exercício {currentIndex + 1} de {exercises.length}</p>
-            <h2 className="mt-1 text-2xl font-black leading-tight">{currentEx.name}</h2>
+            <h2 className="mt-1 text-2xl font-black leading-tight">{currentEx.exercise_name}</h2>
             <div className="mt-3 flex items-center justify-between gap-4">
               <span className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Série {currentSet} de {activeSetsData.length}</span>
               <span className="text-sm font-semibold text-slate-300">Tempo {formatTime(workoutDuration)}</span>
