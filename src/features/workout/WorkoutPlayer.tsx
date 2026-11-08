@@ -236,7 +236,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`text-[10px] font-black tracking-widest mt-0.5 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
+                <p className={`text-[12px] font-black tracking-wide mt-1 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
                   {isBeginner ? 'Peso' : 'Kg'}
                 </p>
                 {/* DELTA WEIGHT */}
@@ -276,7 +276,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`text-[10px] font-black tracking-widest mt-0.5 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
+                <p className={`text-[12px] font-black tracking-wide mt-1 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
                   {isBeginner ? 'Repetições' : 'Reps'}
                 </p>
                 
@@ -3815,7 +3815,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     whileHover={{ opacity: 1 }}
                     className="mt-10 px-2 transition-all duration-300"
                   >
-                    <p className="text-[9.5px] font-[1000] text-slate-400 uppercase tracking-[0.15em] mb-3 text-center">Prepare-se: Próximo Exercício</p>
+                    <p className="text-[12px] font-black text-slate-600 uppercase tracking-wide mb-3 text-center">Prepare-se: Próximo Exercício</p>
                     <div className="flex items-center gap-4 bg-white/40 backdrop-blur-sm rounded-[2rem] p-4 border border-slate-100 shadow-sm">
                       <div 
                         onClick={() => {
@@ -5432,18 +5432,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   
                   <div className="grid grid-cols-2 gap-3 text-xs font-bold text-slate-700">
                     <div className="bg-white p-3 rounded-2xl border border-slate-100">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Séries</p>
+                      <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Séries</p>
                       <p className="text-sm font-black text-slate-800">{savePrompt.setsJson.length} séries</p>
                     </div>
                     
                     <div className="bg-white p-3 rounded-2xl border border-slate-100">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Descanso</p>
+                      <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Descanso</p>
                       <p className="text-sm font-black text-slate-800">{savePrompt.exObj?.rest_time || 60}s</p>
                     </div>
                   </div>
 
                   <div className="space-y-1.5 pt-1.5 border-t border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Detalhamento por Série:</p>
+                    <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-2">Detalhamento por Série:</p>
                     {savePrompt.setsJson.map((s, sIdx) => (
                       <div key={sIdx} className="flex justify-between items-center text-xs font-bold text-slate-755 bg-white/60 px-3 py-1.5 rounded-xl border border-slate-100/30">
                         <span className="text-slate-400 text-[10px] font-extrabold font-mono">SÉRIE {sIdx + 1}</span>
