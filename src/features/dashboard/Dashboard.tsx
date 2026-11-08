@@ -726,17 +726,17 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               <p className="text-xs font-bold leading-snug text-slate-600"><strong className="block text-lg text-slate-900">{Math.min(weeklyCompleted, weeklyGoal)} de {weeklyGoal}</strong> dias de treino</p>
             </div>
           </section>
-          <section aria-label="Próxima recomendação" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
-            <p className="text-xs font-black text-slate-800">Próxima recomendação</p>
-            <p className="mt-3 text-sm font-extrabold leading-tight text-slate-900">{nextAction?.title || 'Continue seu progresso'}</p>
-            <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-slate-500">{nextAction?.description || 'Consulte os protocolos disponíveis.'}</p>
+          <section aria-label="Sua semana" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="text-xs font-black text-slate-800">Sua semana</p>
+            <p className="mt-3 text-sm font-extrabold leading-tight text-slate-900">{weeklyCompleted >= weeklyGoal ? 'Meta semanal alcançada' : 'Continue evoluindo'}</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">{weeklyCompleted >= weeklyGoal ? 'Você já atingiu sua meta de dias de treino.' : `Faltam ${Math.max(0, weeklyGoal - weeklyCompleted)} dias de treino para sua meta.`}</p>
           </section>
         </div>
         <nav aria-label="Acessos rápidos" className="mb-7 grid grid-cols-4 gap-2">
           <button type="button" onClick={() => setActiveTab('protocols')} className="rounded-2xl bg-white px-1 py-3 text-[11px] font-extrabold text-slate-800 shadow-sm border border-slate-100">Protocolos</button>
           <button type="button" onClick={() => setActiveTab('evolution')} className="rounded-2xl bg-white px-1 py-3 text-[11px] font-extrabold text-slate-800 shadow-sm border border-slate-100">Evolução</button>
           <button type="button" onClick={() => setActiveTab('premium')} className="rounded-2xl bg-white px-1 py-3 text-[11px] font-extrabold text-slate-800 shadow-sm border border-slate-100">Premium</button>
-          <button type="button" onClick={() => setActiveTab('protocols')} className="rounded-2xl bg-white px-1 py-3 text-[11px] font-extrabold text-slate-800 shadow-sm border border-slate-100">Fichas</button>
+          <button type="button" onClick={() => navigate('profile')} className="rounded-2xl bg-white px-1 py-3 text-[11px] font-extrabold text-slate-800 shadow-sm border border-slate-100">Perfil</button>
         </nav>
 
 
