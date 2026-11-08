@@ -3440,7 +3440,20 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       data-player-variant={playerVariant}
       className="h-[100dvh] min-h-0 bg-[#F7F8FA] text-slate-900 flex flex-col font-sans overflow-hidden"
     >
-      <div className="absolute top-2 right-3 z-[80] flex items-center gap-1 rounded-xl border border-slate-200 bg-white/95 p-1 shadow-sm" role="group" aria-label="Versão do player">
+      {/* New visual mode is scoped to the player root; both modes share the same workout state and saving logic. */}
+      {playerVariant === 'new' && (
+        <style>{`
+          [data-workout-player][data-player-variant="new"] { background: #f0f4f8; }
+          [data-workout-player][data-player-variant="new"] .bg-white { background-color: #ffffff; }
+          [data-workout-player][data-player-variant="new"] .rounded-2xl { border-radius: 1.25rem; }
+          [data-workout-player][data-player-variant="new"] .border-slate-100 { border-color: #dbe4ed; }
+          [data-workout-player][data-player-variant="new"] .text-slate-400 { color: #64748b; }
+          [data-workout-player][data-player-variant="new"] [data-player-switch] { background: #102338; border-color: #29435c; box-shadow: 0 8px 28px rgba(15, 35, 55, .18); }
+          [data-workout-player][data-player-variant="new"] [data-player-switch] button[aria-pressed="false"] { color: #e2e8f0; }
+          [data-workout-player][data-player-variant="new"] [data-player-switch] button[aria-pressed="true"] { background: #f97316; color: white; }
+        `}</style>
+      )}
+      <div data-player-switch className="absolute top-2 right-3 z-[80] flex items-center gap-1 rounded-xl border border-slate-200 bg-white/95 p-1 shadow-sm" role="group" aria-label="Versão do player">
         <button type="button" aria-pressed={playerVariant === 'classic'} onClick={() => changePlayerVariant('classic')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'classic' ? 'bg-slate-900 text-white' : 'text-slate-600'}`}>Clássico</button>
         <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'new' ? 'bg-orange-500 text-white' : 'text-slate-600'}`}>Novo</button>
       </div>
