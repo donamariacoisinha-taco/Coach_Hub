@@ -3498,14 +3498,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           [data-workout-player][data-player-variant="new"] input { font-size: 1.2rem; font-weight: 800; }
           [data-workout-player][data-player-variant="new"] button { min-height: 40px; }
           [data-workout-player][data-player-variant="new"] .space-y-2 > * { border-radius: 1.5rem; }
-                    [data-workout-player][data-player-variant="new"] [data-player-switch] { background: #102338; border-color: #29435c; box-shadow: 0 8px 28px rgba(15, 35, 55, .18); }
-          [data-workout-player][data-player-variant="new"] [data-player-switch] button[aria-pressed="false"] { color: #e2e8f0; }
-          [data-workout-player][data-player-variant="new"] [data-player-switch] button[aria-pressed="true"] { background: #f97316; color: white; }
         `}</style>
       )}
-      <div data-player-switch className="absolute top-2 right-3 z-[80] flex items-center gap-1 rounded-xl border border-slate-200 bg-white/95 p-1 shadow-sm" role="group" aria-label="Versão do player">
-        <button type="button" aria-pressed={playerVariant === 'classic'} onClick={() => changePlayerVariant('classic')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'classic' ? 'bg-slate-900 text-white' : 'text-slate-600'}`}>Clássico</button>
-        <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'new' ? 'bg-orange-500 text-white' : 'text-slate-600'}`}>Novo</button>
+      <div data-player-switch className="absolute top-2 right-3 z-[80] flex items-center gap-0.5 rounded-xl p-0.5" role="group" aria-label="Versão do player">
+        <button type="button" aria-pressed={playerVariant === 'classic'} onClick={() => changePlayerVariant('classic')} className={`min-h-9 rounded-lg px-2.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7BA7FF] ${playerVariant === 'classic' ? 'bg-slate-100/70 text-[#536A84]' : 'text-slate-400 hover:text-[#536A84]'}`}>Clássico</button>
+        <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`min-h-9 rounded-lg px-2.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7BA7FF] ${playerVariant === 'new' ? 'bg-slate-100/70 text-[#536A84]' : 'text-slate-400 hover:text-[#536A84]'}`}>Novo</button>
       </div>
       {playerVariant === 'new' && currentEx && (
         <section aria-label="Resumo do exercício atual" className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#F3F8FF] via-[#F7FAFF] to-white text-[#14253D] px-4 pt-20 pb-8">
