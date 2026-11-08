@@ -699,10 +699,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         </header>
 
         {/* Approved V1 hierarchy: workout, progress, recommendation, shortcuts. */}
-        <section aria-label="Treino de hoje" className="mb-4 overflow-hidden rounded-[28px] bg-slate-950 p-5 text-white shadow-xl relative">
-          <div className="absolute -right-12 -top-16 h-48 w-48 rounded-full bg-orange-500/20 blur-3xl pointer-events-none" />
+        <section aria-label="Treino de hoje" className="mb-4 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#178529] via-[#075a24] to-[#06381f] p-5 text-white shadow-xl relative">
+          <div className="absolute -right-12 -top-16 h-48 w-48 rounded-full bg-lime-300/20 blur-3xl pointer-events-none" />
           <div className="relative">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-orange-300">KYRON · TREINO DE HOJE</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-lime-200">TREINO DE HOJE</p>
             <h2 className="mt-3 text-[27px] font-black leading-tight">{suggestedWorkout?.name || nextAction?.title || 'Seu próximo treino'}</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-300">{nextAction?.description || 'Escolha seu próximo treino para continuar evoluindo.'}</p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
@@ -710,9 +710,9 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               {suggestedWorkoutExercisesCount != null && <span className="rounded-xl bg-white/10 px-3 py-2">{suggestedWorkoutExercisesCount} exercícios</span>}
             </div>
             {suggestedWorkout ? (
-              <button type="button" onClick={() => startWorkoutSession(suggestedWorkout.id)} className="mt-5 w-full rounded-2xl bg-orange-500 px-4 py-4 text-base font-black text-white shadow-lg active:scale-[0.98] transition-transform">Iniciar treino</button>
+              <button type="button" onClick={() => startWorkoutSession(suggestedWorkout.id)} className="mt-5 w-full rounded-2xl bg-lime-300 px-4 py-4 text-base font-black text-emerald-950 shadow-lg active:scale-[0.98] transition-transform">Iniciar treino</button>
             ) : (
-              <button type="button" onClick={() => setActiveTab('protocols')} className="mt-5 w-full rounded-2xl bg-orange-500 px-4 py-4 text-base font-black text-white">Escolher treino</button>
+              <button type="button" onClick={() => setActiveTab('protocols')} className="mt-5 w-full rounded-2xl bg-lime-300 px-4 py-4 text-base font-black text-emerald-950">Escolher treino</button>
             )}
           </div>
         </section>
@@ -720,7 +720,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           <section aria-label="Progresso semanal" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-xs font-black text-slate-800">Progresso semanal</p><p className="mt-1 text-[11px] leading-snug text-slate-500">Dias com treino concluído nesta semana</p>
             <div className="mt-3 flex items-center gap-3">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(#f97316 ${Math.min(100, weeklyCompleted / weeklyGoal * 100)}%, #e2e8f0 0)` }}>
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(#16a34a ${Math.min(100, weeklyCompleted / weeklyGoal * 100)}%, #e2e8f0 0)` }}>
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900">{Math.round(Math.min(100, weeklyCompleted / weeklyGoal * 100))}%</div>
               </div>
               <p className="text-xs font-bold leading-snug text-slate-600"><strong className="block text-lg text-slate-900">{Math.min(weeklyCompleted, weeklyGoal)} de {weeklyGoal}</strong> dias de treino</p>
@@ -740,235 +740,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         </nav>
 
 
-
-        {/* HERO ADAPTIVE ACTION CARD - NEXT ACTION */}
-        <AnimatePresence mode="wait">
-          {nextAction ? (
-            <motion.section 
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              className="mb-5 font-sans"
-            >
-              {nextAction.type === 'start_workout' || nextAction.type === 'resume' || nextAction.type === 'motivation' || nextAction.type === 'partial' ? (
-                <div className="w-full bg-white text-slate-900 rounded-[2rem] px-5 sm:pl-6 sm:pr-10 py-5 sm:py-6 shadow-sm relative overflow-hidden border border-slate-200/60 flex flex-col justify-between min-h-[140px]">
-                  <motion.div
-                    animate={{
-                      scale: [1, 1.15, 1],
-                      x: [0, 8, 0],
-                      y: [0, -8, 0]
-                    }}
-                    transition={{
-                      repeat: Infinity,
-                      duration: 12,
-                      ease: "easeInOut"
-                    }}
-                    className="absolute top-0 right-0 w-36 h-36 bg-[#7BA7FF]/[0.06] rounded-full blur-[35px] pointer-events-none"
-                  />
-
-                  <div className="relative z-10 w-full text-left space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-black uppercase tracking-wide text-[#7BA7FF] bg-[#7BA7FF]/10 border border-[#7BA7FF]/20 px-2.5 py-1 rounded-full shrink-0">
-                        {nextAction.type === 'resume' ? 'Retomar Treino'
-                          : nextAction.type === 'partial' ? 'Sessão Parcial'
-                          : 'Hoje Recomendado'}
-                      </span>
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-normal truncate">
-                        {folders.length > 0 ? (
-                          activeFolderId === 'uncategorized' ? 'Sem pasta' :
-                          activeFolderId === 'public_admin' ? 'Públicos do Admin' :
-                          activeFolderId ? `Protocolo: ${folders.find(f => f.id === activeFolderId)?.name || 'Outro'}` :
-                          'Protocolo Geral'
-                        ) : 'Rubi Active'}
-                      </span>
-                    </div>
-
-                    <h3 className="text-xl font-[1000] text-slate-900 tracking-tight leading-[1.1] uppercase max-w-[90%] text-left">
-                       {nextAction?.title}
-                    </h3>
-
-                    {nextAction?.description && (
-                      <p className="text-sm leading-relaxed text-slate-600 max-w-[95%] text-left font-semibold">
-                        {nextAction?.description}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* SCORE & CONSISTÊNCIA (movidos do bloco Métricas & Calendário para cá) */}
-                  <div className="grid grid-cols-2 gap-3 mt-4 relative z-10">
-                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                      <span className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Score Prontidão</span>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-black tracking-tight text-[#7BA7FF] tabular-nums">{readinessValue}%</span>
-                        <span className="text-[11px] font-semibold text-[#7BA7FF] uppercase select-none">neuro</span>
-                      </div>
-                      <div className="w-full bg-slate-200/60 h-1 rounded-full overflow-hidden mt-1.5">
-                        <div className="h-full bg-gradient-to-r from-[#7BA7FF] to-[#A5C8FF] rounded-full" style={{ width: `${readinessValue}%` }} />
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                      <span className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Consistência</span>
-                      {profile?.workout_streak && profile.workout_streak > 0 ? (
-                        <span className="text-sm font-black tracking-tight text-[#818CF8]">
-                          🔥 {profile.workout_streak} {profile.workout_streak === 1 ? 'dia' : 'dias'}
-                        </span>
-                      ) : (
-                        <span className="text-[12.5px] font-black tracking-tight text-slate-600">
-                          {(() => {
-                            const daysOfWeekEn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-                            const todayWdEn = daysOfWeekEn[new Date().getDay()];
-                            const isTodayPref = profile?.preferred_training_days?.includes(todayWdEn);
-                            if (isTodayPref) return "⚡ Ativo Hoje";
-                            return "💤 Em recuperação";
-                          })()}
-                        </span>
-                      )}
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <div className={`w-2 h-2 rounded-full ${profile?.workout_streak ? 'bg-emerald-400 animate-pulse' : 'bg-[#7BA7FF]/60'}`} />
-                        <span className="text-[8px] font-[1000] text-slate-500 uppercase tracking-wider truncate">
-                          {profile?.workout_streak && profile.workout_streak > 0 ? "Foco Ativo" : "Estratégia Rubi"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="w-full mt-4 pt-4 border-t border-slate-100 relative z-10">
-                    {nextAction.suggestedWorkoutName && (
-                      <p className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest mb-2 truncate">
-                        Sugestão de treino: <span className="text-slate-600">{nextAction.suggestedWorkoutName}</span>
-                      </p>
-                    )}
-                    <div className="w-full flex items-center justify-between gap-2 sm:gap-4">
-                      <div className="flex items-center gap-2 sm:gap-3.5 text-left pr-2">
-                        <div className="flex flex-col text-left">
-                          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Duração média</span>
-                          <span className="text-xs font-bold text-slate-700 leading-none">
-                            {suggestedWorkoutAvgDuration ? `${suggestedWorkoutAvgDuration} min` : '—'}
-                          </span>
-                        </div>
-                        <div className="w-px h-5 bg-slate-100" />
-                        <div className="flex flex-col text-left">
-                          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Exercícios</span>
-                          <span className="text-xs font-bold text-[#7BA7FF] leading-none">
-                            {suggestedWorkoutExercisesCount !== null ? suggestedWorkoutExercisesCount : '—'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {nextAction.suggestedWorkoutId && (
-                        <motion.button
-                          onClick={() => startWorkoutSession(nextAction.suggestedWorkoutId!)}
-                          onMouseEnter={() => handlePrefetchWorkout(nextAction.suggestedWorkoutId!)}
-                          whileHover={{ scale: 1.04 }}
-                          whileTap={{ scale: 0.98 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                          className="px-4 sm:px-5 py-3 sm:py-3 rounded-2xl min-h-11 text-[12px] sm:text-[13px] font-black uppercase text-center tracking-[0.1em] bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white hover:opacity-95 shadow-md shadow-[#7BA7FF]/15 cursor-pointer flex items-center gap-1.5 sm:gap-2 shrink-0 border-none"
-                        >
-                          <Play size={10} fill="#ffffff" className="text-white relative z-10" />
-                          <span>{nextAction.type === 'partial' ? 'Retomar Treino' : 'Iniciar Treino'}</span>
-                        </motion.button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* Rest / Recovery adaptive card */
-                <div className="w-full bg-white border border-slate-200/40 rounded-[2rem] px-5 sm:pl-6 sm:pr-10 py-6 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
-                  <div className="absolute right-[-5%] top-[-5%] w-32 h-32 bg-indigo-500/[0.03] rounded-full blur-[25px] pointer-events-none" />
-                  
-                  <div className="relative z-10 w-full text-left space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[7.5px] font-black uppercase tracking-[0.25em] text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full shrink-0">
-                        ☕ Dia de Descanso
-                      </span>
-                      <span className="text-[7.5px] font-[1000] text-slate-450 uppercase tracking-wider">
-                        KYRON OS Adaptativo
-                      </span>
-                    </div>
-                    
-                    <h3 className="text-xl font-[1000] text-slate-900 tracking-tight leading-[1.1] uppercase max-w-[90%] text-left">
-                      {nextAction?.title}
-                    </h3>
-                    
-                    {nextAction?.description && (
-                      <p className="text-sm leading-relaxed text-slate-600 max-w-[95%] text-left font-semibold">
-                        {nextAction?.description} {emotionalGuidance.text}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="w-full flex items-center justify-between gap-2 sm:gap-4 mt-5 pt-4 border-t border-slate-100 relative z-10">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                      {localizedDateStr}
-                    </p>
-                    <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-                      <button 
-                        onClick={() => navigate('dieta')}
-                        className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-[8.5px] sm:text-[9px] font-black uppercase text-slate-650 transition tracking-wider border border-slate-100 cursor-pointer"
-                      >
-                        Acessar Dieta
-                      </button>
-                      <button 
-                        onClick={() => {
-                          const workoutSection = document.getElementById('seus-protocolos-header');
-                          if (workoutSection) {
-                            workoutSection.scrollIntoView({ behavior: 'smooth' });
-                          }
-                        }}
-                        className="text-[8.5px] sm:text-[9.5px] font-[1000] uppercase text-[#7BA7FF] hover:text-[#5c8bee] tracking-wider transition cursor-pointer border-none bg-transparent"
-                      >
-                        Treinar Mesmo Assim
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </motion.section>
-          ) : (
-            /* First day EMPTY STATE */
-            workouts.length === 0 && (
-              <motion.section 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="mb-5 font-sans"
-              >
-                <div className="w-full bg-[#0F172A] bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#1E293B] text-white rounded-[2rem] pl-6 pr-10 py-8 shadow-xl relative overflow-hidden border border-slate-800 text-center space-y-4">
-                  <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 mx-auto border border-indigo-500/20">
-                    <Dumbbell size={20} />
-                  </div>
-                  <div>
-                    <span className="text-[7.5px] font-black px-2.5 py-1 rounded-full uppercase tracking-[0.2em] bg-[#7BA7FF]/10 border border-[#7BA7FF]/20 text-[#7BA7FF]">
-                      Bem-Vindo ao KYRON OS
-                    </span>
-                    <h3 className="text-lg font-[1000] text-white uppercase tracking-tight mt-3">
-                      Seu primeiro dia de performance
-                    </h3>
-                    <p className="text-[11.5px] text-slate-400 font-semibold mt-2 leading-relaxed max-w-sm mx-auto">
-                      Inicie o Onboarding Inteligente para estruturar seu primeiro protocolo adaptativo ou use a biblioteca de modelos prontos.
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2 pt-2 max-w-xs mx-auto">
-                    <button 
-                      onClick={() => navigate('onboarding')}
-                      className="w-full py-3.5 bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] hover:opacity-95 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-md shadow-[#7BA7FF]/15 cursor-pointer"
-                    >
-                      Iniciar Onboarding
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setActiveTab('premium');
-                      }}
-                      className="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-2xl font-black uppercase text-[9px] tracking-wider transition cursor-pointer"
-                    >
-                      Buscando Inspiração? Ver Modelos
-                    </button>
-                  </div>
-                </div>
-              </motion.section>
-            )
-          )}
-        </AnimatePresence>
 
         {/* NAVIGATION TAB CONTROLS */}
         <div className="flex bg-white/70 backdrop-blur-xl p-1 rounded-3xl border border-white/40 mb-6 shadow-sm">
