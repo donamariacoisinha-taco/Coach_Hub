@@ -3508,7 +3508,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'new' ? 'bg-orange-500 text-white' : 'text-slate-600'}`}>Novo</button>
       </div>
       {playerVariant === 'new' && currentEx && (
-        <section aria-label="Resumo do exercício atual" className="shrink-0 max-h-[54dvh] overflow-y-auto overscroll-contain bg-slate-950 text-white px-4 pt-12 pb-4 shadow-lg">
+        <section aria-label="Resumo do exercício atual" className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-slate-950 text-white px-4 pt-20 pb-8 shadow-lg">
           <div className="mx-auto max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-widest text-orange-300">Em execução · Exercício {currentIndex + 1} de {exercises.length}</p>
             <h2 className="mt-1 text-2xl font-black leading-tight">{currentEx.exercise_name}</h2>
@@ -3542,9 +3542,27 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               <span className="font-semibold text-slate-200">Descanso: <strong className="text-white">{isResting ? formatTime(Math.max(0, timeLeft)) : 'Pronto'}</strong></span>
               <span className="max-w-[52%] truncate text-right text-slate-300">{exercises[currentIndex + 1]?.exercise_name ? `Próximo: ${exercises[currentIndex + 1].exercise_name}` : 'Último exercício'}</span>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-label="Progresso das séries do exercício" aria-valuemin={0} aria-valuemax={activeSetsData.length || 1} aria-valuenow={Math.min(currentSet - 1, activeSetsData.length)}>
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-label="Progresso das séries do exercício" aria-valuemin={0} aria-valuemax={activeSetsData.length || 1} aria-valuenow={Math.min(currentSet - 1, activeSetsData.length)}>
               <div className="h-full rounded-full bg-orange-500 transition-all" style={{ width: `${activeSetsData.length ? Math.max(0, (currentSet - 1) / activeSetsData.length) * 100 : 0}%` }} />
             </div>
+            <div className="mt-5 rounded-2xl border border-white/15 bg-white/10 p-4" aria-label="Esforço da série atual">
+              <p className="text-[11px] font-black uppercase tracking-widest text-slate-300">Esforço percebido · RPE</p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {[8, 9, 10].map(value => (
+                  <button key={value} type="button" aria-pressed={Number(activeSetsData[currentSet - 1]?.rpe || 8) === value}
+                    onClick={() => updateSetData(currentSet - 1, 'rpe', value)}
+                    className={`h-12 rounded-xl text-lg font-black transition-colors ${Number(activeSetsData[currentSet - 1]?.rpe || 8) === value ? 'bg-orange-500 text-white' : 'bg-white/10 text-slate-200'}`}>
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button type="button" disabled={saving || isTransitioning}
+              onClick={isResting ? () => { if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete); } : handlePrimarySetAction}
+              className="mt-5 w-full min-h-16 rounded-2xl bg-orange-500 px-4 py-4 text-base font-black text-white disabled:opacity-50">
+              {saving ? 'SALVANDO...' : isResting ? (timeLeft <= 0 ? 'PRÓXIMA SÉRIE' : 'PULAR DESCANSO') : isWorkoutTerminal ? 'FINALIZAR TREINO' : 'CONCLUIR SÉRIE →'}
+            </button>
+            <button type="button" onClick={() => setShowExitModal(true)} className="mt-3 w-full rounded-xl border border-white/20 px-4 py-3 text-sm font-semibold text-slate-300">Sair ou encerrar treino</button>
           </div>
         </section>
       )}
@@ -3602,6 +3620,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       )}
 
 
+      {playerVariant === 'classic' && (
       <ScreenState
         status={queryStatus}
         isFetching={isFetching}
@@ -4814,6 +4833,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           </div>
         </motion.div>
       </ScreenState>
+      )}
 
       {/* OVERLAY DE LISTA DE EXERCÍCIOS / PAINEL DE PROTOCOLO ADAPTATIVO */}
       <AnimatePresence>
