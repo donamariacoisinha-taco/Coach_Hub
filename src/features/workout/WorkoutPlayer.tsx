@@ -3471,6 +3471,28 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               <span className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Série {currentSet} de {activeSetsData.length}</span>
               <span className="text-sm font-semibold text-slate-300">Tempo {formatTime(workoutDuration)}</span>
             </div>
+            <div className="mt-4 grid grid-cols-2 gap-3" aria-label="Controles rápidos da série atual">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-300">Carga · kg</p>
+                <div className="mt-2 flex items-center justify-between gap-1">
+                  <button type="button" aria-label="Reduzir carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Math.max(0, Number(activeSetsData[currentSet - 1]?.weight || 0) - 2))} className="h-11 w-11 rounded-xl bg-white/15 text-xl font-black text-white">−</button>
+                  <span className="text-2xl font-black tabular-nums">{activeSetsData[currentSet - 1]?.weight || 0}</span>
+                  <button type="button" aria-label="Aumentar carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Number(activeSetsData[currentSet - 1]?.weight || 0) + 2)} className="h-11 w-11 rounded-xl bg-orange-500 text-xl font-black text-white">+</button>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-300">Repetições</p>
+                <div className="mt-2 flex items-center justify-between gap-1">
+                  <button type="button" aria-label="Reduzir repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Math.max(0, Number(activeSetsData[currentSet - 1]?.reps || 0) - 1))} className="h-11 w-11 rounded-xl bg-white/15 text-xl font-black text-white">−</button>
+                  <span className="text-2xl font-black tabular-nums">{activeSetsData[currentSet - 1]?.reps || 0}</span>
+                  <button type="button" aria-label="Aumentar repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Number(activeSetsData[currentSet - 1]?.reps || 0) + 1)} className="h-11 w-11 rounded-xl bg-orange-500 text-xl font-black text-white">+</button>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-white/10 px-3 py-2 text-sm">
+              <span className="font-semibold text-slate-200">Descanso: <strong className="text-white">{isResting ? formatTime(Math.max(0, timeLeft)) : 'Pronto'}</strong></span>
+              <span className="max-w-[52%] truncate text-right text-slate-300">{exercises[currentIndex + 1]?.exercise_name ? `Próximo: ${exercises[currentIndex + 1].exercise_name}` : 'Último exercício'}</span>
+            </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-label="Progresso das séries do exercício" aria-valuemin={0} aria-valuemax={activeSetsData.length || 1} aria-valuenow={Math.min(currentSet - 1, activeSetsData.length)}>
               <div className="h-full rounded-full bg-orange-500 transition-all" style={{ width: `${activeSetsData.length ? Math.max(0, (currentSet - 1) / activeSetsData.length) * 100 : 0}%` }} />
             </div>
