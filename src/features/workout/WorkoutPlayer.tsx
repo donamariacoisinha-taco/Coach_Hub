@@ -236,7 +236,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`text-[10px] font-black tracking-widest mt-0.5 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
+                <p className={`text-[12px] font-black tracking-wide mt-1 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
                   {isBeginner ? 'Peso' : 'Kg'}
                 </p>
                 {/* DELTA WEIGHT */}
@@ -276,7 +276,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`text-[10px] font-black tracking-widest mt-0.5 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
+                <p className={`text-[12px] font-black tracking-wide mt-1 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
                   {isBeginner ? 'Repetições' : 'Reps'}
                 </p>
                 
@@ -518,6 +518,16 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const { openExercisePreview } = useExercisePreview();
   const { showError, showSuccess } = useErrorHandler();
   const workoutRootRef = useRef<HTMLDivElement>(null);
+  // Visual preference only: never changes workout session data or progression.
+  const [playerVariant, setPlayerVariant] = useState<'classic' | 'new'>(() => {
+    try { return localStorage.getItem('kyron:workout-player-variant') === 'new' ? 'new' : 'classic'; }
+    catch { return 'classic'; }
+  });
+  const changePlayerVariant = (variant: 'classic' | 'new') => {
+    setPlayerVariant(variant);
+    try { localStorage.setItem('kyron:workout-player-variant', variant); } catch { /* storage unavailable */ }
+  };
+
 
   // A workout is an editing session: contain overscroll so a downward gesture
   // cannot trigger a browser refresh and discard in-progress inputs.
@@ -3427,8 +3437,72 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     <div
       ref={workoutRootRef}
       data-workout-player="true"
+      data-player-variant={playerVariant}
       className="h-[100dvh] min-h-0 bg-[#F7F8FA] text-slate-900 flex flex-col font-sans overflow-hidden"
     >
+      {/* New visual mode is scoped to the player root; both modes share the same workout state and saving logic. */}
+      {playerVariant === 'new' && (
+        <style>{`
+          [data-workout-player][data-player-variant="new"] { background: #f0f4f8; }
+          [data-workout-player][data-player-variant="new"] .bg-white { background-color: #ffffff; }
+          [data-workout-player][data-player-variant="new"] .rounded-2xl { border-radius: 1.25rem; }
+          [data-workout-player][data-player-variant="new"] .border-slate-100 { border-color: #dbe4ed; }
+          [data-workout-player][data-player-variant="new"] .text-slate-400 { color: #64748b; }
+          [data-workout-player][data-player-variant="new"] { background: linear-gradient(160deg, #e7edf5, #f8fafc); }
+          [data-workout-player][data-player-variant="new"] .sticky.top-0 { display: none; }
+          [data-workout-player][data-player-variant="new"] input { font-size: 1.2rem; font-weight: 800; }
+          [data-workout-player][data-player-variant="new"] button { min-height: 40px; }
+          [data-workout-player][data-player-variant="new"] .space-y-2 > * { border-radius: 1.5rem; }
+                    [data-workout-player][data-player-variant="new"] [data-player-switch] { background: #102338; border-color: #29435c; box-shadow: 0 8px 28px rgba(15, 35, 55, .18); }
+          [data-workout-player][data-player-variant="new"] [data-player-switch] button[aria-pressed="false"] { color: #e2e8f0; }
+          [data-workout-player][data-player-variant="new"] [data-player-switch] button[aria-pressed="true"] { background: #f97316; color: white; }
+        `}</style>
+      )}
+      <div data-player-switch className="absolute top-2 right-3 z-[80] flex items-center gap-1 rounded-xl border border-slate-200 bg-white/95 p-1 shadow-sm" role="group" aria-label="Versão do player">
+        <button type="button" aria-pressed={playerVariant === 'classic'} onClick={() => changePlayerVariant('classic')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'classic' ? 'bg-slate-900 text-white' : 'text-slate-600'}`}>Clássico</button>
+        <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${playerVariant === 'new' ? 'bg-orange-500 text-white' : 'text-slate-600'}`}>Novo</button>
+      </div>
+      {playerVariant === 'new' && currentEx && (
+        <section aria-label="Resumo do exercício atual" className="shrink-0 max-h-[54dvh] overflow-y-auto overscroll-contain bg-slate-950 text-white px-4 pt-12 pb-4 shadow-lg">
+          <div className="mx-auto max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-widest text-orange-300">Em execução · Exercício {currentIndex + 1} de {exercises.length}</p>
+            <h2 className="mt-1 text-2xl font-black leading-tight">{currentEx.exercise_name}</h2>
+            <nav aria-label="Navegação das séries e exercícios" className="mt-3 flex items-center gap-2">
+              <button type="button" disabled={!canGoToPreviousSet()} onClick={goToPreviousSet} className="flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-3 text-sm font-extrabold text-white disabled:opacity-30">← Anterior</button>
+              <button type="button" disabled={!canGoToNextSet()} onClick={goToNextSet} className="flex-1 rounded-xl bg-orange-500 px-3 py-3 text-sm font-extrabold text-white disabled:opacity-30">Próxima →</button>
+            </nav>
+            <div className="mt-3 flex items-center justify-between gap-4">
+              <span className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Série {currentSet} de {activeSetsData.length}</span>
+              <span className="text-sm font-semibold text-slate-300">Tempo {formatTime(workoutDuration)}</span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3" aria-label="Controles rápidos da série atual">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-300">Carga · kg</p>
+                <div className="mt-2 flex items-center justify-between gap-1">
+                  <button type="button" aria-label="Reduzir carga em 2 kg" title="Diminuir carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Math.max(0, Number(activeSetsData[currentSet - 1]?.weight || 0) - 2))} className="h-11 w-11 rounded-xl bg-white/15 text-xl font-black text-white">−</button>
+                  <span className="text-2xl font-black tabular-nums">{activeSetsData[currentSet - 1]?.weight || 0}</span>
+                  <button type="button" aria-label="Aumentar carga em 2 kg" title="Aumentar carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Number(activeSetsData[currentSet - 1]?.weight || 0) + 2)} className="h-11 w-11 rounded-xl bg-orange-500 text-xl font-black text-white">+</button>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-300">Repetições</p>
+                <div className="mt-2 flex items-center justify-between gap-1">
+                  <button type="button" aria-label="Reduzir repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Math.max(0, Number(activeSetsData[currentSet - 1]?.reps || 0) - 1))} className="h-11 w-11 rounded-xl bg-white/15 text-xl font-black text-white">−</button>
+                  <span className="text-2xl font-black tabular-nums">{activeSetsData[currentSet - 1]?.reps || 0}</span>
+                  <button type="button" aria-label="Aumentar repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Number(activeSetsData[currentSet - 1]?.reps || 0) + 1)} className="h-11 w-11 rounded-xl bg-orange-500 text-xl font-black text-white">+</button>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-white/10 px-3 py-2 text-sm">
+              <span className="font-semibold text-slate-200">Descanso: <strong className="text-white">{isResting ? formatTime(Math.max(0, timeLeft)) : 'Pronto'}</strong></span>
+              <span className="max-w-[52%] truncate text-right text-slate-300">{exercises[currentIndex + 1]?.exercise_name ? `Próximo: ${exercises[currentIndex + 1].exercise_name}` : 'Último exercício'}</span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-label="Progresso das séries do exercício" aria-valuemin={0} aria-valuemax={activeSetsData.length || 1} aria-valuenow={Math.min(currentSet - 1, activeSetsData.length)}>
+              <div className="h-full rounded-full bg-orange-500 transition-all" style={{ width: `${activeSetsData.length ? Math.max(0, (currentSet - 1) / activeSetsData.length) * 100 : 0}%` }} />
+            </div>
+          </div>
+        </section>
+      )}
       {showRecoveryPrompt && recoverySession && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
@@ -3815,7 +3889,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     whileHover={{ opacity: 1 }}
                     className="mt-10 px-2 transition-all duration-300"
                   >
-                    <p className="text-[9.5px] font-[1000] text-slate-400 uppercase tracking-[0.15em] mb-3 text-center">Prepare-se: Próximo Exercício</p>
+                    <p className="text-[12px] font-black text-slate-600 uppercase tracking-wide mb-3 text-center">Prepare-se: Próximo Exercício</p>
                     <div className="flex items-center gap-4 bg-white/40 backdrop-blur-sm rounded-[2rem] p-4 border border-slate-100 shadow-sm">
                       <div 
                         onClick={() => {
@@ -5432,18 +5506,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   
                   <div className="grid grid-cols-2 gap-3 text-xs font-bold text-slate-700">
                     <div className="bg-white p-3 rounded-2xl border border-slate-100">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Séries</p>
+                      <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Séries</p>
                       <p className="text-sm font-black text-slate-800">{savePrompt.setsJson.length} séries</p>
                     </div>
                     
                     <div className="bg-white p-3 rounded-2xl border border-slate-100">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Descanso</p>
+                      <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Descanso</p>
                       <p className="text-sm font-black text-slate-800">{savePrompt.exObj?.rest_time || 60}s</p>
                     </div>
                   </div>
 
                   <div className="space-y-1.5 pt-1.5 border-t border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Detalhamento por Série:</p>
+                    <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-2">Detalhamento por Série:</p>
                     {savePrompt.setsJson.map((s, sIdx) => (
                       <div key={sIdx} className="flex justify-between items-center text-xs font-bold text-slate-755 bg-white/60 px-3 py-1.5 rounded-xl border border-slate-100/30">
                         <span className="text-slate-400 text-[10px] font-extrabold font-mono">SÉRIE {sIdx + 1}</span>
