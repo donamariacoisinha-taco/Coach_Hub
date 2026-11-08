@@ -3464,7 +3464,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             <p className="mt-1 text-xs text-slate-500">{currentEx?.exercise_name} · carga, repetições e esforço</p>
             {historyLoading ? <p className="py-6 text-sm text-slate-500">Carregando histórico...</p> : historyError ? <p className="py-6 text-sm text-red-600">Não foi possível consultar o histórico.</p> : (
               <div className="mt-4 space-y-2">
-                {threeSessionHistory.length === 0 && <p className="py-4 text-sm text-slate-500">Ainda não há treinos anteriores registrados.</p>}
+                {threeSessionHistory.length === 0 && <p className="py-4 text-sm text-slate-500">Nenhuma sessão anterior encontrada para este exercício.</p>}
+                {threeSessionHistory.length > 0 && threeSessionHistory.length < 3 && <p className="text-xs text-slate-500">Encontramos {threeSessionHistory.length} {threeSessionHistory.length === 1 ? 'sessão anterior' : 'sessões anteriores'} para este exercício. O histórico exibe até três sessões quando disponíveis.</p>}
                 {threeSessionHistory.map((session, index) => {
                   const recorded = session.sets.find(item => item.set_number === historySetNumber);
                   return <div key={session.history_id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
@@ -3886,7 +3887,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   return (
                     <div key={setData.id || `${currentIndex}_${idx}`} className="relative">
                       {playerVariant === 'classic' && !isGuestWorkout && (
-                        <button type="button" aria-label={`Ver histórico da série ${idx + 1}`} title="Últimos três treinos" onClick={() => openSeriesHistory(idx + 1)} className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-slate-400 shadow-sm hover:text-emerald-700">
+                        <button type="button" aria-label={`Ver histórico da série ${idx + 1}`} title="Últimos três treinos" onClick={() => openSeriesHistory(idx + 1)} className="absolute left-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
                           <Info size={15} aria-hidden="true" />
                         </button>
                       )}
