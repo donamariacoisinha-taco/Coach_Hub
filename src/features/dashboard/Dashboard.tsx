@@ -708,12 +708,12 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
                   <div className="relative z-10 w-full text-left space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-[7.5px] font-black uppercase tracking-[0.2em] text-[#7BA7FF] bg-[#7BA7FF]/10 border border-[#7BA7FF]/20 px-2.5 py-1 rounded-full shrink-0">
+                      <span className="text-[11px] font-black uppercase tracking-wide text-[#7BA7FF] bg-[#7BA7FF]/10 border border-[#7BA7FF]/20 px-2.5 py-1 rounded-full shrink-0">
                         {nextAction.type === 'resume' ? 'Retomar Treino'
                           : nextAction.type === 'partial' ? 'Sessão Parcial'
                           : 'Hoje Recomendado'}
                       </span>
-                      <span className="text-[7.5px] font-[1000] text-slate-400 uppercase tracking-wider truncate">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-normal truncate">
                         {folders.length > 0 ? (
                           activeFolderId === 'uncategorized' ? 'Sem pasta' :
                           activeFolderId === 'public_admin' ? 'Públicos do Admin' :
@@ -728,7 +728,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     </h3>
 
                     {nextAction.description && (
-                      <p className="text-[11.5px] leading-relaxed text-slate-500 max-w-[95%] text-left font-semibold">
+                      <p className="text-sm leading-relaxed text-slate-600 max-w-[95%] text-left font-semibold">
                         {nextAction.description}
                       </p>
                     )}
@@ -737,10 +737,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                   {/* SCORE & CONSISTÊNCIA (movidos do bloco Métricas & Calendário para cá) */}
                   <div className="grid grid-cols-2 gap-3 mt-4 relative z-10">
                     <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Score Prontidão</span>
+                      <span className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Score Prontidão</span>
                       <div className="flex items-baseline gap-1">
                         <span className="text-lg font-black tracking-tight text-[#7BA7FF] tabular-nums">{readinessValue}%</span>
-                        <span className="text-[8px] font-semibold text-[#7BA7FF] uppercase select-none">neuro</span>
+                        <span className="text-[11px] font-semibold text-[#7BA7FF] uppercase select-none">neuro</span>
                       </div>
                       <div className="w-full bg-slate-200/60 h-1 rounded-full overflow-hidden mt-1.5">
                         <div className="h-full bg-gradient-to-r from-[#7BA7FF] to-[#A5C8FF] rounded-full" style={{ width: `${readinessValue}%` }} />
@@ -748,7 +748,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     </div>
 
                     <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Consistência</span>
+                      <span className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1">Consistência</span>
                       {profile?.workout_streak && profile.workout_streak > 0 ? (
                         <span className="text-sm font-black tracking-tight text-[#818CF8]">
                           🔥 {profile.workout_streak} {profile.workout_streak === 1 ? 'dia' : 'dias'}
@@ -832,7 +832,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     </h3>
                     
                     {nextAction.description && (
-                      <p className="text-[11.5px] leading-relaxed text-slate-500 max-w-[95%] text-left font-semibold">
+                      <p className="text-sm leading-relaxed text-slate-600 max-w-[95%] text-left font-semibold">
                         {nextAction.description} {emotionalGuidance.text}
                       </p>
                     )}
@@ -914,21 +914,21 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         <div className="flex bg-white/70 backdrop-blur-xl p-1 rounded-3xl border border-white/40 mb-6 shadow-sm">
           <button 
             onClick={() => { setActiveTab('protocols'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 py-3 rounded-2xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'protocols' ? 'bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white shadow-md shadow-[#7BA7FF]/15' : 'text-slate-500 hover:text-slate-855'}`}
+            className={`flex-1 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-normal transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'protocols' ? 'bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white shadow-md shadow-[#7BA7FF]/15' : 'text-slate-500 hover:text-slate-855'}`}
           >
             <Dumbbell size={13} className={activeTab === 'protocols' ? 'text-white' : 'text-slate-400'} />
             Protocolos
           </button>
           <button 
             onClick={() => { setActiveTab('premium'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 pt-[11px] pb-3 px-3 h-[47px] rounded-2xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'premium' ? 'bg-gradient-to-r from-[#818CF8] to-[#9333EA] text-white shadow-md shadow-[#818CF8]/15' : 'text-slate-500 hover:text-slate-855'}`}
+            className={`flex-1 pt-[11px] pb-3 px-3 h-[47px] rounded-2xl text-[11px] font-bold uppercase tracking-normal transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'premium' ? 'bg-gradient-to-r from-[#818CF8] to-[#9333EA] text-white shadow-md shadow-[#818CF8]/15' : 'text-slate-500 hover:text-slate-855'}`}
           >
             <Crown size={12} className={activeTab === 'premium' ? 'text-white' : 'text-slate-400'} />
             Biblioteca Premium
           </button>
           <button 
             onClick={() => { setActiveTab('evolution'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 h-[47px] w-[127px] py-3 rounded-2xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'evolution' ? 'bg-gradient-to-r from-[#059669] to-[#10B981] text-white shadow-md shadow-emerald-500/15' : 'text-slate-500 hover:text-slate-855'}`}
+            className={`flex-1 h-[47px] w-[127px] py-3 rounded-2xl text-[11px] font-bold uppercase tracking-normal transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'evolution' ? 'bg-gradient-to-r from-[#059669] to-[#10B981] text-white shadow-md shadow-emerald-500/15' : 'text-slate-500 hover:text-slate-855'}`}
           >
             <Activity size={13} className={activeTab === 'evolution' ? 'text-white' : 'text-slate-400'} />
             Evolução
