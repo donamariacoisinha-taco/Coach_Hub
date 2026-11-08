@@ -550,8 +550,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           <div className="absolute -right-12 -top-16 h-48 w-48 rounded-full bg-orange-500/20 blur-3xl pointer-events-none" />
           <div className="relative">
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-orange-300">KYRON · TREINO DE HOJE</p>
-            <h2 className="mt-3 text-[27px] font-black leading-tight">{suggestedWorkout?.name || nextAction.title || 'Seu próximo treino'}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-300">{nextAction.description || 'Escolha seu próximo treino para continuar evoluindo.'}</p>
+            <h2 className="mt-3 text-[27px] font-black leading-tight">{suggestedWorkout?.name || nextAction?.title || 'Seu próximo treino'}</h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-300">{nextAction?.description || 'Escolha seu próximo treino para continuar evoluindo.'}</p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
               {suggestedWorkoutAvgDuration != null && <span className="rounded-xl bg-white/10 px-3 py-2">{suggestedWorkoutAvgDuration} min em média</span>}
               {suggestedWorkoutExercisesCount != null && <span className="rounded-xl bg-white/10 px-3 py-2">{suggestedWorkoutExercisesCount} exercícios</span>}
@@ -575,8 +575,8 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           </section>
           <section aria-label="Próxima recomendação" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-xs font-black text-slate-800">Próxima recomendação</p>
-            <p className="mt-3 text-sm font-extrabold leading-tight text-slate-900">{nextAction.title || 'Continue seu progresso'}</p>
-            <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-slate-500">{nextAction.description || 'Consulte os protocolos disponíveis.'}</p>
+            <p className="mt-3 text-sm font-extrabold leading-tight text-slate-900">{nextAction?.title || 'Continue seu progresso'}</p>
+            <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-slate-500">{nextAction?.description || 'Consulte os protocolos disponíveis.'}</p>
           </section>
         </div>
         <nav aria-label="Acessos rápidos" className="mb-7 grid grid-cols-4 gap-2">
@@ -773,12 +773,12 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     </div>
 
                     <h3 className="text-xl font-[1000] text-slate-900 tracking-tight leading-[1.1] uppercase max-w-[90%] text-left">
-                       {nextAction.title}
+                       {nextAction?.title}
                     </h3>
 
-                    {nextAction.description && (
+                    {nextAction?.description && (
                       <p className="text-sm leading-relaxed text-slate-600 max-w-[95%] text-left font-semibold">
-                        {nextAction.description}
+                        {nextAction?.description}
                       </p>
                     )}
                   </div>
@@ -877,12 +877,12 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                     </div>
                     
                     <h3 className="text-xl font-[1000] text-slate-900 tracking-tight leading-[1.1] uppercase max-w-[90%] text-left">
-                      {nextAction.title}
+                      {nextAction?.title}
                     </h3>
                     
-                    {nextAction.description && (
+                    {nextAction?.description && (
                       <p className="text-sm leading-relaxed text-slate-600 max-w-[95%] text-left font-semibold">
-                        {nextAction.description} {emotionalGuidance.text}
+                        {nextAction?.description} {emotionalGuidance.text}
                       </p>
                     )}
                   </div>
