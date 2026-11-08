@@ -3467,6 +3467,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           <div className="mx-auto max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-widest text-orange-300">Em execução · Exercício {currentIndex + 1} de {exercises.length}</p>
             <h2 className="mt-1 text-2xl font-black leading-tight">{currentEx.exercise_name}</h2>
+            <nav aria-label="Navegação das séries e exercícios" className="mt-3 flex items-center gap-2">
+              <button type="button" disabled={!canGoToPreviousSet()} onClick={goToPreviousSet} className="flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-3 text-sm font-extrabold text-white disabled:opacity-30">← Anterior</button>
+              <button type="button" disabled={!canGoToNextSet()} onClick={goToNextSet} className="flex-1 rounded-xl bg-orange-500 px-3 py-3 text-sm font-extrabold text-white disabled:opacity-30">Próxima →</button>
+            </nav>
             <div className="mt-3 flex items-center justify-between gap-4">
               <span className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Série {currentSet} de {activeSetsData.length}</span>
               <span className="text-sm font-semibold text-slate-300">Tempo {formatTime(workoutDuration)}</span>
