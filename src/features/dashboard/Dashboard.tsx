@@ -3,7 +3,7 @@ import { WorkoutCategory, UserProfile, WorkoutFolder, WorkoutHistory } from '../
 import { authApi, isGuestSession } from '../../lib/api/authApi';
 import { workoutApi } from '../../lib/api/workoutApi';
 import { useNavigation } from '../../App';
-import { MoreVertical, Plus, Flame, Play, Layers3, TrendingUp, FileText, UserRound, Edit2, Trash2, Dumbbell, Copy, Calendar, Award, Compass, Heart, FolderPlus, Globe, RefreshCw } from 'lucide-react';
+import { MoreVertical, Plus, Flame, Play, Layers3, TrendingUp, FileText, Edit2, Trash2, Dumbbell, Copy, Calendar, Award, Compass, Heart, FolderPlus, Globe, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScreenState } from '../../components/ui/ScreenState';
 import { DashboardSkeleton } from '../../components/ui/Skeleton';
