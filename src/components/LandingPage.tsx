@@ -19,7 +19,7 @@ import {
   WifiOff,
   Zap,
 } from 'lucide-react';
-import kyronLogo from '../assets/images/kyron_official_logo_1781087891387.png';
+const kyronLogo = '/icons/kyron-brand-wordmark.svg';
 
 interface LandingPageProps {
   onStart: () => void;

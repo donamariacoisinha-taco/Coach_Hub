@@ -555,7 +555,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       <div className="max-w-md mx-auto px-6 pt-12 relative z-10">
         
         <div className="mb-5 flex items-center justify-between border-b border-emerald-100 pb-4" aria-label="Identidade KYRON OS">
-          <span className="text-[28px] font-black italic tracking-[-0.06em] text-[#11612a]">KYRON<span className="ml-1 text-base not-italic tracking-tight">OS</span></span>
+          <img src="/icons/kyron-brand-wordmark.svg" alt="Kyron OS" className="h-10 w-auto max-w-[190px] object-contain" />
           <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-800">Sua evolução</span>
         </div>
 
