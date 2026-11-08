@@ -1,0 +1,18 @@
+{
+  "name": "KYRON OS",
+  "short_name": "KYRON OS",
+  "description": "Sistema de treino inteligente com execução de séries, progressão e acompanhamento de evolução.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#F8FAFC",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/kyron-icon.svg?v=2",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
