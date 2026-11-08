@@ -3887,7 +3887,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   return (
                     <div key={setData.id || `${currentIndex}_${idx}`} className="relative">
                       {playerVariant === 'classic' && !isGuestWorkout && (
-                        <button type="button" aria-label={`Ver histórico da série ${idx + 1}`} title="Últimos três treinos" onClick={() => openSeriesHistory(idx + 1)} className="absolute left-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
+                        <button type="button" aria-label={`Ver histórico da série ${idx + 1}`} title="Últimos três treinos" onClick={() => openSeriesHistory(idx + 1)} className="absolute left-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-transparent text-slate-500 hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
                           <Info size={15} aria-hidden="true" />
                         </button>
                       )}
