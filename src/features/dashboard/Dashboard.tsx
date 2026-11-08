@@ -547,12 +547,12 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       onClick={() => setActiveMenuId(null)}
     >
       {/* Ondas leves da identidade Kyron OS, decorativas e sem bloquear interação */}
-      <div className="absolute inset-x-0 top-0 h-[390px] pointer-events-none z-0 bg-[url('/brand/kyron-dashboard-waves.svg')] bg-top bg-cover bg-no-repeat" aria-hidden="true" />
+      <div className="absolute inset-x-0 top-0 h-[295px] opacity-80 pointer-events-none z-0 bg-[url('/brand/kyron-dashboard-waves.svg')] bg-top bg-cover bg-no-repeat" aria-hidden="true" />
 
       <div className="max-w-md mx-auto px-6 pt-12 relative z-10">
         
-        <div className="mb-5 flex items-center justify-between border-b border-blue-100 pb-4" aria-label="Identidade KYRON OS">
-          <img src="/icons/kyron-brand-wordmark.svg" alt="Kyron OS" className="h-10 w-auto max-w-[210px] object-contain" />
+        <div className="mb-5 flex items-center justify-between border-b border-blue-100/40 pb-4" aria-label="Identidade KYRON OS">
+          <img src="/icons/kyron-brand-wordmark.svg" alt="Kyron OS" className="h-10 w-auto max-w-[215px] object-contain" />
           <span className="rounded-full bg-blue-50/80 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#14558D]">Sua evolução</span>
         </div>
 
