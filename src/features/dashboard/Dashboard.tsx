@@ -3,7 +3,7 @@ import { WorkoutCategory, UserProfile, WorkoutFolder, WorkoutHistory } from '../
 import { authApi, isGuestSession } from '../../lib/api/authApi';
 import { workoutApi } from '../../lib/api/workoutApi';
 import { useNavigation } from '../../App';
-import { MoreVertical, Plus, Flame, Play, Edit2, Trash2, Dumbbell, Copy, Calendar, Award, Compass, Heart, FolderPlus, Globe, RefreshCw } from 'lucide-react';
+import { MoreVertical, Plus, Flame, Play, Layers3, TrendingUp, FileText, Edit2, Trash2, Dumbbell, Copy, Calendar, Award, Compass, Heart, FolderPlus, Globe, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScreenState } from '../../components/ui/ScreenState';
 import { DashboardSkeleton } from '../../components/ui/Skeleton';
@@ -733,13 +733,11 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           </section>
         </div>
         <nav aria-label="Acessos rápidos" className="mb-7 grid grid-cols-4 gap-2">
-          <button type="button" onClick={() => setActiveTab('protocols')} className="rounded-2xl bg-white px-1 py-3 text-[11px] font-extrabold text-slate-800 shadow-sm border border-slate-100">Protocolos</button>
-          <button type="button" onClick={() => setActiveTab('evolution')} className="rounded-2xl bg-white px-1 py-3 text-[11px] font-extrabold text-slate-800 shadow-sm border border-slate-100">Evolução</button>
-          <button type="button" onClick={() => setActiveTab('premium')} className="rounded-2xl bg-white px-1 py-3 text-[11px] font-extrabold text-slate-800 shadow-sm border border-slate-100">Premium</button>
-          <button type="button" onClick={() => navigate('profile')} className="rounded-2xl bg-white px-1 py-3 text-[11px] font-extrabold text-slate-800 shadow-sm border border-slate-100">Perfil</button>
+          <button type="button" onClick={() => setActiveTab('protocols')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-1 py-3 text-[11px] font-bold text-emerald-950 border border-emerald-100"><Layers3 size={23} strokeWidth={2.2} aria-hidden="true" />Protocolos</button>
+          <button type="button" onClick={() => setActiveTab('evolution')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-1 py-3 text-[11px] font-bold text-emerald-950 border border-emerald-100"><TrendingUp size={23} strokeWidth={2.2} aria-hidden="true" />Evolução</button>
+          <button type="button" onClick={() => setActiveTab('premium')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-1 py-3 text-[11px] font-bold text-amber-700 border border-emerald-100"><Crown size={23} strokeWidth={2.2} aria-hidden="true" />Premium</button>
+          <button type="button" onClick={() => setActiveTab('protocols')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-1 py-3 text-[11px] font-bold text-emerald-950 border border-emerald-100"><FileText size={23} strokeWidth={2.2} aria-hidden="true" />Fichas</button>
         </nav>
-
-
 
         {/* NAVIGATION TAB CONTROLS */}
         <div className="flex bg-white/70 backdrop-blur-xl p-1 rounded-3xl border border-white/40 mb-6 shadow-sm">
