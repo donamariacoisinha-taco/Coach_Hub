@@ -3500,9 +3500,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           [data-workout-player][data-player-variant="new"] .space-y-2 > * { border-radius: 1.5rem; }
         `}</style>
       )}
-      <div data-player-switch className="absolute top-2 right-3 z-[80] flex items-center gap-0.5 rounded-2xl border border-[#DCE6F3] bg-[#EDF4FD] p-1 shadow-[0_2px_10px_rgba(34,65,105,0.06)]" role="group" aria-label="Versão do player">
-        <button type="button" aria-pressed={playerVariant === 'classic'} onClick={() => changePlayerVariant('classic')} className={`min-h-9 rounded-xl px-3 text-xs font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7BA7FF] ${playerVariant === 'classic' ? 'bg-white text-[#24456D] shadow-sm' : 'text-[#6A7F99] hover:text-[#24456D]'}`}>Clássico</button>
-        <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`min-h-9 rounded-xl px-3 text-xs font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7BA7FF] ${playerVariant === 'new' ? 'bg-white text-[#24456D] shadow-sm' : 'text-[#6A7F99] hover:text-[#24456D]'}`}>Novo</button>
+      <div data-player-switch className="absolute top-2 right-3 z-[80] flex items-center gap-0.5 rounded-xl p-0.5" role="group" aria-label="Versão do player">
+        <button type="button" aria-pressed={playerVariant === 'classic'} onClick={() => changePlayerVariant('classic')} className={`min-h-9 rounded-lg px-2.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7BA7FF] ${playerVariant === 'classic' ? 'bg-slate-100/70 text-[#536A84]' : 'text-slate-400 hover:text-[#536A84]'}`}>Clássico</button>
+        <button type="button" aria-pressed={playerVariant === 'new'} onClick={() => changePlayerVariant('new')} className={`min-h-9 rounded-lg px-2.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7BA7FF] ${playerVariant === 'new' ? 'bg-slate-100/70 text-[#536A84]' : 'text-slate-400 hover:text-[#536A84]'}`}>Novo</button>
       </div>
       {playerVariant === 'new' && currentEx && (
         <section aria-label="Resumo do exercício atual" className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#F3F8FF] via-[#F7FAFF] to-white text-[#14253D] px-4 pt-20 pb-8">
