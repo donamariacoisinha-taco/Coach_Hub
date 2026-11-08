@@ -574,12 +574,12 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         </section>
         <div className="mb-4 grid grid-cols-2 gap-3">
           <section aria-label="Progresso semanal" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
-            <p className="text-xs font-black text-slate-800">Progresso semanal</p>
+            <p className="text-xs font-black text-slate-800">Progresso semanal</p><p className="mt-1 text-[11px] leading-snug text-slate-500">Dias com treino concluído nesta semana</p>
             <div className="mt-3 flex items-center gap-3">
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(#f97316 ${Math.min(100, weeklyCompleted / weeklyGoal * 100)}%, #e2e8f0 0)` }}>
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900">{Math.round(Math.min(100, weeklyCompleted / weeklyGoal * 100))}%</div>
               </div>
-              <p className="text-xs font-bold leading-snug text-slate-600"><strong className="block text-lg text-slate-900">{weeklyCompleted} de {weeklyGoal}</strong> treinos</p>
+              <p className="text-xs font-bold leading-snug text-slate-600"><strong className="block text-lg text-slate-900">{Math.min(weeklyCompleted, weeklyGoal)} de {weeklyGoal}</strong> dias de treino</p>
             </div>
           </section>
           <section aria-label="Próxima recomendação" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
