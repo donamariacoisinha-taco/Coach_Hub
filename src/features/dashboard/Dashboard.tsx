@@ -546,17 +546,14 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       className="min-h-screen bg-[#F8FAFC] text-slate-900 pb-32 relative overflow-hidden"
       onClick={() => setActiveMenuId(null)}
     >
-      {/* Dynamic atmospheric fluid background spots (Premium OS feeling) */}
-      <div className="absolute top-0 inset-x-0 h-[500px] pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[-10%] left-[5%] w-[380px] h-[380px] rounded-full bg-gradient-to-tr from-sky-200/20 to-indigo-300/25 blur-[100px] mix-blend-multiply animate-pulse" style={{ animationDuration: '8s' }} />
-        <div className="absolute top-[-5%] right-[5%] w-[340px] h-[340px] rounded-full bg-gradient-to-br from-purple-200/20 to-teal-100/30 blur-[90px] mix-blend-screen" />
-      </div>
+      {/* Ondas leves da identidade Kyron OS, decorativas e sem bloquear interação */}
+      <div className="absolute inset-x-0 top-0 h-[390px] pointer-events-none z-0 bg-[url('/brand/kyron-dashboard-waves.svg')] bg-top bg-cover bg-no-repeat" aria-hidden="true" />
 
       <div className="max-w-md mx-auto px-6 pt-12 relative z-10">
         
-        <div className="mb-5 flex items-center justify-between border-b border-emerald-100 pb-4" aria-label="Identidade KYRON OS">
-          <img src="/icons/kyron-brand-wordmark.svg" alt="Kyron OS" className="h-10 w-auto max-w-[190px] object-contain" />
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-800">Sua evolução</span>
+        <div className="mb-5 flex items-center justify-between border-b border-blue-100 pb-4" aria-label="Identidade KYRON OS">
+          <img src="/icons/kyron-brand-wordmark.svg" alt="Kyron OS" className="h-10 w-auto max-w-[210px] object-contain" />
+          <span className="rounded-full bg-blue-50/80 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#14558D]">Sua evolução</span>
         </div>
 
         {/* PREMIUM ADAPTIVE HEADER */}
@@ -571,7 +568,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} className="w-full h-full rounded-full object-cover" alt="Profile" referrerPolicy="no-referrer" />
                 ) : (
-                  <span className="text-lg font-black text-emerald-700">
+                  <span className="text-lg font-black text-blue-700">
                     {profile?.full_name?.charAt(0) || 'A'}
                   </span>
                 )}
@@ -589,7 +586,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                       return (
                         <p className="text-lg font-black text-slate-900 flex gap-1.5 leading-none tracking-tight">
                           <span>{parts[0]}</span>
-                          <span className="text-emerald-700 font-extrabold">{parts[1]}</span>
+                          <span className="text-blue-700 font-extrabold">{parts[1]}</span>
                         </p>
                       );
                     }
@@ -738,10 +735,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           </section>
         </div>
         <nav aria-label="Acessos rápidos" className="mb-7 grid grid-cols-4 gap-2">
-          <button type="button" onClick={() => setActiveTab('protocols')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-1 py-3 text-[11px] font-bold text-emerald-950 border border-emerald-100"><Layers3 size={23} strokeWidth={2.2} aria-hidden="true" />Protocolos</button>
-          <button type="button" onClick={() => setActiveTab('evolution')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-1 py-3 text-[11px] font-bold text-emerald-950 border border-emerald-100"><TrendingUp size={23} strokeWidth={2.2} aria-hidden="true" />Evolução</button>
-          <button type="button" onClick={() => setActiveTab('premium')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-1 py-3 text-[11px] font-bold text-amber-700 border border-emerald-100"><Crown size={23} strokeWidth={2.2} aria-hidden="true" />Premium</button>
-          <button type="button" onClick={() => setActiveTab('protocols')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-1 py-3 text-[11px] font-bold text-emerald-950 border border-emerald-100"><FileText size={23} strokeWidth={2.2} aria-hidden="true" />Fichas</button>
+          <button type="button" onClick={() => setActiveTab('protocols')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-blue-50 px-1 py-3 text-[11px] font-bold text-blue-950 border border-blue-100"><Layers3 size={23} strokeWidth={2.2} aria-hidden="true" />Protocolos</button>
+          <button type="button" onClick={() => setActiveTab('evolution')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-blue-50 px-1 py-3 text-[11px] font-bold text-blue-950 border border-blue-100"><TrendingUp size={23} strokeWidth={2.2} aria-hidden="true" />Evolução</button>
+          <button type="button" onClick={() => setActiveTab('premium')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-blue-50 px-1 py-3 text-[11px] font-bold text-amber-700 border border-blue-100"><Crown size={23} strokeWidth={2.2} aria-hidden="true" />Premium</button>
+          <button type="button" onClick={() => setActiveTab('protocols')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-blue-50 px-1 py-3 text-[11px] font-bold text-blue-950 border border-blue-100"><FileText size={23} strokeWidth={2.2} aria-hidden="true" />Fichas</button>
         </nav>
 
         {/* NAVIGATION TAB CONTROLS */}

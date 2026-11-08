@@ -37,7 +37,7 @@ export const NavItem: React.FC<NavItemProps> = ({
         <Icon
           size={18}
           className={`transition-all duration-400 ${
-            isActive ? 'text-[#7BA7FF] scale-110 drop-shadow-[0_2px_8px_rgba(123,167,255,0.3)]' : 'text-slate-400 group-hover:text-slate-600 group-active:scale-95'
+            isActive ? 'text-[#1673E9] scale-110 drop-shadow-[0_2px_8px_rgba(22,115,233,0.24)]' : 'text-slate-400 group-hover:text-slate-600 group-active:scale-95'
           }`}
         />
         {badge && (
@@ -50,7 +50,7 @@ export const NavItem: React.FC<NavItemProps> = ({
       {showLabel && label && (
         <span
           className={`text-[7px] sm:text-[8px] font-black uppercase tracking-tight min-[370px]:tracking-wider sm:tracking-[0.2em] mt-1 transition-colors leading-none truncate max-w-[48px] min-[370px]:max-w-[64px] text-center ${
-            isActive ? 'text-[#7BA7FF]' : 'text-slate-400 group-hover:text-slate-600'
+            isActive ? 'text-[#1673E9]' : 'text-slate-400 group-hover:text-slate-600'
           }`}
         >
           {label}
@@ -60,7 +60,7 @@ export const NavItem: React.FC<NavItemProps> = ({
       {isActive && (
         <motion.div
           layoutId="nav-dot"
-          className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#7BA7FF] rounded-full"
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#1673E9] rounded-full"
         />
       )}
     </button>
