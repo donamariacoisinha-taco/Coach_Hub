@@ -537,6 +537,29 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
       <div className="max-w-md mx-auto px-6 pt-12 relative z-10">
         
+        {/* Dev Excellence: immediately visible, mobile-first dashboard identity */}
+        <section aria-label="Visão geral do treino" className="mb-6 overflow-hidden rounded-[28px] bg-slate-950 p-5 text-white shadow-[0_18px_45px_rgba(15,23,42,0.22)] relative">
+          <div aria-hidden="true" className="pointer-events-none absolute -right-14 -top-16 h-48 w-48 rounded-full bg-orange-500/20 blur-3xl" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.22em] text-orange-300">KYRON / PERFORMANCE</span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold text-slate-100">Meu painel</span>
+            </div>
+            <h2 className="mt-4 text-[28px] font-black leading-[1.1] tracking-tight">Seu próximo treino começa aqui.</h2>
+            <p className="mt-2 max-w-[29ch] text-sm leading-relaxed text-slate-300">Acompanhe sua evolução e mantenha o ritmo, um treino de cada vez.</p>
+            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 p-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-lg font-black text-white" aria-hidden="true">%</div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-300">Indicador de prontidão</p>
+                <p className="text-xl font-black tabular-nums text-white">{readinessValue}%</p>
+              </div>
+              <div className="h-2 w-16 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-label="Prontidão estimada" aria-valuenow={readinessValue} aria-valuemin={0} aria-valuemax={100}>
+                <div className="h-full rounded-full bg-orange-400" style={{ width: `${readinessValue}%` }} />
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* PREMIUM ADAPTIVE HEADER */}
         <header className="mb-6">
           <div className="flex items-center justify-between gap-4">
