@@ -1,4 +1,5 @@
 import { WorkoutHistory } from '../../types';
+import { alignFlatColumns } from './planColumns';
 
 export interface SessionInitResult {
   historyId: string;
@@ -67,15 +68,21 @@ export const workoutEngine = {
   },
 
   prepareSavePayload(exercises: any[], categoryId: string) {
-    return exercises.map((exercise, index) => ({
-      category_id: categoryId,
-      exercise_id: exercise.exercise_id,
-      exercise_name_snapshot: exercise.exercise_name,
-      sets: exercise.sets_json?.length || 3,
-      sets_json: exercise.sets_json,
-      sort_order: index + 1,
-      superset_id: exercise.superset_id,
-      is_optional: exercise.is_optional || false,
-    }));
+    return exercises.map((exercise, index) => {
+      const aligned = alignFlatColumns(exercise);
+      return {
+        category_id: categoryId,
+        exercise_id: exercise.exercise_id,
+        exercise_name_snapshot: exercise.exercise_name,
+        sets: aligned.sets || exercise.sets_json?.length || exercise.sets || 3,
+        reps: aligned.reps,
+        weight: aligned.weight,
+        rest_time: aligned.rest_time,
+        sets_json: exercise.sets_json,
+        sort_order: index + 1,
+        superset_id: exercise.superset_id,
+        is_optional: exercise.is_optional || false,
+      };
+    });
   },
 };

@@ -1,6 +1,32 @@
 import { describe, expect, it, vi } from 'vitest';
 import { workoutEngine } from './workoutEngine';
 
+describe('workoutEngine.prepareSavePayload', () => {
+  it('grava reps, descanso, carga e quantidade a partir de sets_json', () => {
+    const [supino, extensora] = workoutEngine.prepareSavePayload([
+      {
+        exercise_id: 'supino',
+        exercise_name: 'Supino',
+        reps: '12',
+        rest_time: 60,
+        weight: 0,
+        sets: 3,
+        sets_json: [{ reps: '8', weight: 20, rest_time: 90 }],
+      },
+      {
+        exercise_id: 'extensora',
+        exercise_name: 'Extensora',
+        reps: '12',
+        rest_time: 60,
+        sets_json: [{ reps: '10', weight: 15, rest_time: 60 }],
+      },
+    ], 'ficha-1');
+
+    expect(supino).toMatchObject({ reps: '8', rest_time: 90, weight: 20, sets: 1, category_id: 'ficha-1' });
+    expect(extensora).toMatchObject({ reps: '10', rest_time: 60, weight: 15, sets: 1 });
+  });
+});
+
 describe('workoutEngine.initializeSession', () => {
   it('resumes a valid partial session', () => {
     const result = workoutEngine.initializeSession({

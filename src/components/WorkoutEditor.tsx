@@ -31,6 +31,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { workoutEngine } from '../domain/workout/workoutEngine';
+import { readPlanSummary } from '../domain/workout/planColumns';
 import { cacheStore } from '../lib/cache/cacheStore';
 import { ekeService } from '../domain/eke/ekeService';
 import { Goal, ExperienceLevel } from '../types';
@@ -83,6 +84,7 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
   };
 
   const isNew = lastAddedId === ex.tempId;
+  const planSummary = readPlanSummary(ex);
   const dragControls = useDragControls();
 
   const handleMoveUp = () => {
@@ -209,9 +211,9 @@ const SortableExerciseItem: React.FC<SortableItemProps & {
             
             {/* Metadata with subtle separation dots */}
             <p className="text-sm text-slate-500 font-semibold mt-1.5 flex items-center gap-2">
-              <span>{ex.sets_json?.length || ex.sets || 3} { (ex.sets_json?.length || ex.sets || 3) === 1 ? 'série' : 'séries' }</span>
+              <span>{planSummary.sets || ex.sets || 3} { (planSummary.sets || ex.sets || 3) === 1 ? 'série' : 'séries' }</span>
               <span className="text-slate-300 font-normal">•</span>
-              <span>{ex.sets_json?.[0]?.reps || ex.reps || '12'} reps</span>
+              <span>{planSummary.reps} reps</span>
             </p>
           </div>
         </div>

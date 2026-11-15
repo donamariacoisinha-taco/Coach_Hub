@@ -46,6 +46,8 @@ import {
 import { useNavigation } from '../App';
 import { useExercisePreview } from '../context/ExercisePreviewContext';
 import { workoutApi } from '../lib/api/workoutApi';
+import { workoutEngine } from '../domain/workout/workoutEngine';
+import { readPlanSummary } from '../domain/workout/planColumns';
 import { exerciseApi } from '../lib/api/exerciseApi';
 import { authApi } from '../lib/api/authApi';
 import { cacheStore } from '../lib/cache/cacheStore';
@@ -183,9 +185,10 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
   const isNext = idx === 1;
 
   // Single line metrics row configuration
-  const setsCount = ex.sets_json?.length || ex.sets || 3;
-  const repsPattern = ex.reps || '12';
-  const weightPattern = ex.weight ? `${ex.weight} kg` : '0 kg';
+  const summary = readPlanSummary(ex);
+  const setsCount = summary.sets || ex.sets || 3;
+  const repsPattern = summary.reps;
+  const weightPattern = summary.weight ? `${summary.weight} kg` : '0 kg';
   const metricsText = `${setsCount} ${setsCount === 1 ? 'série' : 'séries'} • ${repsPattern} reps • ${weightPattern}`;
 
   // Smart placeholder when dragging the original element
@@ -544,22 +547,18 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
       }
 
       if (nextList.length > 0) {
-        const preparedPayload = nextList.map((ex, i) => ({
-          category_id: workoutId,
-          exercise_id: ex.exercise_id,
-          exercise_name_snapshot: ex.exercise_name,
-          sets: ex.sets_json?.length || ex.sets || 3,
-          sets_json: ex.sets_json || Array.from({ length: ex.sets || 3 }).map(() => ({
-            reps: ex.reps || '10',
-            weight: ex.weight || 0,
-            rest_time: ex.rest_time || 60,
-            type: SetType.NORMAL
-          })),
-          sort_order: i + 1,
-          superset_id: ex.superset_id || null,
-          is_optional: ex.is_optional || false,
+        const normalized = nextList.map((ex) => ({
+          ...ex,
+          sets_json: ex.sets_json?.length
+            ? ex.sets_json
+            : Array.from({ length: ex.sets || 3 }).map(() => ({
+              reps: ex.reps || '10',
+              weight: ex.weight || 0,
+              rest_time: ex.rest_time || 60,
+              type: SetType.NORMAL,
+            })),
         }));
-        await workoutApi.replaceWorkoutExercises(workoutId, preparedPayload);
+        await workoutApi.replaceWorkoutExercises(workoutId, workoutEngine.prepareSavePayload(normalized, workoutId));
       } else {
         // Lista vazia é intencional (usuário removeu todos os exercícios da ficha)
         await workoutApi.deleteExercisesByCategory(workoutId);
@@ -940,10 +939,11 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   const handleEditSetsReps = useCallback((idx: number) => {
     const ex = exercises[idx];
     setEditingSetsIndex(idx);
-    setEditingSetsCount(ex.sets_json?.length || ex.sets || 3);
-    setEditingRepsPattern(ex.reps || '10');
-    setEditingWeight(ex.weight || 0);
-    setEditingRestTime(ex.rest_time || 60);
+    const summary = readPlanSummary(ex);
+    setEditingSetsCount(summary.sets || ex.sets || 3);
+    setEditingRepsPattern(summary.reps || '10');
+    setEditingWeight(summary.weight || 0);
+    setEditingRestTime(summary.rest_time ?? 60);
   }, [exercises]);
 
   // Save detailed sets configuration

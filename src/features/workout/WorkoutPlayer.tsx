@@ -67,6 +67,7 @@ import { buildExerciseFilterGroups } from "../../lib/exercises/exerciseFilters";
 
 import { editAndReplicate, replicateCompletedSet } from "../../lib/exercisePrescriptions";
 import { canWritePartialSession, createSetIdentityStore, prefillSetsFromLast } from "../../domain/workout/setPersistence";
+import { readPlanSummary } from "../../domain/workout/planColumns";
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
@@ -1968,14 +1969,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const liveExercise = storeExercises[exerciseIndex] || currentEx;
 
     if (delta !== 0 && liveExercise) {
-      const currentBaseRest = Number(liveExercise.rest_time || 60);
+      const firstUpcomingSetIndex = Math.max(0, currentSetRef.current);
+      const upcomingSet = liveExercise.sets_json?.[firstUpcomingSetIndex] ?? liveExercise.sets_json?.[0];
+      const currentBaseRest = Number(upcomingSet?.rest_time ?? liveExercise.rest_time ?? 60);
       const nextBaseRest = Math.max(10, Math.min(600, currentBaseRest + delta));
       const appliedDelta = nextBaseRest - currentBaseRest;
 
       if (appliedDelta !== 0) {
         // While resting after set N, currentSet is still N (1-based). Therefore
         // zero-based indexes >= currentSet are upcoming sets.
-        const firstUpcomingSetIndex = Math.max(0, currentSetRef.current);
 
         setActiveSetsData(prev => prev.map((set, idx) =>
           idx >= firstUpcomingSetIndex ? { ...set, rest_time: nextBaseRest } : set
@@ -2401,7 +2403,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         sets: setsData.length,
         weight: Number(firstSet.weight),
         reps: String(firstSet.reps),
-        rest_time: Number(exObj.rest_time || 60),
+        rest_time: Number(setsJsonList[0]?.rest_time ?? exObj.rest_time ?? 60),
         default_rpe: Number(firstSet.rpe || 8),
         sets_json: setsJsonList
       };
@@ -3335,10 +3337,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       // 1. Process active exercises in their new sequence
       for (let index = 0; index < exercises.length; index++) {
         const ex = exercises[index];
-        const numSets = ex.sets_json?.length || ex.sets || 3;
-        const targetReps = ex.reps?.toString() || "10";
-        const targetWeight = typeof ex.weight === 'string' ? parseFloat(ex.weight) : (ex.weight || 0);
-        const targetRest = ex.sets_json?.[0]?.rest_time ?? ex.rest_time ?? 60;
+        const planSummary = readPlanSummary(ex);
+        const numSets = planSummary.sets || ex.sets || 3;
+        const targetReps = planSummary.reps || "10";
+        const targetWeight = planSummary.weight || 0;
+        const targetRest = planSummary.rest_time ?? 60;
 
         // Resolve individual, non-uniform sets_json. Executed data wins only
         // for sets that were actually completed; untouched sets keep their target.
