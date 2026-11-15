@@ -12,13 +12,16 @@ interface SaveSetData {
   reps_achieved: number;
   rpe: number;
   set_type: SetType;
+  client_id?: string;
+  rest_time?: number | null;
+  rest_time_actual?: number | null;
 }
 
 const isDev = typeof import.meta !== 'undefined' ? import.meta.env.DEV : process.env.NODE_ENV === 'development';
 
 export const saveSet = async (data: SaveSetData): Promise<{ success: boolean, client_id: string }> => {
-  // 1. Generate unique client_id for idempotency
-  const client_id = crypto.randomUUID();
+  // Reuse the caller's id so a retry or the final save updates the same row.
+  const client_id = data.client_id || crypto.randomUUID();
 
   // Ensure user_id is present for RLS
   let user_id = data.user_id;
@@ -31,7 +34,6 @@ export const saveSet = async (data: SaveSetData): Promise<{ success: boolean, cl
     ...data,
     user_id,
     client_id,
-    created_at: new Date().toISOString()
   };
 
   if (isDev) console.log(`[saveSet] Attempting to save set: ${data.exercise_id} (client_id: ${client_id})`);
