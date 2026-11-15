@@ -544,8 +544,6 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
       }
 
       if (nextList.length > 0) {
-        // Insere a nova lista ANTES de apagar a antiga: se o insert falhar, a
-        // ficha existente no banco continua intacta em vez de ficar vazia.
         const preparedPayload = nextList.map((ex, i) => ({
           category_id: workoutId,
           exercise_id: ex.exercise_id,
@@ -558,10 +556,10 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
             type: SetType.NORMAL
           })),
           sort_order: i + 1,
-          superset_id: ex.superset_id || null
+          superset_id: ex.superset_id || null,
+          is_optional: ex.is_optional || false,
         }));
-        const insertedIds = await workoutApi.insertWorkoutExercises(preparedPayload);
-        await workoutApi.deleteExercisesByCategoryExcept(workoutId, insertedIds);
+        await workoutApi.replaceWorkoutExercises(workoutId, preparedPayload);
       } else {
         // Lista vazia é intencional (usuário removeu todos os exercícios da ficha)
         await workoutApi.deleteExercisesByCategory(workoutId);

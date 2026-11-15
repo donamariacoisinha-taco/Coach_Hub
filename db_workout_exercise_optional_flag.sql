@@ -3,9 +3,9 @@
 -- ser considerada completa no WorkoutPlayer.
 --
 -- Aplicar manualmente no Supabase (não há supabase/migrations/ neste repo).
--- O código já tolera a coluna ausente: insertWorkoutExercises detecta o erro
--- de coluna desconhecida e reenvia sem ela, então nada quebra antes deste
--- SQL ser aplicado — o campo só fica indisponível para usuários autenticados
--- até então (o modo convidado não depende de coluna nenhuma).
+-- O app tolera a coluna ausente: o erro do PostgREST
+-- "Could not find the 'is_optional' column" tira só essa coluna e tenta de novo.
+-- A versão que vale para aplicar, junto com a troca transacional da lista, está em
+-- supabase/migrations/20261115140000_workout_exercise_optional_and_replace.sql.
 ALTER TABLE public.workout_exercises
 ADD COLUMN IF NOT EXISTS is_optional BOOLEAN DEFAULT false;
