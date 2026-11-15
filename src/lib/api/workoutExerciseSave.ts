@@ -61,3 +61,74 @@ export function planKeptIds(expectedCount: number, returnedIds: Array<string | n
     reason: 'A gravação não confirmou todos os exercícios. A ficha anterior foi mantida.',
   };
 }
+
+const CAPABILITY_KEYS = {
+  replaceRpc: 'kyron_cap_replace_workout_exercises',
+  isOptional: 'kyron_cap_workout_exercises_is_optional',
+} as const;
+
+type CapabilityName = keyof typeof CAPABILITY_KEYS;
+
+const capabilityMemory: Record<CapabilityName, boolean | null> = {
+  replaceRpc: null,
+  isOptional: null,
+};
+
+function capabilityStorage(): Storage | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    return localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** null = ainda não sabemos. false = a primeira tentativa já falhou. */
+export function readCapability(name: CapabilityName): boolean | null {
+  if (capabilityMemory[name] !== null) return capabilityMemory[name];
+  const stored = capabilityStorage()?.getItem(CAPABILITY_KEYS[name]);
+  if (stored === '0' || stored === '1') {
+    capabilityMemory[name] = stored === '1';
+    return capabilityMemory[name];
+  }
+  return null;
+}
+
+export function rememberCapability(name: CapabilityName, available: boolean): void {
+  capabilityMemory[name] = available;
+  try {
+    capabilityStorage()?.setItem(CAPABILITY_KEYS[name], available ? '1' : '0');
+  } catch {
+    // A memória da sessão já evita a próxima tentativa nesta aba.
+  }
+}
+
+export function resetCapabilitiesForTests(): void {
+  capabilityMemory.replaceRpc = null;
+  capabilityMemory.isOptional = null;
+}
+
+export function isReplaceRpcMissing(): boolean {
+  return readCapability('replaceRpc') === false;
+}
+
+export function omitUnavailableOptionalFlag<T extends Record<string, unknown>>(rows: T[]): T[] {
+  if (readCapability('isOptional') !== false) return rows;
+  return withoutColumn(rows, 'is_optional');
+}
+
+const EXERCISE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Lista vazia ou id estranho não pode virar filtro que apaga a ficha inteira. */
+export function quoteExerciseIds(ids: string[]): string {
+  if (ids.length === 0) {
+    throw new Error('Não vou apagar a ficha sem a lista nova completa.');
+  }
+  const quoted = ids.map((id) => {
+    if (!EXERCISE_ID.test(id)) {
+      throw new Error('Identificador de exercício inválido. A ficha anterior foi mantida.');
+    }
+    return `"${id}"`;
+  });
+  return `(${quoted.join(',')})`;
+}

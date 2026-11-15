@@ -5,8 +5,9 @@ import { fetchWithRetry } from '../utils';
 import { exerciseApi } from './exerciseApi';
 import { getGuestDashboard, getGuestWorkout, deleteGuestWorkout, updateGuestSessionSet } from '../guest/guestPersistence';
 import { authApi, GUEST_USER_ID } from './authApi';
-import { isIncompleteSave, missingInsertColumn, planInsertRetry, planKeptIds, withoutColumn } from './workoutExerciseSave';
+import { isIncompleteSave, isReplaceRpcMissing, missingInsertColumn, omitUnavailableOptionalFlag, planInsertRetry, planKeptIds, quoteExerciseIds, rememberCapability, withoutColumn } from './workoutExerciseSave';
 import { restSecondsFromLog } from '../../domain/workout/setPersistence';
+import { alignFlatColumns } from '../../domain/workout/planColumns';
 
 let progressionTableMissing = false;
 
@@ -808,33 +809,37 @@ export const workoutApi = {
     if (error) throw error;
   },
 
-  // Apaga as linhas antigas só quando cada exercício novo devolveu id.
-  // Lista vazia não é "apague tudo": isso apagou fichas inteiras quando o insert falhou.
-  async deleteExercisesByCategoryExcept(categoryId: string, keepIds: string[]) {
-    const plan = planKeptIds(keepIds.length, keepIds);
-    if (isIncompleteSave(plan)) {
-      throw new Error(plan.reason);
-    }
+  // Apaga as linhas antigas só quando o insert devolveu exatamente a lista nova.
+  // expectedCount vem do que pedimos para gravar, não do tamanho de keepIds:
+  // comparar a lista com ela mesma deixava um filtro vazio apagar a ficha.
+  async deleteExercisesByCategoryExcept(categoryId: string, keepIds: string[], expectedCount: number) {
+    const plan = planKeptIds(expectedCount, keepIds);
+    if (isIncompleteSave(plan)) throw new Error(plan.reason);
+    const idList = quoteExerciseIds(plan.keepIds);
     const { error } = await supabase
       .from('workout_exercises')
       .delete()
       .eq('category_id', categoryId)
-      .not('id', 'in', `(${plan.keepIds.join(',')})`);
+      .not('id', 'in', idList);
     if (error) throw error;
   },
 
   async insertWorkoutExercises(exercises: any[]): Promise<string[]> {
-    let currentExercises = exercises.map((row) => ({ ...row }));
+    let currentExercises = omitUnavailableOptionalFlag(exercises.map((row) => alignFlatColumns({ ...row })));
     const stripped = new Set<string>();
 
     while (true) {
       const { data, error } = await supabase.from('workout_exercises').insert(currentExercises).select('id');
-      if (!error) return (data || []).map((row: any) => row.id);
+      if (!error) {
+        if (currentExercises[0] && 'is_optional' in currentExercises[0]) rememberCapability('isOptional', true);
+        return (data || []).map((row: any) => row.id);
+      }
 
       const message = error.message || '';
       const retry = planInsertRetry(message, currentExercises[0], stripped);
       if (retry.action === 'fail') throw error;
 
+      if (retry.column === 'is_optional') rememberCapability('isOptional', false);
       stripped.add(retry.column);
       currentExercises = withoutColumn(currentExercises, retry.column);
     }
@@ -846,32 +851,40 @@ export const workoutApi = {
       throw new Error('A ficha precisa de pelo menos um exercício para substituir a lista.');
     }
 
-    const rpc = await supabase.rpc('replace_workout_exercises', {
-      p_category_id: categoryId,
-      p_rows: exercises,
-    });
-    if (!rpc.error) {
-      const ids = Array.isArray(rpc.data) ? rpc.data.map((id: unknown) => String(id)) : [];
-      const plan = planKeptIds(exercises.length, ids);
-      if (isIncompleteSave(plan)) throw new Error(plan.reason);
-      return plan.keepIds;
+    const aligned = exercises.map((row) => alignFlatColumns({ ...row }));
+
+    if (!isReplaceRpcMissing()) {
+      const rpc = await supabase.rpc('replace_workout_exercises', {
+        p_category_id: categoryId,
+        p_rows: aligned,
+      });
+      if (!rpc.error) {
+        rememberCapability('replaceRpc', true);
+        const ids = Array.isArray(rpc.data) ? rpc.data.map((id: unknown) => String(id)) : [];
+        const plan = planKeptIds(aligned.length, ids);
+        if (isIncompleteSave(plan)) throw new Error(plan.reason);
+        return plan.keepIds;
+      }
+
+      const message = rpc.error.message || '';
+      const status = Number((rpc.error as { status?: number }).status ?? (rpc.error as { statusCode?: number }).statusCode);
+      const missingRpc = rpc.error.code === 'PGRST202'
+        || status === 404
+        || /could not find the function/i.test(message)
+        || /function .* does not exist/i.test(message);
+      if (!missingRpc) throw rpc.error;
+      rememberCapability('replaceRpc', false);
     }
 
-    const message = rpc.error.message || '';
-    const missingRpc = rpc.error.code === 'PGRST202'
-      || /could not find the function/i.test(message)
-      || /function .* does not exist/i.test(message);
-    if (!missingRpc) throw rpc.error;
-
-    const insertedIds = await this.insertWorkoutExercises(exercises);
-    const plan = planKeptIds(exercises.length, insertedIds);
+    const insertedIds = await this.insertWorkoutExercises(aligned);
+    const plan = planKeptIds(aligned.length, insertedIds);
     if (isIncompleteSave(plan)) {
       if (plan.rollbackIds.length > 0) {
         await supabase.from('workout_exercises').delete().in('id', plan.rollbackIds);
       }
       throw new Error(plan.reason);
     }
-    await this.deleteExercisesByCategoryExcept(categoryId, plan.keepIds);
+    await this.deleteExercisesByCategoryExcept(categoryId, plan.keepIds, aligned.length);
     return plan.keepIds;
   },
 

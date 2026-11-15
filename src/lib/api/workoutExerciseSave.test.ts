@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   missingInsertColumn,
+  omitUnavailableOptionalFlag,
   planInsertRetry,
   planKeptIds,
+  quoteExerciseIds,
+  readCapability,
+  rememberCapability,
+  resetCapabilitiesForTests,
   withoutColumn,
 } from './workoutExerciseSave';
 
@@ -37,5 +42,33 @@ describe('workout exercise save', () => {
     });
     expect(planKeptIds(2, ['new-1'])).toMatchObject({ ok: false, rollbackIds: ['new-1'] });
     expect(planKeptIds(2, ['new-1', 'new-2'])).toEqual({ ok: true, keepIds: ['new-1', 'new-2'] });
+  });
+
+  it('não monta filtro de delete com lista vazia ou id que não é uuid', () => {
+    expect(() => quoteExerciseIds([])).toThrow('lista nova completa');
+    expect(() => quoteExerciseIds(['não-é-uuid'])).toThrow('ficha anterior foi mantida');
+    expect(quoteExerciseIds(['11111111-1111-4111-8111-111111111111'])).toBe('("11111111-1111-4111-8111-111111111111")');
+  });
+});
+
+describe('capacidade gravada da ficha', () => {
+  beforeEach(() => {
+    resetCapabilitiesForTests();
+    const values = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+      clear: () => values.clear(),
+    });
+  });
+
+  it('lembra que a função e a coluna is_optional não existem, inclusive depois de reabrir a memória', () => {
+    rememberCapability('replaceRpc', false);
+    rememberCapability('isOptional', false);
+    resetCapabilitiesForTests();
+    expect(readCapability('replaceRpc')).toBe(false);
+    expect(readCapability('isOptional')).toBe(false);
+    expect(omitUnavailableOptionalFlag([{ category_id: 'c', is_optional: false }])).toEqual([{ category_id: 'c' }]);
   });
 });
