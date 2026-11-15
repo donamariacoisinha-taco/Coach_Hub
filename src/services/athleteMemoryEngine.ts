@@ -1,4 +1,5 @@
 import { supabase } from '../lib/api/supabase';
+import { isMissingRelationError, isRelationMissing, markRelationMissing } from '../lib/api/missingRelation';
 import { AthleteMemory, ExercisePerformanceMemory, WorkoutHistory, ExperienceLevel } from '../types';
 
 const isDev = typeof import.meta !== 'undefined' ? import.meta.env.DEV : process.env.NODE_ENV === 'development';
@@ -9,8 +10,15 @@ let athleteMemoryWarningShown = false;
 let performanceMemoryWarningShown = false;
 
 const isMissingTableError = (error: any) => {
+  if (isMissingRelationError(error)) return true;
   const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
   return error?.status === 404 || error?.code === '42P01' || error?.code === 'PGRST205' || message.includes('does not exist') || message.includes('not found');
+};
+
+const rememberMissing = (name: 'athlete_memory' | 'exercise_performance_memory') => {
+  markRelationMissing(name);
+  if (name === 'athlete_memory') athleteMemoryRemoteAvailable = false;
+  else performanceMemoryRemoteAvailable = false;
 };
 
 const warnOnce = (kind: 'athlete' | 'performance', error: any) => {
@@ -108,7 +116,7 @@ export const athleteMemoryEngine = {
       } catch (e) {}
     }
 
-    if (athleteMemoryRemoteAvailable !== false) {
+    if (athleteMemoryRemoteAvailable !== false && !isRelationMissing('athlete_memory')) {
       try {
         const { data, error } = await supabase
           .from('athlete_memory')
@@ -118,7 +126,7 @@ export const athleteMemoryEngine = {
 
         if (error) {
           if (isMissingTableError(error)) {
-            athleteMemoryRemoteAvailable = false;
+            rememberMissing('athlete_memory');
             warnOnce('athlete', error);
           } else {
             throw error;
@@ -132,7 +140,7 @@ export const athleteMemoryEngine = {
         }
       } catch (dbError) {
         if (isMissingTableError(dbError)) {
-          athleteMemoryRemoteAvailable = false;
+          rememberMissing('athlete_memory');
           warnOnce('athlete', dbError);
         } else {
           console.warn('[MemoryEngine] athlete_memory query failed, using local fallback.', dbError);
@@ -149,7 +157,7 @@ export const athleteMemoryEngine = {
     const userId = memory.user_id;
     localStorage.setItem(`coach_rubi_mem_${userId}`, JSON.stringify(memory));
 
-    if (athleteMemoryRemoteAvailable === false) return;
+    if (athleteMemoryRemoteAvailable === false || isRelationMissing('athlete_memory')) return;
 
     try {
       const { error } = await supabase
@@ -158,7 +166,7 @@ export const athleteMemoryEngine = {
 
       if (error) {
         if (isMissingTableError(error)) {
-          athleteMemoryRemoteAvailable = false;
+          rememberMissing('athlete_memory');
           warnOnce('athlete', error);
         } else {
           console.warn('[MemoryEngine] Supabase memory upsert failed, continuing offline.', error.message);
@@ -168,7 +176,7 @@ export const athleteMemoryEngine = {
       }
     } catch (dbError) {
       if (isMissingTableError(dbError)) {
-        athleteMemoryRemoteAvailable = false;
+        rememberMissing('athlete_memory');
         warnOnce('athlete', dbError);
       }
     }
@@ -286,7 +294,7 @@ export const athleteMemoryEngine = {
       } catch (e) {}
     }
 
-    if (performanceMemoryRemoteAvailable === false) return null;
+    if (performanceMemoryRemoteAvailable === false || isRelationMissing('exercise_performance_memory')) return null;
 
     try {
       const { data, error } = await supabase
@@ -298,7 +306,7 @@ export const athleteMemoryEngine = {
 
       if (error) {
         if (isMissingTableError(error)) {
-          performanceMemoryRemoteAvailable = false;
+          rememberMissing('exercise_performance_memory');
           warnOnce('performance', error);
         } else {
           throw error;
@@ -312,7 +320,7 @@ export const athleteMemoryEngine = {
       }
     } catch (e) {
       if (isMissingTableError(e)) {
-        performanceMemoryRemoteAvailable = false;
+        rememberMissing('exercise_performance_memory');
         warnOnce('performance', e);
       } else {
         console.warn('[MemoryEngine] exercise_performance_memory query failed, using local fallback.', e);
@@ -361,12 +369,12 @@ export const athleteMemoryEngine = {
     const localKey = `coach_rubi_perf_${userId}_${exerciseId}`;
     localStorage.setItem(localKey, JSON.stringify(current));
 
-    if (performanceMemoryRemoteAvailable !== false) {
+    if (performanceMemoryRemoteAvailable !== false && !isRelationMissing('exercise_performance_memory')) {
       try {
         const { error } = await supabase.from('exercise_performance_memory').upsert(current);
         if (error) {
           if (isMissingTableError(error)) {
-            performanceMemoryRemoteAvailable = false;
+            rememberMissing('exercise_performance_memory');
             warnOnce('performance', error);
           } else {
             console.warn('[MemoryEngine] exercise performance upsert failed, continuing locally.', error.message);
@@ -376,7 +384,7 @@ export const athleteMemoryEngine = {
         }
       } catch (e) {
         if (isMissingTableError(e)) {
-          performanceMemoryRemoteAvailable = false;
+          rememberMissing('exercise_performance_memory');
           warnOnce('performance', e);
         }
       }
