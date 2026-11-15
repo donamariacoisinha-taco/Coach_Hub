@@ -1,0 +1,9 @@
+# Keep Android binaries out of text conversion. A UTF-8 rewrite replaces
+# PNG and JAR bytes with U+FFFD and the resource compiler then rejects them.
+android/**/*.png binary
+android/**/*.jpg binary
+android/**/*.jpeg binary
+android/**/*.webp binary
+android/**/*.jar binary
+*.jks binary
+*.keystore binary

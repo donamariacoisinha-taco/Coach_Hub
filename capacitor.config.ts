@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.coach.digital.adaptativo',
-  appName: 'Coach Digital Adaptativo',
+  appId: 'uno.kyron.app',
+  appName: 'KYRON OS',
   webDir: 'dist',
   server: {
     androidScheme: 'https'

@@ -1,14 +1,34 @@
 apply plugin: 'com.android.application'
 
+def envOrProp = { String name ->
+    def fromEnv = System.getenv(name)
+    if (fromEnv?.trim()) {
+        return fromEnv.trim()
+    }
+    if (project.hasProperty(name)) {
+        def value = project.property(name)?.toString()
+        if (value?.trim()) {
+            return value.trim()
+        }
+    }
+    return null
+}
+
+def releaseKeystorePath = envOrProp("ANDROID_KEYSTORE_PATH")
+def releaseKeystorePassword = envOrProp("ANDROID_KEYSTORE_PASSWORD")
+def releaseKeyAlias = envOrProp("ANDROID_KEY_ALIAS")
+def releaseKeyPassword = envOrProp("ANDROID_KEY_PASSWORD")
+def hasReleaseKeystore = releaseKeystorePath && releaseKeystorePassword && releaseKeyAlias && releaseKeyPassword
+
 android {
-    namespace = "com.coach.digital.adaptativo"
+    namespace = "uno.kyron.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.coach.digital.adaptativo"
+        applicationId "uno.kyron.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +36,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            release {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseKeystorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
@@ -51,4 +84,26 @@ try {
     }
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+
+def stripServerFromWebAssets = tasks.register("stripServerFromWebAssets") {
+    doLast {
+        def publicDir = file("src/main/assets/public")
+        if (!publicDir.directory) {
+            return
+        }
+        publicDir.eachFileRecurse { candidate ->
+            if (!candidate.file) {
+                return
+            }
+            def name = candidate.name
+            if (name == "server.mjs" || name == "server.cjs" || name.endsWith(".map")) {
+                candidate.delete()
+            }
+        }
+    }
+}
+
+afterEvaluate {
+    preBuild.dependsOn stripServerFromWebAssets
 }
