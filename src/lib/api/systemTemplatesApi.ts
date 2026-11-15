@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { isMissingRelationError, isRelationMissing, markRelationMissing, shareInflight } from './missingRelation';
 import { workoutApi } from './workoutApi';
 import { SetConfig, WorkoutCategory, WorkoutExercise, WorkoutFolder } from '../../types';
 
@@ -299,10 +300,16 @@ class SystemTemplatesApi {
   }
 
   async getTemplates(): Promise<SystemTemplate[]> {
+    if (isRelationMissing('system_templates')) return this.getLocalTemplates();
+    return shareInflight('system-templates', () => this.loadTemplates());
+  }
+
+  async loadTemplates(): Promise<SystemTemplate[]> {
     try {
       const { data, error } = await supabase.from('system_templates').select('*');
       if (error) {
-        if (error.message?.includes('Could not find the table') || error.code === 'PGRST204') {
+        if (isMissingRelationError(error) || error.message?.includes('Could not find the table') || error.code === 'PGRST204' || error.code === 'PGRST205') {
+          markRelationMissing('system_templates');
           console.warn('[SystemTemplatesApi] Table system_templates doesnt exist. Falling back to local state.');
           return this.getLocalTemplates();
         }
@@ -312,6 +319,7 @@ class SystemTemplatesApi {
         return data as SystemTemplate[];
       }
     } catch (e) {
+      if (isMissingRelationError(e)) markRelationMissing('system_templates');
       console.warn('[SystemTemplatesApi] Database query failed or table does not exist. Using high-fidelity local state cache.', e);
     }
     return this.getLocalTemplates();
@@ -326,7 +334,8 @@ class SystemTemplatesApi {
     try {
       const { data, error } = await supabase.from('system_templates').upsert(template).select().single();
       if (error) {
-        if (error.message?.includes('Could not find the table') || error.code === 'PGRST204') {
+        if (isMissingRelationError(error) || error.message?.includes('Could not find the table') || error.code === 'PGRST204' || error.code === 'PGRST205') {
+          markRelationMissing('system_templates');
           console.warn('[SystemTemplatesApi] Table system_templates doesnt exist. Persisting in local state.');
         } else {
           throw error;

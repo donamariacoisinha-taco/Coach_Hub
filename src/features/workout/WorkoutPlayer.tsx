@@ -68,6 +68,7 @@ import { buildExerciseFilterGroups } from "../../lib/exercises/exerciseFilters";
 import { editAndReplicate, replicateCompletedSet } from "../../lib/exercisePrescriptions";
 import { canWritePartialSession, createSetIdentityStore, prefillSetsFromLast } from "../../domain/workout/setPersistence";
 import { readPlanSummary } from "../../domain/workout/planColumns";
+import { confirmedSetIndexes, saveChoiceWritesPlan, volumeKg } from "../../domain/workout/sessionRecord";
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
@@ -518,6 +519,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const isGuestWorkout = workoutId.startsWith('guest-workout-');
   const sessionClosedRef = useRef(false);
   const setIdsRef = useRef(createSetIdentityStore());
+  const confirmedSetsRef = useRef<Record<number, number[]>>({});
   const { navigate, goBack } = useNavigation();
   const { openExercisePreview } = useExercisePreview();
   const { showError, showSuccess } = useErrorHandler();
@@ -2289,18 +2291,26 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     let completedSetsCount = 0;
     let rpeSum = 0;
     let highestWeight = 0;
+    const performance = { ...workoutPerformance, [currentIndex]: activeSetsData };
+    const confirmed = {
+      ...completedSetsByExercise,
+      [currentIndex]: confirmedSetIndexes(completedSetIndices, activeSetsData.length),
+    };
 
-    Object.entries(workoutPerformance).forEach(([exIdx, sets]: [string, any]) => {
-      if (Array.isArray(sets)) {
-        sets.forEach((set: any) => {
-          if (set.weight && set.reps) {
-            totalVolume += set.weight * set.reps;
-            completedSetsCount++;
-            rpeSum += set.rpe || 8;
-            if (set.weight > highestWeight) highestWeight = set.weight;
-          }
-        });
-      }
+    Object.entries(performance).forEach(([exIdx, sets]: [string, any]) => {
+      if (!Array.isArray(sets)) return;
+      const done = new Set(confirmed[Number(exIdx)] || []);
+      sets.forEach((set: any, setIndex: number) => {
+        if (!done.has(setIndex)) return;
+        const weight = Number(set.weight);
+        const reps = Number(set.reps);
+        if (weight > 0 && reps > 0) {
+          totalVolume += weight * reps;
+          completedSetsCount++;
+          rpeSum += Number(set.rpe) || 8;
+          if (weight > highestWeight) highestWeight = weight;
+        }
+      });
     });
 
     const averageRpe = completedSetsCount > 0 ? (rpeSum / completedSetsCount).toFixed(1) : "0.0";
@@ -2310,7 +2320,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       completedCount: completedSetsCount,
       overload: highestWeight > 0 ? "+2.5%" : "Estável"
     };
-  }, [workoutPerformance]);
+  }, [workoutPerformance, activeSetsData, completedSetIndices, completedSetsByExercise, currentIndex]);
 
   const sessionDiff = useMemo(
     () => computeSessionExerciseDiff(originalExercises, exercises),
@@ -2417,6 +2427,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     if (!currentEx || !historyId || isTransitioning || isAdvancingRef.current || isWorkoutComplete) return;
     
     log("[ADVANCE_WORKOUT] Start", { completedIdx });
+    const exerciseBeingCompleted = currentIndexRef.current;
+    const alreadyConfirmed = confirmedSetsRef.current[exerciseBeingCompleted] || [];
+    if (!alreadyConfirmed.includes(completedIdx)) {
+      confirmedSetsRef.current = {
+        ...confirmedSetsRef.current,
+        [exerciseBeingCompleted]: [...alreadyConfirmed, completedIdx],
+      };
+    }
     isAdvancingRef.current = true;
     setIsTransitioning(true);
 
@@ -3003,17 +3021,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       if (!ex) return;
       
       const sets = setsUntyped as {weight: number, reps: number, rpe: number}[];
-      const completedForExercise = new Set<number>([
+      const completedForExercise = new Set(confirmedSetIndexes([
+        ...(confirmedSetsRef.current[exIdx] || []),
         ...Array.from<number>(completedSetsByExercise[exIdx] || new Set<number>()),
-        ...(exIdx === currentIndex ? Array.from<number>(completedSetIndices) : [])
-      ]);
-
-      // At the terminal exercise the last React state update can still be in
-      // flight. Reaching the terminal state itself proves all runtime sets in
-      // the current exercise were completed.
-      if (exIdx === currentIndex && currentSet >= sets.length && currentIndex >= exercises.length - 1) {
-        sets.forEach((_, idx) => completedForExercise.add(idx));
-      }
+        ...(exIdx === currentIndex ? Array.from<number>(completedSetIndices) : []),
+      ], sets.length));
 
       const completedPerformance: { set: {weight: number, reps: number, rpe: number}, setIdx: number }[] = [];
       sets.forEach((set, setIdx) => {
@@ -3283,20 +3295,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             throw error;
           }
         }
-      } else {
-        const rows = finalExercises.filter((_, index) =>
-          !canReplaceBeforeFirstSet(index, currentIndex, completedSetsByExercise, completedSetIndices, pendingSetToComplete))
-          .map(exercise => ({ exercise_id: exercise.exercise_id, sets_json: exercise.sets_json }));
-        removedExecution.current.forEach(({ exercise, sets }) => rows.push({
-          exercise_id: exercise.exercise_id,
-          sets_json: sets.map(({ set_number, ...set }: any) => ({ ...set,
-            reps: String(set.reps), rest_time: set.rest_time ?? exercise.rest_time ?? 60 })),
-        }));
-        if (isGuestWorkout) {
-          updateGuestWorkoutExercises(workoutId, finalExercises);
-        } else {
-          await workoutApi.savePlanExerciseTargets(workoutId, rows);
-        }
+      } else if (saveChoiceWritesPlan(destination)) {
+        throw new Error('Esta opção não altera a ficha.');
       }
       cacheStore.clearPrefix('workout_init_');
       cacheStore.clearPrefix('dashboard_');
@@ -3308,7 +3308,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setShowEvolutionModal(false);
       setIsWorkoutComplete(true);
       setIsFinished(true);
-      showSuccess(destination === 'new' ? 'Nova ficha criada. A original foi preservada.' : 'Dados dos exercícios salvos. A ficha foi preservada.');
+      showSuccess(destination === 'new' ? 'Nova ficha criada. A original foi preservada.' : 'Histórico salvo. A ficha continua igual.');
     } catch (error) { showError(error); }
     finally { setSaving(false); }
   };
@@ -3657,6 +3657,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           historyId={historyId!} 
           duration={finalDurationMinutes ?? Math.max(1, Math.round(workoutDuration / 60))}
           exercisesCount={exercises.length}
+          knownVolume={liveTelemetry.volume}
           partial={finalWasPartial}
           onDone={() => { resetWorkout(); navigate('dashboard'); }}
           onReturn={() => setIsFinished(false)}
@@ -5555,8 +5556,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   <button onClick={() => handleSaveSeparateDestination('new')} disabled={saving || !newWorkoutName.trim()}
                     className="w-full py-3 rounded-2xl bg-violet-50 text-violet-700 font-bold text-xs">Salvar como nova ficha</button>
                   <button onClick={() => handleSaveSeparateDestination('data')} disabled={saving}
-                    className="w-full py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs">Salvar apenas dados dos exercícios</button>
-                  <p className="text-[11px] text-slate-500">Somente dados: guarda séries, cargas, repetições, esforço e descanso sem alterar a ficha. Nova ficha: mantém a original.</p>
+                    className="w-full py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs">Só o histórico, sem mudar a ficha</button>
+                  <p className="text-[11px] text-slate-500">Essa opção não altera a ficha. As séries que você concluiu já estão no histórico. Atualizar ficha muda o plano. Nova ficha cria outra e mantém esta.</p>
                   <button onClick={() => handleDiscardTemplateEvolution()}
                     disabled={saving}
                     className="w-full py-4 bg-white border border-slate-100 hover:bg-slate-50 text-slate-400 hover:text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center"

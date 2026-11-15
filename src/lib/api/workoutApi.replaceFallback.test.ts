@@ -71,19 +71,19 @@ describe('troca da ficha sem a migration', () => {
     });
   });
 
-  it('na primeira vez descobre o 404 e o 400; na seguinte não repete e grava as colunas do sets_json', async () => {
+  it('não envia is_optional, grava as colunas do sets_json e não repete a função ausente', async () => {
     await workoutApi.replaceWorkoutExercises('ficha-1', rows);
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(inserts[0]?.[0]).toHaveProperty('is_optional');
-    const saved = inserts.at(-1)!;
-    expect(saved[0]).toMatchObject({ reps: '8', rest_time: 90, weight: 20, sets: 1 });
-    expect(saved[1]).toMatchObject({ reps: '10', rest_time: 75, weight: 15 });
-    expect(saved.some((row) => 'is_optional' in row)).toBe(false);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]?.[0]).not.toHaveProperty('is_optional');
+    expect(inserts[0]?.[0]).toMatchObject({ reps: '8', rest_time: 90, weight: 20, sets: 1 });
+    expect(inserts[0]?.[1]).toMatchObject({ reps: '10', rest_time: 75, weight: 15 });
     expect(categoryDeletes).toEqual(['("11111111-1111-4111-8111-111111111110","11111111-1111-4111-8111-111111111111")']);
 
     await workoutApi.replaceWorkoutExercises('ficha-1', rows);
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(inserts.filter((batch) => batch.some((row) => 'is_optional' in row))).toHaveLength(1);
+    expect(inserts).toHaveLength(2);
+    expect(inserts.every((batch) => batch.every((row) => !('is_optional' in row)))).toBe(true);
   });
 
   it('insert incompleto não apaga a lista anterior', async () => {

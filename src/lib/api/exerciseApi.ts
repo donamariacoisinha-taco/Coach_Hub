@@ -12,6 +12,7 @@ import {
   getExerciseFilterSide,
   normalizeExerciseFilterText,
 } from '../exercises/exerciseFilters';
+import { isMissingRelationError, isRelationMissing, markRelationMissing, shareInflight } from './missingRelation';
 
 const CACHE_KEY = 'rubi_exercises_offline_cache';
 
@@ -81,21 +82,33 @@ function getFallbackMuscleGroups(): MuscleGroup[] {
   });
 }
 
+let qualityMapCache: Map<string, { score: number; status: string }> | null = null;
+
 async function getTechnicalQualityMap(): Promise<Map<string, { score: number; status: string }>> {
-  try {
-    const { data, error } = await supabase
-      .from('exercise_quality_assessments')
-      .select('exercise_id,total_score,status');
-    if (error) return new Map();
-    return new Map(
-      (data || []).map((row: any) => [
-        row.exercise_id,
-        { score: Number(row.total_score) || 0, status: String(row.status || '') },
-      ]),
-    );
-  } catch {
-    return new Map();
-  }
+  if (isRelationMissing('exercise_quality_assessments')) return new Map();
+  if (qualityMapCache) return qualityMapCache;
+  return shareInflight('exercise-quality', async () => {
+    if (qualityMapCache) return qualityMapCache;
+    try {
+      const { data, error } = await supabase
+        .from('exercise_quality_assessments')
+        .select('exercise_id,total_score,status');
+      if (error) {
+        if (isMissingRelationError(error)) markRelationMissing('exercise_quality_assessments');
+        return new Map();
+      }
+      qualityMapCache = new Map(
+        (data || []).map((row: any) => [
+          row.exercise_id,
+          { score: Number(row.total_score) || 0, status: String(row.status || '') },
+        ]),
+      );
+      return qualityMapCache;
+    } catch (error) {
+      if (isMissingRelationError(error)) markRelationMissing('exercise_quality_assessments');
+      return new Map();
+    }
+  });
 }
 
 function enrichAndRankExercises(data: any[], qualityMap: Map<string, { score: number; status: string }>): Exercise[] {
@@ -121,8 +134,20 @@ function enrichAndRankExercises(data: any[], qualityMap: Map<string, { score: nu
   return normalizedExercises as Exercise[];
 }
 
+let exerciseCatalogInflight: Promise<Exercise[]> | null = null;
+let exerciseCatalogCached: { at: number; data: Exercise[] } | null = null;
+
 export const exerciseApi = {
   async getExercises() {
+    if (exerciseCatalogCached && Date.now() - exerciseCatalogCached.at < 30000) return exerciseCatalogCached.data;
+    if (exerciseCatalogInflight) return exerciseCatalogInflight;
+    exerciseCatalogInflight = this.loadExercises().finally(() => {
+      exerciseCatalogInflight = null;
+    });
+    return exerciseCatalogInflight;
+  },
+
+  async loadExercises() {
     try {
       return await fetchWithRetry(async () => {
         let response = await supabase.from('exercises').select('*').order('name');
@@ -147,6 +172,7 @@ export const exerciseApi = {
         const normalizedExercises = enrichAndRankExercises(data, qualityMap);
 
         setLocalCache(normalizedExercises);
+        exerciseCatalogCached = { at: Date.now(), data: normalizedExercises };
 
         if (import.meta.env.DEV) {
           console.log(`[ExerciseApi] Exercícios carregados com sucesso online: ${normalizedExercises.length} registros.`);

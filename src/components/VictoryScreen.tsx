@@ -19,12 +19,13 @@ interface VictoryScreenProps {
   historyId: string;
   duration: number;
   exercisesCount: number;
+  knownVolume?: number;
   partial?: boolean;
   onDone?: () => void;
   onReturn?: () => void;
 }
 
-export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duration, exercisesCount, partial = false, onDone, onReturn }) => {
+export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duration, exercisesCount, knownVolume = 0, partial = false, onDone, onReturn }) => {
   const { navigate } = useNavigation();
   const [totalVolume, setTotalVolume] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -57,8 +58,8 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
           workoutApi.getWorkoutHistory(user.id)
         ]);
         
-        const volume = logs.reduce((acc: any, curr: any) => acc + (curr.weight_achieved * curr.reps_achieved), 0);
-        setTotalVolume(volume);
+        const volume = logs.reduce((acc: number, curr: any) => acc + (Number(curr.weight_achieved) * Number(curr.reps_achieved) || 0), 0);
+        setTotalVolume(volume > 0 ? volume : knownVolume);
 
         // 2. Streak
         const currentStreak = calculateStreak(history.map((h: any) => h.completed_at));
@@ -109,7 +110,7 @@ export const VictoryScreen: React.FC<VictoryScreenProps> = ({ historyId, duratio
       }
     }
     loadStats();
-  }, [historyId]);
+  }, [historyId, knownVolume]);
 
   return (
     <div className="fixed inset-0 z-[2000] bg-white flex flex-col items-center justify-center p-8 text-center overflow-y-auto">

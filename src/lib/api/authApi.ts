@@ -73,6 +73,8 @@ export const authApi = {
       }
     }
     try {
+      const session = await supabase.auth.getSession();
+      if (session.data.session?.user) return session.data.session.user;
       const { data: { user }, error } = await fetchWithRetry(() => supabase.auth.getUser());
       if (error) {
         if (

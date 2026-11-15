@@ -8,8 +8,14 @@ import { authApi, GUEST_USER_ID } from './authApi';
 import { isIncompleteSave, isReplaceRpcMissing, missingInsertColumn, omitUnavailableOptionalFlag, planInsertRetry, planKeptIds, quoteExerciseIds, rememberCapability, withoutColumn } from './workoutExerciseSave';
 import { restSecondsFromLog } from '../../domain/workout/setPersistence';
 import { alignFlatColumns } from '../../domain/workout/planColumns';
+import { lastSetColumns, rowForTable } from '../../domain/workout/liveSchema';
+import { isMissingRelationError, isRelationMissing, markRelationMissing, shareInflight } from './missingRelation';
 
 let progressionTableMissing = false;
+const lastSetCache = new Map<string, Promise<unknown>>();
+const historyCache = new Map<string, { at: number; value: unknown }>();
+const partialCache = new Map<string, { at: number; value: unknown }>();
+const READ_CACHE_MS = 15000;
 
 export const workoutApi = {
   getGuestDashboardData() {
@@ -353,25 +359,30 @@ export const workoutApi = {
   },
 
   async getLastSet(exerciseId: string) {
-    const columns = ["weight_achieved", "reps_achieved", "rpe", "rest_time_actual", "rest_time"];
-    let selected = [...columns];
-    while (selected.length > 0) {
-      const { data, error } = await supabase
-        .from("workout_sets_log")
-        .select(selected.join(", "))
-        .eq("exercise_id", exerciseId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!error) {
-        const row = data as unknown as { weight_achieved: number; reps_achieved: number; rpe: number; rest_time_actual?: number | null; rest_time?: number | null } | null;
-        return row ? { ...row, rest_time: restSecondsFromLog(row) } : null;
-      }
-      const missing = missingInsertColumn(error.message || "");
-      if (!missing || !selected.includes(missing)) throw error;
-      selected = selected.filter((column) => column !== missing);
+    const cached = lastSetCache.get(exerciseId);
+    if (cached) return cached as ReturnType<typeof this.loadLastSet>;
+    const request = this.loadLastSet(exerciseId);
+    lastSetCache.set(exerciseId, request);
+    try {
+      return await request;
+    } catch (error) {
+      lastSetCache.delete(exerciseId);
+      throw error;
     }
-    return null;
+  },
+
+  async loadLastSet(exerciseId: string) {
+    const selected = lastSetColumns();
+    const { data, error } = await supabase
+      .from("workout_sets_log")
+      .select(selected.join(", "))
+      .eq("exercise_id", exerciseId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    const row = data as unknown as { weight_achieved: number; reps_achieved: number; rpe: number; rest_time_actual?: number | null } | null;
+    return row ? { ...row, rest_time: restSecondsFromLog(row) } : null;
   },
 
   async getLastThreeExerciseSessions(exerciseId: string, currentHistoryId?: string) {
@@ -437,7 +448,8 @@ export const workoutApi = {
       exercises_count: exercisesCount
     };
 
-    let payload: Record<string, unknown> = partial ? { ...basePayload, partial: true } : { ...basePayload };
+    historyCache.clear();
+    let payload: Record<string, unknown> = rowForTable('workout_history', partial ? { ...basePayload, partial: true } : { ...basePayload });
     let histError = (await supabase.from('workout_history').update(payload).eq('id', historyId)).error;
 
     // Uma coluna que o banco ainda não tem rejeita o update inteiro.
@@ -490,6 +502,7 @@ export const workoutApi = {
   },
 
   async clearPartialSession(userId: string) {
+    partialCache.delete(userId);
     const { error } = await supabase.from('partial_workout_sessions').delete().eq('user_id', userId);
     if (error) throw error;
   },
@@ -519,7 +532,9 @@ export const workoutApi = {
           new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
     }
 
-    return fetchWithRetry(async () => {
+    const fresh = historyCache.get(userId);
+    if (fresh && Date.now() - fresh.at < READ_CACHE_MS) return fresh.value as WorkoutHistory[];
+    const value = await shareInflight(`history:${userId}`, () => fetchWithRetry(async () => {
       const rows: WorkoutHistory[] = [];
       const pageSize = 500;
       for (let offset = 0; ; offset += pageSize) {
@@ -532,7 +547,9 @@ export const workoutApi = {
         if ((data || []).length < pageSize) break;
       }
       return rows;
-    });
+    }));
+    historyCache.set(userId, { at: Date.now(), value });
+    return value;
   },
 
   /** Complete, user-scoped data for Evolution. Failures must remain visible. */
@@ -825,7 +842,7 @@ export const workoutApi = {
   },
 
   async insertWorkoutExercises(exercises: any[]): Promise<string[]> {
-    let currentExercises = omitUnavailableOptionalFlag(exercises.map((row) => alignFlatColumns({ ...row })));
+    let currentExercises = omitUnavailableOptionalFlag(exercises.map((row) => rowForTable('workout_exercises', alignFlatColumns({ ...row }))));
     const stripped = new Set<string>();
 
     while (true) {
@@ -909,13 +926,19 @@ export const workoutApi = {
   },
 
   async getPartialSession(userId: string) {
+    const fresh = partialCache.get(userId);
+    if (fresh && Date.now() - fresh.at < READ_CACHE_MS) return fresh.value as { workout_id: string; history_id: string } | null;
     try {
-      const { data, error } = await supabase
-        .from('partial_workout_sessions')
-        .select('workout_id, history_id')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (error) throw error;
+      const data = await shareInflight(`partial:${userId}`, async () => {
+        const { data: row, error } = await supabase
+          .from('partial_workout_sessions')
+          .select('workout_id, history_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (error) throw error;
+        return row;
+      });
+      partialCache.set(userId, { at: Date.now(), value: data });
       return data;
     } catch (err: any) {
       console.warn("[workoutApi] Failed to get partial session. Returning null (offline/connection issue).", err);
@@ -928,6 +951,7 @@ export const workoutApi = {
     const stripped = new Set<string>();
 
     const write = async () => {
+      currentPayload = rowForTable('workout_sets_log', currentPayload);
       const existing = await supabase.from('workout_sets_log').select('id')
         .eq('history_id', currentPayload.history_id)
         .eq('exercise_id', currentPayload.exercise_id)
@@ -945,7 +969,10 @@ export const workoutApi = {
 
     while (true) {
       const result = await write();
-      if (!result.error) return { error: null };
+      if (!result.error) {
+        if (currentPayload.exercise_id) lastSetCache.delete(String(currentPayload.exercise_id));
+        return { error: null };
+      }
       const retry = planInsertRetry(result.error.message || '', currentPayload, stripped);
       if (retry.action === 'fail') return { error: result.error };
       stripped.add(retry.column);
@@ -981,7 +1008,7 @@ export const workoutApi = {
   },
 
   async updateExerciseProgression(userId: string, exerciseId: string, weight: number, reps: number, rpe: number) {
-    if (progressionTableMissing) return;
+    if (progressionTableMissing || isRelationMissing('exercise_progression')) return;
     const { error } = await supabase.from('exercise_progression').upsert({
       user_id: userId,
       exercise_id: exerciseId,
@@ -993,8 +1020,9 @@ export const workoutApi = {
 
     if (!error || error.code === 'PGRST116') return;
     const message = `${error.message || ''} ${error.code || ''}`.toLowerCase();
-    if (error.code === 'PGRST205' || error.code === '42P01' || message.includes('does not exist') || message.includes('schema cache') || message.includes('not found')) {
+    if (error.code === 'PGRST205' || error.code === '42P01' || message.includes('does not exist') || message.includes('schema cache') || message.includes('not found') || isMissingRelationError(error)) {
       progressionTableMissing = true;
+      markRelationMissing('exercise_progression');
       return;
     }
     console.warn("[PROGRESSION] Failed to update progression", error);
