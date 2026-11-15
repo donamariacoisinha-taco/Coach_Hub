@@ -56,4 +56,54 @@ Build local de debug não precisa desses secrets. Release local sem as variávei
 
 ## O que o pacote contém
 
-O ícone e a splash vêm de `public/icons/kyron-icon.svg`. O Gradle tira `server.mjs`, `server.cjs` e source maps dos assets web antes de empacotar. A API do Express continua em `https://kyron.uno`. Este fluxo só gera o binário.
+O ícone e a splash vêm de `public/icons/kyron-icon.svg`. O Gradle tira `server.mjs`, `server.cjs` e source maps dos assets web antes de empacotar.
+
+O workflow define `VITE_API_BASE_URL=https://kyron.uno` no build. O app empacotado continua com os arquivos locais. Ele não usa `server.url`. As chamadas `/api` saem para `https://kyron.uno`. No site, sem essa variável, as chamadas continuam no mesmo endereço.
+
+## 4. Republicar o servidor em kyron.uno
+
+O Express só aceita o WebView depois que este código estiver no ar na Hostinger. O dono republica o app Node de `main` no hPanel, depois do merge. Não fazer isso a partir deste PR.
+
+Até lá, o APK chama `https://kyron.uno` e o navegador do WebView bloqueia a resposta: a origem do app é `https://localhost` (e, no iOS futuro, `capacitor://localhost`). O servidor novo libera só essas duas origens, com os métodos `GET` e `POST` e os cabeçalhos `Authorization` e `Content-Type`. O token continua sendo o JWT da Supabase. O site no próprio `kyron.uno` não muda.
+
+Ordem prática: merge, republicar a Hostinger, só então instalar o APK e testar a IA.
+
+## 5. Supabase, no painel
+
+Authentication → URL Configuration → Redirect URLs. Acrescentar exatamente:
+
+`https://kyron.uno/redefinir-senha`
+
+Não colocar `https://localhost`. O e-mail de senha enviado pelo app precisa abrir essa página no site. A Site URL pode continuar `https://kyron.uno`.
+
+Salvar no painel. Nada disso está aplicado por este PR.
+
+## 6. Voltar ao app pelo link da senha
+
+O manifesto declara um App Link só para `https://kyron.uno/redefinir-senha`, com `autoVerify`. O restante do site continua abrindo no navegador.
+
+Isso só passa a abrir o app depois que o arquivo abaixo existir em `https://kyron.uno/.well-known/assetlinks.json`, com `Content-Type: application/json`. Não publicar o arquivo enquanto os SHA-256 forem os placeholders.
+
+```json
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "uno.kyron.app",
+      "sha256_cert_fingerprints": [
+        "COLOCAR_SHA256_DA_CHAVE_DE_UPLOAD",
+        "COLOCAR_SHA256_DA_CHAVE_DE_ASSINATURA_DA_PLAY"
+      ]
+    }
+  }
+]
+```
+
+A primeira impressão sai do keystore de upload:
+
+```bash
+keytool -list -v -keystore kyron-upload.jks -alias kyron-upload
+```
+
+Use a linha `SHA256`. A segunda impressão aparece no Play Console, em Integridade do app → Assinatura do app, depois do primeiro envio do AAB. Sem as duas, o Android deixa o link no navegador. A página de nova senha no site ainda funciona.

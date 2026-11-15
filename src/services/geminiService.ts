@@ -1,5 +1,6 @@
 
 import { Exercise } from "../types";
+import { apiUrl } from "../lib/api/apiBaseUrl";
 import { authApi, isGuestSession } from "../lib/api/authApi";
 
 export const geminiService = {
@@ -9,7 +10,7 @@ export const geminiService = {
       throw new Error("Recurso de IA indisponível: é preciso estar autenticado.");
     }
 
-    const response = await fetch("/api/intelligence/proxy", {
+    const response = await fetch(apiUrl("/api/intelligence/proxy"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

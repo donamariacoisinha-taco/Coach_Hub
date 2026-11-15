@@ -1,3 +1,4 @@
+import { apiUrl } from './apiBaseUrl';
 import { supabase } from './supabase';
 
 export interface ExerciseMediaQueueSummaryRow {
@@ -72,7 +73,7 @@ async function getAccessToken(): Promise<string> {
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const token = await getAccessToken();
-  const response = await fetch(url, {
+  const response = await fetch(url.startsWith('/api/') ? apiUrl(url) : url, {
     ...init,
     headers: {
       'Content-Type': 'application/json',

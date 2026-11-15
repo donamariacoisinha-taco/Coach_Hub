@@ -1,4 +1,6 @@
 import { Exercise } from "../../../types";
+import { apiUrl } from "../../../lib/api/apiBaseUrl";
+import { authApi, isGuestSession } from "../../../lib/api/authApi";
 
 const OPTIMIZATION_PROMPT = `
 Você é o Rubi Intelligence Engine, uma IA especialista em biomecânica e treinamento de força.
@@ -29,9 +31,14 @@ export const rubiIntelligenceService = {
     `;
 
     try {
-      const response = await fetch("/api/intelligence/optimize", {
+      const session = await authApi.getSession().catch(() => null);
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token && !isGuestSession(session)) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+      const response = await fetch(apiUrl("/api/intelligence/optimize"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ prompt, systemInstruction: OPTIMIZATION_PROMPT })
       });
 
