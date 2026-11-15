@@ -1,4 +1,4 @@
-package com.coach.digital.adaptativo;
+package uno.kyron.app;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Android upload keystores. Never commit these.
+*.jks
+*.keystore
+keystore.properties
+*.keystore.properties
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
