@@ -1,6 +1,8 @@
 
 import { supabase } from './supabase';
 import { fetchWithRetry } from '../utils';
+import { isNativeApp } from './apiBaseUrl';
+import { passwordResetRedirect } from '../auth/passwordRecovery';
 
 export const GUEST_USER_ID = 'guest-user-id';
 
@@ -139,8 +141,16 @@ export const authApi = {
 
   async resetPassword(email: string) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/`,
+      redirectTo: passwordResetRedirect({
+        native: isNativeApp(),
+        origin: window.location.origin,
+      }),
     });
+    if (error) throw error;
+  },
+
+  async updatePassword(password: string) {
+    const { error } = await supabase.auth.updateUser({ password });
     if (error) throw error;
   },
 
