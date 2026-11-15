@@ -5,6 +5,7 @@ import { fetchWithRetry } from '../utils';
 import { exerciseApi } from './exerciseApi';
 import { getGuestDashboard, getGuestWorkout, deleteGuestWorkout, updateGuestSessionSet } from '../guest/guestPersistence';
 import { authApi, GUEST_USER_ID } from './authApi';
+import { isIncompleteSave, planInsertRetry, planKeptIds, withoutColumn } from './workoutExerciseSave';
 
 export const workoutApi = {
   getGuestDashboardData() {
@@ -269,84 +270,7 @@ export const workoutApi = {
           console.error("Failed to parse cached workout data:", e);
         }
 
-        // Search in dashboard cache for the workout details to extract its real name & description
-        let parsedMockName = '';
-        let parsedMockDescription = '';
-        try {
-          const dashCached = localStorage.getItem(`rubi_dashboard_cache_${userId}`);
-          if (dashCached) {
-            const parsedDash = JSON.parse(dashCached);
-            const foundCategory = parsedDash.workouts?.find((w: any) => w.id === workoutId);
-            if (foundCategory) {
-              parsedMockName = foundCategory.name || '';
-              parsedMockDescription = foundCategory.description || '';
-            }
-          }
-        } catch (e) {
-          console.warn('[workoutApi] Failed to find workout name in dashboard cache:', e);
-        }
-
-        const mockCategoryName = parsedMockName || (workoutId === 'classic-b' 
-          ? 'Protocolo B — Ênfase Posterior Chain' 
-          : workoutId === 'classic-c'
-          ? 'Protocolo C — Divisão de Quadríceps & Core'
-          : 'Protocolo A — Desenvolvimento Miofibrilar');
-
-        // Return a beautifully reconstructed interactive offline routine matching the workout ID and training focus
-        const staticExercises = await exerciseApi.getExercises();
-        const workoutNameLower = mockCategoryName.toLowerCase();
-        
-        let matchedExercises = [...staticExercises];
-        
-        if (workoutNameLower.includes('costas') || workoutNameLower.includes('costa') || workoutNameLower.includes('bíceps') || workoutNameLower.includes('biceps') || workoutNameLower.includes('dorsal') || workoutNameLower.includes('pull') || workoutNameLower.includes('trapezi') || workoutNameLower.includes('braço') || workoutNameLower.includes('braco')) {
-          matchedExercises = staticExercises.filter(ex => {
-            const muscle = (ex.muscle_group || '').toLowerCase();
-            return muscle.includes('costa') || muscle.includes('bíceps') || muscle.includes('biceps') || muscle.includes('dorsal') || muscle.includes('antebraço');
-          });
-        } else if (workoutNameLower.includes('leg') || workoutNameLower.includes('perna') || workoutNameLower.includes('quad') || workoutNameLower.includes('glúteo') || workoutNameLower.includes('gluteo') || workoutNameLower.includes('panturrilha') || workoutNameLower.includes('posterior') || workoutNameLower.includes('coxa') || workoutNameLower.includes('membres inferieurs') || workoutNameLower.includes('agachamento')) {
-          matchedExercises = staticExercises.filter(ex => {
-            const muscle = (ex.muscle_group || '').toLowerCase();
-            return muscle.includes('perna') || muscle.includes('quadríceps') || muscle.includes('quadriceps') || muscle.includes('glúteo') || muscle.includes('gluteo') || muscle.includes('panturrilha') || muscle.includes('posterior') || muscle.includes('coxa');
-          });
-        } else if (workoutNameLower.includes('peito') || workoutNameLower.includes('tríceps') || workoutNameLower.includes('triceps') || workoutNameLower.includes('ombro') || workoutNameLower.includes('push') || workoutNameLower.includes('delto')) {
-          matchedExercises = staticExercises.filter(ex => {
-            const muscle = (ex.muscle_group || '').toLowerCase();
-            return muscle.includes('peito') || muscle.includes('tríceps') || muscle.includes('triceps') || muscle.includes('ombro') || muscle.includes('ombros');
-          });
-        }
-
-        if (matchedExercises.length < 3) {
-          matchedExercises = staticExercises;
-        }
-
-        // Grab 4-6 exercises to construct a balanced routine
-        const routineExercises = matchedExercises.slice(0, 6).map((ex, index) => ({
-          id: `offline-work-ex-${ex.id}-${index}`,
-          category_id: workoutId,
-          exercise_id: ex.id,
-          sort_order: index,
-          sets_count: 3,
-          reps_count: 12,
-          weight_kg: 40 + (index * 10),
-          notes: "Foco na cadência excêntrica lenta.",
-          exercise_name: ex.name,
-          muscle_group: ex.muscle_group,
-          exercise_image: ex.image_url,
-          exercises: ex
-        }));
-
-        return {
-          category: {
-            id: workoutId,
-            name: mockCategoryName,
-            user_id: userId,
-            description: parsedMockDescription || 'Rotina de alta performance executada em modo offline resiliente.',
-            duration_minutes: 50,
-            created_at: new Date().toISOString()
-          } as WorkoutCategory,
-          exercises: routineExercises as any[],
-          partialSession: null
-        };
+        throw err;
       }
     });
   },
@@ -868,50 +792,71 @@ export const workoutApi = {
     if (error) throw error;
   },
 
-  // Apaga só as linhas antigas da ficha, preservando as recém-inseridas (por id).
-  // Usado depois de um insert bem-sucedido, para nunca haver uma janela em que a
-  // ficha fica sem nenhuma linha no banco caso o insert tivesse falhado.
+  // Apaga as linhas antigas só quando cada exercício novo devolveu id.
+  // Lista vazia não é "apague tudo": isso apagou fichas inteiras quando o insert falhou.
   async deleteExercisesByCategoryExcept(categoryId: string, keepIds: string[]) {
-    let query = supabase.from('workout_exercises').delete().eq('category_id', categoryId);
-    if (keepIds.length > 0) query = query.not('id', 'in', `(${keepIds.join(',')})`);
-    const { error } = await query;
+    const plan = planKeptIds(keepIds.length, keepIds);
+    if (isIncompleteSave(plan)) {
+      throw new Error(plan.reason);
+    }
+    const { error } = await supabase
+      .from('workout_exercises')
+      .delete()
+      .eq('category_id', categoryId)
+      .not('id', 'in', `(${plan.keepIds.join(',')})`);
     if (error) throw error;
   },
 
   async insertWorkoutExercises(exercises: any[]): Promise<string[]> {
-    let currentExercises = [...exercises];
+    let currentExercises = exercises.map((row) => ({ ...row }));
+    const stripped = new Set<string>();
 
     while (true) {
-      try {
-        const { data, error } = await supabase.from('workout_exercises').insert(currentExercises).select('id');
-        if (error) throw error;
-        return (data || []).map((row: any) => row.id);
-      } catch (err: any) {
-        const errorMsg = err.message || '';
-        console.warn(`[insertWorkoutExercises] Failed to insert workout exercises:`, errorMsg);
+      const { data, error } = await supabase.from('workout_exercises').insert(currentExercises).select('id');
+      if (!error) return (data || []).map((row: any) => row.id);
 
-        // Resilience pattern: handle missing columns from schema with improved regex matching covering single/double quotes
-        if (errorMsg.toLowerCase().includes('column') || errorMsg.includes('schema cache') || errorMsg.includes('relation')) {
-          const match = errorMsg.match(/column ["']([^"']+)["']/) || 
-                        errorMsg.match(/column\s+named\s+["']([^"']+)["']/) || 
-                        errorMsg.match(/column\s+([a-zA-Z0-9_-]+)/);
-                        
-          if (match && match[1]) {
-            const badColumn = match[1];
-            console.warn(`[WORKOUT] Removing missing column from insert payload: ${badColumn}`);
-            
-            currentExercises = currentExercises.map(ex => {
-              const { [badColumn]: _, ...remaining } = ex;
-              return remaining;
-            });
+      const message = error.message || '';
+      const retry = planInsertRetry(message, currentExercises[0], stripped);
+      if (retry.action === 'fail') throw error;
 
-            if (currentExercises.length > 0 && Object.keys(currentExercises[0]).length === 0) throw err;
-            continue;
-          }
-        }
-        throw err;
-      }
+      stripped.add(retry.column);
+      currentExercises = withoutColumn(currentExercises, retry.column);
     }
+  },
+
+  async replaceWorkoutExercises(categoryId: string, exercises: any[]): Promise<string[]> {
+    if (!categoryId) throw new Error('Ficha sem identificador.');
+    if (!exercises.length) {
+      throw new Error('A ficha precisa de pelo menos um exercício para substituir a lista.');
+    }
+
+    const rpc = await supabase.rpc('replace_workout_exercises', {
+      p_category_id: categoryId,
+      p_rows: exercises,
+    });
+    if (!rpc.error) {
+      const ids = Array.isArray(rpc.data) ? rpc.data.map((id: unknown) => String(id)) : [];
+      const plan = planKeptIds(exercises.length, ids);
+      if (isIncompleteSave(plan)) throw new Error(plan.reason);
+      return plan.keepIds;
+    }
+
+    const message = rpc.error.message || '';
+    const missingRpc = rpc.error.code === 'PGRST202'
+      || /could not find the function/i.test(message)
+      || /function .* does not exist/i.test(message);
+    if (!missingRpc) throw rpc.error;
+
+    const insertedIds = await this.insertWorkoutExercises(exercises);
+    const plan = planKeptIds(exercises.length, insertedIds);
+    if (isIncompleteSave(plan)) {
+      if (plan.rollbackIds.length > 0) {
+        await supabase.from('workout_exercises').delete().in('id', plan.rollbackIds);
+      }
+      throw new Error(plan.reason);
+    }
+    await this.deleteExercisesByCategoryExcept(categoryId, plan.keepIds);
+    return plan.keepIds;
   },
 
   async upsertPartialWorkoutSession(payload: any) {

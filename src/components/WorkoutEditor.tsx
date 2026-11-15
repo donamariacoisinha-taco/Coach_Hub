@@ -715,54 +715,26 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
       const payload = { user_id: user.id, name, description, folder_id: folderId || null };
 
       if (isPermanent) {
-        // Optimistic Dashboard Update
-        if (previousDashboardData) {
-          const optimisticWorkout = {
-            id: currentId || `temp-${Date.now()}`,
-            ...payload,
-            created_at: new Date().toISOString()
-          };
-          
-          const newWorkouts = currentId 
-            ? (previousDashboardData.workouts as any[]).map((w: any) => w.id === currentId ? optimisticWorkout : w)
-            : [optimisticWorkout, ...previousDashboardData.workouts];
-
-          cacheStore.set('dashboard_data', {
-            ...previousDashboardData,
-            workouts: newWorkouts
-          });
-        }
-
-        // Navigate immediately
-        navigate('dashboard', { folderId });
-
-        // Background Save
         if (!currentId) {
           const data = await workoutApi.createCategory(payload);
           currentId = data.id;
         } else {
           await workoutApi.updateCategory(currentId, payload);
-          // Invalidate cache for this workout
           cacheStore.clear(`workout_init_${currentId}`);
           cacheStore.clear(`editor_init_${currentId}`);
         }
         cacheStore.clear('editor_init_new');
 
         if (exercises.length > 0) {
-          // Insere a nova lista ANTES de apagar a antiga: se o insert falhar, a
-          // ficha existente no banco continua intacta em vez de ficar vazia.
           const exercisesPayload = workoutEngine.prepareSavePayload(exercises, currentId!);
-          const insertedIds = await workoutApi.insertWorkoutExercises(exercisesPayload);
-          await workoutApi.deleteExercisesByCategoryExcept(currentId!, insertedIds);
+          await workoutApi.replaceWorkoutExercises(currentId!, exercisesPayload);
         } else {
-          // Lista vazia é intencional (usuário removeu todos os exercícios da ficha)
           await workoutApi.deleteExercisesByCategory(currentId!);
         }
 
+        cacheStore.clear('dashboard_data');
         showSuccess('Treino salvo', 'Tudo pronto! Seu treino foi atualizado com sucesso.');
-        
-        // Revalidate dashboard to get real IDs and data
-        // (The mutate in Dashboard will handle this when it mounts)
+        navigate('dashboard', { folderId });
       } else {
         // Just starting a workout session
         if (!currentId) {
