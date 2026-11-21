@@ -256,18 +256,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
         <div className="absolute inset-x-0 top-0 h-[760px] bg-[linear-gradient(rgba(15,23,42,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.035)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:linear-gradient(to_bottom,black,transparent)]" />
       </div>
 
-      <nav className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 px-4 py-3 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <button type="button" onClick={onStart} className="flex items-center gap-3 text-left" aria-label="KYRON OS">
-            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
-              <img src={kyronLogo} alt="KYRON OS" className="h-11 w-11 scale-150 object-contain" />
-            </span>
-            <span>
-              <span className="block font-mono text-sm font-black tracking-[-0.03em] text-slate-950">
-                KYRON<span className="text-[#7BA7FF]">.</span>
-              </span>
-              <span className="block text-[8px] font-black uppercase tracking-[0.3em] text-slate-400">OS</span>
-            </span>
+      <nav className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/90 px-3 py-3 backdrop-blur-2xl sm:px-5">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4">
+          <button type="button" onClick={onStart} className="flex min-w-0 shrink items-center text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600" aria-label="Kyron OS — início">
+            <img src={kyronLogo} alt="Kyron OS" className="block h-8 w-auto max-w-[125px] object-contain object-left sm:h-10 sm:max-w-[190px]" />
           </button>
 
           <div className="hidden items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 lg:flex">
@@ -276,15 +268,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             <a href="#difference" className="transition hover:text-slate-950">{t.navDifference}</a>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex rounded-full border border-slate-200 bg-slate-100 p-1">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+            <div className="flex items-center rounded-full border border-slate-200 bg-slate-50 p-0.5" role="group" aria-label="Idioma">
               {(['PT', 'EN'] as Lang[]).map((value) => (
                 <button
                   type="button"
                   key={value}
                   onClick={() => setLanguage(value)}
-                  className={`rounded-full px-2.5 py-1 text-[9px] font-black transition ${
-                    lang === value ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-700'
+                  className={`min-h-9 min-w-9 rounded-full px-2 text-[10px] font-bold transition-colors sm:min-w-10 ${
+                    lang === value ? 'bg-[#0755C9] text-white shadow-sm' : 'text-slate-400 hover:text-slate-700'
                   }`}
                   aria-pressed={lang === value}
                 >
@@ -298,10 +290,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             <button
               type="button"
               onClick={onStart}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#7BA7FF] to-[#818CF8] px-4 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-lg shadow-[#7BA7FF]/25 transition hover:-translate-y-0.5 active:translate-y-0"
+              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-[#0755C9] px-3 text-[10px] font-bold text-white transition-colors hover:bg-[#0646A5] active:bg-[#043985] sm:px-4 sm:text-xs"
             >
               {t.start}
-              <ArrowRight size={14} />
+              <ArrowRight size={14} aria-hidden="true" />
             </button>
           </div>
         </div>
