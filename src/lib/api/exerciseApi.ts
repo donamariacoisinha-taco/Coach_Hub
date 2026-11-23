@@ -136,6 +136,10 @@ function enrichAndRankExercises(data: any[], qualityMap: Map<string, { score: nu
 
 let exerciseCatalogInflight: Promise<Exercise[]> | null = null;
 let exerciseCatalogCached: { at: number; data: Exercise[] } | null = null;
+let muscleGroupInflight: Promise<MuscleGroup[]> | null = null;
+let muscleGroupCache: { at: number; data: MuscleGroup[] } | null = null;
+const favoriteInflight = new Map<string, Promise<string[]>>();
+const favoriteCache = new Map<string, { at: number; data: string[] }>();
 
 export const exerciseApi = {
   async getExercises() {
@@ -234,11 +238,20 @@ export const exerciseApi = {
   },
 
   async getMuscleGroups() {
+    if (muscleGroupCache && Date.now() - muscleGroupCache.at < 15000) return muscleGroupCache.data;
+    if (muscleGroupInflight) return muscleGroupInflight;
+    muscleGroupInflight = this.loadMuscleGroups().finally(() => { muscleGroupInflight = null; });
+    return muscleGroupInflight;
+  },
+
+  async loadMuscleGroups() {
     try {
       return await fetchWithRetry(async () => {
         const { data, error } = await supabase.from('muscle_groups').select('*').order('sort_order', { ascending: true });
         if (error) throw error;
-        return (data || []) as MuscleGroup[];
+        const groups = (data || []) as MuscleGroup[];
+        muscleGroupCache = { at: Date.now(), data: groups };
+        return groups;
       });
     } catch (err) {
       console.warn('[ExerciseApi] Erro ao buscar grupos musculares do Supabase, utilizando fallback estático local.', err);
@@ -248,11 +261,22 @@ export const exerciseApi = {
 
   async getFavorites(userId: string) {
     if (userId === GUEST_USER_ID) return getGuestFavoriteExerciseIds();
+    const hit = favoriteCache.get(userId);
+    if (hit && Date.now() - hit.at < 15000) return hit.data;
+    const pending = favoriteInflight.get(userId);
+    if (pending) return pending;
+    const request = this.loadFavorites(userId).finally(() => favoriteInflight.delete(userId));
+    favoriteInflight.set(userId, request);
+    return request;
+  },
+
+  async loadFavorites(userId: string) {
     try {
       const { data, error } = await supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', userId);
       if (error) throw error;
       const favList = (data || []).map(f => f.exercise_id);
       localStorage.setItem(`rubi_favorites_cache_${userId}`, JSON.stringify(favList));
+      favoriteCache.set(userId, { at: Date.now(), data: favList });
       return favList;
     } catch (err) {
       console.warn('[ExerciseApi] Failed to fetch favorites from Supabase, returning cache or empty list.', err);
@@ -267,6 +291,7 @@ export const exerciseApi = {
   },
 
   async toggleFavorite(userId: string, exerciseId: string, isFavorite: boolean) {
+    favoriteCache.delete(userId);
     if (userId === GUEST_USER_ID) {
       toggleGuestFavoriteExercise(exerciseId, isFavorite);
       return;

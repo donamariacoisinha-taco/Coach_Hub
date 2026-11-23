@@ -364,6 +364,10 @@ async function startServer() {
     app.use(express.static(distPath));
     // Express 5 catch-all pattern
     app.get('*all', (req, res) => {
+      if (req.path.startsWith('/assets/')) {
+        res.status(404).type('text/plain').send('Not found');
+        return;
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

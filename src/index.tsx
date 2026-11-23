@@ -1,6 +1,30 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
+
+const CHUNK_RELOAD_KEY = 'kyron_chunk_reload_once';
+
+function reloadOnceForStaleBundle() {
+  try {
+    if (sessionStorage.getItem(CHUNK_RELOAD_KEY) === '1') return;
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
+  } catch {
+    return;
+  }
+  window.location.reload();
+}
+
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  reloadOnceForStaleBundle();
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  const message = String((event.reason as { message?: string } | undefined)?.message || event.reason || '');
+  if (/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|ChunkLoadError|text\/html/i.test(message)) {
+    reloadOnceForStaleBundle();
+  }
+});
 import {
   getRouteGroup,
   recordOperationalEvent,

@@ -5,6 +5,7 @@ import { authApi } from '../lib/api/authApi';
 import { exerciseApi } from '../lib/api/exerciseApi';
 import { workoutApi } from '../lib/api/workoutApi';
 import { geminiService } from '../services/geminiService';
+import { AI_TIP_TIMEOUT_MS, raceWithTimeout } from '../lib/aiTipTimeout';
 import { useNavigation } from '../navigation/navigation';
 import { useExercisePreview } from '../context/ExercisePreviewContext';
 import { ExerciseProgress } from './ExerciseProgress';
@@ -95,12 +96,9 @@ const ExerciseLibrary: React.FC = () => {
     setLoadingAi(true);
     setAiTip(null);
     try {
-      const result = await Promise.race([
-        geminiService.callAI({
-          prompt: `Dê uma dica biomecânica avançada (curta) para o exercício: ${exName}.`
-        }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
-      ]);
+      const result = await raceWithTimeout(geminiService.callAI({
+        prompt: `Dê uma dica biomecânica avançada (curta) para o exercício: ${exName}.`
+      }), AI_TIP_TIMEOUT_MS);
       setAiTip(result.text || "Foque na técnica.");
     } catch (err) { 
       console.warn("[AI] Tip error:", err);

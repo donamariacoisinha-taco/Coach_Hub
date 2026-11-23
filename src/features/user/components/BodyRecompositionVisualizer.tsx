@@ -2,6 +2,7 @@ import React from 'react';
 import { useUserStore } from '../../../store/userStore';
 import { motion } from 'motion/react';
 import { TrendingUp, Sparkles, Target, Calendar } from 'lucide-react';
+import { monthsOnProjectionChart } from '../../../domain/body/projectionCurve';
 
 export function BodyRecompositionVisualizer() {
   const { profile } = useUserStore();
@@ -15,24 +16,13 @@ export function BodyRecompositionVisualizer() {
   const isWeightLoss = goal.toLowerCase().includes('emagrecimento') || targetWeight < currentWeight;
   const isHypertrophy = goal.toLowerCase().includes('hipertrofia') || goal.toLowerCase().includes('força') || targetWeight > currentWeight;
 
-  // Let's calculate estimated months to target at healthy rate
-  // Loss: 2kg per month
-  // Gain: 0.5kg per month
-  let estimatedMonths = 0;
-  const weightDiff = Math.abs(currentWeight - targetWeight);
-
-  if (weightDiff > 0) {
-    if (isWeightLoss) {
-      estimatedMonths = Math.ceil((weightDiff / 2) * 10) / 10;
-    } else {
-      estimatedMonths = Math.ceil((weightDiff / 0.8) * 10) / 10;
-    }
-  }
+  // The curve is drawn across this many month marks. The header uses the same number.
+  const estimatedMonths = monthsOnProjectionChart(currentWeight, targetWeight);
 
   // Pure SVG coordinates to draw a modern grid
   // We plot 5 points showing gradual shift
   const points = [];
-  const totalSteps = 4;
+  const totalSteps = estimatedMonths || 4;
   
   for (let i = 0; i <= totalSteps; i++) {
     const ratio = i / totalSteps;

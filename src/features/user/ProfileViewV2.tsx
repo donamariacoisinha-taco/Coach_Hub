@@ -1244,7 +1244,7 @@ export default function ProfileViewV2() {
           ) : saveSuccess ? (
             <span>{isGuestMode ? '✓ Salvo localmente' : '✓ Perfil sincronizado'}</span>
           ) : (
-            <span>{hasChanges ? 'Salvar Alterações' : 'Perfil Atualizado'}</span>
+            <span>{hasChanges ? 'Salvar Alterações' : 'Salvar'}</span>
           )}
         </motion.button>
       </div>

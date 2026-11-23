@@ -11,6 +11,7 @@
   "routes": [
     { "handle": "filesystem" },
     { "src": "/academia-sem-medo/?", "dest": "/academia-sem-medo/index.html" },
+    { "src": "/assets/(.*)", "status": 404 },
     { "src": "/.*", "dest": "/" }
   ]
 }

@@ -4,6 +4,7 @@ import { BodyMeasurement, Goal } from '../types';
 import { authApi } from '../lib/api/authApi';
 import { profileApi } from '../lib/api/profileApi';
 import { geminiService } from '../services/geminiService';
+import { AI_TIP_TIMEOUT_MS, raceWithTimeout } from '../lib/aiTipTimeout';
 
 type BioMetric = 'weight' | 'body_fat_pct' | 'muscle_mass_kg' | 'visceral_fat_index' | 'skeletal_muscle_pct' | 'protein_pct' | 'body_water_pct' | 'metabolic_age';
 type TimePeriod = '7d' | '30d' | '90d' | 'all';
@@ -48,13 +49,10 @@ const BioReport: React.FC = () => {
     if (analyzing) return;
     setAnalyzing(true);
     try {
-      const result = await Promise.race([
-        geminiService.callAI({
+      const result = await raceWithTimeout(geminiService.callAI({
         prompt: `Analise os dados de bioimpedância deste atleta e forneça um insight curto e técnico (máx 120 caracteres). 
         Período: ${selectedPeriod}. Dados recentes: ${data.slice(-3).map(m => `${m.weight}kg, ${m.body_fat_pct}%, ${m.muscle_mass_kg}kg`).join(' | ')}`
-      }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
-      ]);
+      }), AI_TIP_TIMEOUT_MS);
       setInsight(result.text || "Consistência gera resultados duradouros.");
     } catch (err) {
       console.error(err);

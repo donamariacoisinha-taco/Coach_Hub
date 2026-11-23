@@ -10,9 +10,9 @@ export function useCompletedWorkoutCount(userId?: string | null): number | null 
       return;
     }
     let cancelled = false;
-    workoutApi.getWorkoutHistory(userId)
-      .then((rows) => {
-        if (!cancelled) setCount(rows.filter((row) => row?.completed_at).length);
+    workoutApi.countWorkoutHistory(userId)
+      .then((total) => {
+        if (!cancelled) setCount(total);
       })
       .catch(() => {
         if (!cancelled) setCount(null);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { projectionYs } from './projectionCurve';
+import { monthsOnProjectionChart, projectionYs } from './projectionCurve';
 
 describe('curva de projeção', () => {
   it('desce quando os valores caem', () => {
@@ -16,5 +16,10 @@ describe('curva de projeção', () => {
 
   it('não inventa uma curva sem dois números', () => {
     expect(projectionYs([80])).toBeNull();
+  });
+
+  it('o prazo do cabeçalho é o mesmo da curva', () => {
+    expect(monthsOnProjectionChart(89.5, 88)).toBe(4);
+    expect(monthsOnProjectionChart(88, 88)).toBe(0);
   });
 });

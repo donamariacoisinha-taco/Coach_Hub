@@ -78,6 +78,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const [isSyncing, setIsSyncing] = useState(false);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
   const [openSession, setOpenSession] = useState<{ workout_id: string; start_time?: string | null; updated_at?: string | null } | null>(null);
+  const [copyRequest, setCopyRequest] = useState<{ workout: WorkoutCategory; name: string; error: string } | null>(null);
 
   const handleSyncPlan = async () => {
     try {
@@ -308,11 +309,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
 
   const handlePrefetchWorkout = async (id: string) => {
-    const currentStoreId = useWorkoutStore.getState().currentWorkoutId;
-    if (currentStoreId !== id) {
-       cacheStore.clear(`workout_init_${id}`);
-    }
-
     prefetch(`workout_init_${id}`, async () => {
       const user = await authApi.getUser();
       if (!user) return null;
@@ -418,13 +414,21 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     }
   };
 
-  const handleDuplicateWorkout = async (workout: WorkoutCategory) => {
+  const handleDuplicateWorkout = (workout: WorkoutCategory) => {
+    setCopyRequest({ workout, name: `${workout.name} (Cópia)`, error: '' });
+    setActiveMenuId(null);
+  };
+
+  const confirmDuplicateWorkout = async () => {
+    if (!copyRequest) return;
+    const copyName = copyRequest.name.trim();
+    if (!copyName) {
+      setCopyRequest({ ...copyRequest, error: 'Informe um nome para a cópia.' });
+      return;
+    }
+    const workout = copyRequest.workout;
     const session = await authApi.getSession();
     if (!session?.user) return;
-    const chosen = window.prompt('Nome da nova ficha', `${workout.name} (Cópia)`);
-    if (chosen == null) return;
-    const copyName = chosen.trim();
-    if (!copyName) return;
 
     const newWorkout: WorkoutCategory = {
       ...workout,
@@ -472,6 +476,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         });
       }
       await refresh();
+      setCopyRequest(null);
     } catch (err) {
       if (previousData) mutate(previousData);
       showError(err);
@@ -1380,6 +1385,28 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           confirmText="Sim, Excluir"
           loading={isPerformingAction}
         />
+
+        {copyRequest && (
+          <div className="fixed inset-0 z-[1200] flex items-end justify-center sm:items-center">
+            <button type="button" aria-label="Fechar" className="absolute inset-0 bg-slate-900/40" onClick={() => setCopyRequest(null)} />
+            <form className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl" onSubmit={(event) => { event.preventDefault(); void confirmDuplicateWorkout(); }}>
+              <h3 className="text-lg font-black text-slate-900">Nome da cópia</h3>
+              <p className="mt-1 text-sm text-slate-500">A ficha nova só aparece depois que o nome for confirmado.</p>
+              <input
+                autoFocus
+                value={copyRequest.name}
+                onChange={(event) => setCopyRequest({ ...copyRequest, name: event.target.value, error: '' })}
+                className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-900"
+                aria-label="Nome da nova ficha"
+              />
+              {copyRequest.error && <p className="mt-2 text-sm font-semibold text-red-600">{copyRequest.error}</p>}
+              <div className="mt-4 flex gap-2">
+                <button type="button" onClick={() => setCopyRequest(null)} className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-600">Cancelar</button>
+                <button type="submit" className="flex-1 rounded-xl bg-[#7BA7FF] py-3 text-sm font-black text-white">Criar cópia</button>
+              </div>
+            </form>
+          </div>
+        )}
 
         <FolderCreateModal
           isOpen={showCreateFolderModal}
