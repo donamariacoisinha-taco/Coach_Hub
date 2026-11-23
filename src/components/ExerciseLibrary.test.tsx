@@ -18,7 +18,7 @@ const fixtures = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../App', () => ({
+vi.mock('../navigation/navigation', () => ({
   useNavigation: () => ({ navigate: vi.fn(), current: { params: {} } }),
 }));
 vi.mock('./ExerciseProgress', () => ({ ExerciseProgress: () => null }));

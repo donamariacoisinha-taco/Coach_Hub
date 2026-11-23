@@ -5,7 +5,7 @@ import { authApi } from '../lib/api/authApi';
 import { exerciseApi } from '../lib/api/exerciseApi';
 import { workoutApi } from '../lib/api/workoutApi';
 import { geminiService } from '../services/geminiService';
-import { useNavigation } from '../App';
+import { useNavigation } from '../navigation/navigation';
 import { useExercisePreview } from '../context/ExercisePreviewContext';
 import { ExerciseProgress } from './ExerciseProgress';
 import { ScreenState } from './ui/ScreenState';
@@ -95,13 +95,16 @@ const ExerciseLibrary: React.FC = () => {
     setLoadingAi(true);
     setAiTip(null);
     try {
-      const result = await geminiService.callAI({
-        prompt: `Dê uma dica biomecânica avançada (curta) para o exercício: ${exName}.`
-      });
+      const result = await Promise.race([
+        geminiService.callAI({
+          prompt: `Dê uma dica biomecânica avançada (curta) para o exercício: ${exName}.`
+        }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+      ]);
       setAiTip(result.text || "Foque na técnica.");
     } catch (err) { 
       console.warn("[AI] Tip error:", err);
-      setAiTip("Conexão mente-músculo."); 
+      setAiTip("Foque na execução controlada. A dica automática não chegou a tempo."); 
     }
     finally { setLoadingAi(false); }
   };
@@ -308,7 +311,7 @@ const ExerciseLibrary: React.FC = () => {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-[1000] bg-white flex flex-col"
+            className="fixed inset-0 z-[1000] bg-white flex flex-col lg:left-24"
           >
             <header className="px-6 pt-12 pb-8 flex justify-between items-center border-b border-slate-50">
               <div className="flex-1 min-w-0">

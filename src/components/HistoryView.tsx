@@ -31,7 +31,7 @@ import { ScreenState } from './ui/ScreenState';
 import { WorkoutSkeleton } from './ui/Skeleton';
 import { useAsyncState } from '../hooks/useAsyncState';
 import { useErrorHandler } from '../hooks/useErrorHandler';
-import { useNavigation } from '../App';
+import { useNavigation } from '../navigation/navigation';
 
 type TabType = 'journey' | 'sessions' | 'charts' | 'visual' | 'bio';
 
@@ -281,7 +281,11 @@ const HistoryView: React.FC = () => {
                             {new Date(item.completed_at!).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} • {item.duration_minutes || '--'} min
                           </p>
                           {(() => {
-                            const badge = sessionStatusBadge(item);
+                            const badge = sessionStatusBadge({
+                              partial: Boolean((item as { partial?: boolean }).partial),
+                              loggedSets: (item as { logged_sets?: number }).logged_sets,
+                              plannedSets: (item as { planned_sets?: number }).planned_sets,
+                            });
                             return (
                               <span
                                 title={badge.description}

@@ -37,7 +37,7 @@ export function ProgressPhotoSystem() {
           </div>
           <div>
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Fotos de Evolução</h3>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sincronização visual antes e depois</p>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Exemplo ilustrativo, não são as suas fotos</p>
           </div>
         </div>
         <span className="text-[8px] font-black bg-gradient-to-r from-violet-500 to-indigo-500 text-white px-3 py-1 rounded-full uppercase tracking-widest shadow-sm">
@@ -60,7 +60,7 @@ export function ProgressPhotoSystem() {
           referrerPolicy="no-referrer"
         />
         <div className="absolute right-4 bottom-4 bg-slate-950/40 text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg backdrop-blur-md">
-          Depois
+          Exemplo · Depois
         </div>
 
         {/* 'Before' Body Image (Clipped dynamically based on slider position) */}
@@ -76,7 +76,7 @@ export function ProgressPhotoSystem() {
             referrerPolicy="no-referrer"
           />
           <div className="absolute left-4 bottom-4 bg-slate-950/40 text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg backdrop-blur-md">
-            Antes
+            Exemplo · Antes
           </div>
         </div>
 
@@ -94,7 +94,7 @@ export function ProgressPhotoSystem() {
       <div className="bg-violet-50/50 rounded-2xl p-4 border border-violet-100 flex items-start gap-3">
         <Sparkles size={16} className="text-violet-500 flex-shrink-0 mt-0.5 animate-pulse" />
         <p className="text-[10px] font-bold text-violet-600 leading-relaxed">
-          Arraste o botão central para comparar de forma tátil as melhorias estéticas de postura e composição muscular.
+          Estas imagens são só um exemplo. As suas fotos de antes e depois aparecem aqui quando você enviar as suas.
         </p>
       </div>
     </motion.div>

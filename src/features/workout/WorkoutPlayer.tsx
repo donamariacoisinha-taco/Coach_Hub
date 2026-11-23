@@ -41,7 +41,7 @@ import { useExercisePreview } from "../../context/ExercisePreviewContext";
 import { supabase } from "../../lib/api/supabase";
 import { authApi } from "../../lib/api/authApi";
 import { workoutApi } from "../../lib/api/workoutApi";
-import { useNavigation } from "../../App";
+import { useNavigation } from "../../navigation/navigation";
 import { useErrorHandler } from "../../hooks/useErrorHandler";
 import { ScreenState } from "../../components/ui/ScreenState";
 import { useSmartQuery } from "../../hooks/useSmartQuery";
@@ -1826,6 +1826,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
 
       // 4. Update React States
+      const resumeIndex = localState?.currentIndex ?? currentIndex;
+      const remoteSets = reconciledPerf[resumeIndex];
+      const remoteHasLoad = Array.isArray(remoteSets) && remoteSets.some((set) => Number(set?.weight) > 0 || Number(set?.reps) > 0);
+
       if (localState) {
         if (localState.currentIndex !== undefined) setCurrentIndex(localState.currentIndex);
         if (localState.currentSet !== undefined) {
@@ -1843,7 +1847,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             storedSetNumber: localState.currentSet,
           }));
         }
-        if (localState.activeSetsData) {
+        if (remoteHasLoad) {
+          setActiveSetsData(remoteSets);
+        } else if (localState.activeSetsData) {
           setActiveSetsData(localState.activeSetsData);
         }
         if (localState.isResting) {
@@ -2614,18 +2620,33 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       restEndTimestampRef.current = Date.now() + timeLeft * 1000;
     }
     
-    // Progression trigger at 0
+    // At 0:00 the clock still listens, so +10s/-10s can move the end timestamp.
+    // Auto-advance waits a second and is cancelled if the person adds time.
     if (timeLeft <= 0) {
-      setRestOvertime(prev => prev + 1);
-      
-      // Auto-advance after 1s of showing "VAI LÁ!"
-      if (restOvertime === 1 && !hasTriggeredRef.current) { 
-        hasTriggeredRef.current = true;
-        if (pendingSetToComplete !== null) {
-          advanceWorkout(pendingSetToComplete);
+      const interval = setInterval(() => {
+        if (restEndTimestampRef.current === null) return;
+        const remaining = Math.max(0, Math.round((restEndTimestampRef.current - Date.now()) / 1000));
+        if (remaining > 0) {
+          hasTriggeredRef.current = false;
+          setRestOvertime(0);
+          setTimeLeft(remaining);
+          return;
         }
-      }
-      return;
+        setTimeLeft(0);
+      }, 200);
+      const advanceTimer = window.setTimeout(() => {
+        if (hasTriggeredRef.current) return;
+        const remaining = restEndTimestampRef.current === null
+          ? 0
+          : Math.round((restEndTimestampRef.current - Date.now()) / 1000);
+        if (remaining > 0) return;
+        hasTriggeredRef.current = true;
+        if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
+      }, 1000);
+      return () => {
+        clearInterval(interval);
+        window.clearTimeout(advanceTimer);
+      };
     }
     
     // Beep & Vibrate during final 5 seconds
@@ -3008,8 +3029,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       setSuggestion(null);
     }
 
-    // SET PENDING FOR PROGRESSION
+    // The set is confirmed now. Volume and the partial-finish count must not wait for the rest timer.
     setPendingSetToComplete(setIdx);
+    setCompletedSetIndices(prev => {
+      const next = new Set(prev);
+      next.add(setIdx);
+      return next;
+    });
+    setCompletedSetsByExercise(prev => {
+      const nextCompleted = new Set(prev[currentIndex] || []);
+      nextCompleted.add(setIdx);
+      return { ...prev, [currentIndex]: nextCompleted };
+    });
     if (!isAdvanced) {
       setFeedback(emotional);
       setTimeout(() => setFeedback(null), 3000);

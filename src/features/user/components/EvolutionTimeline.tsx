@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useUserStore } from '../../../store/userStore';
+import { useCompletedWorkoutCount } from '../useCompletedWorkoutCount';
 import { motion } from 'motion/react';
 import { CheckCircle2, Trophy, Flame, TrendingUp, Sparkles, Scale } from 'lucide-react';
 
@@ -15,6 +16,7 @@ interface TimelineEvent {
 
 export function EvolutionTimeline() {
   const { profile } = useUserStore();
+  const counted = useCompletedWorkoutCount(profile?.id);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export function EvolutionTimeline() {
     }
 
     // 2. Completed workout milestones
-    const completed = profile.workouts_completed || 0;
+    const completed = counted ?? 0;
     if (completed > 0) {
       list.push({
         id: 'milestone-workouts',
@@ -94,7 +96,7 @@ export function EvolutionTimeline() {
     });
 
     setEvents(list);
-  }, [profile]);
+  }, [profile, counted]);
 
   if (!profile) return null;
 

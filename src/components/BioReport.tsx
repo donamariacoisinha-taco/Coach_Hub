@@ -48,12 +48,18 @@ const BioReport: React.FC = () => {
     if (analyzing) return;
     setAnalyzing(true);
     try {
-      const result = await geminiService.callAI({
+      const result = await Promise.race([
+        geminiService.callAI({
         prompt: `Analise os dados de bioimpedância deste atleta e forneça um insight curto e técnico (máx 120 caracteres). 
         Período: ${selectedPeriod}. Dados recentes: ${data.slice(-3).map(m => `${m.weight}kg, ${m.body_fat_pct}%, ${m.muscle_mass_kg}kg`).join(' | ')}`
-      });
+      }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+      ]);
       setInsight(result.text || "Consistência gera resultados duradouros.");
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      setInsight('Não foi possível analisar agora. Suas medidas continuam disponíveis.');
+    }
     finally { setAnalyzing(false); }
   };
 
@@ -207,7 +213,7 @@ const BioReport: React.FC = () => {
               </div>
               <div className="text-right">
                 <p className="text-4xl font-black tracking-tighter" style={{ color: metricsConfig[selectedMetric].color }}>
-                  {chartPoints[chartPoints.length - 1]?.val || '0'}<span className="text-xs ml-1 opacity-40">{metricsConfig[selectedMetric].unit}</span>
+                  {chartPoints.length >= 2 && chartPoints[chartPoints.length - 1]?.val != null ? chartPoints[chartPoints.length - 1].val : '—'}<span className="text-xs ml-1 opacity-40">{metricsConfig[selectedMetric].unit}</span>
                 </p>
               </div>
             </div>
@@ -241,7 +247,7 @@ const BioReport: React.FC = () => {
                ) : (
                  <div className="flex flex-col items-center justify-center h-full">
                     <i className="fas fa-chart-line text-slate-100 text-4xl mb-4"></i>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Aguardando dados</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Ainda não há medidas suficientes</p>
                  </div>
                )}
             </div>

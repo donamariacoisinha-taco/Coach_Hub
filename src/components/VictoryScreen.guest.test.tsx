@@ -4,7 +4,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { finishGuestWorkout, saveGuestPlan } from '../lib/guest/guestPersistence';
 
-vi.mock('../App', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
+vi.mock('../navigation/navigation', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
 
 import { VictoryScreen } from './VictoryScreen';
 

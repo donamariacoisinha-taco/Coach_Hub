@@ -32,7 +32,7 @@ import { WorkoutHistory, UserProfile, WorkoutCategory } from '../../types';
 import { athleteMemoryEngine } from '../../services/athleteMemoryEngine';
 import { authApi, GUEST_USER_ID } from '../../lib/api/authApi';
 import { mediaApi } from '../../lib/api/mediaApi';
-import { useNavigation } from '../../App';
+import { useNavigation } from '../../navigation/navigation';
 import { supabase } from '../../lib/api/supabase';
 import { BodyProjectionModule } from './BodyProjectionModule';
 import { exerciseApi } from '../../lib/api/exerciseApi';

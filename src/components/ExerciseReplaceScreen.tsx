@@ -130,6 +130,9 @@ export const ExerciseReplaceScreen: React.FC<ExerciseReplaceScreenProps> = ({
                   <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
                   <input 
                     type="text" 
+                    autoFocus
+                    autoComplete="off"
+                    name="exercise-library-search"
                     placeholder="BUSCAR EXERCÍCIO..." 
                     value={search}
                     onChange={e => setSearch(e.target.value)}

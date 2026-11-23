@@ -22,6 +22,7 @@ import {
   parseWeightCheckInLogs,
   WeightDelta,
 } from '../../domain/checkin/weightCheckInHistory';
+import { projectionYs } from '../../domain/body/projectionCurve';
 
 interface BodyProjectionModuleProps {
   profile: UserProfile | null;
@@ -444,8 +445,20 @@ export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
             <span className="text-[8.5px] bg-[#7BA7FF]/10 text-[#7BA7FF] border border-[#7BA7FF]/20 px-2 py-0.5 rounded-lg font-black uppercase tracking-widest animate-pulse">Cenário Padrão</span>
           </div>
 
-          {/* Luxury smooth editorial SVG chart */}
+          {/* A curva segue os pesos reais: valor menor fica mais baixo. */}
           <div className="relative w-full h-28 my-3">
+            {(() => {
+              const series = [weightDelta?.previous.weight, profile?.weight, profile?.target_weight]
+                .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+              const ys = projectionYs(series);
+              if (!ys) {
+                return <p className="flex h-full items-center justify-center text-sm font-semibold text-slate-500">Dados insuficientes</p>;
+              }
+              const xs = ys.length === 2 ? [10, 390] : [10, 200, 390];
+              const points = ys.map((y, index) => `${xs[index]},${y.toFixed(1)}`);
+              const line = `M ${points.join(' L ')}`;
+              const area = `${line} L ${xs[xs.length - 1]},110 L ${xs[0]},110 Z`;
+              return (
             <svg viewBox="0 0 400 120" className="w-full h-full overflow-visible" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
@@ -453,44 +466,24 @@ export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
                   <stop offset="100%" stopColor="#A5C8FF" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
-              
-              {/* Fill Area */}
-              <path 
-                d="M 10,100 C 130,95 240,40 390,20 L 390,110 L 10,110 Z" 
-                fill="url(#chartGlow)" 
-                className="transition-all duration-500"
-              />
-
-              {/* Dashed background guide */}
+              <path d={area} fill="url(#chartGlow)" />
               <line x1="10" y1="80" x2="390" y2="80" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3 3" />
-
-              {/* Smooth trend curve */}
-              <path 
-                d="M 10,100 C 130,95 240,40 390,20" 
-                fill="none" 
-                stroke="#7BA7FF" 
-                strokeWidth="2.5" 
-                strokeLinecap="round"
-                className="transition-all duration-500"
-              />
-
-              {/* Data points */}
-              {/* Point 1: original weight */}
-              <circle cx="10" cy="100" r="3.5" fill="#A5C8FF" stroke="#FFFFFF" strokeWidth="1.5" />
-              {/* Point 2: current weight */}
-              <circle cx="200" cy="70" r="4.5" fill="#7BA7FF" stroke="#FFFFFF" strokeWidth="2" className="shadow-lg filter drop-shadow-sm" />
-              {/* Point 3: target weight */}
-              <circle cx="390" cy="20" r="4.5" fill="#34D399" stroke="#FFFFFF" strokeWidth="2" />
+              <path d={line} fill="none" stroke="#7BA7FF" strokeWidth="2.5" strokeLinecap="round" />
+              {ys.map((y, index) => (
+                <circle key={index} cx={xs[index]} cy={y} r={index === ys.length - 1 ? 4.5 : 3.5} fill={index === ys.length - 1 ? '#34D399' : '#7BA7FF'} stroke="#FFFFFF" strokeWidth="2" />
+              ))}
             </svg>
+              );
+            })()}
 
             {/* Labels overlay */}
             <div className="absolute top-2 left-2 text-[8px] font-black uppercase text-slate-400">Ponto de Partida</div>
             <div className="absolute top-20 left-1/2 -translate-x-1/2 text-[8.5px] font-black text-[#5C8CFF] bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 shadow-sm leading-none flex items-center gap-1">
               <span>Peso Atual:</span>
-              <strong>{weight}kg</strong>
+              <strong>{profile?.weight ?? '—'} kg</strong>
             </div>
             <div className="absolute top-0 right-2 text-[8.5px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 shadow-sm leading-none">
-              Meta: {targetWeight}kg
+              Meta: {profile?.target_weight ?? '—'} kg
             </div>
           </div>
 

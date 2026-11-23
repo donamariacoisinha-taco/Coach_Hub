@@ -60,7 +60,7 @@ const FITNESS_AVATARS = [
     gender: 'Masculino'
   }
 ];
-import { useNavigation } from '../../App';
+import { useNavigation } from '../../navigation/navigation';
 
 // Import our enhanced modular panels which we will style continuously below 
 import { WeeklyCheckIn } from './components/WeeklyCheckIn';
@@ -70,6 +70,7 @@ import { BodyRecompositionVisualizer } from './components/BodyRecompositionVisua
 import { ProgressPhotoSystem } from './components/ProgressPhotoSystem';
 import { ProfileActions } from './components/ProfileActions';
 import { getGuestProfile, saveGuestProfile } from '../../lib/guest/guestPersistence';
+import { useCompletedWorkoutCount } from './useCompletedWorkoutCount';
 
 interface CheckInLog {
   date: string;
@@ -265,6 +266,7 @@ export default function ProfileViewV2() {
   };
 
   const profile = storeProfile || getFallbackProfile();
+  const countedWorkouts = useCompletedWorkoutCount(profile?.id);
 
   // Sync profile details into state on mount
   useEffect(() => {
@@ -329,7 +331,7 @@ export default function ProfileViewV2() {
     if (profile) {
       setName(profile.name || profile.full_name || '');
       setGoal(profile.goal || '');
-      setFrequency(profile.frequency || '');
+      setFrequency(profile.days_per_week != null ? String(profile.days_per_week) : '');
       setGender(profile.gender || '');
       setAge(profile.age || '');
       setWeight(profile.weight || '');
@@ -353,7 +355,7 @@ export default function ProfileViewV2() {
   const hasChanges = (
     name.trim() !== (profile.name || profile.full_name || '') ||
     goal !== (profile.goal || '') ||
-    frequency !== (profile.frequency || '') ||
+    frequency !== (profile.days_per_week != null ? String(profile.days_per_week) : '') ||
     gender !== (profile.gender || '') ||
     (age === '' ? '' : Number(age)) !== (profile.age || '') ||
     (weight === '' ? '' : Number(weight)) !== (profile.weight || '') ||
@@ -374,6 +376,7 @@ export default function ProfileViewV2() {
         full_name: name.trim() || profile.full_name || null,
         goal: goal || null,
         frequency: frequency || null,
+        days_per_week: frequency !== '' ? Number(frequency) : null,
         gender: gender || null,
         age: age !== '' ? parseInt(age.toString()) : null,
         weight: weight !== '' ? parseFloat(weight.toString()) : null,
@@ -505,7 +508,7 @@ export default function ProfileViewV2() {
   // --- Compute Athlete Dynamic title ---
   const getAthleteTitle = (): string => {
     const streak = profile.workout_streak || 0;
-    const completed = profile.workouts_completed || 0;
+    const completed = countedWorkouts ?? 0;
     
     if (streak >= 5) return 'Disciplina Elevada';
     if (completed > 15) return 'Consistência Avançada';
@@ -716,7 +719,7 @@ export default function ProfileViewV2() {
           <div className="w-full max-w-sm px-2 pt-2 pb-4">
             <div className="flex items-center justify-between mb-2 px-1">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                Sujestões de Avatar Fitness
+                Sugestões de Avatar Fitness
               </span>
               <span className="text-[8px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-full">
                 Alta Definição
@@ -894,7 +897,7 @@ export default function ProfileViewV2() {
                 {athleteTitle}
               </span>
               <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full">
-                Ativo • {profile?.workouts_completed || 0} treinos
+                Ativo • {countedWorkouts == null ? '—' : countedWorkouts} treinos
               </span>
             </div>
             

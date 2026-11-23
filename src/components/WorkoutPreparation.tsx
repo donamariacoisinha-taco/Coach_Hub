@@ -43,7 +43,7 @@ import {
   Star,
   Eye
 } from 'lucide-react';
-import { useNavigation } from '../App';
+import { useNavigation } from '../navigation/navigation';
 import { useExercisePreview } from '../context/ExercisePreviewContext';
 import { workoutApi } from '../lib/api/workoutApi';
 import { workoutEngine } from '../domain/workout/workoutEngine';

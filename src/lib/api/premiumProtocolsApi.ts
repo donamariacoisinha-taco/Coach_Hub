@@ -1466,6 +1466,9 @@ export function getProtocolAccessType(protocol: any): 'premium' | 'public' {
   return 'public';
 }
 
+let protocolReadCache: { at: number; value: PremiumProtocol[] } | null = null;
+let protocolReadInflight: Promise<PremiumProtocol[]> | null = null;
+
 class PremiumProtocolsApi {
   private sanitizeForDb(protocol: PremiumProtocol) {
     const { 
@@ -1499,6 +1502,16 @@ class PremiumProtocolsApi {
   }
 
   async getProtocols(): Promise<PremiumProtocol[]> {
+    const now = Date.now();
+    if (protocolReadCache && now - protocolReadCache.at < 15000) return protocolReadCache.value;
+    if (protocolReadInflight) return protocolReadInflight;
+    protocolReadInflight = this.loadProtocols().finally(() => { protocolReadInflight = null; });
+    const value = await protocolReadInflight;
+    protocolReadCache = { at: Date.now(), value };
+    return value;
+  }
+
+  async loadProtocols(): Promise<PremiumProtocol[]> {
     const ensureStatus = (p: PremiumProtocol): PremiumProtocol => ({
       ...p,
       status: p.status || (p.is_active !== false ? 'published' : 'draft')

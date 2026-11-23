@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, BodyMeasurement } from '../types';
 import { authApi } from '../lib/api/authApi';
 import { profileApi } from '../lib/api/profileApi';
-import { useNavigation } from '../App';
+import { useNavigation } from '../navigation/navigation';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { ScreenState } from './ui/ScreenState';
 import { WorkoutSkeleton } from './ui/Skeleton';

@@ -49,7 +49,7 @@ const fixtures = vi.hoisted(() => {
 });
 
 // A aba `sessions` é a lista de sessões do histórico.
-vi.mock('../App', () => ({
+vi.mock('../navigation/navigation', () => ({
   useNavigation: () => ({ navigate: vi.fn(), current: { params: { tab: 'sessions' } } }),
 }));
 vi.mock('./ProgressPhotos', () => ({ default: () => null }));

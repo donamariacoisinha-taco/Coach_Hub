@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   isAdmin: vi.fn(async () => false),
 }));
 
-vi.mock('../../App', () => ({
+vi.mock('../../navigation/navigation', () => ({
   useNavigation: () => ({ navigate: mocks.navigate }),
 }));
 vi.mock('../../hooks/useErrorHandler', () => ({

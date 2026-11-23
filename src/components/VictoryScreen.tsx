@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Trophy, ArrowRight, Share2, CheckCircle2, Flame, Star, RotateCcw } from "lucide-react";
-import { useNavigation } from "../App";
+import { useNavigation } from "../navigation/navigation";
 import { authApi } from "../lib/api/authApi";
 import { workoutApi } from "../lib/api/workoutApi";
 import { profileApi } from "../lib/api/profileApi";

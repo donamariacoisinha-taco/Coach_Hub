@@ -34,7 +34,7 @@ import { exerciseApi } from '../../lib/api/exerciseApi';
 import { workoutApi } from '../../lib/api/workoutApi';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { Exercise, UserProfile, normalizeMuscleGroup, sortExercisesAnatomically } from '../../types';
-import { useNavigation } from '../../App';
+import { useNavigation } from '../../navigation/navigation';
 import kyronLogo from '../../assets/images/kyron_official_logo_1781087891387.png';
 import { activateGuestPlan, getGuestDashboard, getGuestProfile, saveGuestProfile } from '../../lib/guest/guestPersistence';
 
