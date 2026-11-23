@@ -6,6 +6,7 @@ import {
   ownPrescriptionSets,
   prefillExercise,
   prefillPlan,
+  previewExerciseLine,
   type ExercisePerformanceLog,
   type PrefillExercise,
 } from './exercisePrefill';
@@ -121,6 +122,45 @@ describe('prefill por exercise_id', () => {
     ]);
     expect(filled.map((set) => set.weight)).toEqual([47.5, 47.5, 47.5]);
     expect(filled[0].reps).toBe(5);
+  });
+
+  it('a ficha limita a contagem mesmo com sessão ou prescrição mais longa', () => {
+    const extensora3: PrefillExercise = {
+      exercise_id: 'extensora',
+      sets: 3,
+      sets_json: [
+        { weight: 0, reps: 12 },
+        { weight: 0, reps: 12 },
+        { weight: 0, reps: 12 },
+      ],
+    };
+    const session: ExercisePerformanceLog[] = [85, 90, 95, 100].map((weight, index) => ({
+      exercise_id: 'extensora',
+      history_id: 'ultima',
+      set_number: index + 1,
+      weight,
+      reps: 10,
+      created_at: '2026-11-20T10:00:00Z',
+    }));
+    const filled = prefillExercise(extensora3, session, [
+      { weight: 40, reps: 8 },
+      { weight: 40, reps: 8 },
+      { weight: 40, reps: 8 },
+      { weight: 40, reps: 8 },
+    ]);
+    expect(filled).toHaveLength(3);
+    expect(filled.map((set) => set.weight)).toEqual([85, 90, 95]);
+    expect(previewExerciseLine(extensora3, session).sets).toBe(3);
+    expect(previewExerciseLine(extensora3, session)).toMatchObject({ weight: 85, reps: '10' });
+  });
+
+  it('sem log, a prescrição preenche só até o número da ficha', () => {
+    const supino: PrefillExercise = { exercise_id: 'ef2e75bf', sets: 3, reps: '12', weight: 0 };
+    const prescription = [47.5, 47.5, 47.5, 50].map((weight) => ({ weight, reps: 5, rpe: 8, rest_time: 90 }));
+    const filled = prefillExercise(supino, null, prescription);
+    expect(filled).toHaveLength(3);
+    expect(filled.map((set) => set.weight)).toEqual([47.5, 47.5, 47.5]);
+    expect(previewExerciseLine(supino, null, prescription)).toMatchObject({ sets: 3, weight: 47.5, reps: '5' });
   });
 
   it('a redução de 10% só existe quando há carga para reduzir', () => {

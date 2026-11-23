@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alignFlatColumns, readPlanSummary, summaryFromSets } from './planColumns';
+import { alignFlatColumns, planSetCount, readPlanSummary, summaryFromSets } from './planColumns';
 
 describe('colunas da ficha a partir de sets_json', () => {
   it('espelha a primeira série mesmo quando as colunas estão no padrão 12 e 60', () => {
@@ -21,6 +21,12 @@ describe('colunas da ficha a partir de sets_json', () => {
       sets: 3,
       sets_json: [{ reps: '10', weight: 15, rest_time: 75 }],
     })).toEqual({ sets: 1, reps: '10', weight: 15, rest_time: 75 });
+  });
+
+  it('a ficha manda na contagem, mesmo se a coluna sets divergir', () => {
+    expect(planSetCount({ sets: 4, sets_json: [{}, {}, {}] })).toBe(3);
+    expect(planSetCount({ sets: 3, sets_json: [] })).toBe(3);
+    expect(planSetCount({ sets: 0 })).toBe(0);
   });
 
   it('sem sets_json, mantém o que já está na linha', () => {

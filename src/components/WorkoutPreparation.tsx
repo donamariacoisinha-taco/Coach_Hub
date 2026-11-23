@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   DndContext, 
   closestCenter, 
@@ -48,6 +48,7 @@ import { useExercisePreview } from '../context/ExercisePreviewContext';
 import { workoutApi } from '../lib/api/workoutApi';
 import { workoutEngine } from '../domain/workout/workoutEngine';
 import { readPlanSummary } from '../domain/workout/planColumns';
+import { previewExerciseLine, sessionLogsFromHistory, type ExercisePerformanceLog, type PrefillSet } from '../domain/workout/exercisePrefill';
 import { exerciseApi } from '../lib/api/exerciseApi';
 import { authApi } from '../lib/api/authApi';
 import { cacheStore } from '../lib/cache/cacheStore';
@@ -56,7 +57,7 @@ import { useErrorHandler } from '../hooks/useErrorHandler';
 import { WorkoutExercise, Exercise, SetType, SetConfig, WorkoutCategory } from '../types';
 import { useWorkoutStore } from '../app/store/workoutStore';
 import { ScreenState } from './ui/ScreenState';
-import { getGuestWorkout, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises } from '../lib/guest/guestPersistence';
+import { getGuestDashboard, getGuestWorkout, readGuestWorkoutTemp, saveGuestWorkoutTemp, updateGuestWorkoutExercises } from '../lib/guest/guestPersistence';
 
 // Sortable item wrapper for an exercise card in the preparation screen
 // Sortable muscle mappings and insights helpers
@@ -133,6 +134,7 @@ interface SortablePrepExerciseCardProps {
   onToggleOptional: (idx: number) => void;
   onMoveUp: (idx: number) => void;
   onMoveDown: (idx: number) => void;
+  preview?: { sets: number; reps: string; weight: number } | null;
   isOverlay?: boolean;
 }
 
@@ -155,6 +157,7 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
   onToggleOptional,
   onMoveUp,
   onMoveDown,
+  preview = null,
   isOverlay = false,
 }) => {
   const {
@@ -186,9 +189,10 @@ const SortablePrepExerciseCard: React.FC<SortablePrepExerciseCardProps> = ({
 
   // Single line metrics row configuration
   const summary = readPlanSummary(ex);
-  const setsCount = summary.sets || ex.sets || 3;
-  const repsPattern = summary.reps;
-  const weightPattern = summary.weight ? `${summary.weight} kg` : '0 kg';
+  const setsCount = preview?.sets || summary.sets || ex.sets || 3;
+  const repsPattern = preview?.reps || summary.reps;
+  const shownWeight = preview ? preview.weight : summary.weight;
+  const weightPattern = shownWeight ? `${shownWeight} kg` : '0 kg';
   const metricsText = `${setsCount} ${setsCount === 1 ? 'série' : 'séries'} • ${repsPattern} reps • ${weightPattern}`;
 
   // Smart placeholder when dragging the original element
@@ -487,6 +491,70 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
   const [savingToDb, setSavingToDb] = useState(false);
   const [workoutName, setWorkoutName] = useState('Preparando Treino');
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
+  const sessionLogsRef = useRef(new Map<string, ExercisePerformanceLog[]>());
+  const prescriptionRef = useRef(new Map<string, PrefillSet[] | null>());
+  const [prefillReady, setPrefillReady] = useState(0);
+  const exerciseIds = exercises.map((exercise) => exercise.exercise_id).filter(Boolean).join('|');
+
+  useEffect(() => {
+    if (!exerciseIds) return;
+    let cancelled = false;
+    const ids = [...new Set(exerciseIds.split('|'))] as string[];
+    (async () => {
+      if (isGuestWorkout) {
+        const history = getGuestDashboard().history || [];
+        for (const id of ids) sessionLogsRef.current.set(id, sessionLogsFromHistory(history, id));
+        if (!cancelled) setPrefillReady((value) => value + 1);
+        return;
+      }
+      try {
+        const user = await authApi.getUser();
+        if (user && !cancelled) {
+          const rows = await workoutApi.listExercisePrescriptions(user.id);
+          for (const row of rows) {
+            prescriptionRef.current.set(
+              row.exercise_id,
+              Array.isArray(row.sets_json) ? row.sets_json as PrefillSet[] : null,
+            );
+          }
+        }
+      } catch (error) {
+        console.warn('[preparation] prescrições indisponíveis', error);
+      }
+      await Promise.all(ids.map(async (id) => {
+        if (sessionLogsRef.current.has(id)) return;
+        try {
+          const rows = await workoutApi.getLastSessionSets(id);
+          if (cancelled) return;
+          sessionLogsRef.current.set(id, rows.map((row) => ({
+            exercise_id: id,
+            history_id: row.history_id,
+            set_number: row.set_number,
+            weight: Number(row.weight_achieved),
+            reps: Number(row.reps_achieved),
+            rpe: Number(row.rpe ?? 8),
+            created_at: row.created_at,
+          })));
+        } catch {
+          if (!cancelled) sessionLogsRef.current.set(id, []);
+        }
+      }));
+      if (!cancelled) setPrefillReady((value) => value + 1);
+    })();
+    return () => { cancelled = true; };
+  }, [exerciseIds, isGuestWorkout]);
+
+  const previews = useMemo(() => {
+    const map = new Map<string, { sets: number; reps: string; weight: number }>();
+    for (const exercise of exercises) {
+      map.set(exercise.id, previewExerciseLine(
+        exercise,
+        sessionLogsRef.current.get(exercise.exercise_id) || [],
+        prescriptionRef.current.get(exercise.exercise_id) || null,
+      ));
+    }
+    return map;
+  }, [exercises, prefillReady]);
   const [category, setCategory] = useState<WorkoutCategory | null>(null);
 
   // Bottom sheets
@@ -1181,6 +1249,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
                         onAddBelow={handleOpenAddBelow}
                         onMoveUp={handleMoveUp}
                         onMoveDown={handleMoveDown}
+                        preview={previews.get(ex.id) || null}
                       />
                     ))}
                   </div>
@@ -1212,6 +1281,7 @@ export const WorkoutPreparation: React.FC<WorkoutPreparationProps> = ({ workoutI
                           onAddBelow={() => {}}
                           onMoveUp={() => {}}
                           onMoveDown={() => {}}
+                          preview={previews.get(activeEx.id) || null}
                           isOverlay={true}
                         />
                       </div>
