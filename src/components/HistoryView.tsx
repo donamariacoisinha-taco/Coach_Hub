@@ -484,7 +484,12 @@ const HistoryView: React.FC = () => {
         onClose={() => setShowDeleteConfirm(null)}
         onConfirm={() => showDeleteConfirm && handleDeleteHistory(showDeleteConfirm)}
         title="Excluir Registro"
-        message="Deseja apagar este registro de treino permanentemente do seu histórico?"
+        message={(() => {
+          const item = (historyState.data || []).find((entry) => entry.id === showDeleteConfirm);
+          if (!item) return 'Deseja apagar este registro de treino permanentemente do seu histórico?';
+          const when = item.completed_at ? new Date(item.completed_at).toLocaleDateString('pt-BR') : 'data indisponível';
+          return `Apagar "${item.category_name || 'Treino'}" de ${when}? Essa exclusão sai do histórico.`;
+        })()}
         confirmText="Sim, Apagar"
         loading={!!isDeleting}
       />

@@ -10,10 +10,10 @@ interface AsyncState<T> {
   isEmpty: boolean;
 }
 
-export function useAsyncState<T>(initialData: T | null = null) {
+export function useAsyncState<T>(initialData: T | null = null, startLoading = true) {
   const [state, setState] = useState<AsyncState<T>>({
     data: initialData,
-    loading: true,
+    loading: startLoading,
     error: null,
     isEmpty: false
   });

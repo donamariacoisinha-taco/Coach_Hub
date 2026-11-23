@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyPreventiveReduction,
+  lastSessionSetsForExercise,
   latestLogByExerciseId,
   ownPrescriptionSets,
   prefillExercise,
@@ -36,7 +38,7 @@ describe('prefill por exercise_id', () => {
     const filled = prefillPlan(plan, logs);
     expect(filled[0][0]).toMatchObject({ weight: 55, reps: 3 });
     expect(filled[1][0]).toMatchObject({ weight: 52, reps: 11 });
-    expect(filled[1][1]).toMatchObject({ weight: 52, reps: 11 });
+    expect(filled[1][1]).toMatchObject({ weight: 100, reps: 10 });
     expect(filled[2][0]).toMatchObject({ weight: 26, reps: 8 });
     expect(filled[2][0]).not.toMatchObject({ weight: 100, reps: 10 });
   });
@@ -91,5 +93,40 @@ describe('prefill por exercise_id', () => {
       { reps: '10', weight: 0, rest_time: 60, rpe: 8 },
       { reps: '10', weight: 0, rest_time: 60, rpe: 8 },
     ]);
+  });
+
+  it('cada série nasce da série de mesmo número da última sessão', () => {
+    const pyramid: PrefillExercise = { exercise_id: 'supino', sets: 4, sets_json: [
+      { weight: 0, reps: 12 }, { weight: 0, reps: 12 }, { weight: 0, reps: 12 }, { weight: 0, reps: 12 },
+    ] };
+    const session: ExercisePerformanceLog[] = [
+      { exercise_id: 'supino', history_id: 'antiga', set_number: 1, weight: 70, reps: 5, created_at: '2026-10-01T10:00:00Z' },
+      { exercise_id: 'supino', history_id: 'ultima', set_number: 1, weight: 85, reps: 5, created_at: '2026-11-20T10:00:00Z' },
+      { exercise_id: 'supino', history_id: 'ultima', set_number: 2, weight: 90, reps: 5, created_at: '2026-11-20T10:01:00Z' },
+      { exercise_id: 'supino', history_id: 'ultima', set_number: 3, weight: 95, reps: 4, created_at: '2026-11-20T10:02:00Z' },
+      { exercise_id: 'supino', history_id: 'ultima', set_number: 4, weight: 100, reps: 3, rpe: 10, created_at: '2026-11-20T10:03:00Z' },
+    ];
+    expect(lastSessionSetsForExercise(session, 'supino').map((set) => set.weight)).toEqual([85, 90, 95, 100]);
+    const filled = prefillExercise(pyramid, session);
+    expect(filled.map((set) => set.weight)).toEqual([85, 90, 95, 100]);
+    expect(filled[3]).toMatchObject({ reps: 3, rpe: 10 });
+  });
+
+  it('sem série registrada, usa a prescrição salva no lugar de 0x12', () => {
+    const supino: PrefillExercise = { exercise_id: 'ef2e75bf', sets: 3, reps: '12', weight: 0 };
+    const filled = prefillExercise(supino, null, [
+      { weight: 47.5, reps: 5, rpe: 8, rest_time: 90 },
+      { weight: 47.5, reps: 5, rpe: 8, rest_time: 90 },
+      { weight: 47.5, reps: 5, rpe: 8, rest_time: 90 },
+    ]);
+    expect(filled.map((set) => set.weight)).toEqual([47.5, 47.5, 47.5]);
+    expect(filled[0].reps).toBe(5);
+  });
+
+  it('a redução de 10% só existe quando há carga para reduzir', () => {
+    const reduced = applyPreventiveReduction([{ weight: 100, reps: 10 }, { weight: 90, reps: 8 }]);
+    expect(reduced.applied).toBe(true);
+    expect(reduced.sets.map((set) => set.weight)).toEqual([90, 81]);
+    expect(applyPreventiveReduction([{ weight: 0, reps: 12 }]).applied).toBe(false);
   });
 });

@@ -67,7 +67,7 @@ import { buildExerciseFilterGroups } from "../../lib/exercises/exerciseFilters";
 
 import { editAndReplicate, replicateCompletedSet } from "../../lib/exercisePrescriptions";
 import { canWritePartialSession, createSetIdentityStore } from "../../domain/workout/setPersistence";
-import { ownPrescriptionSets, prefillExercise, type ExercisePerformanceLog } from "../../domain/workout/exercisePrefill";
+import { applyPreventiveReduction, ownPrescriptionSets, prefillExercise, type ExercisePerformanceLog, type PrefillSet } from "../../domain/workout/exercisePrefill";
 import { readPlanSummary } from "../../domain/workout/planColumns";
 import { confirmedSetIndexes, saveChoiceWritesPlan, volumeKg } from "../../domain/workout/sessionRecord";
 
@@ -694,6 +694,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   
   const [lastSet, setLastSet] = useState<LastSetData | null>(null);
   const logsByExerciseId = useRef(new Map<string, ExercisePerformanceLog | null>());
+  const sessionSetsByExerciseId = useRef(new Map<string, ExercisePerformanceLog[]>());
+  const prescriptionByExerciseId = useRef(new Map<string, PrefillSet[] | null>());
+  const deloadApplied = useRef(new Set<string>());
   const [prefillRevision, setPrefillRevision] = useState(0);
   const appliedPrefillKey = useRef<string | null>(null);
   const noteExerciseLog = (exerciseId: string, log: ExercisePerformanceLog | null) => {
@@ -770,7 +773,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
             activeEx.exercise_id, 
             userLevel as any
           );
-          setMemoryLoadSuggestion(sug);
+          if (sug.indicator === 'deload' && !(Number(sug.suggestedWeight) > 0)) {
+            setMemoryLoadSuggestion(null);
+          } else {
+            setMemoryLoadSuggestion(sug.indicator === 'deload' ? { ...sug, exerciseId: activeEx.exercise_id } : sug);
+          }
         } else {
           setMemoryLoadSuggestion(null);
         }
@@ -780,6 +787,17 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     }
     fetchSuggestion();
   }, [exercises, currentIndex, userLevel, isGuestWorkout]);
+
+  useEffect(() => {
+    const exerciseId = exercises[currentIndex]?.exercise_id;
+    if (!exerciseId || memoryLoadSuggestion?.indicator !== 'deload') return;
+    if (memoryLoadSuggestion.exerciseId && memoryLoadSuggestion.exerciseId !== exerciseId) return;
+    if (deloadApplied.current.has(exerciseId)) return;
+    const reduced = applyPreventiveReduction(activeSetsData);
+    if (!reduced.applied) return;
+    deloadApplied.current.add(exerciseId);
+    setActiveSetsData(reduced.sets as typeof activeSetsData);
+  }, [memoryLoadSuggestion, exercises, currentIndex, activeSetsData]);
 
   const [showExitModal, setShowExitModal] = useState(false);
   const [showEvolutionModal, setShowEvolutionModal] = useState(false);
@@ -1986,10 +2004,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
   const handleAdjustTimer = (delta: number) => {
     const now = Date.now();
-    const currentRemaining = restEndTimestampRef.current !== null
-      ? Math.max(0, Math.round((restEndTimestampRef.current - now) / 1000))
-      : timeLeft;
-    const adjustedRemaining = Math.max(0, currentRemaining + delta);
+    const visibleSeconds = Math.max(0, timeLeft);
+    const adjustedRemaining = Math.max(0, visibleSeconds + delta);
+    if (adjustedRemaining > 0) {
+      hasTriggeredRef.current = false;
+      if (!isResting) setIsResting(true);
+    }
 
     // Keep the countdown source of truth aligned with the visible timer so the
     // 200ms interval cannot overwrite a manual +10s/-10s adjustment.
@@ -2048,7 +2068,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     }
 
-    if (adjustedRemaining === 0 && currentRemaining > 0) {
+    if (adjustedRemaining === 0 && visibleSeconds > 0) {
       log('[REST_SKIPPED] Timer adjusted to 0');
     }
   };
@@ -2610,9 +2630,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   useEffect(() => {
     if (!isResting) {
       vibratedAlert5s.current = false;
-      hasTriggeredRef.current = false;
-      restEndTimestampRef.current = null;
-      restStartedAtRef.current = null;
+      if (timeLeft <= 0) {
+        hasTriggeredRef.current = false;
+        restEndTimestampRef.current = null;
+        restStartedAtRef.current = null;
+      }
       return;
     }
 
@@ -2705,20 +2727,42 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     let cancelled = false;
     const ids = [...new Set(exercisePrefillIds.split('|'))];
     (async () => {
+      try {
+        const user = await authApi.getUser();
+        if (user && !cancelled) {
+          const prescriptions = await workoutApi.listExercisePrescriptions(user.id);
+          if (!cancelled) {
+            for (const row of prescriptions) {
+              prescriptionByExerciseId.current.set(row.exercise_id, Array.isArray(row.sets_json) ? row.sets_json as PrefillSet[] : null);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('[prefill] prescrições indisponíveis', error);
+      }
       await Promise.all(ids.map(async (exerciseId) => {
-        if (logsByExerciseId.current.has(exerciseId)) return;
+        if (sessionSetsByExerciseId.current.has(exerciseId)) return;
         try {
-          const last = await workoutApi.getLastSet(exerciseId);
+          const rows = await workoutApi.getLastSessionSets(exerciseId);
           if (cancelled) return;
-          logsByExerciseId.current.set(exerciseId, last ? {
+          const sets: ExercisePerformanceLog[] = rows.map((row) => ({
             exercise_id: exerciseId,
-            weight: Number(last.weight_achieved),
-            reps: Number(last.reps_achieved),
-            rpe: Number(last.rpe ?? 8),
-            rest_time: last.rest_time,
-          } : null);
+            history_id: row.history_id,
+            set_number: row.set_number,
+            weight: Number(row.weight_achieved),
+            reps: Number(row.reps_achieved),
+            rpe: Number(row.rpe ?? 8),
+            rest_time: row.rest_time_actual,
+            created_at: row.created_at,
+          }));
+          sessionSetsByExerciseId.current.set(exerciseId, sets);
+          const newest = [...sets].sort((a, b) => Number(b.set_number || 0) - Number(a.set_number || 0))[0] || null;
+          logsByExerciseId.current.set(exerciseId, newest);
         } catch {
-          if (!cancelled) logsByExerciseId.current.set(exerciseId, null);
+          if (!cancelled) {
+            sessionSetsByExerciseId.current.set(exerciseId, []);
+            logsByExerciseId.current.set(exerciseId, null);
+          }
         }
       }));
       if (!cancelled) setPrefillRevision((value) => value + 1);
@@ -2764,10 +2808,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       ...(completedSetIndices || []),
     ]);
     const touched = edited || completedHere.size > 0;
-    const logKnown = isGuestWorkout || logsByExerciseId.current.has(exerciseId);
-    const cachedLog = logKnown ? logsByExerciseId.current.get(exerciseId) : null;
-    const matchingLog = cachedLog && cachedLog.exercise_id === exerciseId ? cachedLog : null;
-    const token = !logKnown ? 'pending' : matchingLog ? `${matchingLog.weight}x${matchingLog.reps}` : 'none';
+    const logKnown = isGuestWorkout || sessionSetsByExerciseId.current.has(exerciseId);
+    const sessionSets = logKnown ? (sessionSetsByExerciseId.current.get(exerciseId) || []) : [];
+    const prescription = prescriptionByExerciseId.current.get(exerciseId) || null;
+    const token = !logKnown ? 'pending' : sessionSets.length
+      ? sessionSets.map((set) => `${set.set_number}:${set.weight}x${set.reps}`).join('|')
+      : (prescription ? 'rx' : 'none');
     const applyKey = `${currentIndex}:${exerciseId}:${token}:${touched ? 'kept' : 'prefill'}`;
 
     let nextSets: { id?: string, weight: number, reps: number, rpe: number, type?: SetType, rest_time?: number }[] = [];
@@ -2788,7 +2834,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         };
       });
     } else {
-      const filled = prefillExercise(currentEx, matchingLog);
+      const filled = prefillExercise(currentEx, sessionSets, prescription);
       nextSets = (filled.length ? filled : ownPrescriptionSets(currentEx)).map((set, idx) => ({
         id: `${currentIndex}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
         weight: Number(set.weight ?? 0),
@@ -4133,7 +4179,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     <div className="bg-slate-50 border border-slate-100 px-4 py-3 rounded-2xl flex items-center gap-2.5 shadow-sm">
                       <Zap size={14} className="text-[#7BA7FF] flex-shrink-0" />
                       <p className="text-xs font-semibold text-slate-500 leading-snug flex-1">
-                        {feedback || memoryLoadSuggestion?.message || preHint}
+                        {feedback || (memoryLoadSuggestion?.indicator === 'deload' && !deloadApplied.current.has(currentEx?.exercise_id) ? null : memoryLoadSuggestion?.message) || preHint}
                       </p>
                       <button
                         onClick={() => setHintDismissed(true)}
@@ -4361,7 +4407,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     >
                       <span className="text-[9.5px] font-black uppercase tracking-[0.2em] text-slate-400 font-sans">DESCANSO</span>
                       <span className={`text-xs font-black tracking-tight font-mono ${isResting ? 'text-[#7BA7FF] animate-pulse' : 'text-slate-400'}`}>
-                        {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
+                        {formatTime(Math.max(0, timeLeft))}
                       </span>
                     </div>
                   </div>
@@ -4402,7 +4448,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                     <div className="flex flex-col items-center">
                       <span className={`text-xl font-black tracking-tight font-mono leading-none ${isResting ? 'text-[#7BA7FF]' : 'text-slate-500'}`}>
-                        {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
+                        {formatTime(Math.max(0, timeLeft))}
                       </span>
                       <span className="text-[9px] font-[1000] text-slate-400 uppercase tracking-[0.15em] mt-0.5">DESCANSO</span>
                     </div>
@@ -4700,7 +4746,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
 
                     <div className="flex flex-col items-center">
                       <span className={`text-2xl font-black font-mono leading-none tracking-tighter ${isResting ? 'text-[#7BA7FF]' : 'text-slate-700'}`}>
-                        {isResting ? (timeLeft <= 0 ? "VAI LÁ!" : formatTime(timeLeft)) : "0:00"}
+                        {formatTime(Math.max(0, timeLeft))}
                       </span>
                       <span className="text-[9px] font-[1000] text-slate-400/85 uppercase tracking-wide mt-0.5">DESCANSO ADAPTATIVO</span>
                     </div>

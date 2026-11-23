@@ -315,7 +315,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
-  const editorState = useAsyncState<boolean>(false);
+  const editorState = useAsyncState<boolean>(true, false);
   const [saving, setSaving] = useState(false);
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
   

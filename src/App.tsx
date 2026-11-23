@@ -112,6 +112,21 @@ const App: React.FC = () => {
 
   // Initial Prefetching
   useEffect(() => {
+    const preloadRoutes = () => {
+      void loadDashboard();
+      void loadWorkoutEditor();
+      void loadWorkoutPlayer();
+      void loadWorkoutPreparation();
+      void loadHistory();
+      void loadProfile();
+      void loadExerciseLibrary();
+      void loadDiet();
+    };
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(preloadRoutes);
+    else window.setTimeout(preloadRoutes, 300);
+  }, []);
+
+  useEffect(() => {
     const initPrefetch = async () => {
       if (localStorage.getItem('kyron_guest_session')) return;
       // 1. Prefetch most used exercises images

@@ -15,6 +15,7 @@ import { isMissingRelationError, isRelationMissing, markRelationMissing, shareIn
 let progressionTableMissing = false;
 const lastSetCache = new Map<string, Promise<unknown>>();
 const historyCache = new Map<string, { at: number; value: unknown }>();
+const historyCountCache = new Map<string, { at: number; value: number }>();
 const partialCache = new Map<string, { at: number; value: unknown }>();
 const dashboardReadCache = new Map<string, { at: number; value: unknown }>();
 const READ_CACHE_MS = 15000;
@@ -587,6 +588,51 @@ export const workoutApi = {
     });
   },
 
+  async countWorkoutHistory(userId: string): Promise<number> {
+    if (userId === GUEST_USER_ID) return (getGuestDashboard().history || []).length;
+    const hit = historyCountCache.get(userId);
+    if (hit && Date.now() - hit.at < READ_CACHE_MS) return hit.value;
+    return shareInflight(`history-count:${userId}`, async () => {
+      const { count, error } = await supabase
+        .from('workout_history')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId);
+      if (error) throw error;
+      const value = count || 0;
+      historyCountCache.set(userId, { at: Date.now(), value });
+      return value;
+    });
+  },
+
+  async getLastSessionSets(exerciseId: string) {
+    const { data, error } = await supabase
+      .from('workout_sets_log')
+      .select('history_id, set_number, weight_achieved, reps_achieved, rpe, rest_time_actual, created_at, exercise_id')
+      .eq('exercise_id', exerciseId)
+      .order('created_at', { ascending: false })
+      .limit(40);
+    if (error) throw error;
+    const rows = data || [];
+    if (!rows.length) return [];
+    const latestHistory = rows[0].history_id;
+    return rows
+      .filter((row) => row.history_id === latestHistory)
+      .sort((a, b) => a.set_number - b.set_number);
+  },
+
+  async listExercisePrescriptions(userId: string) {
+    if (!userId || userId === GUEST_USER_ID) return [];
+    const { data, error } = await supabase
+      .from('exercise_prescriptions')
+      .select('exercise_id, sets_json')
+      .eq('user_id', userId);
+    if (error) {
+      console.warn('[workoutApi] prescrições indisponíveis', error);
+      return [];
+    }
+    return (data || []) as { exercise_id: string; sets_json: unknown }[];
+  },
+
   async getWorkoutHistory(userId: string) {
     // Convidado guarda o histórico no próprio aparelho: consultar o Supabase
     // aqui devolveria lista vazia e a tela de Histórico ficaria em branco.
@@ -811,54 +857,46 @@ export const workoutApi = {
     // Exercises are fetched reliably below.
     const queries: any[] = [
       supabase.from('workout_folders').select('*').eq('user_id', userId).order('name'),
-      supabase.from('muscle_groups').select('*').order('sort_order'),
-      supabase.from('user_favorite_exercises').select('exercise_id').eq('user_id', userId)
+      exerciseApi.getMuscleGroups().then((groups) => ({ data: groups, error: null })).catch((error) => ({ data: null, error })),
+      exerciseApi.getFavorites(userId).then((ids) => ({ data: ids.map((exercise_id: string) => ({ exercise_id })), error: null })).catch((error) => ({ data: null, error })),
     ];
 
     if (workoutId) {
       queries.push(supabase.from('workout_categories').select('*').eq('id', workoutId).single());
     }
 
-    const results = await Promise.all(queries);
-    const errors = results.filter(r => r.error);
-    if (errors.length > 0) throw errors[0].error;
-
-    // Fetch exercises using the ultra-resilient exerciseApi cache/fallback/normalization flow
-    let exercisesList: Exercise[] = [];
-    try {
-      exercisesList = await exerciseApi.getExercises();
-    } catch (err) {
-      console.warn('[WorkoutEditor] Erro ao buscar exercícios via exerciseApi. Retornando padrão estático.', err);
-      // Fallback
-      try {
-        const { fallbackExercises } = await import('./fallbackExercises');
-        exercisesList = fallbackExercises;
-      } catch (importErr) {
-        console.error('[WorkoutEditor] Falha crítica de importação de fallback:', importErr);
-      }
-    }
-
-    let workoutExercises: any[] = [];
-    if (workoutId) {
-      // Try fetching with join first
+    const workoutExercisesPromise = (async () => {
+      if (!workoutId) return [] as any[];
       const exWithJoin = await supabase.from('workout_exercises')
         .select('*, exercises(*)')
         .eq('category_id', workoutId)
         .order('sort_order');
-      
-      if (exWithJoin.error) {
-        console.warn('[workoutApi] Editor join query failed, trying fallback select("*") on workout_exercises...', exWithJoin.error);
-        const exSimple = await supabase.from('workout_exercises')
-          .select('*')
-          .eq('category_id', workoutId)
-          .order('sort_order');
-        
-        if (exSimple.error) throw exSimple.error;
-        workoutExercises = exSimple.data || [];
-      } else {
-        workoutExercises = exWithJoin.data || [];
-      }
-    }
+      if (!exWithJoin.error) return exWithJoin.data || [];
+      console.warn('[workoutApi] Editor join query failed, trying fallback select("*") on workout_exercises...', exWithJoin.error);
+      const exSimple = await supabase.from('workout_exercises')
+        .select('*')
+        .eq('category_id', workoutId)
+        .order('sort_order');
+      if (exSimple.error) throw exSimple.error;
+      return exSimple.data || [];
+    })();
+
+    const [results, exercisesList, workoutExercises] = await Promise.all([
+      Promise.all(queries),
+      exerciseApi.getExercises().catch(async (err) => {
+        console.warn('[WorkoutEditor] Erro ao buscar exercícios via exerciseApi. Retornando padrão estático.', err);
+        try {
+          const { fallbackExercises } = await import('./fallbackExercises');
+          return fallbackExercises;
+        } catch (importErr) {
+          console.error('[WorkoutEditor] Falha crítica de importação de fallback:', importErr);
+          return [] as Exercise[];
+        }
+      }),
+      workoutExercisesPromise,
+    ]);
+    const errors = results.filter(r => r.error);
+    if (errors.length > 0) throw errors[0].error;
 
     const exercisesMap = new Map(exercisesList.map(e => [e.id, e]));
     const enrichedWorkoutExercises = workoutExercises.map((item: any) => {
