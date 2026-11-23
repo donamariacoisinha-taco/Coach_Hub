@@ -5,7 +5,7 @@ import { fetchWithRetry } from '../utils';
 import { exerciseApi } from './exerciseApi';
 import { getGuestDashboard, getGuestWorkout, deleteGuestWorkout, updateGuestSessionSet } from '../guest/guestPersistence';
 import { authApi, GUEST_USER_ID } from './authApi';
-import { isIncompleteSave, isReplaceRpcMissing, missingInsertColumn, omitUnavailableOptionalFlag, planInsertRetry, planKeptIds, quoteExerciseIds, rememberCapability, withoutColumn } from './workoutExerciseSave';
+import { isIncompleteSave, isMissingReplaceRpc, isReplaceRpcMissing, missingInsertColumn, omitUnavailableOptionalFlag, planInsertRetry, planKeptIds, quoteExerciseIds, rememberCapability, withoutColumn } from './workoutExerciseSave';
 import { restSecondsFromLog } from '../../domain/workout/setPersistence';
 import { alignFlatColumns } from '../../domain/workout/planColumns';
 import { lastSetColumns, rowForTable } from '../../domain/workout/liveSchema';
@@ -356,6 +356,22 @@ export const workoutApi = {
     } catch (err) {
       console.warn("[workoutApi] Failed to update partial session online. Tolerating offline state.", err);
     }
+  },
+
+  async getExercisePrescription(userId: string, exerciseId: string) {
+    if (!userId || !exerciseId || userId === 'guest-user-id') return null;
+    const { data, error } = await supabase
+      .from('exercise_prescriptions')
+      .select('exercise_id, sets_json')
+      .eq('user_id', userId)
+      .eq('exercise_id', exerciseId)
+      .maybeSingle();
+    if (error) {
+      console.warn('[workoutApi] prescrição do exercício indisponível', error);
+      return null;
+    }
+    const sets = (data as { sets_json?: unknown } | null)?.sets_json;
+    return Array.isArray(sets) && sets.length > 0 ? sets : null;
   },
 
   async getLastSet(exerciseId: string) {
@@ -871,25 +887,28 @@ export const workoutApi = {
     const aligned = exercises.map((row) => alignFlatColumns({ ...row }));
 
     if (!isReplaceRpcMissing()) {
-      const rpc = await supabase.rpc('replace_workout_exercises', {
-        p_category_id: categoryId,
-        p_rows: aligned,
-      });
-      if (!rpc.error) {
+      let rpcData: unknown = null;
+      let rpcError: unknown = null;
+      try {
+        const rpc = await supabase.rpc('replace_workout_exercises', {
+          p_category_id: categoryId,
+          p_rows: aligned,
+        });
+        rpcData = rpc.data;
+        rpcError = rpc.error;
+      } catch (error) {
+        rpcError = error;
+      }
+
+      if (!rpcError) {
         rememberCapability('replaceRpc', true);
-        const ids = Array.isArray(rpc.data) ? rpc.data.map((id: unknown) => String(id)) : [];
+        const ids = Array.isArray(rpcData) ? rpcData.map((id: unknown) => String(id)) : [];
         const plan = planKeptIds(aligned.length, ids);
         if (isIncompleteSave(plan)) throw new Error(plan.reason);
         return plan.keepIds;
       }
 
-      const message = rpc.error.message || '';
-      const status = Number((rpc.error as { status?: number }).status ?? (rpc.error as { statusCode?: number }).statusCode);
-      const missingRpc = rpc.error.code === 'PGRST202'
-        || status === 404
-        || /could not find the function/i.test(message)
-        || /function .* does not exist/i.test(message);
-      if (!missingRpc) throw rpc.error;
+      if (!isMissingReplaceRpc(rpcError)) throw rpcError;
       rememberCapability('replaceRpc', false);
     }
 

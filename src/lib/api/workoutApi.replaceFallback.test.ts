@@ -71,6 +71,26 @@ describe('troca da ficha sem a migration', () => {
     });
   });
 
+  it('não chama a função quando a ausência já está gravada', async () => {
+    localStorage.setItem('kyron_cap_replace_workout_exercises', '0');
+    resetCapabilitiesForTests();
+    await workoutApi.replaceWorkoutExercises('ficha-1', rows);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(inserts).toHaveLength(1);
+    expect(categoryDeletes).toHaveLength(1);
+  });
+
+  it('um 404 lançado cai no insert e não se repete no save seguinte', async () => {
+    rpc.mockRejectedValueOnce(Object.assign(new Error('Could not find the function public.replace_workout_exercises'), { code: 'PGRST202', status: 404 }));
+    await workoutApi.replaceWorkoutExercises('ficha-1', rows);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(inserts).toHaveLength(1);
+    resetCapabilitiesForTests();
+    await workoutApi.replaceWorkoutExercises('ficha-1', rows);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(inserts).toHaveLength(2);
+  });
+
   it('não envia is_optional, grava as colunas do sets_json e não repete a função ausente', async () => {
     await workoutApi.replaceWorkoutExercises('ficha-1', rows);
     expect(rpc).toHaveBeenCalledTimes(1);
