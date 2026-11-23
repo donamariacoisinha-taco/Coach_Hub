@@ -1,3 +1,4 @@
+import { planSetCount } from './planColumns';
 import { type PrefillSet } from './setPersistence';
 
 export type { PrefillSet };
@@ -80,6 +81,7 @@ export function lastSessionSetsForExercise(logs: ExercisePerformanceLog[], exerc
 /**
  * Set N comes from set N of the last session of this exercise_id.
  * Without a log, a saved prescription wins over the empty 0x12 placeholder.
+ * The ficha decides how many sets exist. A longer log or prescription is clipped.
  */
 export function prefillExercise(
   exercise: PrefillExercise,
@@ -91,7 +93,7 @@ export function prefillExercise(
     : (log && log.exercise_id === exercise.exercise_id ? [log] : []);
   const saved = Array.isArray(prescription) && prescription.length > 0 ? prescription : null;
   const plan = Array.isArray(exercise.sets_json) && exercise.sets_json.length > 0 ? exercise.sets_json : null;
-  const count = Math.max(plan?.length || 0, Number(exercise.sets) || 0, session.length, saved?.length || 0, 1);
+  const count = planSetCount(exercise, 1);
   return Array.from({ length: count }, (_, index) => {
     const planned = plan?.[index] || saved?.[index] || ownPrescriptionSets({ ...exercise, sets: 1, sets_json: null })[0];
     const logged = session.find((row) => row.set_number != null && Number(row.set_number) === index + 1)
@@ -120,6 +122,46 @@ export function applyPreventiveReduction<T extends PrefillSet>(sets: T[], factor
       ...set,
       weight: Math.round(Number(set.weight) * factor * 10) / 10,
     })),
+  };
+}
+
+/** Last session of one exercise, taken from a local history list (guest). */
+export function sessionLogsFromHistory(
+  entries: { id?: string | null; completed_at?: string | null; workout_sets_logs?: Array<Record<string, unknown>> | null }[] | null | undefined,
+  exerciseId: string,
+): ExercisePerformanceLog[] {
+  const logs: ExercisePerformanceLog[] = [];
+  for (const entry of entries || []) {
+    for (const set of entry.workout_sets_logs || []) {
+      if (String(set?.exercise_id || '') !== exerciseId) continue;
+      logs.push({
+        exercise_id: exerciseId,
+        history_id: entry.id || undefined,
+        set_number: set.set_number == null ? null : Number(set.set_number),
+        weight: Number(set.weight_achieved ?? set.weight ?? 0),
+        reps: Number(set.reps_achieved ?? set.reps ?? 0),
+        rpe: set.rpe == null ? null : Number(set.rpe),
+        created_at: typeof set.created_at === 'string' ? set.created_at : entry.completed_at,
+      });
+    }
+  }
+  return lastSessionSetsForExercise(logs, exerciseId);
+}
+
+/** What the preparation screen and the next-exercise line should show. */
+export function previewExerciseLine(
+  exercise: PrefillExercise,
+  log?: ExercisePerformanceLog | ExercisePerformanceLog[] | null,
+  prescription?: PrefillSet[] | null,
+): { sets: number; reps: string; weight: number } {
+  const filled = prefillExercise(exercise, log, prescription);
+  const first = filled[0];
+  const reps = first?.reps != null && String(first.reps) !== '' ? String(first.reps) : '12';
+  const weight = Number(first?.weight ?? 0);
+  return {
+    sets: filled.length,
+    reps,
+    weight: Number.isFinite(weight) ? weight : 0,
   };
 }
 

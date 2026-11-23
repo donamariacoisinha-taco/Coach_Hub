@@ -1,5 +1,6 @@
 import type { WorkoutExercise } from '../../types';
 import { SetType } from '../../types';
+import { planSetCount } from './planColumns';
 
 export type WorkoutAdvanceAction =
   | 'NEXT_SET'
@@ -488,7 +489,7 @@ export const computeWorkoutCompletionSummary = (
   };
 
   const requiredSets = exercises.reduce((sum, exercise) => (
-    countsTowardRequired(exercise) ? sum + (exercise.sets_json?.length || exercise.sets || 0) : sum
+    countsTowardRequired(exercise) ? sum + planSetCount(exercise) : sum
   ), 0);
 
   const completedSets = exercises.reduce((sum, _exercise, index) => sum + completedCountAt(index), 0);
@@ -497,12 +498,12 @@ export const computeWorkoutCompletionSummary = (
   ), 0);
 
   const incompleteExercises = exercises.filter((exercise, index) => {
-    const required = exercise.sets_json?.length || exercise.sets || 0;
+    const required = planSetCount(exercise);
     return completedCountAt(index) < required;
   }).length;
 
   const details = exercises.map((exercise, index) => {
-    const required = exercise.sets_json?.length || exercise.sets || 0;
+    const required = planSetCount(exercise);
     return {
       name: exercise.exercise_name_snapshot || exercise.exercise_name || `Exercício ${index + 1}`,
       remainingSets: Math.max(0, required - completedCountAt(index)),

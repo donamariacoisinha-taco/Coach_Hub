@@ -356,4 +356,15 @@ describe('computeWorkoutCompletionSummary', () => {
     const everythingDone = computeWorkoutCompletionSummary(exs, { 0: new Set([0, 1]), 1: new Set([0, 1]) });
     expect(everythingDone.complete).toBe(true);
   });
+
+  it('conta as séries da ficha, não uma lista mais longa que tenha vindo de fora', () => {
+    const exs = [
+      workoutEx({ sets: 4, sets_json: [{ reps: '10' }, { reps: '10' }, { reps: '10' }] }),
+    ];
+    const summary = computeWorkoutCompletionSummary(exs, { 0: new Set([0, 1]) });
+    expect(summary.requiredSets).toBe(3);
+    expect(summary.remainingSets).toBe(1);
+    expect(summary.incompleteExercises).toBe(1);
+    expect(summary.complete).toBe(false);
+  });
 });

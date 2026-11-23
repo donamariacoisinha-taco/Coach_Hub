@@ -46,6 +46,21 @@ export function readPlanSummary(exercise: PlanColumnFallback & { sets_json?: Pla
   return summaryFromSets(exercise.sets_json, exercise);
 }
 
+/**
+ * Quantas séries a ficha pede. A lista da ficha ganha da coluna `sets`.
+ * Log da última sessão e prescrição não aumentam esse número.
+ */
+export function planSetCount(
+  exercise: { sets_json?: readonly unknown[] | null; sets?: number | null },
+  fallback = 0,
+): number {
+  const listed = Array.isArray(exercise.sets_json) ? exercise.sets_json.length : 0;
+  if (listed > 0) return listed;
+  const declared = Math.trunc(Number(exercise.sets));
+  if (Number.isFinite(declared) && declared > 0) return declared;
+  return fallback;
+}
+
 export function alignFlatColumns<T extends PlanColumnFallback & { sets_json?: PlanSet[] | null }>(row: T): T & PlanSummary {
   return { ...row, ...summaryFromSets(row.sets_json, row) };
 }

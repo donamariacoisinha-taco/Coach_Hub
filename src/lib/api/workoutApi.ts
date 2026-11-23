@@ -7,7 +7,7 @@ import { getGuestDashboard, getGuestWorkout, deleteGuestWorkout, updateGuestSess
 import { authApi, GUEST_USER_ID } from './authApi';
 import { isIncompleteSave, isMissingReplaceRpc, isReplaceRpcMissing, missingInsertColumn, omitUnavailableOptionalFlag, planInsertRetry, planKeptIds, quoteExerciseIds, rememberCapability, withoutColumn } from './workoutExerciseSave';
 import { restSecondsFromLog } from '../../domain/workout/setPersistence';
-import { alignFlatColumns } from '../../domain/workout/planColumns';
+import { alignFlatColumns, planSetCount } from '../../domain/workout/planColumns';
 import { lastSetColumns, rowForTable } from '../../domain/workout/liveSchema';
 import { completionFromCounts } from '../../domain/workout/sessionSummary';
 import { isMissingRelationError, isRelationMissing, markRelationMissing, shareInflight } from './missingRelation';
@@ -18,7 +18,25 @@ const historyCache = new Map<string, { at: number; value: unknown }>();
 const historyCountCache = new Map<string, { at: number; value: number }>();
 const partialCache = new Map<string, { at: number; value: unknown }>();
 const dashboardReadCache = new Map<string, { at: number; value: unknown }>();
+const folderListCache = new Map<string, { at: number; value: { data: unknown; error: null } }>();
 const READ_CACHE_MS = 15000;
+
+function invalidateFolderList(userId?: string) {
+  if (userId) folderListCache.delete(userId);
+  else folderListCache.clear();
+}
+
+function readWorkoutFolders(userId: string) {
+  const hit = folderListCache.get(userId);
+  if (hit && Date.now() - hit.at < READ_CACHE_MS) return Promise.resolve(hit.value);
+  return shareInflight(`folders:${userId}`, async () => {
+    const { data, error } = await supabase.from('workout_folders').select('*').eq('user_id', userId).order('name');
+    if (error) return { data: null, error };
+    const value = { data, error: null as null };
+    folderListCache.set(userId, { at: Date.now(), value });
+    return value;
+  });
+}
 
 async function annotateHistoryCompletion<T extends { id: string; category_id?: string | null; partial?: boolean }>(rows: T[]): Promise<T[]> {
   if (!rows.length) return rows;
@@ -28,7 +46,7 @@ async function annotateHistoryCompletion<T extends { id: string; category_id?: s
     const [logRes, planRes] = await Promise.all([
       supabase.from('workout_sets_log').select('history_id').in('history_id', ids),
       categoryIds.length
-        ? supabase.from('workout_exercises').select('category_id, sets').in('category_id', categoryIds)
+        ? supabase.from('workout_exercises').select('category_id, sets, sets_json').in('category_id', categoryIds)
         : Promise.resolve({ data: [], error: null }),
     ]);
     if (logRes.error || planRes.error) return rows;
@@ -40,7 +58,7 @@ async function annotateHistoryCompletion<T extends { id: string; category_id?: s
     const planned = new Map<string, number>();
     for (const row of planRes.data || []) {
       const id = String((row as { category_id?: string }).category_id || '');
-      if (id) planned.set(id, (planned.get(id) || 0) + Number((row as { sets?: number }).sets || 0));
+      if (id) planned.set(id, (planned.get(id) || 0) + planSetCount(row as { sets?: number; sets_json?: unknown[] }));
     }
     return rows.map((row) => {
       const loggedSets = logged.get(row.id) || 0;
@@ -233,6 +251,7 @@ export const workoutApi = {
     await supabase.from('workout_categories').update({ folder_id: null }).eq('folder_id', id);
     const { error } = await supabase.from('workout_folders').delete().eq('id', id);
     if (error) throw error;
+    invalidateFolderList();
 
     // Synchronize localStorage backup cache immediately
     try {
@@ -264,6 +283,7 @@ export const workoutApi = {
   async createFolder(userId: string, name: string) {
     const { data, error } = await supabase.from('workout_folders').insert([{ user_id: userId, name }]).select().single();
     if (error) throw error;
+    invalidateFolderList(userId);
     return data as WorkoutFolder;
   },
 
@@ -856,7 +876,7 @@ export const workoutApi = {
     // We fetch folders, muscle groups, and user favorites.
     // Exercises are fetched reliably below.
     const queries: any[] = [
-      supabase.from('workout_folders').select('*').eq('user_id', userId).order('name'),
+      readWorkoutFolders(userId),
       exerciseApi.getMuscleGroups().then((groups) => ({ data: groups, error: null })).catch((error) => ({ data: null, error })),
       exerciseApi.getFavorites(userId).then((ids) => ({ data: ids.map((exercise_id: string) => ({ exercise_id })), error: null })).catch((error) => ({ data: null, error })),
     ];

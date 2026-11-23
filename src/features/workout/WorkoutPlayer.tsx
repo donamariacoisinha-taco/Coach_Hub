@@ -67,7 +67,9 @@ import { buildExerciseFilterGroups } from "../../lib/exercises/exerciseFilters";
 
 import { editAndReplicate, replicateCompletedSet } from "../../lib/exercisePrescriptions";
 import { canWritePartialSession, createSetIdentityStore } from "../../domain/workout/setPersistence";
-import { applyPreventiveReduction, ownPrescriptionSets, prefillExercise, type ExercisePerformanceLog, type PrefillSet } from "../../domain/workout/exercisePrefill";
+import { applyPreventiveReduction, ownPrescriptionSets, prefillExercise, previewExerciseLine, type ExercisePerformanceLog, type PrefillSet } from "../../domain/workout/exercisePrefill";
+import { planSetCount } from "../../domain/workout/planColumns";
+import { adjustRestSeconds, remainingRestSeconds, restEndAt } from "../../domain/workout/restClock";
 import { readPlanSummary } from "../../domain/workout/planColumns";
 import { confirmedSetIndexes, saveChoiceWritesPlan, volumeKg } from "../../domain/workout/sessionRecord";
 
@@ -987,17 +989,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       const perf = replaceIndex === currentIndex ? activeSetsData : (workoutPerformance[replaceIndex] || []);
       const performed = perf.map((set: any, setIndex: number) => ({ ...set, set_number: setIndex + 1 })).filter((_: any, setIndex: number) => completed.has(setIndex));
       if (performed.length) removedExecution.current.push({ exercise: target, sets: performed });
-      let ownSets = ownPrescriptionSets({
-        exercise_id: ex.id,
-        sets: target.sets || target.sets_json?.length || 3,
-        reps: '12',
-        weight: 0,
-        rest_time: target.rest_time || 60,
-        default_rpe: target.default_rpe || 8,
-      });
+      let storedPrescription: PrefillSet[] | null = null;
       if (!isGuestWorkout && user?.id) {
         const stored = await workoutApi.getExercisePrescription(user.id, ex.id);
-        if (stored?.length) ownSets = stored;
+        if (stored?.length) storedPrescription = stored as PrefillSet[];
       }
       const replacementLog: ExercisePerformanceLog | null = lastPerformance ? {
         exercise_id: ex.id,
@@ -1007,7 +1002,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         rest_time: lastPerformance.rest_time,
       } : null;
       noteExerciseLog(ex.id, replacementLog);
-      const filled = prefillExercise({ exercise_id: ex.id, sets_json: ownSets }, replacementLog);
+      const planCount = planSetCount(target, 3);
+      const filled = prefillExercise({
+        exercise_id: ex.id,
+        sets: planCount,
+        reps: '12',
+        weight: 0,
+        rest_time: target.rest_time || 60,
+        default_rpe: target.default_rpe || 8,
+      }, replacementLog, storedPrescription);
       updatedExercises[replaceIndex] = {
         ...updatedExercises[replaceIndex],
         sets_json: filled.map((set) => ({
@@ -2005,15 +2008,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const handleAdjustTimer = (delta: number) => {
     const now = Date.now();
     const visibleSeconds = Math.max(0, timeLeft);
-    const adjustedRemaining = Math.max(0, visibleSeconds + delta);
+    const adjustedRemaining = adjustRestSeconds(visibleSeconds, delta);
     if (adjustedRemaining > 0) {
       hasTriggeredRef.current = false;
       if (!isResting) setIsResting(true);
+      restEndTimestampRef.current = restEndAt(now, adjustedRemaining);
+    } else {
+      restEndTimestampRef.current = null;
     }
-
-    // Keep the countdown source of truth aligned with the visible timer so the
-    // 200ms interval cannot overwrite a manual +10s/-10s adjustment.
-    restEndTimestampRef.current = now + adjustedRemaining * 1000;
     setTimeLeft(adjustedRemaining);
 
     const exerciseIndex = currentIndexRef.current;
@@ -2547,6 +2549,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     }
 
+    restEndTimestampRef.current = null;
     setIsResting(false);
     setRestOvertime(0);
     hasTriggeredRef.current = false; // Prepare for next rest
@@ -2630,62 +2633,37 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   useEffect(() => {
     if (!isResting) {
       vibratedAlert5s.current = false;
-      if (timeLeft <= 0) {
-        hasTriggeredRef.current = false;
-        restEndTimestampRef.current = null;
-        restStartedAtRef.current = null;
-      }
       return;
     }
-
-    if (restEndTimestampRef.current === null) {
-      restEndTimestampRef.current = Date.now() + timeLeft * 1000;
+    if (restEndTimestampRef.current == null && timeLeft > 0) {
+      restEndTimestampRef.current = restEndAt(Date.now(), timeLeft);
     }
-    
-    // At 0:00 the clock still listens, so +10s/-10s can move the end timestamp.
-    // Auto-advance waits a second and is cancelled if the person adds time.
-    if (timeLeft <= 0) {
-      const interval = setInterval(() => {
-        if (restEndTimestampRef.current === null) return;
-        const remaining = Math.max(0, Math.round((restEndTimestampRef.current - Date.now()) / 1000));
-        if (remaining > 0) {
-          hasTriggeredRef.current = false;
-          setRestOvertime(0);
-          setTimeLeft(remaining);
-          return;
-        }
-        setTimeLeft(0);
-      }, 200);
-      const advanceTimer = window.setTimeout(() => {
-        if (hasTriggeredRef.current) return;
-        const remaining = restEndTimestampRef.current === null
-          ? 0
-          : Math.round((restEndTimestampRef.current - Date.now()) / 1000);
-        if (remaining > 0) return;
-        hasTriggeredRef.current = true;
-        if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
-      }, 1000);
-      return () => {
-        clearInterval(interval);
-        window.clearTimeout(advanceTimer);
-      };
-    }
-    
-    // Beep & Vibrate during final 5 seconds
-    if (timeLeft <= 5 && timeLeft > 0) {
-      playTimerBeep(false);
-      if ('vibrate' in navigator) navigator.vibrate(50);
-    }
+    const tick = () => {
+      const remaining = remainingRestSeconds(restEndTimestampRef.current, Date.now());
+      if (remaining > 0) hasTriggeredRef.current = false;
+      setTimeLeft((current) => (current === remaining ? current : remaining));
+    };
+    tick();
+    const interval = window.setInterval(tick, 200);
+    return () => window.clearInterval(interval);
+  }, [isResting]);
 
-    const interval = setInterval(() => {
-      if (restEndTimestampRef.current !== null) {
-        const remaining = Math.max(0, Math.round((restEndTimestampRef.current - Date.now()) / 1000));
-        setTimeLeft(remaining);
-      }
-    }, 200);
+  useEffect(() => {
+    if (!isResting || timeLeft <= 0 || timeLeft > 5) return;
+    playTimerBeep(false);
+    if ('vibrate' in navigator) navigator.vibrate(50);
+  }, [isResting, timeLeft]);
 
-    return () => clearInterval(interval);
-  }, [isResting, timeLeft, restOvertime, pendingSetToComplete]);
+  useEffect(() => {
+    if (!isResting || timeLeft > 0) return;
+    const advanceTimer = window.setTimeout(() => {
+      if (hasTriggeredRef.current) return;
+      if (remainingRestSeconds(restEndTimestampRef.current, Date.now()) > 0) return;
+      hasTriggeredRef.current = true;
+      if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete);
+    }, 1000);
+    return () => window.clearTimeout(advanceTimer);
+  }, [isResting, timeLeft, pendingSetToComplete]);
 
   // 1. Fetch History Effect - Independent of data initialization
   useEffect(() => {
@@ -4151,11 +4129,19 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         <p className="text-[11px] font-black text-slate-900 truncate uppercase tracking-tighter">{nextEx.exercise_name}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                            {nextEx.sets_json?.[0]?.weight || 0}kg × {nextEx.sets_json?.[0]?.reps || 10}
+                            {(() => {
+                              const line = previewExerciseLine(
+                                nextEx,
+                                sessionSetsByExerciseId.current.get(nextEx.exercise_id) || [],
+                                prescriptionByExerciseId.current.get(nextEx.exercise_id) || null,
+                              );
+                              void prefillRevision;
+                              return `${line.weight}kg × ${line.reps}`;
+                            })()}
                            </span>
                            <div className="w-1 h-1 rounded-full bg-slate-200" />
                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                            {nextEx.sets_json?.length || 0} séries
+                            {planSetCount(nextEx, nextEx.sets || 0)} séries
                            </span>
                         </div>
                       </div>
