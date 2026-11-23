@@ -112,6 +112,17 @@ export function isReplaceRpcMissing(): boolean {
   return readCapability('replaceRpc') === false;
 }
 
+/** PostgREST 404 for replace_workout_exercises. The insert-then-delete path stays in place. */
+export function isMissingReplaceRpc(error: unknown): boolean {
+  const value = error as { message?: string; code?: string; details?: string; hint?: string; status?: number; statusCode?: number };
+  const status = Number(value?.status ?? value?.statusCode);
+  const message = `${value?.message || ''} ${value?.details || ''} ${value?.hint || ''}`;
+  return value?.code === 'PGRST202'
+    || status === 404
+    || /could not find the function/i.test(message)
+    || /function .* does not exist/i.test(message);
+}
+
 export function omitUnavailableOptionalFlag<T extends Record<string, unknown>>(rows: T[]): T[] {
   if (readCapability('isOptional') !== false) return rows;
   return withoutColumn(rows, 'is_optional');

@@ -66,7 +66,8 @@ import { buildExerciseFilterGroups } from "../../lib/exercises/exerciseFilters";
 
 
 import { editAndReplicate, replicateCompletedSet } from "../../lib/exercisePrescriptions";
-import { canWritePartialSession, createSetIdentityStore, prefillSetsFromLast } from "../../domain/workout/setPersistence";
+import { canWritePartialSession, createSetIdentityStore } from "../../domain/workout/setPersistence";
+import { ownPrescriptionSets, prefillExercise, type ExercisePerformanceLog } from "../../domain/workout/exercisePrefill";
 import { readPlanSummary } from "../../domain/workout/planColumns";
 import { confirmedSetIndexes, saveChoiceWritesPlan, volumeKg } from "../../domain/workout/sessionRecord";
 
@@ -692,6 +693,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const [workoutPerformance, setWorkoutPerformance] = useState<Record<number, {id?: string, weight: number, reps: number, rpe: number}[]>>({});
   
   const [lastSet, setLastSet] = useState<LastSetData | null>(null);
+  const logsByExerciseId = useRef(new Map<string, ExercisePerformanceLog | null>());
+  const [prefillRevision, setPrefillRevision] = useState(0);
+  const appliedPrefillKey = useRef<string | null>(null);
+  const noteExerciseLog = (exerciseId: string, log: ExercisePerformanceLog | null) => {
+    if (!exerciseId) return;
+    logsByExerciseId.current.set(exerciseId, log && log.exercise_id === exerciseId ? log : null);
+    setPrefillRevision((value) => value + 1);
+  };
   const [previousSet, setPreviousSet] = useState<LastSetData | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [memoryLoadSuggestion, setMemoryLoadSuggestion] = useState<any>(null);
@@ -872,15 +881,18 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       try { lastPerformance = await workoutApi.getLastSet(ex.id); }
       catch (error) { showError(error); }
     }
-    const prefilledSets = prefillSetsFromLast(
-      Array.from({ length: 3 }).map(() => ({ reps: 10, weight: 0, rest_time: 60, rpe: 8, type: SetType.NORMAL })),
-      lastPerformance ? {
-        weight: Number(lastPerformance.weight_achieved),
-        reps: Number(lastPerformance.reps_achieved),
-        rpe: Number(lastPerformance.rpe ?? 8),
-        rest_time: lastPerformance.rest_time,
-      } : null,
-    );
+    const addedLog: ExercisePerformanceLog | null = lastPerformance ? {
+      exercise_id: ex.id,
+      weight: Number(lastPerformance.weight_achieved),
+      reps: Number(lastPerformance.reps_achieved),
+      rpe: Number(lastPerformance.rpe ?? 8),
+      rest_time: lastPerformance.rest_time,
+    } : null;
+    noteExerciseLog(ex.id, addedLog);
+    const prefilledSets = prefillExercise({
+      exercise_id: ex.id,
+      sets_json: Array.from({ length: 3 }).map(() => ({ reps: 10, weight: 0, rest_time: 60, rpe: 8, type: SetType.NORMAL })),
+    }, addedLog);
     const newEx: WorkoutExercise = {
       id: "ex-live-" + Math.random().toString(36).substring(2, 9),
       category_id: workoutId,
@@ -895,7 +907,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         weight: Number(set.weight),
         rest_time: Number(set.rest_time),
         rpe: Number(set.rpe),
-        type: set.type || SetType.NORMAL,
+        type: (set.type as SetType) || SetType.NORMAL,
       })),
       exercise_name: ex.name,
       muscle_group: ex.muscle_group || "Outros",
@@ -957,15 +969,27 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       const perf = replaceIndex === currentIndex ? activeSetsData : (workoutPerformance[replaceIndex] || []);
       const performed = perf.map((set: any, setIndex: number) => ({ ...set, set_number: setIndex + 1 })).filter((_: any, setIndex: number) => completed.has(setIndex));
       if (performed.length) removedExecution.current.push({ exercise: target, sets: performed });
-      const filled = prefillSetsFromLast(
-        updatedExercises[replaceIndex].sets_json || [],
-        lastPerformance ? {
-          weight: Number(lastPerformance.weight_achieved),
-          reps: Number(lastPerformance.reps_achieved),
-          rpe: Number(lastPerformance.rpe ?? 8),
-          rest_time: lastPerformance.rest_time,
-        } : null,
-      );
+      let ownSets = ownPrescriptionSets({
+        exercise_id: ex.id,
+        sets: target.sets || target.sets_json?.length || 3,
+        reps: '12',
+        weight: 0,
+        rest_time: target.rest_time || 60,
+        default_rpe: target.default_rpe || 8,
+      });
+      if (!isGuestWorkout && user?.id) {
+        const stored = await workoutApi.getExercisePrescription(user.id, ex.id);
+        if (stored?.length) ownSets = stored;
+      }
+      const replacementLog: ExercisePerformanceLog | null = lastPerformance ? {
+        exercise_id: ex.id,
+        weight: Number(lastPerformance.weight_achieved),
+        reps: Number(lastPerformance.reps_achieved),
+        rpe: Number(lastPerformance.rpe ?? 8),
+        rest_time: lastPerformance.rest_time,
+      } : null;
+      noteExerciseLog(ex.id, replacementLog);
+      const filled = prefillExercise({ exercise_id: ex.id, sets_json: ownSets }, replacementLog);
       updatedExercises[replaceIndex] = {
         ...updatedExercises[replaceIndex],
         sets_json: filled.map((set) => ({
@@ -2267,6 +2291,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   }, [playerQuery.data, workoutId, setWorkout]);
 
   const currentEx = useMemo(() => (exercises && exercises[currentIndex]) || null, [exercises, currentIndex]);
+  const currentLastSet = useMemo(() => {
+    if (!currentEx?.exercise_id) return null;
+    const cached = logsByExerciseId.current.get(currentEx.exercise_id);
+    if (!cached || cached.exercise_id !== currentEx.exercise_id) return null;
+    return { weight: Number(cached.weight), reps: Number(cached.reps), rpe: Number(cached.rpe ?? 8), rest_time: cached.rest_time };
+  }, [currentEx?.exercise_id, prefillRevision]);
   const nextEx = useMemo(() => (exercises && exercises[currentIndex + 1]) || null, [exercises, currentIndex]);
 
   const biologicalState = useMemo(() => {
@@ -2624,15 +2654,21 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           workoutApi.getHistoricalSets(currentEx.exercise_id, historyId || undefined)
         ]);
 
-        if (last) {
-          const formattedLast = { weight: last.weight_achieved, reps: last.reps_achieved, rpe: last.rpe, rest_time: last.rest_time };
-          setLastSet(prev => {
-            if (JSON.stringify(prev) === JSON.stringify(formattedLast)) return prev;
-            return formattedLast;
-          });
-        } else {
-          setLastSet(null);
-        }
+        const formattedLast: ExercisePerformanceLog | null = last ? {
+          exercise_id: currentEx.exercise_id,
+          weight: Number(last.weight_achieved),
+          reps: Number(last.reps_achieved),
+          rpe: Number(last.rpe ?? 8),
+          rest_time: last.rest_time,
+        } : null;
+        noteExerciseLog(currentEx.exercise_id, formattedLast);
+        const visibleLast = formattedLast
+          ? { weight: formattedLast.weight, reps: formattedLast.reps, rpe: Number(formattedLast.rpe ?? 8) }
+          : null;
+        setLastSet(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(visibleLast)) return prev;
+          return visibleLast;
+        });
         
         setHistoricalSets(historical);
       } catch (err) {
@@ -2640,7 +2676,34 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       }
     };
     fetchHistory();
-  }, [currentEx?.exercise_id, historyId]);
+  }, [currentEx?.exercise_id, historyId, isGuestWorkout]);
+
+  const exercisePrefillIds = exercises.map((exercise) => exercise.exercise_id).filter(Boolean).join('|');
+  useEffect(() => {
+    if (isGuestWorkout || !exercisePrefillIds) return;
+    let cancelled = false;
+    const ids = [...new Set(exercisePrefillIds.split('|'))];
+    (async () => {
+      await Promise.all(ids.map(async (exerciseId) => {
+        if (logsByExerciseId.current.has(exerciseId)) return;
+        try {
+          const last = await workoutApi.getLastSet(exerciseId);
+          if (cancelled) return;
+          logsByExerciseId.current.set(exerciseId, last ? {
+            exercise_id: exerciseId,
+            weight: Number(last.weight_achieved),
+            reps: Number(last.reps_achieved),
+            rpe: Number(last.rpe ?? 8),
+            rest_time: last.rest_time,
+          } : null);
+        } catch {
+          if (!cancelled) logsByExerciseId.current.set(exerciseId, null);
+        }
+      }));
+      if (!cancelled) setPrefillRevision((value) => value + 1);
+    })();
+    return () => { cancelled = true; };
+  }, [exercisePrefillIds, isGuestWorkout]);
 
   // Preloading engine for next exercise: prefetch image and cached data
   useEffect(() => {
@@ -2671,18 +2734,26 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     // Only initialize if we changed index (exercise) or if we have no data at all
     const hasData = activeSetsData && activeSetsData.length > 0;
     const isNewIndex = lastInitializedIdx.current !== currentIndex;
-    
-    // If it's the SAME index we already have data for, DON'T overwrite from workoutPerformance
-    // WorkoutPerformance might be lagging behind activeSetsData
-    if (!isNewIndex && hasData) {
-      log("[INIT] Already initialized for this index, skipping re-init");
-      return;
-    }
+
+    const exerciseId = currentEx.exercise_id;
+    const manualKey = currentEx.id || exerciseId || String(currentIndex);
+    const edited = (manuallyEditedFields.current[manualKey]?.size || 0) > 0;
+    const completedHere = new Set<number>([
+      ...(completedSetsByExercise[currentIndex] || []),
+      ...(completedSetIndices || []),
+    ]);
+    const touched = edited || completedHere.size > 0;
+    const logKnown = isGuestWorkout || logsByExerciseId.current.has(exerciseId);
+    const cachedLog = logKnown ? logsByExerciseId.current.get(exerciseId) : null;
+    const matchingLog = cachedLog && cachedLog.exercise_id === exerciseId ? cachedLog : null;
+    const token = !logKnown ? 'pending' : matchingLog ? `${matchingLog.weight}x${matchingLog.reps}` : 'none';
+    const applyKey = `${currentIndex}:${exerciseId}:${token}:${touched ? 'kept' : 'prefill'}`;
 
     let nextSets: { id?: string, weight: number, reps: number, rpe: number, type?: SetType, rest_time?: number }[] = [];
 
-    // Prioritize existing performance data (from current session or hydration)
-    if (workoutPerformance[currentIndex] && workoutPerformance[currentIndex].length > 0) {
+    // Séries já feitas ficam. O resto nasce da prescrição deste exercise_id,
+    // com o último log desse mesmo id — nunca o do exercício ao lado.
+    if (touched && workoutPerformance[currentIndex] && workoutPerformance[currentIndex].length > 0) {
       nextSets = workoutPerformance[currentIndex].map((s, idx) => {
         const origSet = currentEx.sets_json?.[idx];
         return {
@@ -2695,41 +2766,23 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           rest_time_actual: (s as any).rest_time_actual
         };
       });
-    } else if (currentEx.sets_json && currentEx.sets_json.length > 0) {
-      const planned = currentEx.sets_json.map((s) => ({
-        weight: typeof s.weight === 'number' ? s.weight : 0,
-        reps: Number(s.reps ?? 0),
-        rpe: s.rpe ?? currentEx.default_rpe ?? 8,
-        type: s.type || SetType.NORMAL,
-        rest_time: s.rest_time || currentEx.rest_time || 60,
-      }));
-      const filled = prefillSetsFromLast(planned, lastSet ? {
-        weight: Number(lastSet.weight),
-        reps: Number(lastSet.reps),
-        rpe: Number(lastSet.rpe ?? 8),
-        rest_time: (lastSet as any).rest_time,
-      } : null);
-      nextSets = filled.map((set, idx) => ({
+    } else {
+      const filled = prefillExercise(currentEx, matchingLog);
+      nextSets = (filled.length ? filled : ownPrescriptionSets(currentEx)).map((set, idx) => ({
         id: `${currentIndex}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
         weight: Number(set.weight ?? 0),
         reps: Number(set.reps ?? 0),
-        rpe: Number(set.rpe ?? 8),
+        rpe: Number(set.rpe ?? currentEx.default_rpe ?? 8),
         type: (set.type as SetType) || SetType.NORMAL,
-        rest_time: Number(set.rest_time ?? 60),
+        rest_time: Number(set.rest_time ?? currentEx.rest_time ?? 60),
       }));
-    } else {
-      // Empty state safety: ensure at least one set exists
-      const initialWeight = lastSet?.weight || 0;
-      const initialReps = lastSet?.reps || 10;
-      nextSets = [{ 
-        id: `${currentIndex}_0_${Math.random().toString(36).substring(2, 7)}`, 
-        weight: initialWeight, 
-        reps: initialReps, 
-        rpe: 8,
-        type: SetType.NORMAL,
-        rest_time: currentEx.rest_time || 60
-      }];
     }
+
+    if (!isNewIndex && hasData && appliedPrefillKey.current === applyKey) {
+      log("[INIT] Already initialized for this index, skipping re-init");
+      return;
+    }
+    appliedPrefillKey.current = applyKey;
 
     // PROTECTIVE CHECK: Only update state if data has actually changed OR we are changing exercises
     setActiveSetsData(prev => {
@@ -2742,7 +2795,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       lastInitializedIdx.current = currentIndex;
       return nextSets;
     });
-  }, [currentIndex, currentEx?.exercise_id, lastSet, isHydrating, isSessionReady]);
+  }, [currentIndex, currentEx?.exercise_id, currentLastSet, prefillRevision, isHydrating, isSessionReady, isGuestWorkout]);
 
   // Sync activeSetsData to workoutPerformance
   useEffect(() => {
@@ -2911,13 +2964,13 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     
     const emotional = getEmotionalFeedback({
       current: currentSetData,
-      lastSet: lastSet || undefined,
+      lastSet: currentLastSet || undefined,
       previousSet: previousSet || undefined,
     });
 
     const decision = getNextSetDecision(
       { weight, repsDone: reps, repsTarget, rpe },
-      lastSet || undefined
+      currentLastSet || undefined
     );
 
     // ADAPTIVE REST TIMER
@@ -2926,7 +2979,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     if (previousSet && reps < previousSet.reps) adaptiveRest += 10;
 
     // PR MOMENT DETECTION
-    const isPR = lastSet ? (weight > lastSet.weight || (weight === lastSet.weight && reps > lastSet.reps)) : false;
+    const isPR = currentLastSet ? (weight > currentLastSet.weight || (weight === currentLastSet.weight && reps > currentLastSet.reps)) : false;
     if (isPR) {
       setShowPR(true);
       if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
@@ -3485,10 +3538,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const preHint = useMemo(() => {
     if (!currentEx || isAdvanced) return null;
     return getPreSetHint({
-      lastSet,
+      lastSet: currentLastSet,
       targetReps: parseInt(currentEx.sets_json?.[currentSet - 1]?.reps as string) || 10
     });
-  }, [currentEx, currentSet, lastSet, isAdvanced]);
+  }, [currentEx, currentSet, currentLastSet, isAdvanced]);
 
   // Dispensar a dica vale só para a série atual — a próxima série ou
   // exercício deve poder mostrar a sua própria dica normalmente.
@@ -3962,7 +4015,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                         isPast={isPast}
                         intensity={intensity}
                         showPR={showPR}
-                        lastSet={lastSet}
+                        lastSet={currentLastSet}
                         delta={delta}
                         updateSetData={updateSetData}
                         rollbackToSet={rollbackToSet}
