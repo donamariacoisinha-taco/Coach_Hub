@@ -1,6 +1,7 @@
 
-import React, { Suspense, lazy, useState, useEffect, createContext, useContext, useRef } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { UserProfile } from './types';
+import { NavigationContext, NavigationState, Theme, View } from './navigation/navigation';
 import Auth from './components/Auth';
 import { LandingPage } from './components/LandingPage';
 import { useSync } from './hooks/useSync';
@@ -47,28 +48,7 @@ const ProfileViewV2 = lazy(loadProfile);
 const ExerciseLibrary = lazy(loadExerciseLibrary);
 const MinhaDieta = lazy(() => loadDiet().then(module => ({ default: module.MinhaDieta })));
 
-type View = 'landing' | 'auth' | 'onboarding' | 'dashboard' | 'workout' | 'preparation' | 'editor' | 'history' | 'admin' | 'profile' | 'library' | 'dieta';
-type Theme = 'classic' | 'light' | 'aggressive' | 'bloom' | 'neon-strike';
-
-interface NavigationState { view: View; params: any; }
-
 const PROTECTED_VIEWS: View[] = ['dashboard', 'workout', 'editor', 'history', 'admin', 'profile', 'library', 'dieta', 'preparation'];
-interface NavigationContextType {
-  current: NavigationState;
-  navigate: (view: View, params?: any) => void;
-  goBack: () => void;
-  theme: Theme;
-  toggleTheme: (theme: Theme) => void;
-  profile: UserProfile | null;
-}
-
-const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
-export const useNavigation = () => {
-  const context = useContext(NavigationContext);
-  if (!context) throw new Error("useNavigation must be used within Provider");
-  return context;
-};
-
 const RouteLoadingFallback: React.FC = () => (
   <div
     className="flex min-h-[50vh] flex-col items-center justify-center p-8 text-center"
@@ -189,15 +169,7 @@ const App: React.FC = () => {
       } else {
         // Se estiver logado e na tela de entrada/auth, decide para onde ir
         if (urlState.view === 'landing' || urlState.view === 'auth' || urlState.view === 'onboarding') {
-          const partial = await workoutApi.getPartialSession(userId);
-
-          if (partial) {
-            console.log("[APP] Resuming partial session");
-            navigate('workout', { id: partial.workout_id });
-          } else {
-            console.log("[APP] Tudo ok, indo para Dashboard");
-            navigate('dashboard');
-          }
+          navigate('dashboard');
         }
       }
     } catch (err) {

@@ -3,10 +3,12 @@ import { useUserStore } from '../../../store/userStore';
 import { Camera, Check, Edit2, Zap, Award, Sparkles, Heart } from 'lucide-react';
 import { cloudinaryService } from '../../../services/cloudinaryService';
 import { profileApi } from '../../../lib/api/profileApi';
+import { useCompletedWorkoutCount } from '../useCompletedWorkoutCount';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function ProfileHeader() {
   const { profile, updateProfile } = useUserStore();
+  const counted = useCompletedWorkoutCount(profile?.id);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isEditing, setIsEditing] = useState(false);
@@ -66,7 +68,7 @@ export function ProfileHeader() {
 
   // Compute Adaptive Athlete Title
   const getAthleteTitle = (): string => {
-    const workouts = profile.workouts_completed || 0;
+    const workouts = counted ?? 0;
     const streak = profile.workout_streak || 0;
     const goalStr = (profile.goal || '').toLowerCase();
 

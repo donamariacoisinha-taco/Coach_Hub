@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { authApi } from '../lib/api/authApi';
-import { useNavigation } from '../App';
+import { useNavigation } from '../navigation/navigation';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 const kyronLogo = '/icons/kyron-brand-wordmark.svg';
 

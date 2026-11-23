@@ -4,7 +4,7 @@ import { WorkoutExercise, Exercise, SetConfig, WorkoutFolder, MuscleGroup, SetTy
 import { authApi, GUEST_USER_ID } from '../lib/api/authApi';
 import { workoutApi } from '../lib/api/workoutApi';
 import { createGuestWorkout, updateGuestWorkoutMeta, updateGuestWorkoutExercises } from '../lib/guest/guestPersistence';
-import { useNavigation } from '../App';
+import { useNavigation } from '../navigation/navigation';
 import { ExerciseReplaceScreen } from './ExerciseReplaceScreen';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { ScreenState } from './ui/ScreenState';
@@ -324,6 +324,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
   useEffect(() => {
     let t1: any;
     let t2: any;
+    if (showExerciseSelector) return;
     if (editorState.status === 'success' && !workoutId) {
       if (nameInputRef.current) {
         nameInputRef.current.focus();
@@ -339,7 +340,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [editorState.status, workoutId]);
+  }, [editorState.status, workoutId, showExerciseSelector]);
   
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -887,7 +888,9 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId, initialFolderI
                   }, 50);
                 }
               }}
-              type="text" 
+              type="text"
+              name="workout-plan-name"
+              autoComplete="off"
               placeholder="Nome do Treino" 
               value={name} 
               onChange={e => setName(e.target.value)} 

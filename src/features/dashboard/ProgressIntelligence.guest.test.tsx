@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GUEST_USER_ID } from '../../lib/api/authApi';
 import { WorkoutHistory, UserProfile } from '../../types';
 
-vi.mock('../../App', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
+vi.mock('../../navigation/navigation', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
 vi.mock('./BodyProjectionModule', () => ({ BodyProjectionModule: () => null }));
 vi.mock('../../lib/api/authApi', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api/authApi')>('../../lib/api/authApi');

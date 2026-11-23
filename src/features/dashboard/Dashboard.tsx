@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { WorkoutCategory, UserProfile, WorkoutFolder, WorkoutHistory } from '../../types';
 import { authApi, isGuestSession } from '../../lib/api/authApi';
 import { workoutApi } from '../../lib/api/workoutApi';
-import { useNavigation } from '../../App';
+import { useNavigation } from '../../navigation/navigation';
 import { MoreVertical, Plus, Flame, Play, Layers3, TrendingUp, FileText, Edit2, Trash2, Dumbbell, Copy, Calendar, Award, Compass, Heart, FolderPlus, Globe, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScreenState } from '../../components/ui/ScreenState';
@@ -15,6 +15,7 @@ import { usePredictive } from '../../hooks/usePredictive';
 import { imagePrefetcher } from '../../lib/utils/imagePrefetcher';
 import { useWorkoutStore } from '../../app/store/workoutStore';
 import { cacheStore } from '../../lib/cache/cacheStore';
+import { partialSessionBanner } from '../../domain/workout/partialSessionNotice';
 import { ekeService } from '../../domain/eke/ekeService';
 import { useUserStore } from '../../store/userStore';
 import { supabase } from '../../lib/api/supabase';
@@ -76,6 +77,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const [isPerformingAction, setIsPerformingAction] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+  const [openSession, setOpenSession] = useState<{ workout_id: string; start_time?: string | null; updated_at?: string | null } | null>(null);
 
   const handleSyncPlan = async () => {
     try {
@@ -161,6 +163,22 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   });
 
   const { data, status, isFetching, error, refresh, mutate } = dashboardQuery;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (isGuestMode) {
+        if (!cancelled) setOpenSession(null);
+        return;
+      }
+      const user = await authApi.getUser();
+      if (!user || cancelled) return;
+      const partial = await workoutApi.getPartialSession(user.id) as { workout_id?: string; start_time?: string | null; updated_at?: string | null } | null;
+      if (cancelled) return;
+      setOpenSession(partial?.workout_id ? { workout_id: partial.workout_id, start_time: partial.start_time, updated_at: partial.updated_at } : null);
+    })();
+    return () => { cancelled = true; };
+  }, [isGuestMode]);
   const { profile: storeProfile } = useUserStore();
   const profile = storeProfile || data?.profile;
   const folders = data?.folders || [];
@@ -403,11 +421,15 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   const handleDuplicateWorkout = async (workout: WorkoutCategory) => {
     const session = await authApi.getSession();
     if (!session?.user) return;
+    const chosen = window.prompt('Nome da nova ficha', `${workout.name} (Cópia)`);
+    if (chosen == null) return;
+    const copyName = chosen.trim();
+    if (!copyName) return;
 
     const newWorkout: WorkoutCategory = {
       ...workout,
       id: `temp-${Date.now()}`,
-      name: `${workout.name} (Cópia)`,
+      name: copyName,
       created_at: new Date().toISOString()
     };
 
@@ -425,7 +447,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
       
       const created = await workoutApi.createCategory({
         user_id: session.user.id,
-        name: newWorkout.name,
+        name: copyName,
         description: workout.description,
         folder_id: workout.folder_id
       });
@@ -441,12 +463,15 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
         await workoutApi.insertWorkoutExercises(newExercises);
       }
 
+      workoutApi.invalidateDashboardRead(session.user.id);
+      cacheStore.clear('dashboard_data');
       if (data) {
         mutate({
           ...data,
           workouts: data.workouts.map(w => w.id === newWorkout.id ? created : w)
         });
       }
+      await refresh();
     } catch (err) {
       if (previousData) mutate(previousData);
       showError(err);
@@ -700,6 +725,19 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           </div>
         </header>
 
+        {openSession && (
+          <section aria-label="Treino em andamento" className="mb-4 rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-slate-900">
+            <p className="text-sm font-bold">{partialSessionBanner(openSession.updated_at || openSession.start_time)}: Retomar/Descartar</p>
+            <div className="mt-3 flex gap-2">
+              <button type="button" onClick={() => navigate('workout', { id: openSession.workout_id })} className="rounded-xl bg-[#7BA7FF] px-4 py-3 text-sm font-black text-white">Retomar</button>
+              <button type="button" onClick={async () => {
+                const user = await authApi.getUser();
+                if (user) await workoutApi.clearPartialSession(user.id);
+                setOpenSession(null);
+              }} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700">Descartar</button>
+            </div>
+          </section>
+        )}
         {/* Approved V1 hierarchy: workout, progress, recommendation, shortcuts. */}
         <section aria-label="Treino de hoje" className="mb-4 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#f3f8ff] via-[#e9f2ff] to-[#dceaff] border border-[#d7e6fb] p-5 text-slate-900 shadow-sm relative">
           <div className="absolute -right-12 -top-16 h-48 w-48 rounded-full bg-sky-200/40 blur-3xl pointer-events-none" />

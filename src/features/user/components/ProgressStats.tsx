@@ -1,15 +1,17 @@
 import React from 'react';
 import { useUserStore } from '../../../store/userStore';
+import { useCompletedWorkoutCount } from '../useCompletedWorkoutCount';
 import { motion } from 'motion/react';
 import { Award, Zap, Clock } from 'lucide-react';
 
 export function ProgressStats() {
   const { profile } = useUserStore();
+  const counted = useCompletedWorkoutCount(profile?.id);
   
   const stats = [
     { 
       label: 'Treinos', 
-      value: profile?.workouts_completed || 0, 
+      value: counted == null ? '—' : counted, 
       icon: Award,
       color: 'text-[#7BA7FF]',
       bg: 'bg-[#7BA7FF]/10'

@@ -68,8 +68,17 @@ export function GoalsCard() {
           <label className="text-[10px] font-[1000] uppercase tracking-widest text-slate-400 ml-1">Frequência Semanal</label>
           <div className="relative group">
             <select
-              value={profile?.frequency || ''}
-              onChange={(e) => handleUpdate('frequency', e.target.value)}
+              value={profile?.days_per_week != null ? String(profile.days_per_week) : ''}
+              onChange={async (e) => {
+                const days = Number(e.target.value);
+                if (!profile || !Number.isFinite(days)) return;
+                try {
+                  await profileApi.updateProfile(profile.id, { days_per_week: days, frequency: String(days) });
+                  updateProfile({ days_per_week: days, frequency: String(days) });
+                } catch (err) {
+                  console.error('[GOALS_UPDATE_ERROR]', err);
+                }
+              }}
               className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold text-slate-900 appearance-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all cursor-pointer"
             >
               <option value="" disabled>Selecione a frequência</option>

@@ -18,7 +18,7 @@ import {
   Trash2,
   Calendar
 } from 'lucide-react';
-import { useNavigation } from '../../App';
+import { useNavigation } from '../../navigation/navigation';
 import { nutritionEngine, DayLog } from '../../services/nutritionEngine';
 import { useNutritionStore } from '../../store/nutritionStore';
 

@@ -8,7 +8,9 @@ export function AthleteDNASystem() {
 
   if (!profile) return null;
 
-  const freq = parseInt(profile.frequency || '3') || 3;
+  const freq = profile.days_per_week != null
+    ? Number(profile.days_per_week)
+    : (parseInt(profile.frequency || '', 10) || 3);
   const goal = profile.goal || '';
 
   // Calculate DNA characteristics

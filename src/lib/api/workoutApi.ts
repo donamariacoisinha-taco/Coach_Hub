@@ -9,19 +9,75 @@ import { isIncompleteSave, isReplaceRpcMissing, missingInsertColumn, omitUnavail
 import { restSecondsFromLog } from '../../domain/workout/setPersistence';
 import { alignFlatColumns } from '../../domain/workout/planColumns';
 import { lastSetColumns, rowForTable } from '../../domain/workout/liveSchema';
+import { completionFromCounts } from '../../domain/workout/sessionSummary';
 import { isMissingRelationError, isRelationMissing, markRelationMissing, shareInflight } from './missingRelation';
 
 let progressionTableMissing = false;
 const lastSetCache = new Map<string, Promise<unknown>>();
 const historyCache = new Map<string, { at: number; value: unknown }>();
 const partialCache = new Map<string, { at: number; value: unknown }>();
+const dashboardReadCache = new Map<string, { at: number; value: unknown }>();
 const READ_CACHE_MS = 15000;
+
+async function annotateHistoryCompletion<T extends { id: string; category_id?: string | null; partial?: boolean }>(rows: T[]): Promise<T[]> {
+  if (!rows.length) return rows;
+  try {
+    const ids = rows.map((row) => row.id).filter(Boolean);
+    const categoryIds = [...new Set(rows.map((row) => row.category_id).filter(Boolean))] as string[];
+    const [logRes, planRes] = await Promise.all([
+      supabase.from('workout_sets_log').select('history_id').in('history_id', ids),
+      categoryIds.length
+        ? supabase.from('workout_exercises').select('category_id, sets').in('category_id', categoryIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (logRes.error || planRes.error) return rows;
+    const logged = new Map<string, number>();
+    for (const row of logRes.data || []) {
+      const id = String(row.history_id || '');
+      if (id) logged.set(id, (logged.get(id) || 0) + 1);
+    }
+    const planned = new Map<string, number>();
+    for (const row of planRes.data || []) {
+      const id = String((row as { category_id?: string }).category_id || '');
+      if (id) planned.set(id, (planned.get(id) || 0) + Number((row as { sets?: number }).sets || 0));
+    }
+    return rows.map((row) => {
+      const loggedSets = logged.get(row.id) || 0;
+      const plannedSets = row.category_id ? planned.get(row.category_id) || 0 : 0;
+      const completion = completionFromCounts(loggedSets, plannedSets);
+      return {
+        ...row,
+        logged_sets: loggedSets,
+        planned_sets: plannedSets,
+        partial: plannedSets > 0 ? completion.partial : Boolean(row.partial),
+      };
+    });
+  } catch (err) {
+    console.warn('[workoutApi] Não foi possível comparar séries feitas e previstas', err);
+    return rows;
+  }
+}
 
 export const workoutApi = {
   getGuestDashboardData() {
     return getGuestDashboard();
   },
   async getDashboardData(userId: string) {
+    const hit = dashboardReadCache.get(userId);
+    if (hit && Date.now() - hit.at < READ_CACHE_MS) return hit.value as Awaited<ReturnType<typeof this.loadDashboardData>>;
+    return shareInflight(`dashboard:${userId}`, async () => {
+      const value = await this.loadDashboardData(userId);
+      dashboardReadCache.set(userId, { at: Date.now(), value });
+      return value;
+    });
+  },
+
+  invalidateDashboardRead(userId?: string) {
+    if (userId) dashboardReadCache.delete(userId);
+    else dashboardReadCache.clear();
+  },
+
+  async loadDashboardData(userId: string) {
     return fetchWithRetry(async () => {
       try {
         const [profileRes, foldersRes, workoutsRes, historyRes] = await Promise.all([
@@ -546,7 +602,7 @@ export const workoutApi = {
         rows.push(...(data || []));
         if ((data || []).length < pageSize) break;
       }
-      return rows;
+      return annotateHistoryCompletion(rows);
     }));
     historyCache.set(userId, { at: Date.now(), value });
     return value;
@@ -932,7 +988,7 @@ export const workoutApi = {
       const data = await shareInflight(`partial:${userId}`, async () => {
         const { data: row, error } = await supabase
           .from('partial_workout_sessions')
-          .select('workout_id, history_id')
+          .select('workout_id, history_id, start_time, updated_at, exercises_json, current_weight, current_reps')
           .eq('user_id', userId)
           .maybeSingle();
         if (error) throw error;

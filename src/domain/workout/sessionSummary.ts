@@ -69,11 +69,23 @@ export type SessionBadge = {
   tone: BadgeTone;
 };
 
-/** Concluída ou parcial — sempre disponível, vem do próprio histórico. */
-export const sessionStatusBadge = (summary: Pick<SessionSummary, 'partial'>): SessionBadge => (
-  summary.partial
+/** Logged sets against the plan. The history row has no partial column. */
+export function completionFromCounts(loggedSets: number, plannedSets: number): { partial: boolean; label: string } {
+  if (!(plannedSets > 0) || loggedSets >= plannedSets) {
+    return { partial: false, label: 'Treino concluído' };
+  }
+  return { partial: true, label: `Parcial (${loggedSets}/${plannedSets})` };
+}
+
+/** Concluída ou parcial — a contagem, quando existe, vale mais que a coluna ausente. */
+export const sessionStatusBadge = (summary: Pick<SessionSummary, 'partial'> & { loggedSets?: number; plannedSets?: number }): SessionBadge => {
+  const counted = summary.loggedSets != null && summary.plannedSets != null
+    ? completionFromCounts(summary.loggedSets, summary.plannedSets)
+    : null;
+  const partial = counted ? counted.partial : summary.partial;
+  return partial
     ? {
-      label: 'Sessão parcial',
+      label: counted?.partial ? counted.label : 'Sessão parcial',
       description: 'Treino encerrado antes de todas as séries. Só as séries concluídas foram salvas.',
       tone: 'partial',
     }
@@ -81,8 +93,8 @@ export const sessionStatusBadge = (summary: Pick<SessionSummary, 'partial'>): Se
       label: 'Treino concluído',
       description: 'Todas as séries prescritas foram concluídas.',
       tone: 'complete',
-    }
-);
+    };
+};
 
 /** Qualidade do dado registrado — depende dos logs da sessão. */
 export const sessionDataBadge = (summary: Pick<SessionSummary, 'loadKind'>): SessionBadge => {

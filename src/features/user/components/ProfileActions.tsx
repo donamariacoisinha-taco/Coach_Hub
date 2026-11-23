@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuthStore } from '../../../store/authStore';
 import { motion } from 'motion/react';
 import { LogOut, ChevronRight, Settings, ShieldCheck, Sun, Moon, RefreshCw } from 'lucide-react';
-import { useNavigation } from '../../../App';
+import { useNavigation } from '../../../navigation/navigation';
 
 export function ProfileActions() {
   const { logout } = useAuthStore();

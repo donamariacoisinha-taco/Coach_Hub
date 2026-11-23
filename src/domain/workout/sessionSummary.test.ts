@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  completionFromCounts,
   formatSessionVolume,
   formatSetWeight,
   sessionDataBadge,
@@ -62,6 +63,8 @@ describe('classificação de sessão', () => {
 describe('rótulos do histórico', () => {
   it('rotula sessão parcial e concluída de forma distinta', () => {
     expect(sessionStatusBadge({ partial: true }).label).toBe('Sessão parcial');
+    expect(completionFromCounts(1, 9)).toEqual({ partial: true, label: 'Parcial (1/9)' });
+    expect(sessionStatusBadge({ partial: false, loggedSets: 1, plannedSets: 9 }).label).toBe('Parcial (1/9)');
     expect(sessionStatusBadge({ partial: true }).tone).toBe('partial');
     expect(sessionStatusBadge({ partial: false }).label).toBe('Treino concluído');
   });
