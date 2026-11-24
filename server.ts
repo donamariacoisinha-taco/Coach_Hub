@@ -12,6 +12,7 @@ import {
   shouldAllowDevAuthBypass,
 } from "./src/lib/server/aiSecurity";
 import { registerExerciseMediaRoutes } from "./src/lib/server/registerExerciseMediaRoutes";
+import { nativeWebViewCorsHeaders } from "./src/lib/server/nativeWebViewCors";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -107,6 +108,24 @@ async function startServer() {
   const buildVersion = readEnv("VERCEL_GIT_COMMIT_SHA", "GITHUB_SHA", "KYRON_BUILD_ID") || "unknown";
 
   app.disable("x-powered-by");
+  // The packaged app calls this server from the WebView origin. Same-origin
+  // browser traffic on kyron.uno does not need these headers. This allowlist
+  // only takes effect after the owner redeploys the Hostinger process.
+  app.use((req, res, next) => {
+    const headers = nativeWebViewCorsHeaders(req.headers.origin);
+    if (!headers) {
+      next();
+      return;
+    }
+    for (const [key, value] of Object.entries(headers)) {
+      res.setHeader(key, value);
+    }
+    if (req.method === "OPTIONS") {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
   app.use(express.json({ limit: "32kb" }));
 
   app.get("/api/health", (_req, res) => {

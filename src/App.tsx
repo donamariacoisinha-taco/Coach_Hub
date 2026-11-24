@@ -9,6 +9,10 @@ import { useUserStore } from './store/userStore';
 import { useAuthStore } from './store/authStore';
 import { ErrorProvider } from './hooks/useErrorHandler';
 import { authApi, isGuestSession } from './lib/api/authApi';
+import { isNativeApp } from './lib/api/apiBaseUrl';
+import { supabase } from './lib/api/supabase';
+import { isPasswordRecoveryLocation, recoverySessionFromUrl } from './lib/auth/passwordRecovery';
+import ResetPassword from './components/ResetPassword';
 import { workoutApi } from './lib/api/workoutApi';
 import { profileApi } from './lib/api/profileApi';
 import { exerciseApi } from './lib/api/exerciseApi';
@@ -98,6 +102,8 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('coach_theme') as Theme) || 'light');
   const [navState, setNavState] = useState<NavigationState>(getStateFromUrl);
+  const passwordRecoveryRef = useRef(isPasswordRecoveryLocation(window.location));
+  const [passwordRecovery, setPasswordRecovery] = useState(passwordRecoveryRef.current);
   const { isHydrated } = useWorkoutStore();
   const prefetch = usePrefetch();
   const isInitializing = useRef(false);
@@ -223,6 +229,8 @@ const App: React.FC = () => {
         
         if (isGuestSession(currentSession)) {
           enterGuestMode(currentSession);
+        } else if (currentSession && passwordRecoveryRef.current) {
+          setLoading(false);
         } else if (currentSession) {
           console.log("[APP] Sessão ativa encontrada:", currentSession.user.id);
           await fetchProfile(currentSession.user.id);
@@ -240,10 +248,40 @@ const App: React.FC = () => {
 
     initApp();
 
+    let removeNativeLink: (() => void) | undefined;
+    if (isNativeApp()) {
+      void import('@capacitor/app').then(({ App: NativeApp }) => {
+        void NativeApp.addListener('appUrlOpen', async ({ url }) => {
+          const tokens = recoverySessionFromUrl(url);
+          if (!tokens && !url.includes('/redefinir-senha')) return;
+          passwordRecoveryRef.current = true;
+          setPasswordRecovery(true);
+          setLoading(false);
+          if (tokens) {
+            await supabase.auth.setSession(tokens);
+          }
+        }).then((handle) => {
+          removeNativeLink = () => {
+            void handle.remove();
+          };
+        });
+      });
+    }
+
     const subscription = authApi.onAuthStateChange((event, s) => {
       console.log(`[AUTH] Evento detectado: ${event}`);
       setSession(s);
       useAuthStore.getState().setSession(s);
+      if (event === 'PASSWORD_RECOVERY') {
+        passwordRecoveryRef.current = true;
+        setPasswordRecovery(true);
+        setLoading(false);
+        return;
+      }
+      if (passwordRecoveryRef.current) {
+        setLoading(false);
+        return;
+      }
       if (isGuestSession(s)) {
         enterGuestMode(s);
       } else if (s) {
@@ -263,6 +301,7 @@ const App: React.FC = () => {
 
     return () => {
       subscription.unsubscribe();
+      removeNativeLink?.();
       window.removeEventListener('popstate', handlePopState);
       clearInterval(cleanupInterval);
     };
@@ -270,6 +309,7 @@ const App: React.FC = () => {
 
   // 3. Efeito Reativo de Perfil
   useEffect(() => {
+    if (passwordRecoveryRef.current) return;
     if (isHydrated && session && !isGuestSession(session) && !profile && !loading) {
       fetchProfile(session.user.id);
     }
@@ -363,7 +403,7 @@ const App: React.FC = () => {
     );
   }
 
-  const isImmersive = ['workout', 'preparation', 'onboarding', 'editor', 'landing', 'auth'].includes(navState.view);
+  const isImmersive = passwordRecovery || ['workout', 'preparation', 'onboarding', 'editor', 'landing', 'auth'].includes(navState.view);
 
   const streakValue = profile?.workout_streak || 0;
   const readiness = Math.min(98, 78 + Math.min(streakValue * 2, 12));
@@ -510,7 +550,13 @@ const App: React.FC = () => {
                 transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                 className={navState.view === 'workout' ? 'h-full min-h-0 overflow-hidden' : 'min-h-full'}
               >
-                {PROTECTED_VIEWS.includes(navState.view) && !session ? (
+                {passwordRecovery ? (
+                  <ResetPassword onFinished={() => {
+                    passwordRecoveryRef.current = false;
+                    setPasswordRecovery(false);
+                    navigate('auth');
+                  }} />
+                ) : PROTECTED_VIEWS.includes(navState.view) && !session ? (
                   <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[50vh]">
                     <div className="w-8 h-8 border-4 border-[#7BA7FF] border-t-transparent rounded-full animate-spin mb-4" />
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Sessão...</p>

@@ -1,4 +1,6 @@
 import { Exercise } from "../../../types";
+import { apiUrl } from "../../../lib/api/apiBaseUrl";
+import { authApi, isGuestSession } from "../../../lib/api/authApi";
 
 const MEDIA_FINDER_PROMPT = `
 Você é o KYRON AI Media Finder. Sua missão é localizar e sugerir as melhores mídias (imagens e vídeos) para exercícios físicos.
@@ -34,9 +36,14 @@ export const aiMediaFinder = {
     `;
 
     try {
-      const response = await fetch("/api/intelligence/find-media", {
+      const session = await authApi.getSession().catch(() => null);
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token && !isGuestSession(session)) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+      const response = await fetch(apiUrl("/api/intelligence/find-media"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ prompt, systemInstruction: MEDIA_FINDER_PROMPT })
       });
 
