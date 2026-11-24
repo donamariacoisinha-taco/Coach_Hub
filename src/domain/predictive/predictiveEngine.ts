@@ -1,5 +1,6 @@
 
 import { WorkoutHistory, WorkoutCategory, UserProfile } from '../../types';
+import { profileDaysPerWeek } from '../profile/weeklyFrequency';
 
 export interface UserContext {
   currentTime: Date;
@@ -56,7 +57,7 @@ export const getContext = (
   else if (hour >= 22 || hour < 5) timeOfDay = 'night';
 
   let isTrainingDay = false;
-  const freq = profile.days_per_week || 3;
+  const freq = profileDaysPerWeek(profile) ?? 3;
   if (freq >= 5) isTrainingDay = dayOfWeek >= 1 && dayOfWeek <= 5;
   else if (freq >= 3) isTrainingDay = [1, 3, 5].includes(dayOfWeek);
   else isTrainingDay = [2, 4].includes(dayOfWeek);

@@ -8,7 +8,7 @@ vi.mock('./supabase', () => ({
   },
 }));
 
-import { mergeAccess } from './profileApi';
+import { buildProfileDbPayload, mergeAccess } from './profileApi';
 
 describe('mergeAccess', () => {
   it('uses user_access as the authoritative source for role, plan and status', () => {
@@ -63,5 +63,28 @@ describe('mergeAccess', () => {
 
   it('returns null only when the profile itself does not exist', () => {
     expect(mergeAccess(null)).toBeNull();
+  });
+});
+
+describe('buildProfileDbPayload', () => {
+  it('grava days_per_week e target_weight e mantém frequency igual', () => {
+    expect(buildProfileDbPayload('user-1', {
+      days_per_week: 2,
+      target_weight: 88,
+      name: 'Ana',
+    })).toMatchObject({
+      id: 'user-1',
+      name: 'Ana',
+      days_per_week: 2,
+      frequency: '2',
+      target_weight: 88,
+    });
+  });
+
+  it('quando só chega frequency, o inteiro nasce do mesmo valor', () => {
+    expect(buildProfileDbPayload('user-1', { frequency: '4' })).toMatchObject({
+      days_per_week: 4,
+      frequency: '4',
+    });
   });
 });

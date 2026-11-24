@@ -37,6 +37,7 @@ import { Exercise, UserProfile, normalizeMuscleGroup, sortExercisesAnatomically 
 import { useNavigation } from '../../navigation/navigation';
 import kyronLogo from '../../assets/images/kyron_official_logo_1781087891387.png';
 import { activateGuestPlan, getGuestDashboard, getGuestProfile, saveGuestProfile } from '../../lib/guest/guestPersistence';
+import { profileDaysPerWeek } from '../../domain/profile/weeklyFrequency';
 
 // Onboarding v2.1 Steps List:
 // Step 0: Welcome / Presentation
@@ -145,7 +146,7 @@ export default function SmartOnboarding({ initialStep = 0, initialUserId = null,
               name: activeProf.name || activeProf.full_name || prev.name || '',
               primary_goal: activeProf.primary_goal || activeProf.goal || prev.primary_goal || '',
               training_experience: activeProf.training_experience || activeProf.experience_level || prev.training_experience || '',
-              weekly_availability: activeProf.weekly_availability || (activeProf.frequency ? parseInt(activeProf.frequency, 10) : 3) || prev.weekly_availability,
+              weekly_availability: profileDaysPerWeek(activeProf) ?? activeProf.weekly_availability ?? prev.weekly_availability,
               training_environment: activeProf.training_environment || prev.training_environment,
               sex: activeProf.sex || activeProf.gender || prev.sex,
               age: activeProf.age || prev.age,

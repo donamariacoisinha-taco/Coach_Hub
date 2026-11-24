@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { UserProfile, BodyMeasurement } from '../../types';
 import { fetchWithRetry } from '../utils';
+import { profileDaysPerWeek, targetWeightWrite, weeklyFrequencyWrite } from '../../domain/profile/weeklyFrequency';
 
 type AccessRole = 'admin' | 'coach' | 'user';
 type AccessPlan = 'free' | 'premium';
@@ -92,12 +93,48 @@ const hydrateLocalPreferences = (profile: EnrichedUserProfile, userId: string) =
   if (!profile.training_experience && profile.experience_level) {
     profile.training_experience = String(profile.experience_level);
   }
-  if (!profile.weekly_availability && profile.frequency) {
-    profile.weekly_availability = Number.parseInt(profile.frequency, 10) || 3;
+  if (!profile.weekly_availability) {
+    const days = profileDaysPerWeek(profile);
+    if (days != null) profile.weekly_availability = days;
   }
 
   return profile;
 };
+
+export function buildProfileDbPayload(userId: string, payload: Record<string, unknown>): Record<string, unknown> {
+  const dbPayload: Record<string, unknown> = { id: userId };
+  const profileColumns = [
+    'email', 'name', 'full_name', 'avatar_url', 'weight', 'height',
+    'age', 'birth_date', 'onboarding_completed', 'workout_streak', 'created_at',
+  ];
+  for (const column of profileColumns) {
+    if (payload[column] !== undefined) dbPayload[column] = payload[column];
+  }
+
+  if (payload.sex !== undefined) dbPayload.gender = payload.sex;
+  else if (payload.gender !== undefined) dbPayload.gender = payload.gender;
+
+  if (payload.primary_goal !== undefined) dbPayload.goal = payload.primary_goal;
+  else if (payload.goal !== undefined) dbPayload.goal = payload.goal;
+
+  if (payload.training_experience !== undefined) {
+    dbPayload.experience_level = payload.training_experience;
+  } else if (payload.experience_level !== undefined) {
+    dbPayload.experience_level = payload.experience_level;
+  }
+
+  const weekly = weeklyFrequencyWrite(payload);
+  if (weekly) {
+    dbPayload.days_per_week = weekly.days_per_week;
+    dbPayload.frequency = weekly.frequency;
+  }
+
+  if (payload.target_weight !== undefined) {
+    dbPayload.target_weight = targetWeightWrite(payload.target_weight);
+  }
+
+  return dbPayload;
+}
 
 export const profileApi = {
   async getProfile(userId: string): Promise<EnrichedUserProfile | null> {
@@ -180,32 +217,7 @@ export const profileApi = {
       }
       localStorage.setItem(`kyron_onboarding_v21_${userId}`, JSON.stringify(onboarding));
 
-      const dbPayload: Record<string, unknown> = { id: userId };
-      const profileColumns = [
-        'email', 'name', 'full_name', 'avatar_url', 'weight', 'height',
-        'age', 'birth_date', 'onboarding_completed', 'workout_streak', 'created_at',
-      ];
-      for (const column of profileColumns) {
-        if (unsafePayload[column] !== undefined) dbPayload[column] = unsafePayload[column];
-      }
-
-      if (unsafePayload.sex !== undefined) dbPayload.gender = unsafePayload.sex;
-      else if (unsafePayload.gender !== undefined) dbPayload.gender = unsafePayload.gender;
-
-      if (unsafePayload.primary_goal !== undefined) dbPayload.goal = unsafePayload.primary_goal;
-      else if (unsafePayload.goal !== undefined) dbPayload.goal = unsafePayload.goal;
-
-      if (unsafePayload.training_experience !== undefined) {
-        dbPayload.experience_level = unsafePayload.training_experience;
-      } else if (unsafePayload.experience_level !== undefined) {
-        dbPayload.experience_level = unsafePayload.experience_level;
-      }
-
-      if (unsafePayload.weekly_availability !== undefined) {
-        dbPayload.frequency = String(unsafePayload.weekly_availability);
-      } else if (unsafePayload.frequency !== undefined) {
-        dbPayload.frequency = unsafePayload.frequency;
-      }
+      const dbPayload = buildProfileDbPayload(userId, unsafePayload);
 
       const { error } = await supabase.from('profiles').upsert(dbPayload);
       if (error) throw error;
