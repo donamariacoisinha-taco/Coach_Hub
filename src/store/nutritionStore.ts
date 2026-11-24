@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { UserProfile, Goal } from '../types';
 import { nutritionEngine, NutritionPlan } from '../services/nutritionEngine';
+import { profileDaysPerWeek } from '../domain/profile/weeklyFrequency';
 
 export interface EditableNutritionProfile {
   gender: 'masculino' | 'feminino';
@@ -144,7 +145,7 @@ export const useNutritionStore = create<NutritionStore>()(
             gender: genderStr as 'masculino' | 'feminino',
             goal: goalStr as any,
             athletic_level: (userProfile.experience_level as any) || state.profile.athletic_level,
-            training_frequency: userProfile.days_per_week || state.profile.training_frequency,
+            training_frequency: profileDaysPerWeek(userProfile) ?? state.profile.training_frequency,
           };
 
           return {

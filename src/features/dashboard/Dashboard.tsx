@@ -32,6 +32,7 @@ import { Crown, Sliders } from 'lucide-react';
 import { isAdmin } from '../../lib/utils/auth';
 import { playHapticFeedback } from '../../services/athleteMemoryEngine';
 import { buildCalendarDays, buildEmotionalGuidance } from './dashboardDayState';
+import { profileDaysPerWeek } from '../../domain/profile/weeklyFrequency';
 import { getWorkoutCardAvgDuration, getWorkoutCardEvolutionInsight } from './workoutCardInsights';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
@@ -554,7 +555,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     return Math.min(98, score);
   }, [profile?.workout_streak]);
 
-  const weeklyGoal = Math.min(7, Math.max(1, profile?.preferred_training_days?.length || 3));
+  const weeklyGoal = profileDaysPerWeek(profile);
   const weeklyCompleted = useMemo(() => {
     const now = new Date();
     const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -765,16 +766,16 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           <section aria-label="Progresso semanal" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-xs font-black text-slate-800">Progresso semanal</p><p className="mt-1 text-[11px] leading-snug text-slate-500">Dias com treino concluído nesta semana</p>
             <div className="mt-3 flex items-center gap-3">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(#16a34a ${Math.min(100, weeklyCompleted / weeklyGoal * 100)}%, #e2e8f0 0)` }}>
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900">{Math.round(Math.min(100, weeklyCompleted / weeklyGoal * 100))}%</div>
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(#16a34a ${weeklyGoal ? Math.min(100, weeklyCompleted / weeklyGoal * 100) : 0}%, #e2e8f0 0)` }}>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900">{weeklyGoal ? `${Math.round(Math.min(100, weeklyCompleted / weeklyGoal * 100))}%` : '—'}</div>
               </div>
-              <p className="text-xs font-bold leading-snug text-slate-600"><strong className="block text-lg text-slate-900">{Math.min(weeklyCompleted, weeklyGoal)} de {weeklyGoal}</strong> dias de treino</p>
+              <p className="text-xs font-bold leading-snug text-slate-600"><strong className="block text-lg text-slate-900">{weeklyGoal == null ? '—' : `${Math.min(weeklyCompleted, weeklyGoal)} de ${weeklyGoal}`}</strong> dias de treino</p>
             </div>
           </section>
           <section aria-label="Sua semana" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-xs font-black text-slate-800">Sua semana</p>
-            <p className="mt-3 text-sm font-extrabold leading-tight text-slate-900">{weeklyCompleted >= weeklyGoal ? 'Meta semanal alcançada' : 'Continue evoluindo'}</p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">{weeklyCompleted >= weeklyGoal ? 'Você já atingiu sua meta de dias de treino.' : `Faltam ${Math.max(0, weeklyGoal - weeklyCompleted)} dias de treino para sua meta.`}</p>
+            <p className="mt-3 text-sm font-extrabold leading-tight text-slate-900">{weeklyGoal == null ? 'Dados insuficientes' : weeklyCompleted >= weeklyGoal ? 'Meta semanal alcançada' : 'Continue evoluindo'}</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">{weeklyGoal == null ? 'A frequência semanal ainda não está no perfil.' : weeklyCompleted >= weeklyGoal ? 'Você já atingiu sua meta de dias de treino.' : `Faltam ${Math.max(0, weeklyGoal - weeklyCompleted)} dias de treino para sua meta.`}</p>
           </section>
         </div>
         <nav aria-label="Acessos rápidos" className="mb-7 grid grid-cols-4 gap-2">

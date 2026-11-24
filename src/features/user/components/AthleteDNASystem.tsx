@@ -1,5 +1,6 @@
 import React from 'react';
 import { useUserStore } from '../../../store/userStore';
+import { profileDaysPerWeek } from '../../../domain/profile/weeklyFrequency';
 import { motion } from 'motion/react';
 import { Sparkles, Compass, Lightbulb, Zap, TrendingUp } from 'lucide-react';
 
@@ -8,9 +9,7 @@ export function AthleteDNASystem() {
 
   if (!profile) return null;
 
-  const freq = profile.days_per_week != null
-    ? Number(profile.days_per_week)
-    : (parseInt(profile.frequency || '', 10) || 3);
+  const freq = profileDaysPerWeek(profile) ?? 0;
   const goal = profile.goal || '';
 
   // Calculate DNA characteristics

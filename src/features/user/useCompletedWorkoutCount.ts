@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { workoutApi } from '../../lib/api/workoutApi';
 
-/** Count of workout_history rows with completed_at. Null until the read finishes. */
+/** Finished workout_history rows (completed_at set), including partials. Open sessions are excluded. Null until the read finishes. */
 export function useCompletedWorkoutCount(userId?: string | null): number | null {
   const [count, setCount] = useState<number | null>(null);
   useEffect(() => {

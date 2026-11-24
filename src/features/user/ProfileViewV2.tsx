@@ -71,6 +71,7 @@ import { ProgressPhotoSystem } from './components/ProgressPhotoSystem';
 import { ProfileActions } from './components/ProfileActions';
 import { getGuestProfile, saveGuestProfile } from '../../lib/guest/guestPersistence';
 import { useCompletedWorkoutCount } from './useCompletedWorkoutCount';
+import { profileDaysPerWeek, WEEKLY_FREQUENCY_OPTIONS } from '../../domain/profile/weeklyFrequency';
 
 interface CheckInLog {
   date: string;
@@ -331,7 +332,8 @@ export default function ProfileViewV2() {
     if (profile) {
       setName(profile.name || profile.full_name || '');
       setGoal(profile.goal || '');
-      setFrequency(profile.days_per_week != null ? String(profile.days_per_week) : '');
+      const storedDays = profileDaysPerWeek(profile);
+      setFrequency(storedDays == null ? '' : String(storedDays));
       setGender(profile.gender || '');
       setAge(profile.age || '');
       setWeight(profile.weight || '');
@@ -355,7 +357,7 @@ export default function ProfileViewV2() {
   const hasChanges = (
     name.trim() !== (profile.name || profile.full_name || '') ||
     goal !== (profile.goal || '') ||
-    frequency !== (profile.days_per_week != null ? String(profile.days_per_week) : '') ||
+    frequency !== (profileDaysPerWeek(profile) == null ? '' : String(profileDaysPerWeek(profile))) ||
     gender !== (profile.gender || '') ||
     (age === '' ? '' : Number(age)) !== (profile.age || '') ||
     (weight === '' ? '' : Number(weight)) !== (profile.weight || '') ||
@@ -983,10 +985,9 @@ export default function ProfileViewV2() {
                   className="w-full bg-white/70 border border-slate-200/60 rounded-2xl h-14 px-4 text-[13.5px] font-semibold text-slate-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all appearance-none"
                 >
                   <option value="">Selecione...</option>
-                  <option value="3">3x por semana</option>
-                  <option value="4">4x por semana</option>
-                  <option value="5">5x por semana</option>
-                  <option value="7">Diário (Consistente)</option>
+                  {WEEKLY_FREQUENCY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
               </div>
             </div>

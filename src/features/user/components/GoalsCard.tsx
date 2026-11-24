@@ -1,6 +1,7 @@
 import React from 'react';
 import { useUserStore } from '../../../store/userStore';
 import { profileApi } from '../../../lib/api/profileApi';
+import { profileDaysPerWeek, WEEKLY_FREQUENCY_OPTIONS } from '../../../domain/profile/weeklyFrequency';
 import { motion } from 'motion/react';
 import { Target, Calendar } from 'lucide-react';
 
@@ -23,13 +24,6 @@ export function GoalsCard() {
     'Condicionamento',
     'Força Máxima',
     'Flexibilidade'
-  ];
-
-  const frequencies = [
-    { label: '3x por semana', value: '3' },
-    { label: '4x por semana', value: '4' },
-    { label: '5x por semana', value: '5' },
-    { label: 'Diário', value: '7' }
   ];
 
   return (
@@ -68,7 +62,7 @@ export function GoalsCard() {
           <label className="text-[10px] font-[1000] uppercase tracking-widest text-slate-400 ml-1">Frequência Semanal</label>
           <div className="relative group">
             <select
-              value={profile?.days_per_week != null ? String(profile.days_per_week) : ''}
+              value={profileDaysPerWeek(profile) == null ? '' : String(profileDaysPerWeek(profile))}
               onChange={async (e) => {
                 const days = Number(e.target.value);
                 if (!profile || !Number.isFinite(days)) return;
@@ -82,7 +76,7 @@ export function GoalsCard() {
               className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold text-slate-900 appearance-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all cursor-pointer"
             >
               <option value="" disabled>Selecione a frequência</option>
-              {frequencies.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+              {WEEKLY_FREQUENCY_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
             </select>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
               <Calendar size={14} />

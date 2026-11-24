@@ -7,6 +7,7 @@ import { getGuestDashboard, getGuestWorkout, deleteGuestWorkout, updateGuestSess
 import { authApi, GUEST_USER_ID } from './authApi';
 import { isIncompleteSave, isMissingReplaceRpc, isReplaceRpcMissing, missingInsertColumn, omitUnavailableOptionalFlag, planInsertRetry, planKeptIds, quoteExerciseIds, rememberCapability, withoutColumn } from './workoutExerciseSave';
 import { restSecondsFromLog } from '../../domain/workout/setPersistence';
+import { countFinishedWorkouts } from '../../domain/workout/finishedWorkouts';
 import { alignFlatColumns, planSetCount } from '../../domain/workout/planColumns';
 import { lastSetColumns, rowForTable } from '../../domain/workout/liveSchema';
 import { completionFromCounts } from '../../domain/workout/sessionSummary';
@@ -609,14 +610,17 @@ export const workoutApi = {
   },
 
   async countWorkoutHistory(userId: string): Promise<number> {
-    if (userId === GUEST_USER_ID) return (getGuestDashboard().history || []).length;
+    // Finished rows only. A partial session has completed_at and counts.
+    // An open session (completed_at null) does not.
+    if (userId === GUEST_USER_ID) return countFinishedWorkouts(getGuestDashboard().history || []);
     const hit = historyCountCache.get(userId);
     if (hit && Date.now() - hit.at < READ_CACHE_MS) return hit.value;
     return shareInflight(`history-count:${userId}`, async () => {
       const { count, error } = await supabase
         .from('workout_history')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .not('completed_at', 'is', null);
       if (error) throw error;
       const value = count || 0;
       historyCountCache.set(userId, { at: Date.now(), value });

@@ -4,6 +4,7 @@ import { adminApi } from '../../lib/api/adminApi';
 import { ekeApi } from '../../lib/api/ekeApi';
 import { authApi } from '../../lib/api/authApi';
 import { supabase } from '../../lib/api/supabase';
+import { profileDaysPerWeek } from '../profile/weeklyFrequency';
 
 export interface RecommendationContext {
   muscleGroup: string;
@@ -327,7 +328,7 @@ export class EKEService {
     const goal = profile?.goal || params.goal;
     const level = profile?.experience_level || params.level;
     const equipmentPref = profile?.preference || 'Ambos'; // Ambos | Máquinas | Pesos Livres
-    const daysPerWeek = profile?.days_per_week || 3;
+    const daysPerWeek = profileDaysPerWeek(profile) ?? 3;
     const restrictions = profile?.restrictions || [];
 
     // STEP 2: Read athlete workout history
