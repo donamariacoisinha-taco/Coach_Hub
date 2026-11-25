@@ -18,18 +18,25 @@ export interface EditableNutritionProfile {
 }
 
 export interface MetabolicState {
-  bmr: number;
-  tdee: number;
-  caloriesTarget: number;
-  hydrationGoalMl: number;
-  proteinGrams: number;
-  proteinCalories: number;
-  fatGrams: number;
-  fatCalories: number;
-  carbGrams: number;
-  carbCalories: number;
+  bmr: number | null;
+  tdee: number | null;
+  caloriesTarget: number | null;
+  hydrationGoalMl: number | null;
+  proteinGrams: number | null;
+  proteinCalories: number | null;
+  fatGrams: number | null;
+  fatCalories: number | null;
+  carbGrams: number | null;
+  carbCalories: number | null;
   metabolicBalance: number; // 0 - 100
+  limit: 'ok' | 'capped-20' | 'basal-floor' | null;
 }
+
+export type EnergyContext = {
+  bodyFatPct: number | null;
+  sessionsPerWeek: number | null;
+  typicalMinutes: number | null;
+};
 
 interface NutritionStore {
   profile: EditableNutritionProfile;
@@ -42,6 +49,8 @@ interface NutritionStore {
   setShowSettings: (show: boolean) => void;
   recalculate: () => void;
   syncFromUserProfile: (userProfile: UserProfile | null) => void;
+  energyContext: EnergyContext;
+  setEnergyContext: (patch: Partial<EnergyContext>) => void;
 }
 
 const defaultProfile: EditableNutritionProfile = {
@@ -58,7 +67,10 @@ const defaultProfile: EditableNutritionProfile = {
 };
 
 // Calculate initial metabolic state based on default profile
-const calculateMetabolic = (p: EditableNutritionProfile): MetabolicState => {
+const emptyEnergy = (): EnergyContext => ({ bodyFatPct: null, sessionsPerWeek: null, typicalMinutes: null });
+
+const calculateMetabolic = (p: EditableNutritionProfile, energy?: EnergyContext | null): MetabolicState => {
+  const context = energy ?? emptyEnergy();
   const plan = nutritionEngine.calculatePlan({
     weight: p.weight,
     height: p.height,
@@ -66,7 +78,7 @@ const calculateMetabolic = (p: EditableNutritionProfile): MetabolicState => {
     gender: p.gender,
     goal: p.goal as Goal,
     workout_streak: p.training_frequency,
-  }, p.activityLevel);
+  }, p.activityLevel, context);
 
   // Score System 0-100: WHOOP/Oura inspired radial ring reflecting biological attributes
   // Calculated by water goal, training frequency ratio, target weight alignment, activity level
@@ -81,6 +93,7 @@ const calculateMetabolic = (p: EditableNutritionProfile): MetabolicState => {
     bmr: plan.bmr,
     tdee: plan.tdee,
     caloriesTarget: plan.caloriesTarget,
+    limit: plan.limit,
     hydrationGoalMl: plan.hydrationGoalMl,
     proteinGrams: plan.proteinGrams,
     proteinCalories: plan.proteinCalories,
@@ -96,13 +109,14 @@ export const useNutritionStore = create<NutritionStore>()(
   persist(
     (set, get) => ({
       profile: defaultProfile,
+      energyContext: { bodyFatPct: null, sessionsPerWeek: null, typicalMinutes: null },
       metabolicState: calculateMetabolic(defaultProfile),
       showMetabolicSettings: false,
 
       setProfileField: (key, value) => {
         set((state) => {
           const updatedProfile = { ...state.profile, [key]: value };
-          const updatedMetabolic = calculateMetabolic(updatedProfile);
+          const updatedMetabolic = calculateMetabolic(updatedProfile, state.energyContext);
           return {
             profile: updatedProfile,
             metabolicState: updatedMetabolic,
@@ -113,7 +127,7 @@ export const useNutritionStore = create<NutritionStore>()(
       updateFullProfile: (data) => {
         set((state) => {
           const updatedProfile = { ...state.profile, ...data };
-          const updatedMetabolic = calculateMetabolic(updatedProfile);
+          const updatedMetabolic = calculateMetabolic(updatedProfile, state.energyContext);
           return {
             profile: updatedProfile,
             metabolicState: updatedMetabolic,
@@ -123,9 +137,19 @@ export const useNutritionStore = create<NutritionStore>()(
 
       setShowSettings: (show) => set({ showMetabolicSettings: show }),
 
+      setEnergyContext: (patch) => {
+        set((state) => {
+          const energyContext = { ...emptyEnergy(), ...state.energyContext, ...patch };
+          return {
+            energyContext,
+            metabolicState: calculateMetabolic(state.profile, energyContext),
+          };
+        });
+      },
+
       recalculate: () => {
         set((state) => ({
-          metabolicState: calculateMetabolic(state.profile),
+          metabolicState: calculateMetabolic(state.profile, state.energyContext),
         }));
       },
 
@@ -147,10 +171,16 @@ export const useNutritionStore = create<NutritionStore>()(
             athletic_level: (userProfile.experience_level as any) || state.profile.athletic_level,
             training_frequency: profileDaysPerWeek(userProfile) ?? state.profile.training_frequency,
           };
+          const energyContext = {
+            ...emptyEnergy(),
+            ...state.energyContext,
+            sessionsPerWeek: profileDaysPerWeek(userProfile),
+          };
 
           return {
             profile: syncedProfile,
-            metabolicState: calculateMetabolic(syncedProfile),
+            energyContext,
+            metabolicState: calculateMetabolic(syncedProfile, energyContext),
           };
         });
       },

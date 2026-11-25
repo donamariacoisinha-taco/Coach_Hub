@@ -160,7 +160,7 @@ export const MetabolicSettingsSheet: React.FC = () => {
                           : 'bg-slate-50 border-slate-205 text-slate-450 hover:bg-slate-100/50'
                       }`}
                     >
-                      {g === 'masculino' ? 'Masculino (Harris-Benedict x Masculino)' : 'Feminino (Harris-Benedict x Feminino)'}
+                      {g === 'masculino' ? 'Masculino' : 'Feminino'}
                     </button>
                   );
                 })}

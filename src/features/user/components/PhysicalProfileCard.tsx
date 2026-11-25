@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUserStore } from '../../../store/userStore';
 import { profileApi } from '../../../lib/api/profileApi';
+import { basalRate } from '../../../domain/identity/metabolism';
 import { motion, AnimatePresence } from 'motion/react';
 import { Scale, Ruler, Dumbbell, Droplet, Flame, Sparkles, Heart, Save, Check } from 'lucide-react';
 
@@ -84,51 +85,12 @@ export function PhysicalProfileCard() {
     return { label: 'Obesidade Grave', color: 'bg-rose-600', text: 'text-rose-600', border: 'border-rose-200', advice: 'Risco de saúde elevado. Recomendamos acompanhamento médico e foco em consistência cardio, mobilidade e força.' };
   };
 
-  // Harris-Benedict BMR Estimation
   const calculateTMB = () => {
-    if (!numWeight || !numHeight || !numAge) return null;
-    
-    // Male: BMR = 88.362 + (13.397 x weight) + (4.799 x height_cm) - (5.677 x age)
-    // Female: BMR = 447.593 + (9.247 x weight) + (3.098 x height_cm) - (4.330 x age)
-    const isFemale = gender?.toLowerCase() === 'feminino';
-    
-    if (isFemale) {
-      return Math.round(447.593 + (9.247 * numWeight) + (3.098 * numHeight) - (4.330 * numAge));
-    } else {
-      return Math.round(88.362 + (13.397 * numWeight) + (4.799 * numHeight) - (5.677 * numAge));
-    }
+    const result = basalRate({ weightKg: numWeight, heightCm: numHeight, ageYears: numAge, sex: gender });
+    return result.kcal == null ? null : Math.round(result.kcal);
   };
 
-  // Caloric Recommendation based on goals and training profile
-  const getCaloricRecommendation = (tmb: number | null) => {
-    if (!tmb) return null;
-    // Estimate baseline daily expenditure with low to moderate activity (e.g. multiplier 1.375)
-    const dailyExpenditure = Math.round(tmb * 1.375);
-    const userGoal = profile?.goal || '';
-
-    if (userGoal.includes('Hipertrofia') || userGoal.includes('Força')) {
-      return {
-        target: dailyExpenditure + 300,
-        desc: 'Superávit Calórico',
-        action: 'Para construir novos tecidos e aumentar força de forma sólida.',
-        color: 'text-orange-500'
-      };
-    } else if (userGoal.includes('Emagrecimento')) {
-      return {
-        target: dailyExpenditure - 400,
-        desc: 'Déficit Calórico',
-        action: 'Foco na redução gradual de gordura sem sacrificar massa muscular.',
-        color: 'text-sky-500'
-      };
-    } else {
-      return {
-        target: dailyExpenditure,
-        desc: 'Manutenção Saudável',
-        action: 'Equilíbrio ideal para recomposição corporal e melhora de condicionamento.',
-        color: 'text-emerald-500'
-      };
-    }
-  };
+  const getCaloricRecommendation = (_tmb: number | null) => null;
 
   // Daily water recommendation (35ml per kg)
   const calculateWater = () => {

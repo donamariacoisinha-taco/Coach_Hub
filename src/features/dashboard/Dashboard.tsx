@@ -32,7 +32,7 @@ import { Crown, Sliders } from 'lucide-react';
 import { isAdmin } from '../../lib/utils/auth';
 import { playHapticFeedback } from '../../services/athleteMemoryEngine';
 import { buildCalendarDays, buildEmotionalGuidance } from './dashboardDayState';
-import { profileDaysPerWeek } from '../../domain/profile/weeklyFrequency';
+import { buildIdentityStats } from '../../domain/identity/identityStats';
 import { getWorkoutCardAvgDuration, getWorkoutCardEvolutionInsight } from './workoutCardInsights';
 
 const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolderId }) => {
@@ -528,6 +528,13 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     }
   };
 
+  const identity = useMemo(
+    () => buildIdentityStats({ profile, sessions: history }),
+    [history, profile?.days_per_week, profile?.frequency, profile?.experience_level],
+  );
+  const weeklyGoal = identity.daysPerWeek;
+  const weeklyCompleted = identity.finishedThisWeek;
+
   // 7-day calendar strip computation
   const calendarDays = useMemo(
     () => buildCalendarDays(history, profile?.preferred_training_days || []),
@@ -536,10 +543,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
 
   const emotionalGuidance = useMemo(
     () => buildEmotionalGuidance(history, {
-      streak: profile?.workout_streak || 0,
+      streak: identity.fulfilledWeekStreak ?? 0,
       preferredTrainingDays: profile?.preferred_training_days || [],
     }),
-    [profile?.workout_streak, profile?.preferred_training_days, history],
+    [identity.fulfilledWeekStreak, profile?.preferred_training_days, history],
   );
 
   const localizedDateStr = useMemo(() => {
@@ -550,27 +557,10 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
   // Soft Adaptive glows relative to User state or readiness
   const readinessValue = useMemo(() => {
     let score = 78;
-    const streak = profile?.workout_streak || 0;
+    const streak = identity.fulfilledWeekStreak ?? 0;
     score += Math.min(streak * 2, 12);
     return Math.min(98, score);
-  }, [profile?.workout_streak]);
-
-  const weeklyGoal = profileDaysPerWeek(profile);
-  const weeklyCompleted = useMemo(() => {
-    const now = new Date();
-    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-    const nextMonday = new Date(monday);
-    nextMonday.setDate(nextMonday.getDate() + 7);
-    const completedDays = new Set(
-      history.filter(h => {
-        if (!h.completed_at) return false;
-        const completed = new Date(h.completed_at);
-        return !Number.isNaN(completed.getTime()) && completed >= monday && completed < nextMonday && completed <= now;
-      }).map(h => new Date(h.completed_at!).toLocaleDateString('en-CA'))
-    );
-    return completedDays.size;
-  }, [history]);
+  }, [identity.fulfilledWeekStreak]);
 
   return (
     <div 
@@ -769,7 +759,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(#16a34a ${weeklyGoal ? Math.min(100, weeklyCompleted / weeklyGoal * 100) : 0}%, #e2e8f0 0)` }}>
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900">{weeklyGoal ? `${Math.round(Math.min(100, weeklyCompleted / weeklyGoal * 100))}%` : '—'}</div>
               </div>
-              <p className="text-xs font-bold leading-snug text-slate-600"><strong className="block text-lg text-slate-900">{weeklyGoal == null ? '—' : `${Math.min(weeklyCompleted, weeklyGoal)} de ${weeklyGoal}`}</strong> dias de treino</p>
+              <p className="text-xs font-bold leading-snug text-slate-600"><strong className="block text-lg text-slate-900">{weeklyGoal == null ? '—' : `${Math.min(weeklyCompleted, weeklyGoal)} de ${weeklyGoal}`}</strong> treinos nesta semana</p>
             </div>
           </section>
           <section aria-label="Sua semana" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">

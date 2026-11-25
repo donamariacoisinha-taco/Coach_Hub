@@ -16,27 +16,27 @@ export const ActivitySelector: React.FC<ActivitySelectorProps> = ({ selected, on
     },
     {
       id: 'Leve',
-      factor: 1.375,
+      factor: 1.3,
       text: 'Leve',
-      details: 'Sessões moderadas de treino 1-3x por semana.'
+      details: 'Cerca de 5 a 7,5 mil passos, sem contar o treino.'
     },
     {
       id: 'Moderado',
-      factor: 1.55,
+      factor: 1.45,
       text: 'Moderado',
-      details: 'Movimentação regular e treinos 3-5x por semana.'
+      details: 'Cerca de 7,5 a 10 mil passos, ou trabalho em pé. O treino entra à parte.'
     },
     {
       id: 'Alto',
-      factor: 1.725,
+      factor: 1.6,
       text: 'Ativo',
-      details: 'Estilo de vida ativo, treinos intensos 5-7x por semana.'
+      details: 'Mais de 10 mil passos ou trabalho braçal. O treino entra à parte.'
     },
     {
       id: 'Extremo',
-      factor: 1.9,
+      factor: 0,
       text: 'Atleta',
-      details: 'Duplo treino diário ou trabalho com altíssimo desgaste.'
+      details: 'Este nível não entra na conta. Escolha Alto se o dia a dia é braçal.'
     }
   ];
 
@@ -47,7 +47,10 @@ export const ActivitySelector: React.FC<ActivitySelectorProps> = ({ selected, on
           NÍVEL DE ATIVIDADE DIÁRIA
         </span>
         <span className="text-[10px] text-[#7BA7FF] font-semibold tracking-tight">
-          Fator: x{(levels.find(l => l.id === selected)?.factor || 1.2).toFixed(3)}
+          Fator: {(() => {
+            const factor = levels.find(l => l.id === selected)?.factor;
+            return factor ? `x${factor.toFixed(2)}` : '—';
+          })()}
         </span>
       </div>
 

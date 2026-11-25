@@ -21,6 +21,12 @@ import {
 import { useNavigation } from '../../navigation/navigation';
 import { nutritionEngine, DayLog } from '../../services/nutritionEngine';
 import { useNutritionStore } from '../../store/nutritionStore';
+import { useUserStore } from '../../store/userStore';
+import { workoutApi } from '../../lib/api/workoutApi';
+import { profileApi } from '../../lib/api/profileApi';
+import { medianValidDuration } from '../../domain/identity/metabolism';
+import { weeklyFrequency } from '../../domain/identity/identityStats';
+import { formatKcal } from '../../domain/identity/metabolism';
 
 // Custom sub-components
 import { MetabolicSettingsSheet } from './dieta/MetabolicSettingsSheet';
@@ -30,7 +36,8 @@ import { MacroDistributionVisualizer } from './dieta/MacroDistributionVisualizer
 
 export const MinhaDieta: React.FC = () => {
   const { profile: userProfile } = useNavigation();
-  const { profile: metabolicProfile, metabolicState, showMetabolicSettings, setShowSettings, syncFromUserProfile } = useNutritionStore();
+  const { profile: metabolicProfile, metabolicState, showMetabolicSettings, setShowSettings, syncFromUserProfile, setEnergyContext } = useNutritionStore();
+  const account = useUserStore((state) => state.profile);
 
   const [activeDate, setActiveDate] = useState<string>(() => {
     const today = new Date();
@@ -172,14 +179,37 @@ export const MinhaDieta: React.FC = () => {
   const calTarget = metabolicState.caloriesTarget;
   const waterTarget = metabolicState.hydrationGoalMl;
 
-  const caloriePercent = Math.round((dayLog.caloriesConsumed / calTarget) * 105) || 0; // representational target scale
-  const realCaloriePercent = Math.round((dayLog.caloriesConsumed / calTarget) * 100);
-  
-  const proteinPercent = Math.min(100, Math.round((dayLog.proteinConsumed / metabolicState.proteinGrams) * 100)) || 0;
-  const carbsPercent = Math.min(100, Math.round((dayLog.carbsConsumed / metabolicState.carbGrams) * 100)) || 0;
-  const fatPercent = Math.min(100, Math.round((dayLog.fatConsumed / metabolicState.fatGrams) * 100)) || 0;
-  
-  const hydrationPercent = Math.min(100, Math.round((dayLog.waterConsumedMl / waterTarget) * 100)) || 0;
+  useEffect(() => {
+    const userId = account?.id;
+    if (!userId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [history, measures] = await Promise.all([
+          workoutApi.getWorkoutHistory(userId),
+          userId === 'guest-user-id' ? Promise.resolve([]) : profileApi.getBodyMeasurements().catch(() => []),
+        ]);
+        if (cancelled) return;
+        const latestFat = [...measures].filter((row) => row.body_fat_pct != null)
+          .sort((a, b) => String(b.measured_at).localeCompare(String(a.measured_at)))[0];
+        setEnergyContext({
+          bodyFatPct: latestFat?.body_fat_pct ?? null,
+          sessionsPerWeek: weeklyFrequency(account),
+          typicalMinutes: medianValidDuration(history.map((row) => row.duration_minutes)),
+        });
+      } catch (error) {
+        console.warn('[dieta] contexto de gasto indisponível', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [account?.id, account?.days_per_week, account?.frequency, setEnergyContext]);
+
+  const caloriePercent = calTarget ? Math.round((dayLog.caloriesConsumed / calTarget) * 105) || 0 : 0;
+  const realCaloriePercent = calTarget ? Math.round((dayLog.caloriesConsumed / calTarget) * 100) : 0;
+  const proteinPercent = metabolicState.proteinGrams ? Math.min(100, Math.round((dayLog.proteinConsumed / metabolicState.proteinGrams) * 100)) || 0 : 0;
+  const carbsPercent = metabolicState.carbGrams ? Math.min(100, Math.round((dayLog.carbsConsumed / metabolicState.carbGrams) * 100)) || 0 : 0;
+  const fatPercent = metabolicState.fatGrams ? Math.min(100, Math.round((dayLog.fatConsumed / metabolicState.fatGrams) * 100)) || 0 : 0;
+  const hydrationPercent = waterTarget ? Math.min(100, Math.round((dayLog.waterConsumedMl / waterTarget) * 100)) || 0 : 0;
 
   // Active biological atmosphere color mood based on selected focus
   const getAtmosphereGlow = () => {
@@ -341,13 +371,13 @@ export const MinhaDieta: React.FC = () => {
           <div className="flex items-center space-x-2">
             <Flame size={14} className="text-[#818CF8]" />
             <span>
-              Taxa de Metabolismo Basal (TMB): <strong className="text-slate-800 font-bold">{metabolicState.bmr} kcal/dia</strong>
+              Taxa de Metabolismo Basal (TMB): <strong className="text-slate-800 font-bold">{formatKcal(metabolicState.bmr)} kcal/dia</strong>
             </span>
           </div>
           <div className="flex items-center space-x-2">
             <Activity size={13} className="text-[#7BA7FF]" />
             <span>
-              Custo de Atividade Estimado (TDEE): <strong className="text-slate-800 font-bold">{metabolicState.tdee} kcal</strong>
+              Gasto total: <strong className="text-slate-800 font-bold">{metabolicState.tdee == null ? '— (falta duração do treino ou o dia a dia)' : `${formatKcal(metabolicState.tdee)} kcal`}</strong>{metabolicState.limit === 'capped-20' ? ' · Limitado a 20% do gasto' : metabolicState.limit === 'basal-floor' ? ' · Preso na taxa basal' : ''}
             </span>
           </div>
         </div>

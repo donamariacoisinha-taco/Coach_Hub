@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Flame, Droplet, ArrowRight, Activity, Percent } from 'lucide-react';
 import { MetabolicState } from '../../../store/nutritionStore';
+import { formatKcal } from '../../../domain/identity/metabolism';
 
 interface LiveMetabolicPreviewProps {
   state: MetabolicState;
@@ -45,7 +46,7 @@ export const LiveMetabolicPreview: React.FC<LiveMetabolicPreviewProps> = ({ stat
               animate={{ scale: 1 }}
               className="text-xl font-light tracking-tight text-slate-800 tabular-nums"
             >
-              {state.bmr}
+              {formatKcal(state.bmr)}
             </motion.span>
             <span className="text-[10px] text-slate-400 font-mono">kcal/dia</span>
           </div>
@@ -67,7 +68,7 @@ export const LiveMetabolicPreview: React.FC<LiveMetabolicPreviewProps> = ({ stat
               animate={{ scale: 1 }}
               className="text-xl font-light tracking-tight text-slate-800 tabular-nums"
             >
-              {state.tdee}
+              {formatKcal(state.tdee)}
             </motion.span>
             <span className="text-[10px] text-slate-400 font-mono">kcal/dia</span>
           </div>
@@ -86,7 +87,7 @@ export const LiveMetabolicPreview: React.FC<LiveMetabolicPreviewProps> = ({ stat
           </div>
           <div>
             <span className="text-[10px] text-slate-400 block font-medium">Target Calórico</span>
-            <span className="font-semibold text-slate-700 tracking-tight">{state.caloriesTarget} kcal</span>
+            <span className="font-semibold text-slate-700 tracking-tight">{formatKcal(state.caloriesTarget)} kcal</span>
           </div>
         </div>
 

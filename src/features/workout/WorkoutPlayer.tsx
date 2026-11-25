@@ -70,6 +70,8 @@ import { canWritePartialSession, createSetIdentityStore } from "../../domain/wor
 import { applyPreventiveReduction, ownPrescriptionSets, prefillExercise, previewExerciseLine, type ExercisePerformanceLog, type PrefillSet } from "../../domain/workout/exercisePrefill";
 import { planSetCount } from "../../domain/workout/planColumns";
 import { adjustRestSeconds, remainingRestSeconds, restEndAt } from "../../domain/workout/restClock";
+import { trainingLevel } from "../../domain/identity/identityStats";
+import { profileApi } from "../../lib/api/profileApi";
 import { readPlanSummary } from "../../domain/workout/planColumns";
 import { confirmedSetIndexes, saveChoiceWritesPlan, volumeKg } from "../../domain/workout/sessionRecord";
 
@@ -1964,14 +1966,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       if (isGuestWorkout) return;
       try {
         const u = await authApi.getUser();
-        if (u) {
-          const history = await fetchWithRetry(() => workoutApi.getWorkoutHistory(u.id));
-          const count = history.length;
-          if (count < 10) setUserLevel('BEGINNER');
-          else if (count < 40) setUserLevel('INTERMEDIATE');
-          else setUserLevel('ADVANCED');
-          log("[LEVEL_DETECTED]", { count, level: count < 10 ? 'BEGINNER' : count < 40 ? 'INTERMEDIATE' : 'ADVANCED' });
-        }
+        if (!u) return;
+        const profile = await profileApi.getProfile(u.id);
+        const level = trainingLevel(profile?.experience_level);
+        if (level === 'Iniciante') setUserLevel('BEGINNER');
+        else if (level === 'Intermediário') setUserLevel('INTERMEDIATE');
+        else if (level === 'Avançado') setUserLevel('ADVANCED');
       } catch (e) {
         console.error("Error determining level", e);
       }

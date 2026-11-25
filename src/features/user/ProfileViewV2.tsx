@@ -72,6 +72,9 @@ import { ProfileActions } from './components/ProfileActions';
 import { getGuestProfile, saveGuestProfile } from '../../lib/guest/guestPersistence';
 import { useCompletedWorkoutCount } from './useCompletedWorkoutCount';
 import { profileDaysPerWeek, WEEKLY_FREQUENCY_OPTIONS } from '../../domain/profile/weeklyFrequency';
+import { buildIdentityStats, type IdentityStats } from '../../domain/identity/identityStats';
+import { basalRate, dailyExpenditure, formatKcal, weightLossPlan } from '../../domain/identity/metabolism';
+import { workoutApi } from '../../lib/api/workoutApi';
 
 interface CheckInLog {
   date: string;
@@ -268,6 +271,35 @@ export default function ProfileViewV2() {
 
   const profile = storeProfile || getFallbackProfile();
   const countedWorkouts = useCompletedWorkoutCount(profile?.id);
+  const [identity, setIdentity] = useState<IdentityStats | null>(null);
+  const [bodyFatPct, setBodyFatPct] = useState<number | null>(null);
+
+  useEffect(() => {
+    const userId = profile?.id;
+    if (!userId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [sessions, logs, measures] = await Promise.all([
+          workoutApi.getWorkoutHistory(userId),
+          workoutApi.listSetVolumes(userId),
+          userId === 'guest-user-id'
+            ? Promise.resolve([])
+            : profileApi.getBodyMeasurements().catch(() => []),
+        ]);
+        if (cancelled) return;
+        const latestFat = [...measures]
+          .filter((row) => row.body_fat_pct != null)
+          .sort((a, b) => String(b.measured_at).localeCompare(String(a.measured_at)))[0];
+        setBodyFatPct(latestFat?.body_fat_pct ?? null);
+        setIdentity(buildIdentityStats({ profile, sessions, logs }));
+      } catch (error) {
+        console.warn('[identity] números indisponíveis', error);
+        if (!cancelled) setIdentity(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.id, profile?.days_per_week, profile?.frequency, profile?.experience_level]);
 
   // Sync profile details into state on mount
   useEffect(() => {
@@ -481,36 +513,39 @@ export default function ProfileViewV2() {
   const imc = calculatedIMC();
 
   // Real-time Water Intake (35ml per kg)
-  const waterTarget = numWeight ? parseFloat(((numWeight * 35) / 1000).toFixed(1)) : 2.5;
+  const waterTarget = numWeight ? parseFloat(((numWeight * 35) / 1000).toFixed(1)) : null;
 
-  // Real-time Basal Metabolism (Harris-Benedict formula)
-  const calculatedTMB = () => {
-    if (!numWeight || !numHeight || !numAge) return 1600;
-    const isFemale = gender?.toLowerCase() === 'feminino';
-    if (isFemale) {
-      return Math.round(447.593 + (9.247 * numWeight) + (3.098 * numHeight) - (4.330 * numAge));
+  const basal = basalRate({
+    weightKg: numWeight,
+    heightCm: numHeight,
+    ageYears: numAge,
+    sex: gender,
+    bodyFatPct,
+  });
+  const spent = dailyExpenditure({
+    basal: basal.kcal,
+    activityLevel: null,
+    sessionsPerWeek: identity?.daysPerWeek,
+    typicalMinutes: identity?.typicalDurationMinutes,
+  });
+  const losingWeight = goal.toLowerCase().includes('emagrec');
+  const loss = losingWeight && spent.total != null && basal.kcal != null && numWeight > 0
+    ? weightLossPlan({ weightKg: numWeight, expenditure: spent.total, basal: basal.kcal })
+    : null;
+  const calories = loss
+    ? {
+      val: formatKcal(loss.eatKcal),
+      label: loss.floorHit ? 'Preso na taxa basal' : loss.capped ? 'Limitado a 20% do gasto' : 'Déficit conservador',
+      color: loss.floorHit || loss.capped ? 'text-amber-600' : 'text-blue-500',
     }
-    return Math.round(88.362 + (13.397 * numWeight) + (4.799 * numHeight) - (5.677 * numAge));
-  };
-  const tmb = calculatedTMB();
-
-  // Caloric Recommendation based on objective
-  const getCaloricRecommendation = () => {
-    // Basic daily movement scale multiplier (avg 1.375)
-    const baseline = Math.round(tmb * 1.375);
-    if (goal.includes('Hipertrofia') || goal.includes('Força')) {
-      return { val: baseline + 300, label: 'Superávit Calórico', color: 'text-orange-500' };
-    } else if (goal.includes('Emagrecimento')) {
-      return { val: baseline - 400, label: 'Déficit Calórico', color: 'text-blue-500' };
-    }
-    return { val: baseline, label: 'Manutenção Corporal', color: 'text-emerald-500' };
-  };
-  const calories = getCaloricRecommendation();
+    : spent.total != null
+      ? { val: formatKcal(spent.total), label: 'Gasto estimado', color: 'text-emerald-500' }
+      : { val: '—', label: basal.kcal == null ? `Falta ${basal.missing.join(', ') || 'dado'}` : `Falta ${spent.missing.filter((item) => item !== 'taxa basal').join(', ') || 'dado'}`, color: 'text-slate-400' };
 
   // --- Compute Athlete Dynamic title ---
   const getAthleteTitle = (): string => {
-    const streak = profile.workout_streak || 0;
-    const completed = countedWorkouts ?? 0;
+    const streak = identity?.fulfilledWeekStreak ?? 0;
+    const completed = identity?.finishedWorkouts ?? countedWorkouts ?? 0;
     
     if (streak >= 5) return 'Disciplina Elevada';
     if (completed > 15) return 'Consistência Avançada';
@@ -899,12 +934,19 @@ export default function ProfileViewV2() {
                 {athleteTitle}
               </span>
               <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full">
-                Ativo • {countedWorkouts == null ? '—' : countedWorkouts} treinos
+                Ativo • {identity ? identity.finishedWorkouts : countedWorkouts == null ? '—' : countedWorkouts} treinos
               </span>
             </div>
             
             <p className="text-[10.5px] font-medium text-slate-400 pt-2">
-              Consistência de Treino: <strong className="text-slate-700 font-bold">{profile?.workout_streak || 0} dias</strong> seguidos de foco absoluto
+              {identity == null
+                ? 'Carregando seus números…'
+                : identity.fulfilledWeekStreak == null
+                  ? 'Sequência: falta a frequência semanal.'
+                  : <>Sequência: <strong className="text-slate-700 font-bold">{identity.fulfilledWeekStreak} semanas</strong> cumpridas</>}
+              {identity && identity.partialWorkouts > 0 ? ` · ${identity.partialWorkouts} parciais à parte` : ''}
+              {identity ? ` · ${identity.activeWeeks} semanas ativas` : ''}
+              {identity ? ` · volume ${identity.volumeKg == null ? 'sem séries registradas' : `${Math.round(identity.volumeKg).toLocaleString('pt-BR')} kg`}` : ''}
             </p>
           </div>
 
@@ -1152,7 +1194,7 @@ export default function ProfileViewV2() {
                 <div>
                   <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Água Mínima</span>
                   <p className="text-xl font-black text-blue-500 leading-tight mt-1">
-                    {waterTarget} <span className="text-xs font-bold text-slate-400">Liters</span>
+                    {waterTarget == null ? '—' : waterTarget} <span className="text-xs font-bold text-slate-400">Liters</span>
                   </p>
                 </div>
                 <p className="text-[9px] font-bold text-slate-500 mt-2 leading-tight">35ml por quilo / dia</p>
@@ -1163,10 +1205,10 @@ export default function ProfileViewV2() {
                 <div>
                   <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Basal (TMB)</span>
                   <p className="text-xl font-black text-slate-800 leading-tight mt-1">
-                    {tmb} <span className="text-xs font-bold text-slate-400">kcal</span>
+                    {formatKcal(basal.kcal)} <span className="text-xs font-bold text-slate-400">kcal</span>
                   </p>
                 </div>
-                <p className="text-[9px] font-bold text-slate-400 mt-2 leading-none">Mínimo em repouso absoluto</p>
+                <p className="text-[9px] font-bold text-slate-400 mt-2 leading-none">{basal.method === 'katch-mcardle' ? 'Katch-McArdle' : basal.method === 'mifflin-st-jeor' ? 'Mifflin-St Jeor' : 'Falta dado para calcular'}</p>
               </div>
 
               {/* Caloric balance suggestion */}
@@ -1174,7 +1216,7 @@ export default function ProfileViewV2() {
                 <div>
                   <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Alvo Estimado</span>
                   <p className="text-xl font-black text-indigo-600 leading-tight mt-1">
-                    {calories.val} <span className="text-[10px] font-bold">kcal</span>
+                    {calories.val} <span className="text-[10px] font-bold">{calories.val === '—' ? '' : 'kcal'}</span>
                   </p>
                 </div>
                 <p className={`text-[9.5px] font-black ${calories.color} mt-2 uppercase tracking-wide leading-none`}>
