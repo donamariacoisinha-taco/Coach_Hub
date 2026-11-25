@@ -628,6 +628,29 @@ export const workoutApi = {
     });
   },
 
+  async listSetVolumes(userId: string): Promise<Array<{ history_id: string | null; weight_achieved: number | null; reps_achieved: number | null; set_type: string | null }>> {
+    if (userId === GUEST_USER_ID) {
+      const rows: Array<{ history_id: string | null; weight_achieved: number | null; reps_achieved: number | null; set_type: string | null }> = [];
+      for (const entry of getGuestDashboard().history || []) {
+        for (const set of entry.workout_sets_logs || []) {
+          rows.push({
+            history_id: entry.id || null,
+            weight_achieved: set.weight_achieved ?? null,
+            reps_achieved: set.reps_achieved ?? null,
+            set_type: set.set_type ?? null,
+          });
+        }
+      }
+      return rows;
+    }
+    const { data, error } = await supabase
+      .from('workout_sets_log')
+      .select('history_id, weight_achieved, reps_achieved, set_type')
+      .eq('user_id', userId);
+    if (error) throw error;
+    return (data || []) as Array<{ history_id: string | null; weight_achieved: number | null; reps_achieved: number | null; set_type: string | null }>;
+  },
+
   async getLastSessionSets(exerciseId: string) {
     const { data, error } = await supabase
       .from('workout_sets_log')

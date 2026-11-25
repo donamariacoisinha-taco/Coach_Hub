@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, WorkoutHistory } from '../../types';
 import { useNutritionStore } from '../../store/nutritionStore';
+import { formatKcal } from '../../domain/identity/metabolism';
 import {
   computeWeightDelta,
   formatWeightDeltaSentence,
@@ -381,7 +382,7 @@ export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
           <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100/80 hover:border-indigo-150/10 transition-all">
             <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider block mb-1">Taxa Basal (TMB)</span>
             <span className="text-lg font-[1000] text-slate-800 block leading-none">
-              {metabolicState.bmr} <span className="text-[9px] font-medium text-slate-400 ml-0.5">kcal/dia</span>
+              {formatKcal(metabolicState.bmr)} <span className="text-[9px] font-medium text-slate-400 ml-0.5">kcal/dia</span>
             </span>
             <span className="text-[8px] font-semibold text-slate-400 block mt-1">Gasto celular estático</span>
           </div>
@@ -389,7 +390,7 @@ export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
           <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100/80 hover:border-[#7BA7FF]/10 transition-all">
             <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider block mb-1">Gasto Total (TDEE)</span>
             <span className="text-lg font-[1000] text-[#7BA7FF] block leading-none">
-              {metabolicState.tdee} <span className="text-[9px] font-medium text-slate-400 ml-0.5">kcal/dia</span>
+              {formatKcal(metabolicState.tdee)} <span className="text-[9px] font-medium text-slate-400 ml-0.5">kcal/dia</span>
             </span>
             <span className="text-[8px] font-semibold text-slate-400 block mt-1">Treinos + rotina ativa</span>
           </div>
@@ -397,7 +398,7 @@ export const BodyProjectionModule: React.FC<BodyProjectionModuleProps> = ({
           <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100/80 hover:border-emerald-150/10 transition-all">
             <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider block mb-1">Meta Nutricional</span>
             <span className="text-lg font-[1000] text-emerald-500 block leading-none">
-              {metabolicState.caloriesTarget} <span className="text-[9px] font-medium text-slate-400 ml-0.5">kcal/dia</span>
+              {formatKcal(metabolicState.caloriesTarget)} <span className="text-[9px] font-medium text-slate-400 ml-0.5">kcal/dia</span>
             </span>
             <span className="text-[8px] font-extrabold text-emerald-600 block mt-1 uppercase text-[7px] tracking-wide">
               {goal.toUpperCase()}

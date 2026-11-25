@@ -1,16 +1,18 @@
 import { UserProfile, Goal } from '../types';
+import { basalRate, dailyExpenditure, weightLossPlan } from '../domain/identity/metabolism';
 
 export interface NutritionPlan {
-  bmr: number;
-  tdee: number;
-  caloriesTarget: number;
-  proteinGrams: number;
-  proteinCalories: number;
-  fatGrams: number;
-  fatCalories: number;
-  carbGrams: number;
-  carbCalories: number;
-  hydrationGoalMl: number;
+  bmr: number | null;
+  tdee: number | null;
+  caloriesTarget: number | null;
+  proteinGrams: number | null;
+  proteinCalories: number | null;
+  fatGrams: number | null;
+  fatCalories: number | null;
+  carbGrams: number | null;
+  carbCalories: number | null;
+  hydrationGoalMl: number | null;
+  limit: 'ok' | 'capped-20' | 'basal-floor' | null;
 }
 
 export interface DayLog {
@@ -25,109 +27,91 @@ export interface DayLog {
 
 export const nutritionEngine = {
   // 1. Calculate Basal Metabolic Rate using requested formulas
-  calculateBMR(weight: number, height: number, age: number, gender: 'masculino' | 'feminino' | 'outro' | string): number {
-    const wt = weight || 70;
-    const ht = height || 170;
-    const ag = age || 28;
-    const isFemale = String(gender).toLowerCase() === 'feminino' || String(gender).toLowerCase() === 'female' || String(gender).toLowerCase() === 'f';
-
-    if (isFemale) {
-      // Prompt specification: (9.56 * weight) + (1.85 * height) - (4.68 * age) + 665
-      return (9.56 * wt) + (1.85 * ht) - (4.68 * ag) + 665;
-    } else {
-      // Prompt specification: (13.75 * weight) + (5 * height) - (6.76 * age) + 66.5
-      return (13.75 * wt) + (5 * ht) - (6.76 * ag) + 66.5;
-    }
+  calculateBMR(weight: number, height: number, age: number, gender: string, bodyFatPct?: number | null): number | null {
+    return basalRate({
+      weightKg: weight,
+      heightCm: height,
+      ageYears: age,
+      sex: gender,
+      bodyFatPct,
+    }).kcal;
   },
 
-  // 2. Map activity level to activity factor
-  getActivityFactor(level: string): number {
-    const raw = String(level).toLowerCase();
-    if (raw.includes('sedentário') || raw.includes('sedentary')) return 1.2;
-    if (raw.includes('leve') || raw.includes('light')) return 1.375;
-    if (raw.includes('moderado') || raw.includes('moderate')) return 1.55;
-    if (raw.includes('alto') || raw.includes('high') || raw.includes('alta') || raw.includes('ativo')) return 1.725;
-    if (raw.includes('extremo') || raw.includes('extreme')) return 1.9;
-    
-    // Balanced moderate default
-    return 1.45;
+  getActivityFactor(level: string): number | null {
+    const raw = String(level || '').toLowerCase();
+    if (raw.includes('sedent')) return 1.2;
+    if (raw.includes('leve') || raw.includes('light')) return 1.3;
+    if (raw.includes('moder')) return 1.45;
+    if (raw.includes('alto') || raw.includes('alta') || raw.includes('high')) return 1.6;
+    return null;
   },
 
-  // 3. Main Calculator matching premium adaptation
-  calculatePlan(profile: Partial<UserProfile>, activityLevelText: string = 'moderado'): NutritionPlan {
-    const weight = profile.weight || 75;
-    const height = profile.height || 175;
-    const age = profile.age || 28;
-    const gender = profile.gender || 'masculino';
-    const goal = profile.goal || Goal.HYPERTROPHY;
-
-    const bmr = Math.round(this.calculateBMR(weight, height, age, gender));
-    const factor = this.getActivityFactor(activityLevelText);
-    const tdee = Math.round(bmr * factor);
-
-    // Goal Calorie Adaptation
-    let caloriesTarget = tdee;
+  calculatePlan(
+    profile: Partial<UserProfile>,
+    activityLevelText = '',
+    options?: { bodyFatPct?: number | null; sessionsPerWeek?: number | null; typicalMinutes?: number | null },
+  ): NutritionPlan {
+    const weight = Number(profile.weight) || 0;
+    const height = Number(profile.height) || 0;
+    const age = Number(profile.age) || 0;
+    const gender = profile.gender || '';
+    const goal = profile.goal || '';
+    const basal = basalRate({
+      weightKg: weight,
+      heightCm: height,
+      ageYears: age,
+      sex: gender,
+      bodyFatPct: options?.bodyFatPct,
+    });
+    const spent = dailyExpenditure({
+      basal: basal.kcal,
+      activityLevel: activityLevelText,
+      sessionsPerWeek: options?.sessionsPerWeek,
+      typicalMinutes: options?.typicalMinutes,
+    });
     const goalLower = String(goal).toLowerCase();
-    
-    // Hypertrophy: +250 ~ +400 kcal
-    if (goalLower.includes('hipertrofia') || goalLower.includes('hypertrophy') || goalLower.includes('ganho')) {
-      caloriesTarget = tdee + 350;
-    }
-    // Fat Loss: -300 ~ -500 kcal
-    else if (goalLower.includes('emagrecimento') || goalLower.includes('loss') || goalLower.includes('corte') || goalLower.includes('perda')) {
-      caloriesTarget = tdee - 400;
-    }
-    // Recomposition or Endurance
-    else if (goalLower.includes('resistência') || goalLower.includes('recomp') || goalLower.includes('força')) {
-      caloriesTarget = tdee - 150; // slight deficit / recomp
+    let caloriesTarget = spent.total == null ? null : Math.round(spent.total);
+    let limit: NutritionPlan['limit'] = null;
+    if (spent.total != null && basal.kcal != null && weight > 0 && (goalLower.includes('emagrec') || goalLower.includes('perda') || goalLower.includes('loss'))) {
+      const loss = weightLossPlan({ weightKg: weight, expenditure: spent.total, basal: basal.kcal });
+      caloriesTarget = Math.round(loss.eatKcal);
+      limit = loss.floorHit ? 'basal-floor' : loss.capped ? 'capped-20' : 'ok';
     }
 
-    // Ensure safe calorie basement
-    if (caloriesTarget < 1200) caloriesTarget = 1200;
+    const empty = {
+      bmr: basal.kcal == null ? null : Math.round(basal.kcal),
+      tdee: spent.total == null ? null : Math.round(spent.total),
+      caloriesTarget,
+      proteinGrams: null,
+      proteinCalories: null,
+      fatGrams: null,
+      fatCalories: null,
+      carbGrams: null,
+      carbCalories: null,
+      hydrationGoalMl: weight > 0 ? Math.round(weight * 35) : null,
+      limit,
+    };
+    if (!(weight > 0) || caloriesTarget == null) return empty;
 
-    // Macro protein multipliers
-    let proteinMultiplier = 2.0; // g/kg default performance
-    if (goalLower.includes('emagrecimento') || goalLower.includes('loss')) {
-      proteinMultiplier = 2.2; // 2.0 - 2.4 fat loss
-    } else if (goalLower.includes('hipertrofia') || goalLower.includes('hypertrophy')) {
-      proteinMultiplier = 1.8; // 1.6 - 2.2 hypertrophy
-    }
-
+    let proteinMultiplier = 2;
+    if (goalLower.includes('emagrec') || goalLower.includes('loss')) proteinMultiplier = 2.2;
+    else if (goalLower.includes('hipertrof') || goalLower.includes('ganho')) proteinMultiplier = 1.8;
     const proteinGrams = Math.round(weight * proteinMultiplier);
     const proteinCalories = proteinGrams * 4;
-
-    // Fat System: 0.8g - 1g / kg
     let fatMultiplier = 0.9;
-    if (goalLower.includes('emagrecimento') || goalLower.includes('loss')) {
-      fatMultiplier = 0.8;
-    } else if (goalLower.includes('hipertrofia') || goalLower.includes('hypertrophy')) {
-      fatMultiplier = 1.0;
-    }
+    if (goalLower.includes('emagrec') || goalLower.includes('loss')) fatMultiplier = 0.8;
+    else if (goalLower.includes('hipertrof') || goalLower.includes('ganho')) fatMultiplier = 1;
     const fatGrams = Math.round(weight * fatMultiplier);
     const fatCalories = fatGrams * 9;
-
-    // Carbohydrates: Remaining Calories
-    let carbCalories = caloriesTarget - (proteinCalories + fatCalories);
-    if (carbCalories < 400) {
-      // Safe boundary
-      carbCalories = 400;
-    }
-    const carbGrams = Math.round(carbCalories / 4);
-
-    // Hydration Goal: 35ml x body weight (ml)
-    const hydrationGoalMl = Math.round(weight * 35);
-
+    const carbCalories = Math.max(0, caloriesTarget - proteinCalories - fatCalories);
     return {
-      bmr,
-      tdee,
-      caloriesTarget,
+      ...empty,
       proteinGrams,
       proteinCalories,
       fatGrams,
       fatCalories,
-      carbGrams,
+      carbGrams: Math.round(carbCalories / 4),
       carbCalories,
-      hydrationGoalMl
     };
   },
 
@@ -141,7 +125,7 @@ export const nutritionEngine = {
         return {
           tag: "Metabolismo Otimizado",
           title: "Aceleração Mitocondrial",
-          text: "Sua sequência de treinos ativa elevou seu gasto diário basal. O déficit calórico de 400 kcal está protegendo sua massa muscular com a ingestão adaptada de proteínas de " + plan.proteinGrams + "g. Seu corpo está biologicamente inclinado a priorizar lipólise hoje."
+          text: "O déficit fica dentro do gasto calculado e não desce da taxa basal. A proteína prevista é de " + (plan.proteinGrams ?? "—") + " g."
         };
       }
       return {

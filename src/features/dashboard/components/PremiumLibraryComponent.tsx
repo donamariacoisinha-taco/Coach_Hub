@@ -19,6 +19,7 @@ import { premiumProtocolRealtimeService } from '../../../lib/api/PremiumProtocol
 import { authApi } from '../../../lib/api/authApi';
 import { UserProfile } from '../../../types';
 import { isAdmin } from '../../../lib/utils/auth';
+import { trainingLevel } from '../../../domain/identity/identityStats';
 
 interface PremiumLibraryProps {
   profile: UserProfile | null;
@@ -494,8 +495,8 @@ export const PremiumLibraryComponent: React.FC<PremiumLibraryProps> = ({
 
   const filteredCollectionList = filterProtocols(protocols);
 
-  const totalWorkouts = history ? history.length : 0;
-  const userLevel = totalWorkouts < 10 ? 'beginner' : totalWorkouts < 40 ? 'intermediate' : 'advanced';
+  const storedLevel = trainingLevel(profile?.experience_level);
+  const userLevel = storedLevel === 'Avançado' ? 'advanced' : storedLevel === 'Intermediário' ? 'intermediate' : storedLevel === 'Iniciante' ? 'beginner' : null;
 
   const renderProtocolCard = (p: PremiumProtocol) => {
     const primaryGoal = getPrimaryGoalSentence(p);
