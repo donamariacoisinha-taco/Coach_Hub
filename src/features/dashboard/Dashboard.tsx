@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { WorkoutCategory, UserProfile, WorkoutFolder, WorkoutHistory } from '../../types';
 import { authApi, isGuestSession } from '../../lib/api/authApi';
 import { workoutApi } from '../../lib/api/workoutApi';
@@ -71,6 +71,14 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     console.log('[DEBUG] activeFolderId changed to:', activeFolderId);
   }, [activeFolderId]);
   const [activeTab, setActiveTab] = useState<'protocols' | 'evolution' | 'premium'>('protocols');
+  const workoutPickerHeading = useRef<HTMLHeadingElement>(null);
+  const openWorkoutPicker = () => {
+    setActiveTab('protocols');
+    requestAnimationFrame(() => {
+      workoutPickerHeading.current?.focus({ preventScroll: true });
+      workoutPickerHeading.current?.scrollIntoView({ block: 'start' });
+    });
+  };
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [showMagicModal, setShowMagicModal] = useState(false);
   const [magicLoading, setMagicLoading] = useState(false);
@@ -241,7 +249,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
     return list;
   }, [publicProtocols]);
 
-  const { nextAction } = usePredictive(profile || null, history, workouts);
+  const { context: trainingContext, nextAction } = usePredictive(profile || null, history, workouts);
 
   // Dados reais do treino sugerido no card principal (nunca valores fixos/fictícios).
   const suggestedWorkout = useMemo(
@@ -757,9 +765,9 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             </div>
             {suggestedWorkout ? (
               <button type="button" onClick={() => startWorkoutSession(suggestedWorkout.id)} className="mt-5 w-full rounded-2xl bg-[#7BA7FF] px-4 py-4 text-base font-black text-white shadow-lg active:scale-[0.98] transition-transform">Iniciar treino</button>
-            ) : (
-              <button type="button" onClick={() => setActiveTab('protocols')} className="mt-5 w-full rounded-2xl bg-[#7BA7FF] px-4 py-4 text-base font-black text-white">Escolher treino</button>
-            )}
+            ) : !trainingContext?.completedToday ? (
+              <button type="button" onClick={openWorkoutPicker} className="mt-5 w-full rounded-2xl bg-[#7BA7FF] px-4 py-4 text-base font-black text-white">Escolher treino</button>
+            ) : null}
           </div>
         </section>
         <div className="mb-4 grid grid-cols-2 gap-3">
@@ -927,7 +935,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             {/* PROTOCOLS SECTIONS */}
             <section className="space-y-4">
               <div className="flex items-center justify-between px-1">
-                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">
+                <h2 ref={workoutPickerHeading} tabIndex={-1} className="scroll-mt-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">
                   Seus Protocolos
                 </h2>
                 <div className="flex items-center gap-2">
