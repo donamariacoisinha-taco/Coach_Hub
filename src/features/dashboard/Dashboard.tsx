@@ -20,7 +20,7 @@ import { ekeService } from '../../domain/eke/ekeService';
 import { useUserStore } from '../../store/userStore';
 import { supabase } from '../../lib/api/supabase';
 import { Goal, ExperienceLevel, MuscleGroup } from '../../types';
-import { Sparkles, Loader2, Clock, CheckCircle2, Shield, Star, Activity, AlertTriangle } from 'lucide-react';
+import { Sparkles, Loader2, Clock, CheckCircle2, Shield, Star, AlertTriangle } from 'lucide-react';
 import { ProgressIntelligence } from './ProgressIntelligence';
 import { ProtocolEvolutionDashboard } from './components/ProtocolEvolutionDashboard';
 import { systemTemplatesApi } from '../../lib/api/systemTemplatesApi';
@@ -770,37 +770,22 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             ) : null}
           </div>
         </section>
-        <nav aria-label="Acessos rápidos" className="mb-7 grid grid-cols-4 gap-2">
-          <button type="button" onClick={() => setActiveTab('protocols')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-blue-50 px-1 py-3 text-[11px] font-bold text-blue-950 border border-blue-100"><Layers3 size={23} strokeWidth={2.2} aria-hidden="true" />Protocolos</button>
-          <button type="button" onClick={() => setActiveTab('evolution')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-blue-50 px-1 py-3 text-[11px] font-bold text-blue-950 border border-blue-100"><TrendingUp size={23} strokeWidth={2.2} aria-hidden="true" />Evolução</button>
-          <button type="button" onClick={() => setActiveTab('premium')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-blue-50 px-1 py-3 text-[11px] font-bold text-amber-700 border border-blue-100"><Crown size={23} strokeWidth={2.2} aria-hidden="true" />Premium</button>
-          <button type="button" onClick={() => setActiveTab('protocols')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-blue-50 px-1 py-3 text-[11px] font-bold text-blue-950 border border-blue-100"><FileText size={23} strokeWidth={2.2} aria-hidden="true" />Fichas</button>
+        <nav aria-label="Acessos rápidos" className="mb-6 grid grid-cols-4 gap-2">
+          {([
+            { id: 'protocols', label: 'Protocolos', Icon: Layers3 },
+            { id: 'evolution', label: 'Evolução', Icon: TrendingUp },
+            { id: 'premium', label: 'Premium', Icon: Crown },
+          ] as const).map(({ id, label, Icon }) => (
+            <button key={id} type="button" aria-pressed={activeTab === id} onClick={() => setActiveTab(id)}
+              className={`flex min-h-16 min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl border px-1 py-2 text-[11px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${activeTab === id ? 'border-blue-300 bg-blue-100 text-blue-950 ring-1 ring-inset ring-blue-300' : 'border-blue-100 bg-blue-50 text-slate-800'}`}>
+              <Icon size={21} strokeWidth={2} aria-hidden="true" />{label}
+            </button>
+          ))}
+          <button type="button" onClick={openWorkoutPicker}
+            className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl border border-blue-100 bg-blue-50 px-1 py-2 text-[11px] font-semibold text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+            <FileText size={21} strokeWidth={2} aria-hidden="true" />Fichas
+          </button>
         </nav>
-
-        {/* NAVIGATION TAB CONTROLS */}
-        <div className="flex bg-white/70 backdrop-blur-xl p-1 rounded-3xl border border-white/40 mb-6 shadow-sm">
-          <button 
-            onClick={() => { setActiveTab('protocols'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-normal transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'protocols' ? 'bg-gradient-to-r from-[#7BA7FF] to-[#818CF8] text-white shadow-md shadow-[#7BA7FF]/15' : 'text-slate-500 hover:text-slate-855'}`}
-          >
-            <Dumbbell size={13} className={activeTab === 'protocols' ? 'text-white' : 'text-slate-400'} />
-            Protocolos
-          </button>
-          <button 
-            onClick={() => { setActiveTab('premium'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 pt-[11px] pb-3 px-3 h-[47px] rounded-2xl text-[11px] font-bold uppercase tracking-normal transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'premium' ? 'bg-gradient-to-r from-[#818CF8] to-[#9333EA] text-white shadow-md shadow-[#818CF8]/15' : 'text-slate-500 hover:text-slate-855'}`}
-          >
-            <Crown size={12} className={activeTab === 'premium' ? 'text-white' : 'text-slate-400'} />
-            Biblioteca Premium
-          </button>
-          <button 
-            onClick={() => { setActiveTab('evolution'); if ('vibrate' in navigator) navigator.vibrate(5); }}
-            className={`flex-1 h-[47px] w-[127px] py-3 rounded-2xl text-[11px] font-bold uppercase tracking-normal transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === 'evolution' ? 'bg-gradient-to-r from-[#059669] to-[#10B981] text-white shadow-md shadow-emerald-500/15' : 'text-slate-500 hover:text-slate-855'}`}
-          >
-            <Activity size={13} className={activeTab === 'evolution' ? 'text-white' : 'text-slate-400'} />
-            Evolução
-          </button>
-        </div>
 
         {activeTab === 'premium' ? (
           <PremiumLibraryV3 
