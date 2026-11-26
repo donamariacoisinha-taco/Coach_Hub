@@ -88,23 +88,6 @@ function SeriesRepeatToggle({ enabled, onToggle }: { enabled: boolean; onToggle:
   );
 }
 
-function SeriesVolume({ set, valueClassName = '', labelClassName = '' }: {
-  set?: { weight?: unknown; reps?: unknown };
-  valueClassName?: string;
-  labelClassName?: string;
-}) {
-  const volume = set ? volumeKg([set]) : 0;
-  const hasVolume = Number.isFinite(volume) && volume > 0;
-  return (
-    <div className="min-w-0 text-center" data-series-metric="volume">
-      <p className={`tabular-nums [overflow-wrap:anywhere] ${valueClassName}`}>
-        {hasVolume ? <>{volume.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}<span className="ml-0.5 text-[9px] font-semibold">kg</span></> : <><span aria-hidden="true">–</span><span className="sr-only">Sem volume registrado</span></>}
-      </p>
-      <p className={labelClassName}>Volume</p>
-    </div>
-  );
-}
-
 // Sub-component for individual set cards to manage local input state
 // This prevents re-renders from clearing input focus or jumping values during typing
 const SetCard = ({ 
@@ -240,7 +223,7 @@ const SetCard = ({
         </button>
       )}
       <div className={`flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-2 ${onOpenHistory ? 'pr-9' : ''}`}>
-        <div className="flex min-w-[175px] flex-1 items-center gap-2 sm:flex-none sm:gap-4">
+        <div className="flex min-w-[172px] flex-1 items-center gap-2 sm:flex-none sm:gap-4">
           <div className="flex shrink-0 flex-col items-center">
           <motion.div 
             initial={isCompleted ? { scale: 0.8 } : { scale: 1 }}
@@ -258,7 +241,7 @@ const SetCard = ({
           </motion.div>
           </div>
           
-          <div className="relative grid min-w-0 flex-1 grid-cols-3 items-start gap-1 sm:w-[240px] sm:flex-none sm:gap-4" data-series-metrics>
+          <div className="relative grid min-w-0 flex-1 grid-cols-2 items-start gap-2 sm:w-[176px] sm:flex-none sm:gap-4" data-series-metrics>
              <div className="min-w-0 text-center group" data-series-metric="weight">
                 <motion.input 
                   ref={setInputRef}
@@ -283,7 +266,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`mt-1 text-[9px] font-bold uppercase leading-tight ${focusMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`mt-1 text-[11px] font-semibold leading-tight ${focusMode ? 'text-slate-400' : 'text-slate-600'}`}>
                   Carga
                 </p>
                 {/* DELTA WEIGHT */}
@@ -324,7 +307,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`mt-1 text-[9px] font-bold uppercase leading-tight ${focusMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`mt-1 text-[11px] font-semibold leading-tight ${focusMode ? 'text-slate-400' : 'text-slate-600'}`}>
                   Repetições
                 </p>
                 
@@ -343,9 +326,6 @@ const SetCard = ({
                   </motion.p>
                 )}
              </div>
-             <SeriesVolume set={setData}
-               valueClassName={`flex min-h-10 flex-wrap items-center justify-center px-0.5 text-sm font-bold leading-none sm:text-lg ${focusMode ? 'text-slate-300' : 'text-slate-700'}`}
-               labelClassName={`mt-1 text-[9px] font-bold uppercase leading-tight ${focusMode ? 'text-slate-400' : 'text-slate-600'}`} />
           </div>
 
           {/* EXPLICIT ROLLBACK BUTTON */}
@@ -3663,6 +3643,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   }, [currentIndex, currentSet]);
 
   const dockClearance = footerHeight + 48;
+  // A secondary metric belongs in the existing details, not between the controls.
+  const selectedHistorySet = historySetNumber === null ? undefined : activeSetsData[historySetNumber - 1];
+  const selectedSeriesVolume = selectedHistorySet ? volumeKg([selectedHistorySet]) : 0;
 
   return (
     <div
@@ -3673,9 +3656,15 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     >
       {historySetNumber !== null && playerVariant === 'classic' && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onClick={() => setHistorySetNumber(null)}>
-          <section role="dialog" aria-modal="true" aria-label={`Histórico da série ${historySetNumber}`} className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl" onClick={event => event.stopPropagation()}>
+          <section role="dialog" aria-modal="true" aria-label={`Histórico da série ${historySetNumber}`} className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl" onClick={event => event.stopPropagation()}>
             <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-black text-slate-900">Série {historySetNumber} · últimos treinos</h2><button type="button" aria-label="Fechar histórico" onClick={() => setHistorySetNumber(null)}><X size={20}/></button></div>
             <p className="mt-1 text-xs text-slate-500">{currentEx?.exercise_name} · carga, repetições e esforço</p>
+            {Number.isFinite(selectedSeriesVolume) && selectedSeriesVolume > 0 && (
+              <dl className="mt-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl bg-slate-50 px-3 py-2.5 text-sm">
+                <dt className="text-slate-600">Volume desta série</dt>
+                <dd className="font-semibold tabular-nums text-slate-900">{selectedSeriesVolume.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg</dd>
+              </dl>
+            )}
             {historyLoading ? <p className="py-6 text-sm text-slate-500">Carregando histórico...</p> : historyError ? <p className="py-6 text-sm text-red-600">Não foi possível consultar o histórico.</p> : (
               <div className="mt-4 space-y-2">
                 {threeSessionHistory.length === 0 && <p className="py-4 text-sm text-slate-500">Nenhuma sessão anterior encontrada para este exercício.</p>}
@@ -3731,10 +3720,10 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               <span className="rounded-xl border border-[#DFE9F6] bg-white px-3 py-2 text-sm font-bold">Série {currentSet} de {activeSetsData.length}</span>
               <span className="text-sm font-semibold text-[#687A91]">Tempo {formatTime(workoutDuration)}</span>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-1.5 rounded-2xl border border-[#DCE6F3] bg-white p-2.5 sm:gap-3" aria-label="Controles rápidos da série atual" data-series-metrics>
+            <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-[#DCE6F3] bg-white p-3" aria-label="Controles rápidos da série atual" data-series-metrics>
               <div className="min-w-0 text-center" data-series-metric="weight">
                 <p className="flex h-7 items-center justify-center text-lg font-black leading-none tabular-nums sm:h-8 sm:text-2xl">{activeSetsData[currentSet - 1]?.weight || 0}<span className="ml-0.5 text-[9px] font-semibold">kg</span></p>
-                <p className="mt-1 text-[9px] font-bold uppercase leading-tight text-[#53677F]">Carga</p>
+                <p className="mt-1 text-xs font-semibold leading-tight text-[#53677F]">Carga</p>
                 <div className="mt-2 flex justify-center gap-1">
                   <button type="button" aria-label="Reduzir carga em 2 kg" title="Diminuir carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Math.max(0, Number(activeSetsData[currentSet - 1]?.weight || 0) - 2))} className="h-11 w-11 min-w-0 rounded-xl bg-[#E9F1FC] text-xl font-black text-[#203753]">−</button>
                   <button type="button" aria-label="Aumentar carga em 2 kg" title="Aumentar carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Number(activeSetsData[currentSet - 1]?.weight || 0) + 2)} className="h-11 w-11 min-w-0 rounded-xl bg-[#7BA7FF] text-xl font-black text-white">+</button>
@@ -3742,13 +3731,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               </div>
               <div className="min-w-0 text-center" data-series-metric="reps">
                 <p className="flex h-7 items-center justify-center text-lg font-black leading-none tabular-nums sm:h-8 sm:text-2xl">{activeSetsData[currentSet - 1]?.reps || 0}</p>
-                <p className="mt-1 text-[9px] font-bold uppercase leading-tight text-[#53677F]">Repetições</p>
+                <p className="mt-1 text-xs font-semibold leading-tight text-[#53677F]">Repetições</p>
                 <div className="mt-2 flex justify-center gap-1">
                   <button type="button" aria-label="Reduzir repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Math.max(0, Number(activeSetsData[currentSet - 1]?.reps || 0) - 1))} className="h-11 w-11 min-w-0 rounded-xl bg-[#E9F1FC] text-xl font-black text-[#203753]">−</button>
                   <button type="button" aria-label="Aumentar repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Number(activeSetsData[currentSet - 1]?.reps || 0) + 1)} className="h-11 w-11 min-w-0 rounded-xl bg-[#7BA7FF] text-xl font-black text-white">+</button>
                 </div>
               </div>
-              <SeriesVolume set={activeSetsData[currentSet - 1]} valueClassName="flex h-7 flex-wrap items-center justify-center text-lg font-black leading-none sm:h-8 sm:text-2xl" labelClassName="mt-1 text-[9px] font-bold uppercase leading-tight text-[#53677F]" />
             </div>
             <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[#DFE9F6] bg-white px-3 py-2 text-sm">
               <span className="font-semibold text-[#53677F]">Descanso: <strong className="text-[#14253D]">{isResting ? formatTime(Math.max(0, timeLeft)) : 'Pronto'}</strong></span>
