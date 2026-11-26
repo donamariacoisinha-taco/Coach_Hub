@@ -62,3 +62,30 @@ it('copies all four completed values to pending series while preserving executed
  expect(result[4]).toEqual(sets[1]);
  expect(sets[2].weight).toBe(70);
 });
+
+describe('optional repetition across workout sets', () => {
+ const before = [
+  {weight:30,reps:10,rpe:8,rest_time:60},
+  {weight:40,reps:8,rpe:9,rest_time:90},
+  {weight:50,reps:6,rpe:10,rest_time:120},
+ ];
+
+ it('edits every field locally without changing future series when disabled', () => {
+  const manual = new Set<string>();
+  const result = Object.entries({weight:42.5,reps:12,rpe:7,rest_time:75}).reduce(
+   (sets, [field, value]) => editAndReplicate(sets,0,field,value,manual,new Set(),false), before
+  );
+  expect(result).toEqual([{weight:42.5,reps:12,rpe:7,rest_time:75}, ...before.slice(1)]);
+  expect(manual.size).toBe(4);
+  expect(replicateCompletedSet(result,0,new Set(),false)).toBe(result);
+  expect(before[0].weight).toBe(30);
+ });
+
+ it('does not change finalized or pending rows and resumes repetition only on a new edit', () => {
+  const protectedRows = new Set([0,2]);
+  const unchanged = editAndReplicate(before,0,'weight',44,new Set(),protectedRows,true);
+  expect(unchanged).toBe(before);
+  const next = editAndReplicate(before,1,'rest_time',75,new Set(),protectedRows,true);
+  expect(next).toEqual([before[0], {...before[1], rest_time:75}, before[2]]);
+ });
+});
