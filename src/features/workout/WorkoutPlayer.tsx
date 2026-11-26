@@ -33,7 +33,6 @@ import {
   GripVertical,
   LayoutList,
   Info,
-  Repeat2,
   TrendingUp
 } from "lucide-react";
 import { exerciseApi } from "../../lib/api/exerciseApi";
@@ -78,19 +77,32 @@ type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
 function SeriesRepeatToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
-    <button type="button" aria-label="Repetir nas próximas séries" aria-pressed={enabled}
+    <button type="button" role="switch" aria-label="Repetir nas próximas séries" aria-checked={enabled}
       onClick={onToggle}
-      className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-1.5 text-[11px] font-bold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${enabled ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
-      <Repeat2 size={14} className="shrink-0" aria-hidden="true" />
-      <span>Repetir <span className="block text-[9px] font-semibold">{enabled ? 'Ligado' : 'Desligado'}</span></span>
+      className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-1.5 text-[11px] font-bold leading-none text-slate-700 transition-colors hover:border-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
+      <span className="min-w-0 text-left">Repetir <span className="mt-0.5 block text-[9px] font-medium text-slate-600">{enabled ? 'Ligado' : 'Desligado'}</span></span>
+      <span aria-hidden="true" className={`relative h-[17px] w-[29px] shrink-0 rounded-full p-[2px] motion-safe:transition-colors ${enabled ? 'bg-[#356AB3]' : 'bg-slate-500'}`}>
+        <span className={`block size-[13px] rounded-full bg-white shadow-sm motion-safe:transition-transform ${enabled ? 'translate-x-3' : 'translate-x-0'}`} />
+      </span>
     </button>
   );
 }
 
-function SeriesVolume({ set, dark = false }: { set?: { weight?: unknown; reps?: unknown }; dark?: boolean }) {
+function SeriesVolume({ set, valueClassName = '', labelClassName = '' }: {
+  set?: { weight?: unknown; reps?: unknown };
+  valueClassName?: string;
+  labelClassName?: string;
+}) {
   const volume = set ? volumeKg([set]) : 0;
-  if (!Number.isFinite(volume) || volume <= 0) return null;
-  return <p className={`mt-1.5 text-center text-[10px] font-semibold leading-tight tabular-nums ${dark ? 'text-slate-300' : 'text-slate-600'}`}>Volume: {volume.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg</p>;
+  const hasVolume = Number.isFinite(volume) && volume > 0;
+  return (
+    <div className="min-w-0 text-center" data-series-metric="volume">
+      <p className={`tabular-nums [overflow-wrap:anywhere] ${valueClassName}`}>
+        {hasVolume ? <>{volume.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}<span className="ml-0.5 text-[9px] font-semibold">kg</span></> : <><span aria-hidden="true">–</span><span className="sr-only">Sem volume registrado</span></>}
+      </p>
+      <p className={labelClassName}>Volume</p>
+    </div>
+  );
 }
 
 // Sub-component for individual set cards to manage local input state
@@ -214,22 +226,22 @@ const SetCard = ({
         scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
         default: transitionConfig
       } : transitionConfig}
-      className={`flex flex-col items-stretch ${isAdvanced ? 'p-3' : 'p-4'} rounded-2xl transition-all duration-300 border-2 ${
+      className={`relative flex flex-col items-stretch ${isAdvanced ? 'p-3' : 'p-4'} rounded-2xl transition-all duration-300 border-2 ${
         isCompleted ? (focusMode ? "bg-slate-900 border-slate-900/60" : "bg-slate-50") : 
         isPending ? "bg-slate-50 border-dashed animate-pulse cursor-wait" :
         (focusMode ? "bg-slate-900 border-slate-900/60" : "bg-white")
       } ${isCurrent && intensity === 'HIGH' && !isPending ? (focusMode ? 'border-[#7BA7FF] ring-4 ring-[#7BA7FF]/25 shadow-[0_0_30px_rgba(123,167,255,0.2)]' : 'border-[#7BA7FF] ring-4 ring-[#7BA7FF]/10') : ''}`}
     >
-      <div className="flex items-center justify-between w-full">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+      {onOpenHistory && (
+        <button type="button" aria-label={`Ver histórico da série ${idx + 1}`}
+          title="Últimos três treinos" onClick={onOpenHistory}
+          className={`absolute right-1 top-1 z-10 flex size-11 items-start justify-end rounded-lg bg-transparent p-2 text-slate-500 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${focusMode ? 'text-slate-400' : ''}`}>
+          <Info size={16} aria-hidden="true" />
+        </button>
+      )}
+      <div className={`flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-2 ${onOpenHistory ? 'pr-9' : ''}`}>
+        <div className="flex min-w-[175px] flex-1 items-center gap-2 sm:flex-none sm:gap-4">
           <div className="flex shrink-0 flex-col items-center">
-          {onOpenHistory && (
-            <button type="button" aria-label={`Ver histórico da série ${idx + 1}`}
-              title="Últimos três treinos" onClick={onOpenHistory}
-              className="flex h-8 w-8 items-center justify-center rounded-md bg-transparent text-slate-500 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
-              <Info size={15} aria-hidden="true" />
-            </button>
-          )}
           <motion.div 
             initial={isCompleted ? { scale: 0.8 } : { scale: 1 }}
             animate={isCompleted ? { scale: [0.8, 1.1, 1] } : { scale: 1 }}
@@ -246,8 +258,8 @@ const SetCard = ({
           </motion.div>
           </div>
           
-          <div className="relative flex min-w-0 items-center gap-1 sm:gap-6">
-             <div className="text-center group">
+          <div className="relative grid min-w-0 flex-1 grid-cols-3 items-start gap-1 sm:w-[240px] sm:flex-none sm:gap-4" data-series-metrics>
+             <div className="min-w-0 text-center group" data-series-metric="weight">
                 <motion.input 
                   ref={setInputRef}
                   type="text"
@@ -260,7 +272,8 @@ const SetCard = ({
                   onBlur={commitWeight}
                   onKeyDown={(e) => handleKeyDown(e, commitWeight)}
                   whileFocus={{ scale: 1.15, color: "#7BA7FF" }}
-                  className={`text-xl font-black w-12 sm:w-20 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
+                  aria-label={`Carga da série ${idx + 1}, em kg`}
+                  className={`h-10 w-full min-w-0 bg-transparent border-none px-0.5 text-center text-lg font-black tabular-nums focus:ring-0 sm:text-xl transition-colors ${
                     isCurrent ? (focusMode ? "text-white" : "text-slate-900") : (focusMode ? "text-slate-500" : "text-slate-400")
                   }`}
                   onFocus={(e) => {
@@ -270,8 +283,8 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`text-[12px] font-black tracking-wide mt-1 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
-                  {isBeginner ? 'Peso' : 'Kg'}
+                <p className={`mt-1 text-[9px] font-bold uppercase leading-tight ${focusMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Carga
                 </p>
                 {/* DELTA WEIGHT */}
                 {delta && !isBeginner && (
@@ -288,7 +301,7 @@ const SetCard = ({
                   </motion.p>
                 )}
              </div>
-             <div className="text-center">
+             <div className="min-w-0 text-center" data-series-metric="reps">
                 <motion.input 
                   type="text"
                   inputMode="numeric"
@@ -300,7 +313,8 @@ const SetCard = ({
                   onBlur={commitReps}
                   onKeyDown={(e) => handleKeyDown(e, commitReps)}
                   whileFocus={{ scale: 1.15, color: "#7BA7FF" }}
-                  className={`text-xl font-black w-14 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
+                  aria-label={`Repetições da série ${idx + 1}`}
+                  className={`h-10 w-full min-w-0 bg-transparent border-none px-0.5 text-center text-lg font-black tabular-nums focus:ring-0 sm:text-xl transition-colors ${
                     isCurrent ? (focusMode ? "text-white" : "text-slate-900") : (focusMode ? "text-slate-500" : "text-slate-400")
                   }`}
                   onFocus={(e) => {
@@ -310,8 +324,8 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`text-[12px] font-black tracking-wide mt-1 uppercase ${focusMode ? 'text-slate-500' : 'text-slate-300'}`}>
-                  {isBeginner ? 'Repetições' : 'Reps'}
+                <p className={`mt-1 text-[9px] font-bold uppercase leading-tight ${focusMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Repetições
                 </p>
                 
                 {/* DELTA REPS */}
@@ -329,6 +343,9 @@ const SetCard = ({
                   </motion.p>
                 )}
              </div>
+             <SeriesVolume set={setData}
+               valueClassName={`flex min-h-10 flex-wrap items-center justify-center px-0.5 text-sm font-bold leading-none sm:text-lg ${focusMode ? 'text-slate-300' : 'text-slate-700'}`}
+               labelClassName={`mt-1 text-[9px] font-bold uppercase leading-tight ${focusMode ? 'text-slate-400' : 'text-slate-600'}`} />
           </div>
 
           {/* EXPLICIT ROLLBACK BUTTON */}
@@ -338,7 +355,7 @@ const SetCard = ({
                 e.stopPropagation();
                 rollbackToSet(idx);
               }}
-              className="absolute right-3 top-3 p-1.5 bg-white border border-slate-100 rounded-lg text-slate-300 hover:text-indigo-500 hover:border-indigo-200 transition-all active:scale-90 group"
+              className={`absolute right-3 p-1.5 bg-white border border-slate-100 rounded-lg text-slate-300 hover:text-indigo-500 hover:border-indigo-200 transition-all active:scale-90 group ${onOpenHistory ? 'top-12' : 'top-3'}`}
               title="Voltar para esta série"
             >
               <RefreshCw size={12} className="group-hover:rotate-[-45deg] transition-transform" />
@@ -388,7 +405,6 @@ const SetCard = ({
            <p className={`text-[8.5px] font-black tracking-wide mt-1 uppercase leading-none ${
              focusMode ? 'text-slate-500' : 'text-slate-400/80'
            }`}>RPE • Esforço</p>
-           <SeriesVolume set={setData} dark={focusMode} />
         </div>
       </div>
 
@@ -3715,23 +3731,24 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               <span className="rounded-xl border border-[#DFE9F6] bg-white px-3 py-2 text-sm font-bold">Série {currentSet} de {activeSetsData.length}</span>
               <span className="text-sm font-semibold text-[#687A91]">Tempo {formatTime(workoutDuration)}</span>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3" aria-label="Controles rápidos da série atual">
-              <div className="rounded-2xl border border-[#DCE6F3] bg-white p-3">
-                <p className="text-[11px] font-black uppercase tracking-widest text-[#687A91]">Carga · kg</p>
-                <div className="mt-2 flex items-center justify-between gap-1">
-                  <button type="button" aria-label="Reduzir carga em 2 kg" title="Diminuir carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Math.max(0, Number(activeSetsData[currentSet - 1]?.weight || 0) - 2))} className="h-11 w-11 rounded-xl bg-[#E9F1FC] text-xl font-black text-[#203753]">−</button>
-                  <span className="text-2xl font-black tabular-nums">{activeSetsData[currentSet - 1]?.weight || 0}</span>
-                  <button type="button" aria-label="Aumentar carga em 2 kg" title="Aumentar carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Number(activeSetsData[currentSet - 1]?.weight || 0) + 2)} className="h-11 w-11 rounded-xl bg-[#7BA7FF] text-xl font-black text-white">+</button>
+            <div className="mt-4 grid grid-cols-3 gap-1.5 rounded-2xl border border-[#DCE6F3] bg-white p-2.5 sm:gap-3" aria-label="Controles rápidos da série atual" data-series-metrics>
+              <div className="min-w-0 text-center" data-series-metric="weight">
+                <p className="flex h-7 items-center justify-center text-lg font-black leading-none tabular-nums sm:h-8 sm:text-2xl">{activeSetsData[currentSet - 1]?.weight || 0}<span className="ml-0.5 text-[9px] font-semibold">kg</span></p>
+                <p className="mt-1 text-[9px] font-bold uppercase leading-tight text-[#53677F]">Carga</p>
+                <div className="mt-2 flex justify-center gap-1">
+                  <button type="button" aria-label="Reduzir carga em 2 kg" title="Diminuir carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Math.max(0, Number(activeSetsData[currentSet - 1]?.weight || 0) - 2))} className="h-11 w-11 min-w-0 rounded-xl bg-[#E9F1FC] text-xl font-black text-[#203753]">−</button>
+                  <button type="button" aria-label="Aumentar carga em 2 kg" title="Aumentar carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Number(activeSetsData[currentSet - 1]?.weight || 0) + 2)} className="h-11 w-11 min-w-0 rounded-xl bg-[#7BA7FF] text-xl font-black text-white">+</button>
                 </div>
               </div>
-              <div className="rounded-2xl border border-[#DCE6F3] bg-white p-3">
-                <p className="text-[11px] font-black uppercase tracking-widest text-[#687A91]">Repetições</p>
-                <div className="mt-2 flex items-center justify-between gap-1">
-                  <button type="button" aria-label="Reduzir repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Math.max(0, Number(activeSetsData[currentSet - 1]?.reps || 0) - 1))} className="h-11 w-11 rounded-xl bg-[#E9F1FC] text-xl font-black text-[#203753]">−</button>
-                  <span className="text-2xl font-black tabular-nums">{activeSetsData[currentSet - 1]?.reps || 0}</span>
-                  <button type="button" aria-label="Aumentar repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Number(activeSetsData[currentSet - 1]?.reps || 0) + 1)} className="h-11 w-11 rounded-xl bg-[#7BA7FF] text-xl font-black text-white">+</button>
+              <div className="min-w-0 text-center" data-series-metric="reps">
+                <p className="flex h-7 items-center justify-center text-lg font-black leading-none tabular-nums sm:h-8 sm:text-2xl">{activeSetsData[currentSet - 1]?.reps || 0}</p>
+                <p className="mt-1 text-[9px] font-bold uppercase leading-tight text-[#53677F]">Repetições</p>
+                <div className="mt-2 flex justify-center gap-1">
+                  <button type="button" aria-label="Reduzir repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Math.max(0, Number(activeSetsData[currentSet - 1]?.reps || 0) - 1))} className="h-11 w-11 min-w-0 rounded-xl bg-[#E9F1FC] text-xl font-black text-[#203753]">−</button>
+                  <button type="button" aria-label="Aumentar repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Number(activeSetsData[currentSet - 1]?.reps || 0) + 1)} className="h-11 w-11 min-w-0 rounded-xl bg-[#7BA7FF] text-xl font-black text-white">+</button>
                 </div>
               </div>
+              <SeriesVolume set={activeSetsData[currentSet - 1]} valueClassName="flex h-7 flex-wrap items-center justify-center text-lg font-black leading-none sm:h-8 sm:text-2xl" labelClassName="mt-1 text-[9px] font-bold uppercase leading-tight text-[#53677F]" />
             </div>
             <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[#DFE9F6] bg-white px-3 py-2 text-sm">
               <span className="font-semibold text-[#53677F]">Descanso: <strong className="text-[#14253D]">{isResting ? formatTime(Math.max(0, timeLeft)) : 'Pronto'}</strong></span>
@@ -3751,7 +3768,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </button>
                 ))}
               </div>
-              <SeriesVolume set={activeSetsData[currentSet - 1]} />
             </div>
             <button type="button" disabled={saving || isTransitioning}
               onClick={isResting ? () => { if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete); } : handlePrimarySetAction}
