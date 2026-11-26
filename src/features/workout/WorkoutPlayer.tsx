@@ -33,6 +33,7 @@ import {
   GripVertical,
   LayoutList,
   Info,
+  Repeat2,
   TrendingUp
 } from "lucide-react";
 import { exerciseApi } from "../../lib/api/exerciseApi";
@@ -75,6 +76,23 @@ import { confirmedSetIndexes, saveChoiceWritesPlan, volumeKg } from "../../domai
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
+function SeriesRepeatToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" aria-label="Repetir nas próximas séries" aria-pressed={enabled}
+      onClick={onToggle}
+      className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-1.5 text-[11px] font-bold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${enabled ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+      <Repeat2 size={14} className="shrink-0" aria-hidden="true" />
+      <span>Repetir <span className="block text-[9px] font-semibold">{enabled ? 'Ligado' : 'Desligado'}</span></span>
+    </button>
+  );
+}
+
+function SeriesVolume({ set, dark = false }: { set?: { weight?: unknown; reps?: unknown }; dark?: boolean }) {
+  const volume = set ? volumeKg([set]) : 0;
+  if (!Number.isFinite(volume) || volume <= 0) return null;
+  return <p className={`mt-1.5 text-center text-[10px] font-semibold leading-tight tabular-nums ${dark ? 'text-slate-300' : 'text-slate-600'}`}>Volume: {volume.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg</p>;
+}
+
 // Sub-component for individual set cards to manage local input state
 // This prevents re-renders from clearing input focus or jumping values during typing
 const SetCard = ({ 
@@ -99,6 +117,7 @@ const SetCard = ({
   userLevel = 'BEGINNER',
   focusMode = false,
   isGuestWorkout = false,
+  onOpenHistory,
 }: any) => {
   const [localWeight, setLocalWeight] = useState(setData.weight.toString());
   const [localReps, setLocalReps] = useState(setData.reps.toString());
@@ -202,7 +221,15 @@ const SetCard = ({
       } ${isCurrent && intensity === 'HIGH' && !isPending ? (focusMode ? 'border-[#7BA7FF] ring-4 ring-[#7BA7FF]/25 shadow-[0_0_30px_rgba(123,167,255,0.2)]' : 'border-[#7BA7FF] ring-4 ring-[#7BA7FF]/10') : ''}`}
     >
       <div className="flex items-center justify-between w-full">
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+          <div className="flex shrink-0 flex-col items-center">
+          {onOpenHistory && (
+            <button type="button" aria-label={`Ver histórico da série ${idx + 1}`}
+              title="Últimos três treinos" onClick={onOpenHistory}
+              className="flex h-8 w-8 items-center justify-center rounded-md bg-transparent text-slate-500 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+              <Info size={15} aria-hidden="true" />
+            </button>
+          )}
           <motion.div 
             initial={isCompleted ? { scale: 0.8 } : { scale: 1 }}
             animate={isCompleted ? { scale: [0.8, 1.1, 1] } : { scale: 1 }}
@@ -217,8 +244,9 @@ const SetCard = ({
           >
             {isCompleted ? <Check size={16} strokeWidth={4} /> : idx + 1}
           </motion.div>
+          </div>
           
-          <div className="flex items-center gap-6 relative">
+          <div className="relative flex min-w-0 items-center gap-1 sm:gap-6">
              <div className="text-center group">
                 <motion.input 
                   ref={setInputRef}
@@ -232,7 +260,7 @@ const SetCard = ({
                   onBlur={commitWeight}
                   onKeyDown={(e) => handleKeyDown(e, commitWeight)}
                   whileFocus={{ scale: 1.15, color: "#7BA7FF" }}
-                  className={`text-xl font-black w-20 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
+                  className={`text-xl font-black w-12 sm:w-20 bg-transparent border-none p-2 focus:ring-0 text-center transition-colors ${
                     isCurrent ? (focusMode ? "text-white" : "text-slate-900") : (focusMode ? "text-slate-500" : "text-slate-400")
                   }`}
                   onFocus={(e) => {
@@ -360,6 +388,7 @@ const SetCard = ({
            <p className={`text-[8.5px] font-black tracking-wide mt-1 uppercase leading-none ${
              focusMode ? 'text-slate-500' : 'text-slate-400/80'
            }`}>RPE • Esforço</p>
+           <SeriesVolume set={setData} dark={focusMode} />
         </div>
       </div>
 
@@ -688,6 +717,9 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   // Momentum & Compression
   const momentum = currentSet >= 3 || userLevel === 'ADVANCED';
   
+  const [repeatUpcomingSeries, setRepeatUpcomingSeries] = useState(true);
+  const toggleRepeatUpcomingSeries = () => setRepeatUpcomingSeries(enabled => !enabled);
+
   // Track all sets for the current exercise
   const [activeSetsData, setActiveSetsData] = useState<{id?: string, weight: number, reps: number, rpe: number}[]>([]);
   
@@ -1772,6 +1804,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
         }
       }
 
+      setRepeatUpcomingSeries(localState?.repeatUpcomingSeries !== false);
+
       // 2. Try fetching Remote logs
       if (!isGuestWorkout) {
         try {
@@ -1903,6 +1937,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     if (!historyId || isHydrating || !isSessionReady) return;
     try {
       const stateToSave = {
+        repeatUpcomingSeries,
         removedExecution: removedExecution.current,
         removedExerciseIds: [...removedExerciseIdsRef.current],
         manuallyEditedFields: Object.fromEntries(Object.entries(manuallyEditedFields.current).map(([key, fields]) => [key, [...(fields as Set<string>)]])),
@@ -1925,7 +1960,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     } catch (e) {
       console.warn("Continuity save failed", e);
     }
-  }, [currentIndex, currentSet, activeSetsData, workoutPerformance, completedSetIndices, completedSetsByExercise, historyId, isHydrating, isSessionReady, isResting, timeLeft, pendingSetToComplete, workoutId, exercises]);
+  }, [repeatUpcomingSeries, currentIndex, currentSet, activeSetsData, workoutPerformance, completedSetIndices, completedSetsByExercise, historyId, isHydrating, isSessionReady, isResting, timeLeft, pendingSetToComplete, workoutId, exercises]);
 
   useEffect(() => {
     async function checkRecovery() {
@@ -2022,19 +2057,22 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
     const storeExercises = useWorkoutStore.getState().exercises;
     const liveExercise = storeExercises[exerciseIndex] || currentEx;
 
-    if (delta !== 0 && liveExercise) {
+    if (repeatUpcomingSeries && delta !== 0 && liveExercise) {
       const firstUpcomingSetIndex = Math.max(0, currentSetRef.current);
       const upcomingSet = liveExercise.sets_json?.[firstUpcomingSetIndex] ?? liveExercise.sets_json?.[0];
       const currentBaseRest = Number(upcomingSet?.rest_time ?? liveExercise.rest_time ?? 60);
       const nextBaseRest = Math.max(10, Math.min(600, currentBaseRest + delta));
       const appliedDelta = nextBaseRest - currentBaseRest;
 
-      if (appliedDelta !== 0) {
+      const protectedSeries = new Set(completedSetIndices);
+      if (pendingSetToComplete !== null) protectedSeries.add(pendingSetToComplete);
+      const canRepeatRest = (idx: number) => idx >= firstUpcomingSetIndex && !protectedSeries.has(idx);
+      if (appliedDelta !== 0 && liveExercise.sets_json?.some((_, idx) => canRepeatRest(idx))) {
         // While resting after set N, currentSet is still N (1-based). Therefore
         // zero-based indexes >= currentSet are upcoming sets.
 
         setActiveSetsData(prev => prev.map((set, idx) =>
-          idx >= firstUpcomingSetIndex ? { ...set, rest_time: nextBaseRest } : set
+          canRepeatRest(idx) ? { ...set, rest_time: nextBaseRest } : set
         ));
 
         setWorkoutPerformance(prev => {
@@ -2043,7 +2081,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           return {
             ...prev,
             [exerciseIndex]: existing.map((set: any, idx: number) =>
-              idx >= firstUpcomingSetIndex ? { ...set, rest_time: nextBaseRest } : set
+              canRepeatRest(idx) ? { ...set, rest_time: nextBaseRest } : set
             )
           };
         });
@@ -2052,9 +2090,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           if (idx !== exerciseIndex) return exercise;
           return {
             ...exercise,
-            rest_time: nextBaseRest,
             sets_json: (exercise.sets_json || []).map((set: any, setIdx: number) =>
-              setIdx >= firstUpcomingSetIndex ? { ...set, rest_time: nextBaseRest } : set
+              canRepeatRest(setIdx) ? { ...set, rest_time: nextBaseRest } : set
             )
           };
         });
@@ -2862,6 +2899,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   // Update a single set's data
   const manuallyEditedFields = useRef<Record<string, Set<string>>>({});
   const updateSetData = (idx: number, field: 'weight' | 'reps' | 'rpe' | 'rest_time' | 'type', value: any) => {
+    if (completedSetIndices.has(idx) || pendingSetToComplete === idx || !activeSetsDataRef.current[idx]) return;
     let finalValue = value;
     if (field === 'weight') {
       let numericValue = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
@@ -2880,9 +2918,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       finalValue = isNaN(numericValue) ? 60 : numericValue;
     }
 
+    if (Object.is((activeSetsDataRef.current[idx] as Record<string, unknown>)[field], finalValue)) return;
+
     const key = currentEx?.id || currentEx?.exercise_id || String(currentIndex);
     const manual = manuallyEditedFields.current[key] ||= new Set<string>();
-    const updatedActiveSets = editAndReplicate(activeSetsData, idx, field, finalValue, manual, new Set([...completedSetIndices, ...(pendingSetToComplete !== null ? [pendingSetToComplete] : [])]));
+    const updatedActiveSets = editAndReplicate(activeSetsDataRef.current, idx, field, finalValue, manual, new Set([...completedSetIndices, ...(pendingSetToComplete !== null ? [pendingSetToComplete] : [])]), repeatUpcomingSeries);
+    activeSetsDataRef.current = updatedActiveSets;
     setActiveSetsData(updatedActiveSets);
     setWorkoutPerformance(prev => ({ ...prev, [currentIndex]: updatedActiveSets }));
 
@@ -2892,10 +2933,11 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       const target = updatedExercises[currentIndex];
       if (target) {
         const origSets = target.sets_json || [];
-        const updatedSetsJson = (updatedActiveSets.length > 0 ? updatedActiveSets : (activeSetsData.map((item, i) => i === idx ? { ...item, [field]: finalValue } : item))).map((s, sIdx) => ({
+        const updatedSetsJson = updatedActiveSets.map((s, sIdx) => ({
+          ...origSets[sIdx],
           reps: String(s.reps),
           weight: Number(s.weight),
-          rest_time: Number(s.rest_time || origSets[sIdx]?.rest_time || target.rest_time || 60),
+          rest_time: Number(s.rest_time ?? origSets[sIdx]?.rest_time ?? target.rest_time ?? 60),
           rpe: Number(s.rpe || origSets[sIdx]?.rpe || 8),
           type: s.type || origSets[sIdx]?.type || SetType.NORMAL
         }));
@@ -2994,8 +3036,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       return;
     }
 
-    // The completed series becomes the baseline for all still-pending series.
-    const replicatedSets = replicateCompletedSet(activeSetsData, setIdx, completedSetIndices);
+    // Only repeat an executed series into the pending ones when repetition is enabled.
+    const replicatedSets = replicateCompletedSet(activeSetsData, setIdx, completedSetIndices, repeatUpcomingSeries);
     setActiveSetsData(replicatedSets);
     setWorkoutPerformance(previous => ({ ...previous, [currentIndex]: replicatedSets }));
     const updatedExercises = exercises.map((exercise, index) => index === currentIndex ? {
@@ -3659,7 +3701,8 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
       {playerVariant === 'new' && currentEx && (
         <section aria-label="Resumo do exercício atual" className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#F3F8FF] via-[#F7FAFF] to-white text-[#14253D] px-4 pt-20 pb-8">
           <div className="mx-auto max-w-3xl">
-            <div className="mb-3 flex justify-end">
+            <div className="mb-3 flex justify-end gap-2">
+              <SeriesRepeatToggle enabled={repeatUpcomingSeries} onToggle={toggleRepeatUpcomingSeries} />
               <button type="button" onClick={() => changePlayerVariant('classic')} aria-label="Alternar para o player Clássico" className="min-h-11 rounded-xl border border-[#DCE6F3] bg-white/75 px-4 text-xs font-semibold text-[#536A84] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7BA7FF]">Clássico</button>
             </div>
             <p className="text-xs font-bold uppercase tracking-widest text-[#5D8FD6]">Em execução · Exercício {currentIndex + 1} de {exercises.length}</p>
@@ -3708,6 +3751,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </button>
                 ))}
               </div>
+              <SeriesVolume set={activeSetsData[currentSet - 1]} />
             </div>
             <button type="button" disabled={saving || isTransitioning}
               onClick={isResting ? () => { if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete); } : handlePrimarySetAction}
@@ -4000,7 +4044,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
               </AnimatePresence>
 
               {/* AÇÕES QUICK */}
-              <div className={`flex gap-2 px-4 transition-all duration-500 ${momentum ? "mb-2 mt-2" : "mb-4"}`}>
+              <div className={`grid grid-cols-3 gap-1.5 px-4 transition-all duration-500 ${momentum ? "mb-2 mt-2" : "mb-4"}`}>
                 <button 
                   onClick={() => {
                     if (!canReplaceBeforeFirstSet(currentIndex, currentIndex, completedSetsByExercise, completedSetIndices, pendingSetToComplete)) {
@@ -4015,11 +4059,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     focusMode ? 'bg-slate-900 text-slate-300 border border-slate-800' : 'bg-white border border-slate-100 text-slate-500 hover:bg-slate-50'
                   }`}
                 >
-                  <RefreshCw size={12} /> Substituir
+                  <RefreshCw size={12} className="hidden shrink-0 sm:block" aria-hidden="true" /> Substituir
                 </button>
                 <button type="button" onClick={() => changePlayerVariant('new')} aria-label="Alternar para o player Moderno" className="flex-1 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-100 h-[44px]">
                   Moderno
                 </button>
+                <SeriesRepeatToggle enabled={repeatUpcomingSeries} onToggle={toggleRepeatUpcomingSeries} />
               </div>
 
               {/* RETORNAR AO ANTERIOR JÁ EXECUTADO */}
@@ -4048,11 +4093,6 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   
                   return (
                     <div key={setData.id || `${currentIndex}_${idx}`} className="relative">
-                      {playerVariant === 'classic' && !isGuestWorkout && (
-                        <button type="button" aria-label={`Ver histórico da série ${idx + 1}`} title="Últimos três treinos" onClick={() => openSeriesHistory(idx + 1)} className="absolute left-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
-                          <Info size={15} aria-hidden="true" />
-                        </button>
-                      )}
                     <SwipeableSetCard
                       key={setData.id || `${currentIndex}_${idx}`}
                       idx={idx}
@@ -4062,6 +4102,7 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                     >
                       <SetCard 
                         isGuestWorkout={isGuestWorkout}
+                        onOpenHistory={!isGuestWorkout ? () => openSeriesHistory(idx + 1) : undefined}
                         idx={idx}
                         setData={setData}
                         isCurrent={isCurrent}
