@@ -752,7 +752,7 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             </div>
           </section>
         )}
-        {/* Approved V1 hierarchy: workout, progress, recommendation, shortcuts. */}
+        {/* Start with today’s workout; weekly summaries come after the active tab. */}
         <section aria-label="Treino de hoje" className="mb-4 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#f3f8ff] via-[#e9f2ff] to-[#dceaff] border border-[#d7e6fb] p-5 text-slate-900 shadow-sm relative">
           <div className="absolute -right-12 -top-16 h-48 w-48 rounded-full bg-sky-200/40 blur-3xl pointer-events-none" />
           <div className="relative">
@@ -770,22 +770,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             ) : null}
           </div>
         </section>
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          <section aria-label="Progresso semanal" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
-            <p className="text-xs font-black text-slate-800">Progresso semanal</p><p className="mt-1 text-[11px] leading-snug text-slate-500">Dias com treino concluído nesta semana</p>
-            <div className="mt-3 flex items-center gap-3">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(#16a34a ${weeklyGoal ? Math.min(100, weeklyCompleted / weeklyGoal * 100) : 0}%, #e2e8f0 0)` }}>
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900">{weeklyGoal ? `${Math.round(Math.min(100, weeklyCompleted / weeklyGoal * 100))}%` : '—'}</div>
-              </div>
-              <p className="text-xs font-bold leading-snug text-slate-600"><strong className="block text-lg text-slate-900">{weeklyGoal == null ? '—' : `${Math.min(weeklyCompleted, weeklyGoal)} de ${weeklyGoal}`}</strong> dias de treino</p>
-            </div>
-          </section>
-          <section aria-label="Sua semana" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
-            <p className="text-xs font-black text-slate-800">Sua semana</p>
-            <p className="mt-3 text-sm font-extrabold leading-tight text-slate-900">{weeklyGoal == null ? 'Dados insuficientes' : weeklyCompleted >= weeklyGoal ? 'Meta semanal alcançada' : 'Continue evoluindo'}</p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">{weeklyGoal == null ? 'A frequência semanal ainda não está no perfil.' : weeklyCompleted >= weeklyGoal ? 'Você já atingiu sua meta de dias de treino.' : `Faltam ${Math.max(0, weeklyGoal - weeklyCompleted)} dias de treino para sua meta.`}</p>
-          </section>
-        </div>
         <nav aria-label="Acessos rápidos" className="mb-7 grid grid-cols-4 gap-2">
           <button type="button" onClick={() => setActiveTab('protocols')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-blue-50 px-1 py-3 text-[11px] font-bold text-blue-950 border border-blue-100"><Layers3 size={23} strokeWidth={2.2} aria-hidden="true" />Protocolos</button>
           <button type="button" onClick={() => setActiveTab('evolution')} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl bg-blue-50 px-1 py-3 text-[11px] font-bold text-blue-950 border border-blue-100"><TrendingUp size={23} strokeWidth={2.2} aria-hidden="true" />Evolução</button>
@@ -827,110 +811,6 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
           />
         ) : activeTab === 'protocols' ? (
           <>
-
-            {/* SECONDARY GUIDANCE METRICS (Moved to the top of the Protocols tab per user request) */}
-            <div className="pb-8 space-y-6">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none flex items-center gap-1.5 ml-1">
-                  <Calendar size={12} className="text-slate-400" />
-                  Métricas & Calendário
-                </h4>
-                <p className="text-[9.5px] font-black text-slate-400 uppercase tracking-wider mr-1">
-                  Sessão Ativa
-                </p>
-              </div>
-
-              {/* EDITORIAL CALENDAR STRIP PILLS */}
-              <div className="flex items-center justify-between gap-2.5 bg-white/70 backdrop-blur-xl p-2 rounded-[2rem] border border-white/50 overflow-x-auto no-scrollbar">
-                {calendarDays.map((day) => {
-                  let cellClass = "bg-white/40 border-transparent text-slate-400 hover:bg-white/90";
-                  let indicatorLabel = null;
-                  let cellTitle = '';
-
-                  if (day.state === 'completed') {
-                    cellClass = "bg-gradient-to-tr from-[#7BA7FF] to-[#A5C8FF] border-[#7BA7FF]/30 text-white shadow-lg shadow-[#7BA7FF]/25 font-black";
-                    indicatorLabel = <span className="absolute bottom-1 text-[8px] tracking-[0.2em] font-extrabold text-white/90 animate-pulse">✓</span>;
-                    cellTitle = 'Treino concluído';
-                  } else if (day.state === 'partial') {
-                    // Sessão parcial: nunca recebe o check de treino completo.
-                    cellClass = "bg-amber-50 border-2 border-amber-300 text-amber-700 font-black";
-                    indicatorLabel = <span className="absolute bottom-1 text-[8px] font-[1000] text-amber-600">◑</span>;
-                    cellTitle = 'Sessão parcial';
-                  } else if (day.state === 'missed') {
-                    cellClass = "bg-slate-50/50 border-2 border-dashed border-[#C4B5FD]/70 text-[#8B5CF6]/85 hover:bg-slate-50";
-                    indicatorLabel = <span className="absolute bottom-0.5 text-[7.5px] scale-90 font-[1000] text-[#8B5CF6]/70 uppercase tracking-widest">•</span>;
-                  } else if (day.state === 'future') {
-                    cellClass = "bg-white/90 border-2 border-dotted border-[#7BA7FF]/40 text-[#7BA7FF]/90 hover:border-[#7BA7FF] shadow-sm";
-                    indicatorLabel = <span className="absolute bottom-0.5 text-[7px] animate-pulse uppercase font-extrabold tracking-widest">…</span>;
-                  } else {
-                    // Rest day
-                    cellClass = "bg-slate-100/40 border border-slate-100 text-slate-400 hover:bg-slate-50";
-                    indicatorLabel = <span className="absolute bottom-1 text-[8px]">☕</span>;
-                    cellTitle = 'Dia de descanso';
-                  }
-
-                  return (
-                    <motion.div 
-                      key={day.id} 
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.93 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                      onClick={() => {
-                        if ('vibrate' in navigator) navigator.vibrate(5);
-                      }}
-                      title={cellTitle}
-                      aria-label={`${day.dayName} ${day.dayNum}${cellTitle ? ` — ${cellTitle}` : ''}`}
-                      className={`flex-1 flex flex-col items-center py-3 rounded-2xl border relative transition-all min-w-[43px] cursor-pointer ${cellClass}`}
-                    >
-                      <span className="text-[7.5px] font-[1000] tracking-widest leading-none mb-2 uppercase">{day.dayName}</span>
-                      <span className="text-sm font-black tracking-tighter leading-none mb-1">{day.dayNum}</span>
-                      {indicatorLabel}
-                      {day.isToday && (
-                        <span className="absolute -top-1 right-1 w-2 h-2 rounded-full bg-indigo-500 shadow-md ring-2 ring-white" />
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </div>
-
-              {calendarDays.some(day => day.state === 'partial') && (
-                <div className="flex items-center gap-2 -mt-3 ml-1">
-                  <span className="text-[11px] font-[1000] text-amber-600 leading-none">◑</span>
-                  <p className="text-[11px] font-bold text-amber-700 tracking-tight">
-                    Parcial — sessão registrada em parte, sem contar como treino completo.
-                  </p>
-                </div>
-              )}
-
-              {/* EMOTIONAL CALENDAR STRIP GUIDANCE */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`p-4 rounded-3xl border text-xs font-bold leading-relaxed flex items-center gap-3 shadow-sm transition-all ${emotionalGuidance.color}`}
-              >
-                <span className="text-xl select-none shrink-0">{emotionalGuidance.emoji}</span>
-                <p className="flex-1 text-[11px] font-bold tracking-tight">{emotionalGuidance.text}</p>
-              </motion.div>
-
-              {/* SOFT RECOVERY BLOCK FOR BROKEN STREAKS */}
-              {profile?.workout_streak === 0 && (profile?.preferred_training_days?.length || 0) > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-[#EEF4FF] border border-blue-150 rounded-[1.8rem] p-5 flex items-start gap-4 shadow-sm"
-                >
-                  <div className="w-10 h-10 rounded-full bg-[#7BA7FF]/15 text-[#7BA7FF] flex items-center justify-center text-lg shrink-0 shadow-inner">
-                    🤝
-                  </div>
-                  <div className="space-y-1">
-                    <h5 className="text-[11px] font-black text-blue-600 uppercase tracking-widest leading-none">Reinício de Aço • KYRON OS</h5>
-                    <p className="text-[11.5px] font-bold leading-relaxed text-slate-700">
-                      Sem pressão. Reiniciar é parte natural do processo biológico de adaptação. O seu próximo treino é o único passo que importa agora.
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </div>
 
             {/* PROTOCOLS SECTIONS */}
             <section className="space-y-4">
@@ -1355,6 +1235,112 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
                 </ScreenState>
               </div>
             </section>
+
+            {/* Context after the workout list. */}
+            <div className="mt-4 space-y-6">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none flex items-center gap-1.5 ml-1">
+                  <Calendar size={12} className="text-slate-400" />
+                  Métricas & Calendário
+                </h4>
+                <p className="text-[9.5px] font-black text-slate-400 uppercase tracking-wider mr-1">
+                  Sessão Ativa
+                </p>
+              </div>
+
+              {/* EDITORIAL CALENDAR STRIP PILLS */}
+              <div className="flex items-center justify-between gap-2.5 bg-white/70 backdrop-blur-xl p-2 rounded-[2rem] border border-white/50 overflow-x-auto no-scrollbar">
+                {calendarDays.map((day) => {
+                  let cellClass = "bg-white/40 border-transparent text-slate-400 hover:bg-white/90";
+                  let indicatorLabel = null;
+                  let cellTitle = '';
+
+                  if (day.state === 'completed') {
+                    cellClass = "bg-gradient-to-tr from-[#7BA7FF] to-[#A5C8FF] border-[#7BA7FF]/30 text-white shadow-lg shadow-[#7BA7FF]/25 font-black";
+                    indicatorLabel = <span className="absolute bottom-1 text-[8px] tracking-[0.2em] font-extrabold text-white/90 animate-pulse">✓</span>;
+                    cellTitle = 'Treino concluído';
+                  } else if (day.state === 'partial') {
+                    // Sessão parcial: nunca recebe o check de treino completo.
+                    cellClass = "bg-amber-50 border-2 border-amber-300 text-amber-700 font-black";
+                    indicatorLabel = <span className="absolute bottom-1 text-[8px] font-[1000] text-amber-600">◑</span>;
+                    cellTitle = 'Sessão parcial';
+                  } else if (day.state === 'missed') {
+                    cellClass = "bg-slate-50/50 border-2 border-dashed border-[#C4B5FD]/70 text-[#8B5CF6]/85 hover:bg-slate-50";
+                    indicatorLabel = <span className="absolute bottom-0.5 text-[7.5px] scale-90 font-[1000] text-[#8B5CF6]/70 uppercase tracking-widest">•</span>;
+                  } else if (day.state === 'future') {
+                    cellClass = "bg-white/90 border-2 border-dotted border-[#7BA7FF]/40 text-[#7BA7FF]/90 hover:border-[#7BA7FF] shadow-sm";
+                    indicatorLabel = <span className="absolute bottom-0.5 text-[7px] animate-pulse uppercase font-extrabold tracking-widest">…</span>;
+                  } else {
+                    // Rest day
+                    cellClass = "bg-slate-100/40 border border-slate-100 text-slate-400 hover:bg-slate-50";
+                    indicatorLabel = <span className="absolute bottom-1 text-[8px]">☕</span>;
+                    cellTitle = 'Dia de descanso';
+                  }
+
+                  return (
+                    <motion.div
+                      key={day.id}
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.93 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                      onClick={() => {
+                        if ('vibrate' in navigator) navigator.vibrate(5);
+                      }}
+                      title={cellTitle}
+                      aria-label={`${day.dayName} ${day.dayNum}${cellTitle ? ` — ${cellTitle}` : ''}`}
+                      className={`flex-1 flex flex-col items-center py-3 rounded-2xl border relative transition-all min-w-[43px] cursor-pointer ${cellClass}`}
+                    >
+                      <span className="text-[7.5px] font-[1000] tracking-widest leading-none mb-2 uppercase">{day.dayName}</span>
+                      <span className="text-sm font-black tracking-tighter leading-none mb-1">{day.dayNum}</span>
+                      {indicatorLabel}
+                      {day.isToday && (
+                        <span className="absolute -top-1 right-1 w-2 h-2 rounded-full bg-indigo-500 shadow-md ring-2 ring-white" />
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {calendarDays.some(day => day.state === 'partial') && (
+                <div className="flex items-center gap-2 -mt-3 ml-1">
+                  <span className="text-[11px] font-[1000] text-amber-600 leading-none">◑</span>
+                  <p className="text-[11px] font-bold text-amber-700 tracking-tight">
+                    Parcial — sessão registrada em parte, sem contar como treino completo.
+                  </p>
+                </div>
+              )}
+
+              {emotionalGuidance.kind !== 'training-day' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`p-4 rounded-3xl border text-xs font-bold leading-relaxed flex items-center gap-3 shadow-sm transition-all ${emotionalGuidance.color}`}
+                >
+                  <span className="text-xl select-none shrink-0">{emotionalGuidance.emoji}</span>
+                  <p className="flex-1 text-[11px] font-bold tracking-tight">{emotionalGuidance.text}</p>
+                </motion.div>
+              )}
+
+              {/* SOFT RECOVERY BLOCK FOR BROKEN STREAKS */}
+              {profile?.workout_streak === 0 && (profile?.preferred_training_days?.length || 0) > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-[#EEF4FF] border border-blue-150 rounded-[1.8rem] p-5 flex items-start gap-4 shadow-sm"
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#7BA7FF]/15 text-[#7BA7FF] flex items-center justify-center text-lg shrink-0 shadow-inner">
+                    🤝
+                  </div>
+                  <div className="space-y-1">
+                    <h5 className="text-[11px] font-black text-blue-600 uppercase tracking-widest leading-none">Reinício de Aço • KYRON OS</h5>
+                    <p className="text-[11.5px] font-bold leading-relaxed text-slate-700">
+                      Sem pressão. Reiniciar é parte natural do processo biológico de adaptação. O seu próximo treino é o único passo que importa agora.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
           </>
         ) : (
           <div className="space-y-8">
@@ -1369,6 +1355,23 @@ const Dashboard: React.FC<{ initialFolderId?: string | null }> = ({ initialFolde
             />
           </div>
         )}
+
+        <div className="mb-4 mt-6 grid grid-cols-2 gap-3">
+          <section aria-label="Progresso semanal" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="text-xs font-black text-slate-800">Progresso semanal</p><p className="mt-1 text-[11px] leading-snug text-slate-500">Dias com treino concluído nesta semana</p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(#16a34a ${weeklyGoal ? Math.min(100, weeklyCompleted / weeklyGoal * 100) : 0}%, #e2e8f0 0)` }}>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900">{weeklyGoal ? `${Math.round(Math.min(100, weeklyCompleted / weeklyGoal * 100))}%` : '—'}</div>
+              </div>
+              <p className="text-xs font-bold leading-snug text-slate-600"><strong className="block text-lg text-slate-900">{weeklyGoal == null ? '—' : `${Math.min(weeklyCompleted, weeklyGoal)} de ${weeklyGoal}`}</strong> dias de treino</p>
+            </div>
+          </section>
+          <section aria-label="Sua semana" className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="text-xs font-black text-slate-800">Sua semana</p>
+            <p className="mt-3 text-sm font-extrabold leading-tight text-slate-900">{weeklyGoal == null ? 'Dados insuficientes' : weeklyCompleted >= weeklyGoal ? 'Meta semanal alcançada' : 'Continue evoluindo'}</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">{weeklyGoal == null ? 'A frequência semanal ainda não está no perfil.' : weeklyCompleted >= weeklyGoal ? 'Você já atingiu sua meta de dias de treino.' : `Faltam ${Math.max(0, weeklyGoal - weeklyCompleted)} dias de treino para sua meta.`}</p>
+          </section>
+        </div>
 
         <MagicBuildModal 
             isOpen={showMagicModal}
