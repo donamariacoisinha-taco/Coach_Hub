@@ -214,7 +214,7 @@ const SetCard = ({
         scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
         default: transitionConfig
       } : transitionConfig}
-      className={`relative flex flex-col items-stretch ${isAdvanced ? 'p-3' : 'p-4'} rounded-2xl transition-all duration-300 border-2 ${
+      className={`relative flex flex-col items-stretch ${isAdvanced ? 'px-2.5 py-3 sm:p-3' : 'px-2.5 py-4 sm:p-4'} rounded-2xl transition-all duration-300 border-2 ${
         isCompleted ? (focusMode ? "bg-slate-900 border-slate-900/60" : "bg-slate-50") : 
         isPending ? "bg-slate-50 border-dashed animate-pulse cursor-wait" :
         (focusMode ? "bg-slate-900 border-slate-900/60" : "bg-white")
@@ -227,14 +227,14 @@ const SetCard = ({
           <Info size={16} aria-hidden="true" />
         </button>
       )}
-      <div className={`flex w-full flex-wrap items-center gap-x-3 gap-y-3 sm:gap-x-5 ${onOpenHistory ? 'pr-9' : ''}`}>
-        <div className="flex min-w-[176px] flex-1 items-center gap-3 sm:gap-5">
+      <div className={`grid w-full grid-cols-[minmax(0,1fr)_clamp(84px,30%,124px)] items-center gap-1.5 sm:gap-4 ${onOpenHistory || (isCompleted && !isCurrent) ? 'pr-10 sm:pr-9' : ''}`}>
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-5">
           <div className="flex shrink-0 flex-col items-center">
           <motion.div 
             initial={isCompleted ? { scale: 0.8 } : { scale: 1 }}
             animate={isCompleted ? { scale: [0.8, 1.1, 1] } : { scale: 1 }}
             transition={isCompleted ? { type: "keyframes", ease: "easeOut", duration: 0.3 } : { type: "spring", stiffness: 450, damping: 15 }}
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${
+            className={`size-[26px] rounded-full flex items-center justify-center text-xs font-black transition-all sm:size-8 ${
               isCompleted 
                 ? "bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.35)]" 
                 : isCurrent 
@@ -246,7 +246,7 @@ const SetCard = ({
           </motion.div>
           </div>
           
-          <div className="relative grid min-w-0 max-w-[24rem] flex-1 grid-cols-2 items-start gap-2 sm:gap-5" data-series-metrics>
+          <div className="relative grid min-w-0 max-w-[24rem] flex-1 grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] items-start gap-1 sm:grid-cols-2 sm:gap-5" data-series-metrics>
              <div className="min-w-0 text-center group" data-series-metric="weight">
                 <motion.input 
                   ref={setInputRef}
@@ -271,7 +271,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`mt-1 text-[11px] font-semibold leading-tight ${focusMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`mt-1 text-[10px] font-semibold leading-tight min-[380px]:text-[11px] ${focusMode ? 'text-slate-400' : 'text-slate-600'}`}>
                   Carga
                 </p>
                 {/* DELTA WEIGHT */}
@@ -312,7 +312,7 @@ const SetCard = ({
                     setIsFooterVisible(true);
                   }}
                 />
-                <p className={`mt-1 text-[11px] font-semibold leading-tight ${focusMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`mt-1 text-[10px] font-semibold leading-tight min-[380px]:text-[11px] ${focusMode ? 'text-slate-400' : 'text-slate-600'}`}>
                   Repetições
                 </p>
                 
@@ -348,7 +348,7 @@ const SetCard = ({
           )}
         </div>
 
-        <div data-series-effort className={`ml-auto flex w-[clamp(96px,31%,124px)] shrink-0 select-none flex-col items-center rounded-[14px] px-1.5 py-1.5 transition-colors ${
+        <div data-series-effort className={`flex min-w-0 select-none flex-col items-center rounded-[14px] px-1 py-1.5 transition-colors sm:px-1.5 ${
           focusMode 
             ? "bg-slate-900/60 backdrop-blur-md border border-slate-800/80" 
             : "bg-white/65 backdrop-blur-md border border-slate-200/50 shadow-sm"
