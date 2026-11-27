@@ -227,8 +227,8 @@ const SetCard = ({
           <Info size={16} aria-hidden="true" />
         </button>
       )}
-      <div className={`flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-2 ${onOpenHistory ? 'pr-9' : ''}`}>
-        <div className="flex min-w-[172px] flex-1 items-center gap-2 sm:flex-none sm:gap-4">
+      <div className={`flex w-full flex-wrap items-center gap-x-3 gap-y-3 sm:gap-x-5 ${onOpenHistory ? 'pr-9' : ''}`}>
+        <div className="flex min-w-[176px] flex-1 items-center gap-3 sm:gap-5">
           <div className="flex shrink-0 flex-col items-center">
           <motion.div 
             initial={isCompleted ? { scale: 0.8 } : { scale: 1 }}
@@ -246,7 +246,7 @@ const SetCard = ({
           </motion.div>
           </div>
           
-          <div className="relative grid min-w-0 flex-1 grid-cols-2 items-start gap-2 sm:w-[176px] sm:flex-none sm:gap-4" data-series-metrics>
+          <div className="relative grid min-w-0 max-w-[24rem] flex-1 grid-cols-2 items-start gap-2 sm:gap-5" data-series-metrics>
              <div className="min-w-0 text-center group" data-series-metric="weight">
                 <motion.input 
                   ref={setInputRef}
@@ -348,13 +348,13 @@ const SetCard = ({
           )}
         </div>
 
-        <div className={`flex flex-col items-center p-1 px-1.5 transition-all duration-300 rounded-[14px] w-[95px] sm:w-[105px] select-none shrink-0 ${
+        <div data-series-effort className={`ml-auto flex w-[clamp(96px,31%,124px)] shrink-0 select-none flex-col items-center rounded-[14px] px-1.5 py-1.5 transition-colors ${
           focusMode 
             ? "bg-slate-900/60 backdrop-blur-md border border-slate-800/80" 
             : "bg-white/65 backdrop-blur-md border border-slate-200/50 shadow-sm"
         }`}>
            <div className="relative w-full flex items-center justify-center">
-             <div className="flex gap-1 py-0.5 px-1 items-center justify-center">
+             <div className="grid w-full grid-cols-3 items-center gap-0.5 sm:gap-1">
                 {[8, 9, 10].map(v => {
                   const isSelected = setData.rpe === v;
                   let activeBg = 'bg-[#34D399]';
@@ -373,9 +373,9 @@ const SetCard = ({
                       }}
                       aria-label={`RPE ${v}${isSelected ? ' (selecionado)' : ''}`}
                       aria-pressed={isSelected}
-                      className={`w-6 h-6 rounded-lg text-[10px] font-black transition-all flex items-center justify-center shrink-0 ${
+                      className={`flex min-h-7 min-w-0 items-center justify-center rounded-lg text-xs font-bold transition-all focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 ${
                         isSelected 
-                          ? `${activeBg} text-white shadow-sm scale-110`
+                          ? `${activeBg} text-white shadow-sm`
                           : focusMode 
                             ? "text-slate-500 hover:bg-slate-800/40 hover:text-slate-300" 
                             : "text-slate-400 bg-slate-50/60 hover:bg-slate-100 hover:text-slate-600"
@@ -387,9 +387,9 @@ const SetCard = ({
                 })}
              </div>
            </div>
-           <p className={`text-[8.5px] font-black tracking-wide mt-1 uppercase leading-none ${
-             focusMode ? 'text-slate-500' : 'text-slate-400/80'
-           }`}>RPE • Esforço</p>
+           <p className={`mt-1.5 text-[9px] font-semibold leading-tight ${
+             focusMode ? 'text-slate-300' : 'text-slate-600'
+           }`}>RPE · Esforço</p>
         </div>
       </div>
 
