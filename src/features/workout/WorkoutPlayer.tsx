@@ -76,6 +76,10 @@ import { confirmedSetIndexes, saveChoiceWritesPlan, volumeKg } from "../../domai
 
 type UserLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
+// Reconfirm the visual preference after restoring the Classic player.
+// The old key is intentionally ignored; session and series storage are untouched.
+const WORKOUT_PLAYER_VARIANT_KEY = 'kyron:workout-player-variant:v2';
+
 function SeriesRepeatToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
     <button type="button" role="switch" aria-label="Repetir nas próximas séries" aria-checked={enabled}
@@ -555,12 +559,12 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
   const workoutRootRef = useRef<HTMLDivElement>(null);
   // Visual preference only: never changes workout session data or progression.
   const [playerVariant, setPlayerVariant] = useState<'classic' | 'new'>(() => {
-    try { return localStorage.getItem('kyron:workout-player-variant') === 'new' ? 'new' : 'classic'; }
+    try { return localStorage.getItem(WORKOUT_PLAYER_VARIANT_KEY) === 'new' ? 'new' : 'classic'; }
     catch { return 'classic'; }
   });
   const changePlayerVariant = (variant: 'classic' | 'new') => {
     setPlayerVariant(variant);
-    try { localStorage.setItem('kyron:workout-player-variant', variant); } catch { /* storage unavailable */ }
+    try { localStorage.setItem(WORKOUT_PLAYER_VARIANT_KEY, variant); } catch { /* storage unavailable */ }
   };
 
 
