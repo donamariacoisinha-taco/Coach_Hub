@@ -3664,84 +3664,99 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
           volume={selectedSeriesVolume} sessions={threeSessionHistory} loading={historyLoading}
           error={historyError} onClose={() => setHistorySetNumber(null)} />
       )}
-      {/* New visual mode is scoped to the player root; both modes share the same workout state and saving logic. */}
-      {playerVariant === 'new' && (
-        <style>{`
-          [data-workout-player][data-player-variant="new"] { background: #f0f4f8; }
-          [data-workout-player][data-player-variant="new"] .bg-white { background-color: #ffffff; }
-          [data-workout-player][data-player-variant="new"] .rounded-2xl { border-radius: 1.25rem; }
-          [data-workout-player][data-player-variant="new"] .border-slate-100 { border-color: #dbe4ed; }
-          [data-workout-player][data-player-variant="new"] .text-slate-400 { color: #64748b; }
-          [data-workout-player][data-player-variant="new"] { background: linear-gradient(160deg, #e7edf5, #f8fafc); }
-          [data-workout-player][data-player-variant="new"] .sticky.top-0 { display: none; }
-          [data-workout-player][data-player-variant="new"] input { font-size: 1.2rem; font-weight: 800; }
-          [data-workout-player][data-player-variant="new"] button { min-height: 40px; }
-          [data-workout-player][data-player-variant="new"] .space-y-2 > * { border-radius: 1.5rem; }
-        `}</style>
-      )}
-      {playerVariant === 'new' && currentEx && (
-        <section aria-label="Resumo do exercício atual" className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#F3F8FF] via-[#F7FAFF] to-white text-[#14253D] px-4 pt-20 pb-8">
-          <div className="mx-auto max-w-3xl">
-            <div className="mb-3 flex justify-end gap-2">
-              <SeriesRepeatToggle enabled={repeatUpcomingSeries} onToggle={toggleRepeatUpcomingSeries} />
-              <button type="button" onClick={() => changePlayerVariant('classic')} aria-label="Alternar para o player Clássico" className="min-h-11 rounded-xl border border-[#DCE6F3] bg-white/75 px-4 text-xs font-semibold text-[#536A84] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7BA7FF]">Clássico</button>
-            </div>
-            <p className="text-xs font-bold uppercase tracking-widest text-[#5D8FD6]">Em execução · Exercício {currentIndex + 1} de {exercises.length}</p>
-            <h2 className="mt-1 text-2xl font-black leading-tight">{currentEx.exercise_name}</h2>
-            <nav aria-label="Navegação das séries e exercícios" className="mt-3 flex items-center gap-2">
-              <button type="button" disabled={!canGoToPreviousSet()} onClick={goToPreviousSet} className="flex-1 rounded-xl border border-[#DCE6F3] bg-white px-3 py-3 text-sm font-extrabold text-[#14253D] disabled:opacity-30">← Anterior</button>
-              <button type="button" disabled={!canGoToNextSet()} onClick={goToNextSet} className="flex-1 rounded-xl bg-[#7BA7FF] px-3 py-3 text-sm font-extrabold text-white disabled:opacity-30">Próxima →</button>
-            </nav>
-            <div className="mt-3 flex items-center justify-between gap-4">
-              <span className="rounded-xl border border-[#DFE9F6] bg-white px-3 py-2 text-sm font-bold">Série {currentSet} de {activeSetsData.length}</span>
-              <span className="text-sm font-semibold text-[#687A91]">Tempo {formatTime(workoutDuration)}</span>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-[#DCE6F3] bg-white p-3" aria-label="Controles rápidos da série atual" data-series-metrics>
-              <div className="min-w-0 text-center" data-series-metric="weight">
-                <p className="flex h-7 items-center justify-center text-lg font-black leading-none tabular-nums sm:h-8 sm:text-2xl">{activeSetsData[currentSet - 1]?.weight || 0}<span className="ml-0.5 text-[9px] font-semibold">kg</span></p>
-                <p className="mt-1 text-xs font-semibold leading-tight text-[#53677F]">Carga</p>
-                <div className="mt-2 flex justify-center gap-1">
-                  <button type="button" aria-label="Reduzir carga em 2 kg" title="Diminuir carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Math.max(0, Number(activeSetsData[currentSet - 1]?.weight || 0) - 2))} className="h-11 w-11 min-w-0 rounded-xl bg-[#E9F1FC] text-xl font-black text-[#203753]">−</button>
-                  <button type="button" aria-label="Aumentar carga em 2 kg" title="Aumentar carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Number(activeSetsData[currentSet - 1]?.weight || 0) + 2)} className="h-11 w-11 min-w-0 rounded-xl bg-[#7BA7FF] text-xl font-black text-white">+</button>
+      {playerVariant === 'new' && currentEx && (() => {
+        const series = activeSetsData[currentSet - 1];
+        const currentWeight = Number(series?.weight || 0);
+        const currentReps = Number(series?.reps || 0);
+        const nextExercise = exercises[currentIndex + 1]?.exercise_name;
+        const progress = Math.min(Math.max(0, currentSet - 1), activeSetsData.length);
+        const stepperClass = 'grid min-h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-800 transition-colors hover:bg-slate-200 active:bg-slate-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700';
+        const secondaryClass = 'inline-flex min-h-11 items-center justify-center gap-1 rounded-xl bg-slate-100 px-2.5 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-200 active:bg-slate-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:opacity-40';
+        return (
+          <section aria-label="Resumo do exercício atual" className="flex min-h-0 flex-1 flex-col bg-[#F4F6F9] text-[#14253D]">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <div className="mx-auto max-w-xl space-y-3 px-3 py-3 sm:space-y-4 sm:px-5 sm:py-5">
+                <header className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                    <button type="button" onClick={() => changePlayerVariant('classic')} aria-label="Alternar para o player Clássico"
+                      className={secondaryClass}><ChevronLeft size={17} aria-hidden="true" />Clássico</button>
+                    <SeriesRepeatToggle enabled={repeatUpcomingSeries} onToggle={toggleRepeatUpcomingSeries} />
+                  </div>
+                  <div>
+                    <div className="flex items-baseline justify-between gap-2 text-sm text-slate-600">
+                      <p>Exercício {currentIndex + 1} de {exercises.length}</p>
+                      <p className="shrink-0 tabular-nums">Tempo {formatTime(workoutDuration)}</p>
+                    </div>
+                    <h2 className="mt-1 break-words text-[1.5rem] font-bold leading-tight tracking-tight sm:text-3xl">{currentEx.exercise_name}</h2>
+                  </div>
+                </header>
+                <section aria-label="Série atual" className="rounded-3xl border border-slate-200/90 bg-white px-3 py-3 shadow-sm sm:px-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base font-bold">Série {currentSet} de {activeSetsData.length}</h3>
+                    <nav aria-label="Navegação das séries e exercícios" className="flex shrink-0 gap-1.5">
+                      <button type="button" aria-label="Série anterior" disabled={!canGoToPreviousSet()} onClick={goToPreviousSet} className={secondaryClass + ' w-11 px-0'}>
+                        <ChevronLeft size={20} aria-hidden="true" />
+                      </button>
+                      <button type="button" aria-label="Próxima série" disabled={!canGoToNextSet()} onClick={goToNextSet} className={secondaryClass + ' w-11 px-0'}>
+                        <ChevronRight size={20} aria-hidden="true" />
+                      </button>
+                    </nav>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100" role="progressbar"
+                    aria-label="Progresso das séries do exercício" aria-valuemin={0} aria-valuemax={activeSetsData.length || 1} aria-valuenow={progress}>
+                    <div className="h-full rounded-full bg-[#2863A5] motion-safe:transition-all" style={{ width: `${activeSetsData.length ? (progress / activeSetsData.length) * 100 : 0}%` }} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 divide-x divide-slate-100" aria-label="Controles rápidos da série atual" data-series-metrics>
+                    <div className="min-w-0 text-center" data-series-metric="weight">
+                      <p className="min-h-7 break-words text-2xl font-bold leading-7 tabular-nums">{currentWeight}<span className="ml-1 text-xs font-medium text-slate-600">kg</span></p>
+                      <p className="mt-0.5 text-sm text-slate-600">Carga</p>
+                      <div className="mt-2 flex justify-center gap-1.5">
+                        <button type="button" aria-label="Reduzir carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', Math.max(0, currentWeight - 2))} className={stepperClass}><Minus size={18} aria-hidden="true" /></button>
+                        <button type="button" aria-label="Aumentar carga em 2 kg" onClick={() => updateSetData(currentSet - 1, 'weight', currentWeight + 2)} className={stepperClass}><Plus size={18} aria-hidden="true" /></button>
+                      </div>
+                    </div>
+                    <div className="min-w-0 text-center" data-series-metric="reps">
+                      <p className="min-h-7 break-words text-2xl font-bold leading-7 tabular-nums">{series?.reps || 0}</p>
+                      <p className="mt-0.5 text-sm text-slate-600">Repetições</p>
+                      <div className="mt-2 flex justify-center gap-1.5">
+                        <button type="button" aria-label="Reduzir repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Math.max(0, currentReps - 1))} className={stepperClass}><Minus size={18} aria-hidden="true" /></button>
+                        <button type="button" aria-label="Aumentar repetições" onClick={() => updateSetData(currentSet - 1, 'reps', currentReps + 1)} className={stepperClass}><Plus size={18} aria-hidden="true" /></button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 border-t border-slate-100 pt-3" role="group" aria-label="Esforço da série atual">
+                    <p className="mb-2 text-sm font-semibold text-slate-700">Esforço percebido <span className="font-normal text-slate-600">· RPE</span></p>
+                    <div className="grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1">
+                      {[8, 9, 10].map(value => {
+                        const selected = Number(series?.rpe || 8) === value;
+                        return <button key={value} type="button" aria-label={`RPE ${value}`} aria-pressed={selected}
+                          onClick={() => updateSetData(currentSet - 1, 'rpe', value)}
+                          className={`min-h-11 rounded-xl text-base font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${selected ? 'bg-white text-[#215A98] shadow-sm ring-1 ring-slate-200' : 'text-slate-700 hover:bg-slate-200 active:bg-slate-300'}`}>{value}</button>;
+                      })}
+                    </div>
+                  </div>
+                </section>
+                <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm sm:grid-cols-2 sm:px-5">
+                  <p className="flex items-baseline justify-between gap-2 text-slate-600">Descanso <strong className={`tabular-nums ${isResting ? 'text-[#215A98]' : 'text-slate-800'}`}>{isResting ? formatTime(Math.max(0, timeLeft)) : 'Pronto'}</strong></p>
+                  <p className="break-words text-slate-600 sm:text-right">{nextExercise ? <>Próximo: <strong className="font-medium text-slate-800">{nextExercise}</strong></> : 'Último exercício'}</p>
                 </div>
               </div>
-              <div className="min-w-0 text-center" data-series-metric="reps">
-                <p className="flex h-7 items-center justify-center text-lg font-black leading-none tabular-nums sm:h-8 sm:text-2xl">{activeSetsData[currentSet - 1]?.reps || 0}</p>
-                <p className="mt-1 text-xs font-semibold leading-tight text-[#53677F]">Repetições</p>
-                <div className="mt-2 flex justify-center gap-1">
-                  <button type="button" aria-label="Reduzir repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Math.max(0, Number(activeSetsData[currentSet - 1]?.reps || 0) - 1))} className="h-11 w-11 min-w-0 rounded-xl bg-[#E9F1FC] text-xl font-black text-[#203753]">−</button>
-                  <button type="button" aria-label="Aumentar repetições" onClick={() => updateSetData(currentSet - 1, 'reps', Number(activeSetsData[currentSet - 1]?.reps || 0) + 1)} className="h-11 w-11 min-w-0 rounded-xl bg-[#7BA7FF] text-xl font-black text-white">+</button>
-                </div>
+            </div>
+            <footer className="shrink-0 border-t border-slate-200 bg-white px-3 pt-2 pb-[max(.25rem,env(safe-area-inset-bottom))] sm:px-5">
+              <div className="mx-auto max-w-[34rem]">
+                <button type="button" disabled={saving || isTransitioning}
+                  onClick={isResting ? () => { if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete); } : handlePrimarySetAction}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#245F9E] px-4 py-2.5 text-base font-bold text-white transition-colors hover:bg-[#1F5289] active:bg-[#174573] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:opacity-50">
+                  {saving ? 'Salvando…' : isResting ? (timeLeft <= 0 ? 'Próxima série' : 'Pular descanso') : isWorkoutTerminal ? 'Finalizar treino' : 'Concluir série'}
+                  {!saving && <ArrowRight size={17} aria-hidden="true" />}
+                </button>
+                <button type="button" onClick={() => setShowExitModal(true)}
+                  className="mx-auto block min-h-11 rounded-lg px-3 text-sm font-semibold text-slate-600 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Sair ou encerrar treino</button>
               </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[#DFE9F6] bg-white px-3 py-2 text-sm">
-              <span className="font-semibold text-[#53677F]">Descanso: <strong className="text-[#14253D]">{isResting ? formatTime(Math.max(0, timeLeft)) : 'Pronto'}</strong></span>
-              <span className="max-w-[52%] truncate text-right text-[#687A91]">{exercises[currentIndex + 1]?.exercise_name ? `Próximo: ${exercises[currentIndex + 1].exercise_name}` : 'Último exercício'}</span>
-            </div>
-            <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#DCE6F3]" role="progressbar" aria-label="Progresso das séries do exercício" aria-valuemin={0} aria-valuemax={activeSetsData.length || 1} aria-valuenow={Math.min(currentSet - 1, activeSetsData.length)}>
-              <div className="h-full rounded-full bg-[#7BA7FF] transition-all" style={{ width: `${activeSetsData.length ? Math.max(0, (currentSet - 1) / activeSetsData.length) * 100 : 0}%` }} />
-            </div>
-            <div className="mt-5 rounded-2xl border border-[#DCE6F3] bg-white p-4" aria-label="Esforço da série atual">
-              <p className="text-[11px] font-black uppercase tracking-widest text-[#687A91]">Esforço percebido · RPE</p>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {[8, 9, 10].map(value => (
-                  <button key={value} type="button" aria-pressed={Number(activeSetsData[currentSet - 1]?.rpe || 8) === value}
-                    onClick={() => updateSetData(currentSet - 1, 'rpe', value)}
-                    className={`h-12 rounded-xl text-lg font-black transition-colors ${Number(activeSetsData[currentSet - 1]?.rpe || 8) === value ? 'bg-[#7BA7FF] text-white' : 'bg-[#E9F1FC] text-[#53677F]'}`}>
-                    {value}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button type="button" disabled={saving || isTransitioning}
-              onClick={isResting ? () => { if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete); } : handlePrimarySetAction}
-              className="mt-5 w-full min-h-16 rounded-2xl bg-[#7BA7FF] px-4 py-4 text-base font-black text-white disabled:opacity-50">
-              {saving ? 'SALVANDO...' : isResting ? (timeLeft <= 0 ? 'PRÓXIMA SÉRIE' : 'PULAR DESCANSO') : isWorkoutTerminal ? 'FINALIZAR TREINO' : 'CONCLUIR SÉRIE →'}
-            </button>
-            <button type="button" onClick={() => setShowExitModal(true)} className="mt-3 w-full rounded-xl border border-[#DCE6F3] px-4 py-3 text-sm font-semibold text-[#687A91]">Sair ou encerrar treino</button>
-          </div>
-        </section>
-      )}
+            </footer>
+          </section>
+        );
+      })()}
       {showRecoveryPrompt && recoverySession && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
