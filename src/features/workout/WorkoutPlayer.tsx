@@ -3737,13 +3737,14 @@ export default function WorkoutPlayer({ workoutId }: { workoutId: string }) {
                   </div>
                 </section>
                 <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm sm:grid-cols-2 sm:px-5">
-                  <p className="flex items-baseline justify-between gap-2 text-slate-600">Descanso <strong className={`tabular-nums ${isResting ? 'text-[#215A98]' : 'text-slate-800'}`}>{isResting ? formatTime(Math.max(0, timeLeft)) : 'Pronto'}</strong></p>
+                  {!isResting && <p className="flex items-baseline justify-between gap-2 text-slate-600">Descanso <strong className="text-slate-800">Pronto</strong></p>}
                   <p className="break-words text-slate-600 sm:text-right">{nextExercise ? <>Próximo: <strong className="font-medium text-slate-800">{nextExercise}</strong></> : 'Último exercício'}</p>
                 </div>
               </div>
             </div>
             <footer className="shrink-0 border-t border-slate-200 bg-white px-3 pt-2 pb-[max(.25rem,env(safe-area-inset-bottom))] sm:px-5">
               <div className="mx-auto max-w-[34rem]">
+                {isResting && <p className="mb-1 flex justify-between px-1 text-sm text-slate-600">Descanso restante <strong className="tabular-nums text-[#215A98]">{formatTime(Math.max(0, timeLeft))}</strong></p>}
                 <button type="button" disabled={saving || isTransitioning}
                   onClick={isResting ? () => { if (pendingSetToComplete !== null) advanceWorkout(pendingSetToComplete); } : handlePrimarySetAction}
                   className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#245F9E] px-4 py-2.5 text-base font-bold text-white transition-colors hover:bg-[#1F5289] active:bg-[#174573] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:opacity-50">
